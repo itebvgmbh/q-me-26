@@ -158,11 +158,10 @@ const ServiceBooking = () => {
       console.log('Creating appointment...');
       try {
         // Verwende die gemeinsame createAppointment-Funktion anstatt direktes Firestore
-        const adjustedStartTime = new Date(startTime.getTime() - startTime.getTimezoneOffset() * 60000);
-        const adjustedEndTime = new Date(endTime.getTime() - endTime.getTimezoneOffset() * 60000);
+        const adjustedStartTime = startTime;
+        const adjustedEndTime = endTime;
         
         console.log(`Original times: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}`);
-        console.log(`Adjusted times for storing: ${adjustedStartTime.toLocaleString()} - ${adjustedEndTime.toLocaleString()}`);
         
         const appointmentData = {
           shopId: shopId,

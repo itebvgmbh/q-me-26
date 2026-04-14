@@ -75,9 +75,9 @@ def calculate_available_timeslots(
                 start_datetime = appt['startTime']
                 end_datetime = appt['endTime']
                 if start_datetime.tzinfo:
-                    start_datetime = start_datetime.replace(tzinfo=None)
+                    start_datetime = start_datetime.astimezone().replace(tzinfo=None)
                 if end_datetime.tzinfo:
-                    end_datetime = end_datetime.replace(tzinfo=None)
+                    end_datetime = end_datetime.astimezone().replace(tzinfo=None)
             elif isinstance(appt.get('startTime'), str):
                 try:
                     # Versuche, den String in ein Datetime-Objekt zu konvertieren
@@ -173,9 +173,9 @@ def calculate_available_timeslots(
                     start_datetime = break_item['startTime']
                     end_datetime = break_item['endTime']
                     if start_datetime.tzinfo:
-                        start_datetime = start_datetime.replace(tzinfo=None)
+                        start_datetime = start_datetime.astimezone().replace(tzinfo=None)
                     if end_datetime.tzinfo:
-                        end_datetime = end_datetime.replace(tzinfo=None)
+                        end_datetime = end_datetime.astimezone().replace(tzinfo=None)
                 else:
                     continue
                     
@@ -237,9 +237,9 @@ def calculate_available_timeslots(
                     start_datetime = break_item['startTime']
                     end_datetime = break_item['endTime']
                     if start_datetime.tzinfo:
-                        start_datetime = start_datetime.replace(tzinfo=None)
+                        start_datetime = start_datetime.astimezone().replace(tzinfo=None)
                     if end_datetime.tzinfo:
-                        end_datetime = end_datetime.replace(tzinfo=None)
+                        end_datetime = end_datetime.astimezone().replace(tzinfo=None)
                 else:
                     continue
                     

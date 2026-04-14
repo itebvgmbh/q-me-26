@@ -514,18 +514,15 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
             end_time = None
 
             # Extract start and end times based on format
-            import zoneinfo
-            local_tz = zoneinfo.ZoneInfo('Europe/Berlin')
-
             if isinstance(appt.get('startTime'), dict) and 'seconds' in appt.get('startTime', {}):
                 start_seconds = appt['startTime']['seconds']
                 end_seconds = appt['endTime']['seconds']
-                start_time = datetime.fromtimestamp(start_seconds, local_tz).replace(tzinfo=None)
-                end_time = datetime.fromtimestamp(end_seconds, local_tz).replace(tzinfo=None)
+                start_time = datetime.fromtimestamp(start_seconds)
+                end_time = datetime.fromtimestamp(end_seconds)
                 print(f"Appointment using dict format: {appt['id']}, start={start_time}, end={end_time}")
             elif hasattr(appt.get('startTime'), 'seconds'):
-                start_time = datetime.fromtimestamp(appt['startTime'].seconds, local_tz).replace(tzinfo=None)
-                end_time = datetime.fromtimestamp(appt['endTime'].seconds, local_tz).replace(tzinfo=None)
+                start_time = datetime.fromtimestamp(appt['startTime'].seconds)
+                end_time = datetime.fromtimestamp(appt['endTime'].seconds)
                 print(f"Appointment using object format: {appt['id']}, start={start_time}, end={end_time}")
             # Handle DatetimeWithNanoseconds and datetime objects directly
             elif isinstance(appt.get('startTime'), (datetime, object)) and isinstance(appt.get('endTime'), (datetime, object)):
@@ -534,9 +531,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     end_time = appt['endTime']
                     # Convert from UTC to local time if timestamps have timezone info
                     if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
-                        start_time = start_time.astimezone(local_tz).replace(tzinfo=None)
+                        start_time = start_time.astimezone().replace(tzinfo=None)
                     if hasattr(end_time, 'tzinfo') and end_time.tzinfo is not None:
-                        end_time = end_time.astimezone(local_tz).replace(tzinfo=None)
+                        end_time = end_time.astimezone().replace(tzinfo=None)
                     print(f"Appointment using datetime format: {appt['id']}, start={start_time}, end={end_time}")
                 except Exception as datetime_err:
                     print(f"Error handling datetime object: {datetime_err}, using convert_timestamp_to_datetime instead")
@@ -544,9 +541,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     start_time = convert_timestamp_to_datetime(appt['startTime'])
                     end_time = convert_timestamp_to_datetime(appt['endTime'])
                     if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
-                        start_time = start_time.astimezone(local_tz).replace(tzinfo=None)
+                        start_time = start_time.astimezone().replace(tzinfo=None)
                     if hasattr(end_time, 'tzinfo') and end_time.tzinfo is not None:
-                        end_time = end_time.astimezone(local_tz).replace(tzinfo=None)
+                        end_time = end_time.astimezone().replace(tzinfo=None)
             # Handle string timestamps (ISO format)
             elif isinstance(appt.get('startTime'), str) and isinstance(appt.get('endTime'), str):
                 try:
@@ -576,9 +573,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     start_time = convert_timestamp_to_datetime(appt['startTime'])
                     end_time = convert_timestamp_to_datetime(appt['endTime'])
                     if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
-                        start_time = start_time.astimezone(local_tz).replace(tzinfo=None)
+                        start_time = start_time.astimezone().replace(tzinfo=None)
                     if hasattr(end_time, 'tzinfo') and end_time.tzinfo is not None:
-                        end_time = end_time.astimezone(local_tz).replace(tzinfo=None)
+                        end_time = end_time.astimezone().replace(tzinfo=None)
                     print(f"After fallback conversion: start={start_time}, end={end_time}")
             else:
                 print(f"Warning: Unrecognized timestamp format for appointment {appt.get('id')}: {type(appt.get('startTime'))}")
@@ -586,9 +583,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
 
             # General fix: catch-all timezone conversion if some branch missed it
             if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
-                start_time = start_time.astimezone(local_tz).replace(tzinfo=None)
+                start_time = start_time.astimezone().replace(tzinfo=None)
             if hasattr(end_time, 'tzinfo') and end_time.tzinfo is not None:
-                end_time = end_time.astimezone(local_tz).replace(tzinfo=None)
+                end_time = end_time.astimezone().replace(tzinfo=None)
 
             # Skip appointments without valid timestamps
             if not start_time or not end_time:

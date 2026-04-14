@@ -72,7 +72,7 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
     };
 
     fetchTimeSlots();
-  }, [shopId, serviceId, staffId, date, getTimeSlots]);
+  }, [shopId, serviceId, staffId, date, getTimeSlots, forceRefresh]);
 
   // Konfiguriere die Sensoren für Drag & Drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -185,14 +185,11 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
         const appointmentRef = doc(collection(db, 'appointments'));
         
         // Calculate the timezone offset in minutes to adjust for timezone differences
-        const timezoneOffsetMinutes = startTime.getTimezoneOffset();
-        
-        // Create adjusted dates that preserve the displayed local time
-        const adjustedStartTime = new Date(startTime.getTime() - timezoneOffsetMinutes * 60000);
-        const adjustedEndTime = new Date(endTime.getTime() - timezoneOffsetMinutes * 60000);
+        // No longer needed: Timestamp.fromDate() will natively calculate local time for the UTC string
+        const adjustedStartTime = startTime;
+        const adjustedEndTime = endTime;
         
         console.log(`Original times: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}`);
-        console.log(`Adjusted times for storing: ${adjustedStartTime.toLocaleString()} - ${adjustedEndTime.toLocaleString()}`);
         
         const appointmentData = {
           id: appointmentRef.id,
@@ -224,6 +221,9 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
 
         console.log('Booking successful!');
         toast.success('Termin erfolgreich gebucht');
+
+        // Optimistisches UI-Update: Entferne den gebuchten Zeitslot sofort aus der Ansicht!
+        setAppointmentBlocks(prev => prev.filter(block => block.id !== selectedAppointment.id));
         
         // Also pass the selected time slot to parent component for UI updates
         onTimeSlotSelect({

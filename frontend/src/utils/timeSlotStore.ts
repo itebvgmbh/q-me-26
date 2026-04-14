@@ -87,7 +87,8 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
   // Hilfsfunktion zum Erstellen des Cache-Schlüssels
   generateCacheKey: (shopId, serviceId, staffId, date) => {
     // Formatiere das Datum als YYYY-MM-DD
-    const dateString = date.toISOString().split('T')[0];
+    const adjustedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    const dateString = adjustedDate.toISOString().split('T')[0];
     return `${shopId}_${serviceId}_${staffId || 'null'}_${dateString}`;
   },
   
@@ -295,12 +296,17 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
     try {
       console.log(`Fetching timeslots for ${cacheKey}`);
       
+      // Vermeide Zeitzonen-Probleme beim Erstellen des Datumsstrings
+      const adjustedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      const dateStr = adjustedDate.toISOString().split('T')[0];
+      
       // API-Aufruf - mit oder ohne Authentifizierung
       const requestPayload = {
         shop_id: shopId,
         service_id: serviceId,
         staff_id: staffId,
-        date: date.toISOString().split('T')[0]
+        date: dateStr,
+        force_refresh: shouldRefresh
       };
       
       let timeSlots;
@@ -319,7 +325,6 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
       } else {
         // Direkte Firestore-Anfrage
         console.log('Using direct Firestore access for timeslots');
-        const dateStr = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
         timeSlots = await getAvailableTimeslotsDirect(shopId, serviceId, staffId, dateStr);
         // Debug-Ausgabe der gefundenen Slots
         console.log(`Found ${timeSlots.length} slots via direct Firestore access:`, timeSlots);

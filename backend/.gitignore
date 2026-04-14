@@ -40,3 +40,7 @@ coverage.xml
 
 # Uvicorn
 *.log
+
+# Cache
+.local_data/
+
