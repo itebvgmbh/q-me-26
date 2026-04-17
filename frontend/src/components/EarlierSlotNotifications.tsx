@@ -38,11 +38,24 @@ export const EarlierSlotNotifications = ({ notifications, onAccept, onRefresh }:
     return null;
   }
 
+  // Format duration difference elegantly
+  const formatDurationDiff = (minutes: number) => {
+    if (minutes < 60) return `${minutes} Minuten`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 ? `${hours} Stunden und ${remainingMinutes} Minuten` : `${hours} Stunden`;
+    }
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return remainingHours > 0 ? `${days} Tage und ${remainingHours} Stunden` : `${days} Tage`;
+  };
+
   // Format date for display - safely handles different date formats
   const formatDateTime = (dateInput: any) => {
     try {
       const date = safelyConvertToDate(dateInput);
-      return format(date, 'EEEE, d. MMMM yyyy HH:mm', { locale: de, timeZone: 'Europe/Berlin' });
+      return format(date, "EEEE, d. MMMM yyyy 'um' HH:mm 'Uhr'", { locale: de, timeZone: 'Europe/Berlin' } as any);
     } catch (error) {
       console.error('Error formatting date:', error, dateInput);
       return 'Ungültiges Datum';
@@ -98,24 +111,20 @@ export const EarlierSlotNotifications = ({ notifications, onAccept, onRefresh }:
               <AlertDescription className="mt-2 text-sm space-y-3">
                 <div className="space-y-1">
                   <p>
-                    Du kannst deinen Termin um <strong>{minutesDiff} Minuten früher</strong> wahrnehmen.
+                    Du kannst deinen Termin um <strong>{formatDurationDiff(minutesDiff)} früher</strong> wahrnehmen.
                   </p>
-                  <div className="text-xs text-slate-600">
-                    <div className="flex gap-1">
-                      <span className="font-medium">Termin-ID:</span>
+                  <div className="text-xs text-slate-600 space-y-1 mt-2">
+                    <div className="flex gap-2">
+                      <span className="font-medium w-24">Termin-ID:</span>
                       <span>{notification.appointmentId}</span>
                     </div>
-                    <div className="flex gap-1">
-                      <span className="font-medium">Neuer Termin:</span>
-                      <span>{formatTime(notification.earlierStartTime)} Uhr</span>
+                    <div className="flex gap-2">
+                      <span className="font-medium w-24">Neuer Termin:</span>
+                      <span>{formatDateTime(notification.earlierStartTime)}</span>
                     </div>
-                    <div className="flex gap-1">
-                      <span className="font-medium">Aktueller Termin:</span>
-                      <span>{formatTime(notification.originalStartTime)} Uhr</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <span className="font-medium">Datum:</span>
-                      <span>{formatDateTime(notification.originalStartTime).split(',')[0]}</span>
+                    <div className="flex gap-2">
+                      <span className="font-medium w-24">Bisheriger:</span>
+                      <span className="line-through opacity-70">{formatDateTime(notification.originalStartTime)}</span>
                     </div>
                   </div>
                 </div>

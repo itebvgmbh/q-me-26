@@ -133,6 +133,8 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
         serviceIds: selectedServiceIds,
         isActive: true,
         profileImageUrl: newProfileImageUrl,
+        status: 'available',
+        userId: '',
       });
 
       // Automatically generate registration link

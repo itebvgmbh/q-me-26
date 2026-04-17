@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { TimeSlot } from './types';
+import { TimeSlot } from '../types';
 import { Staff } from '../firestore';
 import { findAvailableTimeSlot } from './slotFinderUtils';
 

@@ -5,8 +5,10 @@ import { createCustomer, isTimeSlotAvailable } from '../utils/firestore';
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { AppointmentBlock, CalendarTimeSlot, Service, TimeSlot } from '../utils/types';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import { DroppableCalendarArea } from './DroppableCalendarArea';
@@ -35,10 +37,12 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
   onTimeSlotSelect,
   forceRefresh = false,
 }: CalendarDayViewProps) => {
+  const navigate = useNavigate();
   const [appointmentBlocks, setAppointmentBlocks] = useState<AppointmentBlock[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentBlock | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [checkEarlierOptions, setCheckEarlierOptions] = useState(false);
 
   // Nutze den Store statt direkter API-Aufrufe
   const getTimeSlots = useTimeSlotStore(state => state.getTimeSlots);
@@ -50,7 +54,7 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
       setLoading(true);
       try {
         // Verwende den zentralen Store zum Laden der Daten
-        const slots = await getTimeSlots(shopId, serviceId, staffId, date, forceRefresh);
+        const slots = await getTimeSlots(shopId, serviceId, staffId, date, !!forceRefresh);
 
         // Convert response to appointment blocks format
         const blocks: AppointmentBlock[] = slots.map((slot: TimeSlot, index: number) => ({
@@ -92,6 +96,7 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
     if (!appointment.isAvailable) return;
     
     setSelectedAppointment(appointment);
+    setCheckEarlierOptions(false);
     setShowConfirmDialog(true);
   };
 
@@ -118,8 +123,9 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
   const handleBookAppointment = async () => {
     if (!selectedAppointment) return;
     if (!user) {
-      toast.error('Bitte melden Sie sich an');
+      toast.error('Bitte melden Sie sich an, um zu buchen');
       setShowConfirmDialog(false);
+      navigate('/login');
       return;
     }
 
@@ -207,6 +213,8 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
           endTime: Timestamp.fromDate(adjustedEndTime),
           status: 'scheduled',
           type: 'booked',
+          checkEarlierOptions: checkEarlierOptions,
+          ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {}),
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
@@ -357,6 +365,21 @@ export const CalendarDayView: React.FC<CalendarDayViewProps> = ({
                       {format(selectedAppointment.endTime, 'HH:mm')} Uhr
                     </strong>
                   </p>
+
+                  <div className="flex items-center space-x-2 mt-3 mb-4">
+                    <Checkbox 
+                      id="check-earlier-options" 
+                      checked={checkEarlierOptions} 
+                      onCheckedChange={checked => setCheckEarlierOptions(checked === true)}
+                    />
+                    <label 
+                      htmlFor="check-earlier-options"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Bei früherer Option fragen
+                    </label>
+                  </div>
+
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
                       Abbrechen

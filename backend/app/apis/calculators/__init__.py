@@ -284,7 +284,7 @@ def calculate_available_timeslots(
     while minute <= day_end_minutes - total_service_time:
         # Überprüfe explizit, ob der Slot komplett innerhalb der Arbeitszeiten liegt
         if minute < day_start_minutes or minute + total_service_time > day_end_minutes:
-            minute += 1
+            minute += slot_interval_minutes
             continue
             
         # Schnelle Prüfung, ob der gesamte Slot verfügbar ist
@@ -292,17 +292,7 @@ def calculate_available_timeslots(
         for i in range(minute, minute + total_service_time):
             if i >= len(availability) or availability[i] == 0:
                 is_slot_available = False
-                # Wenn wir einen besetzten Slot finden, springen wir direkt zum Ende dieses Blocks
-                # und setzen von dort aus fort, anstatt nur um einen Slot weiterzugehen
-                next_minute = i
-                while next_minute < len(availability) and availability[next_minute] == 0:
-                    next_minute += 1
-                minute = next_minute
                 break
-                
-        if not is_slot_available:
-            # Wenn wir hier sind, haben wir bereits minute auf den nächsten potenziell verfügbaren Slot gesetzt
-            continue
         
         # Zeitslot erzeugen (nur bei Bedarf datetime-Objekte erstellen)
         slot_hour = minute // 60

@@ -104,7 +104,7 @@ export const useAppointmentBooking = () => {
         status: 'scheduled',
         type: 'booked',
         checkEarlierOptions,
-        checkEarlierOptionsCreatedAt: checkEarlierOptions ? Timestamp.now() : undefined,
+        ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {}),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };

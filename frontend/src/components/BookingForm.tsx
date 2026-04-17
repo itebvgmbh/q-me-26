@@ -7,12 +7,12 @@ import { CalendarToggle } from './CalendarToggle';
 import { CustomerTimelineView } from './CustomerTimelineView';
 import { TimelineView } from './TimelineView';
 import { CustomerCalendar } from './CustomerCalendar';
-import { BookingConfirmation } from './BookingConfirmation';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Staff, Service, Shop } from '../utils/firestore';
 import { CalendarTimeSlot } from '../utils/types';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface BookingFormProps {
   // Shop data
@@ -75,6 +75,8 @@ export function BookingForm({
   onCalendarViewChange,
   onBookAppointment
 }: BookingFormProps) {
+  const navigate = useNavigate();
+
   return (
     <Card>
       <CardHeader>
@@ -131,10 +133,11 @@ export function BookingForm({
                   services={services}
                   startDate={currentDate}
                   numDays={1}
-                  forceRefresh={refreshTimestamp}
+                  forceRefresh={!!refreshTimestamp}
                   onTimeSlotSelect={(timeSlot) => {
-                    onTimeSlotSelect(timeSlot);
-                    toast.success(`Zeitslot von ${format(timeSlot.start, 'HH:mm')} bis ${format(timeSlot.end, 'HH:mm')} ausgewählt`);
+                    // Da CalendarDayView die Buchung nun intern vornimmt,
+                    // navigieren wir hier nach erfolgreicher Buchung direkt zu den Terminen
+                    navigate('/my-bookings');
                   }}
                 />
               ) : calendarView === 'timeline' ? (
@@ -153,7 +156,7 @@ export function BookingForm({
                   shopId={selectedShop}
                   serviceId={selectedService}
                   staffId={selectedStaff}
-                  forceRefresh={refreshTimestamp}
+                  forceRefresh={!!refreshTimestamp}
                   onTimeSlotSelect={(timeSlot) => {
                     onTimeSlotSelect(timeSlot);
                     toast.success(`Zeitslot von ${format(timeSlot.start, 'HH:mm')} bis ${format(timeSlot.end, 'HH:mm')} ausgewählt`);
@@ -162,24 +165,7 @@ export function BookingForm({
               )}
             </div>
 
-            {selectedTimeSlot && (
-              <BookingConfirmation 
-                timeSlot={selectedTimeSlot}
-                checkEarlierOptions={checkEarlierOptions}
-                onCheckEarlierOptionsChange={onCheckEarlierOptionsChange}
-              />
-            )}
 
-            {selectedTimeSlot && (
-              <div className="mt-4">
-                <Button 
-                  onClick={onBookAppointment}
-                  className="w-full"
-                >
-                  Termin buchen
-                </Button>
-              </div>
-            )}
           </>
         )}
       </CardContent>

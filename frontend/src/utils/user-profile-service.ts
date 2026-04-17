@@ -39,8 +39,8 @@ export const createUserProfile = async (uid: string, email: string, role: UserRo
     uid,
     email,
     role,
-    createdAt: now.toDate(),
-    updatedAt: now.toDate()
+    createdAt: now,
+    updatedAt: now
   };
 
   await setDoc(doc(db, 'users', uid), profile);

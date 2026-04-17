@@ -32,8 +32,6 @@ const ServiceBooking = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<CalendarTimeSlot | null>(null);
-  const [checkEarlierOptions, setCheckEarlierOptions] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const getTimeSlots = useTimeSlotStore(state => state.getTimeSlots);
@@ -83,124 +81,6 @@ const ServiceBooking = () => {
     loadData();
   }, [shopId, serviceId, navigate]);
 
-  // Hilfsfunktion zur Prüfung der Timeslot-Verfügbarkeit
-  const checkDirectAvailability = async (shopId: string, staffId: string, startTime: Date, endTime: Date): Promise<boolean> => {
-    try {
-      console.log(`Direct availability check for ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`);
-      return await isTimeSlotAvailable(
-        shopId,
-        staffId,
-        Timestamp.fromDate(startTime),
-        Timestamp.fromDate(endTime)
-      );
-    } catch (error) {
-      console.error('Error in direct availability check:', error);
-      return false;
-    }
-  };
-
-  const handleBookAppointment = async () => {
-    if (!user) {
-      // Redirect to PublicJoinQueue instead of login
-      navigate(`/public-join-queue?shopId=${shopId}&serviceId=${serviceId}`);
-      return;
-    }
-
-    // Validierung
-    if (!shopId || !serviceId || !selectedTimeSlot) {
-      toast.error('Bitte füllen Sie alle erforderlichen Felder aus');
-      return;
-    }
-
-    try {
-      console.log('Starting booking process...');
-      const startTime = selectedTimeSlot.start;
-      const endTime = selectedTimeSlot.end;
-      
-      console.log(`Selected slot: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}`);
-
-      // Direkte Verfügbarkeitsüberprüfung vor dem Buchungsversuch
-      const staffIdToUse = (selectedStaff && selectedStaff !== 'any') ? selectedStaff : (selectedTimeSlot.staffId || '');
-      if (!staffIdToUse) {
-        toast.error('Kein Mitarbeiter für diesen Zeitslot verfügbar');
-        return;
-      }
-
-      console.log('Checking direct availability...');
-      const isAvailable = await checkDirectAvailability(shopId, staffIdToUse, startTime, endTime);
-      
-      if (!isAvailable) {
-        console.log('Direct availability check failed - slot is not available');
-        toast.error('Dieser Zeitslot ist leider nicht mehr verfügbar. Bitte wählen Sie einen anderen Termin.');
-        
-        // Force refresh of time slots
-        await getTimeSlots(shopId, serviceId, selectedStaff || null, startOfDay(currentDate), true);
-        setSelectedTimeSlot(null);
-        setRefreshTimestamp(Date.now());
-        return;
-      }
-      
-      console.log('Slot is available, proceeding with booking...');
-      
-      // Create or retrieve customer record
-      try {
-        await createCustomer({
-          shopId: shopId,
-          name: user.displayName || user.email?.split('@')[0] || 'Unbekannt',
-          email: user.email || '',
-          phone: '', // Optional
-          userId: user.uid, // Verknüpfung mit Firebase Auth User
-        });
-      } catch (err) {
-        console.error('Error with customer record, but continuing...', err);
-      }
-
-      console.log('Creating appointment...');
-      try {
-        // Verwende die gemeinsame createAppointment-Funktion anstatt direktes Firestore
-        const adjustedStartTime = startTime;
-        const adjustedEndTime = endTime;
-        
-        console.log(`Original times: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}`);
-        
-        const appointmentData = {
-          shopId: shopId,
-          staffId: staffIdToUse,
-          customerId: user.uid,
-          // Gemäß Task QME-61: Verwende IMMER users.displayName
-          // Die komplette Implementierung zur Namensfindung ist in createAppointment
-          // Verbesserte Namensermittlung mit mehreren Fallbacks
-          customerName: user.displayName || 
-                       (user.email ? user.email.split('@')[0] : null) || 
-                       user.providerData?.[0]?.displayName || 
-                       'Unbekannt',
-          serviceId: serviceId,
-          startTime: adjustedStartTime,  // Die createAppointment-Funktion konvertiert automatisch zu Timestamp
-          endTime: adjustedEndTime,      // Die createAppointment-Funktion konvertiert automatisch zu Timestamp
-          status: 'scheduled',
-          type: 'booked',
-          checkEarlierOptions: checkEarlierOptions,
-          checkEarlierOptionsCreatedAt: checkEarlierOptions ? new Date() : undefined,
-        };
-        
-        console.log('Creating appointment with data:', appointmentData);
-        await createAppointment(appointmentData);
-        
-        // Die Cache-Invalidierung und Event-Emission erfolgt jetzt automatisch in createAppointment
-        console.log('Booking successful!');
-        toast.success('Termin erfolgreich gebucht');
-        
-        // Navigate to my bookings
-        navigate('/my-bookings');
-      } catch (appointmentError) {
-        console.error('Error creating appointment:', appointmentError);
-        toast.error('Fehler beim Buchen des Termins');
-      }
-    } catch (error) {
-      console.error('Error in booking process:', error);
-      toast.error('Fehler beim Buchen des Termins');
-    }
-  };
 
   return (
     <>
@@ -259,50 +139,15 @@ const ServiceBooking = () => {
                     services={service ? [service] : []}
                     startDate={currentDate}
                     numDays={1}
-                    forceRefresh={refreshTimestamp}
+                    forceRefresh={!!refreshTimestamp}
                     onTimeSlotSelect={(timeSlot) => {
-                      setSelectedTimeSlot(timeSlot);
-                      toast.success(`Zeitslot von ${format(timeSlot.start, 'HH:mm')} bis ${format(timeSlot.end, 'HH:mm')} ausgewählt`);
+                      // Nach erfolgreicher Buchung in die Buchungsübersicht navigieren
+                      navigate('/my-bookings');
                     }}
                   />
                 </div>
-
-                {selectedTimeSlot && (
-                  <div className="p-4 bg-green-50 rounded-md">
-                    <p className="font-medium">Ausgewählter Termin:</p>
-                    <p>
-                      Datum: {format(selectedTimeSlot.start, 'dd.MM.yyyy')}<br/>
-                      Uhrzeit: {format(selectedTimeSlot.start, 'HH:mm')} - {format(selectedTimeSlot.end, 'HH:mm')} Uhr
-                    </p>
-                    
-                    <div className="flex items-center space-x-2 mt-3">
-                      <Checkbox 
-                        id="check-earlier-options" 
-                        checked={checkEarlierOptions} 
-                        onCheckedChange={checked => setCheckEarlierOptions(checked === true)}
-                      />
-                      <label 
-                        htmlFor="check-earlier-options"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Bei früherer Option fragen
-                      </label>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end space-x-4">
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                Abbrechen
-              </Button>
-              <Button 
-                onClick={handleBookAppointment}
-                disabled={!selectedTimeSlot}
-              >
-                Termin buchen
-              </Button>
-            </CardFooter>
           </Card>
         )}
       </div>

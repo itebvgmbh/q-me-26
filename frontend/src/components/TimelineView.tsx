@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DndContext, DragEndEvent, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 import { Staff, Appointment, updateAppointment, Service } from '../utils/firestore';
 import { RecurringBreak } from '../utils/firestore/recurring-breaks';
+import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addDays, addMinutes, startOfDay } from 'date-fns';
@@ -43,29 +44,41 @@ const DraggableAppointment = ({
     })
   };
 
+  const durationMinutes = (appointment.endTime.toDate().getTime() - appointment.startTime.toDate().getTime()) / 60000;
+  
+  let textClass = 'text-sm font-medium';
+  if (durationMinutes <= 15) {
+    textClass = 'text-[9px] leading-[10px] font-medium tracking-tighter';
+  } else if (durationMinutes < 30) {
+    textClass = 'text-xs leading-tight font-medium';
+  }
+
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 p-2 rounded-md ${statusColor} cursor-move transition-colors group`}
-      style={draggableStyle}
+      className={`absolute left-0 right-0 px-1 rounded-md ${statusColor} cursor-move transition-colors group overflow-hidden flex items-center shadow-sm`}
+      style={{
+        ...draggableStyle,
+        paddingTop: 0,
+        paddingBottom: 0
+      }}
       onClick={onClick}
       {...listeners}
       {...attributes}
     >
-      <div className="flex justify-between items-center">
-        <div className="text-sm font-medium">
+      <div className="flex justify-between items-center w-full min-w-0 h-full">
+        <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
           {format(appointment.startTime.toDate(), 'HH:mm')}-
           {format(appointment.endTime.toDate(), 'HH:mm')} | {appointment.customerName} | 
           {services.find(s => s.id === appointment.serviceId)?.name}
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/40 rounded pl-1 ml-1 flex-shrink-0 ${durationMinutes <= 15 ? 'scale-75 origin-right' : ''}`}>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-4 w-4 md:h-5 md:w-5"
             onClick={(e) => {
               e.stopPropagation();
-              // handleStatusChange('scheduled');
             }}
           >
             🕒
@@ -73,41 +86,40 @@ const DraggableAppointment = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-4 w-4 md:h-5 md:w-5"
             onClick={(e) => {
               e.stopPropagation();
-              // handleStatusChange('in-progress');
             }}
           >
             ▶️
           </Button>
           <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              // handleStatusChange('completed');
-            }}
-          >
-            ✅
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              // handleStatusChange('cancelled');
-            }}
-          >
-            ❌
-          </Button>
+             variant="ghost"
+             size="icon"
+             className="h-4 w-4 md:h-5 md:w-5"
+             onClick={(e) => {
+               e.stopPropagation();
+             }}
+           >
+             ✅
+           </Button>
+           <Button
+             variant="ghost"
+             size="icon"
+             className="h-4 w-4 md:h-5 md:w-5"
+             onClick={(e) => {
+               e.stopPropagation();
+             }}
+           >
+             ❌
+           </Button>
         </div>
       </div>
     </div>
   );
 };
+
+
 
 interface DroppableAreaProps {
   className: string;
@@ -685,8 +697,8 @@ export const TimelineView = ({
           
           // Updaten des Termins mit den neuen Zeiten
           updateAppointment(draggedAppointment.id, {
-            startTime: dragPreview.startTime,
-            endTime: dragPreview.endTime,
+            startTime: Timestamp.fromDate(dragPreview.startTime),
+            endTime: Timestamp.fromDate(dragPreview.endTime),
           })
             .then((updatedAppointment) => {
               onAppointmentUpdate(updatedAppointment);

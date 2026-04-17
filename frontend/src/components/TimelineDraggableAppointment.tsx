@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { Appointment, Service } from '../utils/firestore';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { getSlotDisplayProperties } from '../utils/calendarUtils';
 
 /**
  * Props for the TimelineDraggableAppointment component
@@ -54,26 +55,35 @@ export const TimelineDraggableAppointment = ({
     })
   };
 
+  const { fontSize } = getSlotDisplayProperties(
+    appointment.startTime.toDate(),
+    appointment.endTime.toDate()
+  );
+
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 p-2 rounded-md ${statusColor} cursor-move transition-colors group`}
-      style={draggableStyle}
+      className={`absolute left-0 right-0 px-2 rounded-md ${statusColor} cursor-move transition-colors group overflow-hidden flex items-center shadow-sm`}
+      style={{
+        ...draggableStyle,
+        paddingTop: 0,
+        paddingBottom: 0
+      }}
       onClick={onClick}
       {...listeners}
       {...attributes}
     >
-      <div className="flex justify-between items-center">
-        <div className="text-sm font-medium">
+      <div className="flex justify-between items-center w-full min-w-0">
+        <div className={`${fontSize} font-medium truncate flex-1 leading-tight`} title={`${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
           {format(appointment.startTime.toDate(), 'HH:mm')}-
           {format(appointment.endTime.toDate(), 'HH:mm')} | {appointment.customerName} | 
           {services.find(s => s.id === appointment.serviceId)?.name}
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/20 rounded pl-1 ml-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5 md:h-6 md:w-6"
             onClick={(e) => {
               e.stopPropagation();
               // handleStatusChange('scheduled');
@@ -84,7 +94,7 @@ export const TimelineDraggableAppointment = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5 md:h-6 md:w-6"
             onClick={(e) => {
               e.stopPropagation();
               // handleStatusChange('in-progress');
@@ -95,7 +105,7 @@ export const TimelineDraggableAppointment = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5 md:h-6 md:w-6"
             onClick={(e) => {
               e.stopPropagation();
               // handleStatusChange('completed');
@@ -106,7 +116,7 @@ export const TimelineDraggableAppointment = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5 md:h-6 md:w-6"
             onClick={(e) => {
               e.stopPropagation();
               // handleStatusChange('cancelled');

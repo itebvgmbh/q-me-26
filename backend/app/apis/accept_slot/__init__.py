@@ -136,10 +136,20 @@ async def accept_earlier_slot_impl(notification_id: str, background_tasks: Backg
                     print(f"Unknown timestamp type: {type(time_value)}, value: {time_value}")
                     return datetime.now()  # Fallback
             
+            import zoneinfo
+            local_tz = zoneinfo.ZoneInfo('Europe/Berlin')
+            
             # Convert to Python datetime objects
             earlier_start_datetime = ensure_datetime(earlier_start)
             earlier_end_datetime = ensure_datetime(earlier_end)
             
+            # Ensure they are timezone aware before giving them to Firestore
+            # Firestore assumes naive datetimes are UTC, but these are local times
+            if earlier_start_datetime.tzinfo is None:
+                earlier_start_datetime = earlier_start_datetime.replace(tzinfo=local_tz)
+            if earlier_end_datetime.tzinfo is None:
+                earlier_end_datetime = earlier_end_datetime.replace(tzinfo=local_tz)
+                
             # Debug: Log the type and value of timestamps
             print(f"Original startTime type: {type(earlier_start)}, value: {earlier_start}")
             print(f"Converted startTime type: {type(earlier_start_datetime)}, value: {earlier_start_datetime}")

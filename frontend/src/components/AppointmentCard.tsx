@@ -61,12 +61,26 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   };
   
   /**
-   * Format time from notification date
+   * Format short datetime from notification date
    */
-  const formatNotificationTime = (dateValue: any): string => {
+  const formatNotificationShortDate = (dateValue: any): string => {
     try {
       const date = safelyConvertToDate(dateValue);
-      return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      return date.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) + ', ' + 
+             date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (e) {
+      return '---';
+    }
+  };
+
+  /**
+   * Format full datetime from notification date
+   */
+  const formatNotificationFullDateTime = (dateValue: any): string => {
+    try {
+      const date = safelyConvertToDate(dateValue);
+      return date.toLocaleDateString('de-DE', {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'}) + ', ' + 
+             date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' Uhr';
     } catch (e) {
       return '---';
     }
@@ -84,7 +98,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clipRule="evenodd" />
             </svg>
-            Früher: {formatNotificationTime(notification.earlierStartTime)}
+            Früher: {formatNotificationShortDate(notification.earlierStartTime)}
           </Button>
         </div>
       )}
@@ -117,7 +131,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 </div>
                 <div className="mt-1 text-sm flex items-center justify-between">
                   <span>Neuer Termin: <strong>
-                    {formatNotificationTime(notification.earlierStartTime)}
+                    {formatNotificationFullDateTime(notification.earlierStartTime)}
                   </strong></span>
                   <button 
                     className="ml-3 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded px-3 py-1.5 shadow-sm animate-pulse ring-1 ring-amber-300"
