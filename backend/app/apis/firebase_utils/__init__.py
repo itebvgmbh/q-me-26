@@ -64,7 +64,13 @@ def get_firebase_app() -> firebase_admin.App:
         try:
             # Get service account key from secrets
             service_account_key_json = db.secrets.get("FIREBASE_SERVICE_ACCOUNT_KEY")
-            
+
+            # Alternatively read the key from a mounted file (e.g. in Docker)
+            key_file = db.secrets.get("FIREBASE_SERVICE_ACCOUNT_KEY_FILE")
+            if not service_account_key_json and key_file:
+                with open(key_file, "r", encoding="utf-8") as f:
+                    service_account_key_json = f.read()
+
             if not service_account_key_json:
                 raise ValueError("Firebase service account key not found in secrets")
             

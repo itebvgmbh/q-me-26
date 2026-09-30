@@ -1,3 +1,3 @@
 #!/bin/bash
 
-yarn dev
+npm run dev
