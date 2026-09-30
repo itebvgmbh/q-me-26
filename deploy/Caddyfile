@@ -1,0 +1,16 @@
+# DOMAIN comes from .env. A real hostname gets a Let's Encrypt certificate
+# automatically; "http://localhost" serves plain HTTP for local testing.
+{$DOMAIN} {
+	encode zstd gzip
+
+	handle /routes/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

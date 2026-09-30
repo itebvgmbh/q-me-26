@@ -1,0 +1,48 @@
+name: Deploy to Hetzner
+
+# Manual trigger only. Required repository secrets:
+#   HETZNER_HOST         IP or hostname of the server
+#   HETZNER_SSH_KEY      private key whose public key is in root's authorized_keys
+#   HETZNER_KNOWN_HOSTS  optional; output of `ssh-keyscan <host>` to pin the host key
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hetzner
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.HETZNER_HOST }}
+      APP_DIR: /opt/q-me
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HETZNER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$HOST" > ~/.ssh/known_hosts
+          fi
+
+      - name: Upload source
+        run: |
+          rsync -az --delete \
+            --exclude .git --exclude node_modules --exclude .venv \
+            --exclude .env --exclude secrets/ \
+            -e "ssh -i ~/.ssh/id_deploy" \
+            ./ "root@$HOST:$APP_DIR/"
+
+      - name: Build and start containers
+        run: |
+          ssh -i ~/.ssh/id_deploy "root@$HOST" \
+            "cd $APP_DIR && docker compose up -d --build --remove-orphans && docker image prune -f"
