@@ -109,12 +109,13 @@ export default defineConfig({
 		exclude: ['firebase', 'firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage']
 	},
 	resolve: {
+		// @firebase/auth and @firebase/firestore are not deduped: the only copies
+		// in the tree are the ones firebase@10 depends on (nested under it), and
+		// forcing root resolution used to pick stale v9-era copies instead.
 		dedupe: [
 			"firebase",
 			"@firebase/app",
 			"@firebase/storage",
-			"@firebase/auth",
-			"@firebase/firestore",
 			"@firebase/component"
 		],
 		alias: {
