@@ -1,16 +1,37 @@
-# DOMAIN comes from .env. A real hostname gets a Let's Encrypt certificate
-# automatically; "http://localhost" serves plain HTTP for local testing.
-{$DOMAIN} {
+# Vorlage für den Q-ME-Block. setup-server.sh setzt __DOMAIN__, __PORT__ und
+# __WEB_ROOT__ ein und hängt den Block an /etc/caddy/Caddyfile an.
+#
+# Die Caddyfile auf dem Server enthält auch die anderen Projekte (Spielmacherei,
+# mamie, …) und ist dort die Wahrheit. Diese Vorlage nie über sie kopieren.
+# Die Adresse steht als Klartext im Block, nicht als {$VARIABLE}: Ohne die
+# Variable würde der Block als globaler Optionsblock gelesen.
+
+__DOMAIN__ {
 	encode zstd gzip
 
+	# API an das Backend (uvicorn, nur lokal erreichbar)
 	handle /routes/* {
-		reverse_proxy backend:8000
+		reverse_proxy 127.0.0.1:__PORT__
 	}
 
+	# Alles andere ist die gebaute React-App
 	handle {
-		root * /srv
+		root * __WEB_ROOT__
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
 		try_files {path} /index.html
 		file_server
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/q-me.log {
+			roll_size 20mb
+			roll_keep 5
+		}
 	}
 }

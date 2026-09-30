@@ -1,61 +1,108 @@
-# Test-Deployment auf Hetzner
+# Test-Deployment auf dem Spielmacherei-Server
 
-Die App läuft als zwei Container mit Docker Compose:
+Q-ME läuft auf dem vorhandenen Hetzner-Server von Spielmacherei (`195.201.26.108`),
+neben den anderen Projekten dort:
 
-- **web**: Caddy liefert das gebaute React-Frontend aus, leitet `/routes/*` an das Backend weiter und holt automatisch ein Let's-Encrypt-Zertifikat für `DOMAIN`.
-- **backend**: FastAPI/Uvicorn auf Port 8000, nur intern erreichbar.
-
-## Voraussetzungen
-
-1. **Server**: Hetzner Cloud, Ubuntu 24.04, z. B. CX22 (2 vCPU, 4 GB RAM). Der Frontend-Build braucht in der Spitze knapp 1 GB RAM, das reicht also. SSH-Key beim Anlegen hinterlegen.
-2. **Domain**: Ein A-Record (z. B. `test.q-me.app`) muss auf die IPv4 des Servers zeigen, *bevor* die Container starten, sonst schlägt die Zertifikatsausstellung fehl. Ohne eigene Domain geht zum Testen `<ip-mit-bindestrichen>.sslip.io`, z. B. `203-0-113-10.sslip.io`.
-3. **Firebase-Dienstkonto**: Firebase Console → Projekteinstellungen → Dienstkonten → „Neuen privaten Schlüssel generieren“. Die JSON-Datei ist ein Geheimnis und gehört nicht ins Repo.
-4. **Firebase Auth**: Firebase Console → Authentication → Settings → Autorisierte Domains → Test-Domain hinzufügen. Ohne diesen Eintrag funktioniert die Google-Anmeldung nicht. Falls der Web-API-Key in der Google Cloud Console auf bestimmte HTTP-Referrer eingeschränkt ist, die Domain dort ebenfalls eintragen.
-
-## 1. Server einrichten (einmalig)
-
-```bash
-ssh root@<SERVER_IP> 'bash -s' < deploy/setup-server.sh
-```
-
-Das Skript installiert Docker, öffnet nur die Ports 22, 80 und 443 und legt `/opt/q-me/secrets` an.
-
-## 2. Konfiguration hochladen (einmalig)
-
-```bash
-cp .env.example .env   # DOMAIN eintragen
-scp .env root@<SERVER_IP>:/opt/q-me/.env
-scp <pfad>/service-account.json root@<SERVER_IP>:/opt/q-me/secrets/firebase-service-account.json
-```
-
-## 3. Deployen
-
-### Variante A: GitHub Actions
-
-Im Repo unter *Settings → Secrets and variables → Actions* anlegen:
-
-| Secret | Inhalt |
+| Teil | Wo |
 |---|---|
-| `HETZNER_HOST` | IP oder Hostname des Servers |
-| `HETZNER_SSH_KEY` | Privater SSH-Key; der öffentliche Teil muss in `/root/.ssh/authorized_keys` stehen |
-| `HETZNER_KNOWN_HOSTS` | Optional, Ausgabe von `ssh-keyscan <SERVER_IP>`. Pinnt den Host-Key; ohne dieses Secret wird der Key bei jedem Lauf ungeprüft übernommen. |
+| Backend (FastAPI/uvicorn) | systemd-Dienst `q-me`, nur `127.0.0.1:8090`, Konto `q-me` |
+| Web-App (gebautes React) | statische Dateien in `/opt/q-me-web` |
+| HTTPS, `/routes/*` → Backend | eigener Block in der vorhandenen `/etc/caddy/Caddyfile` |
+| Code | `/opt/q-me` (Git-Checkout, gehört root) |
+| Konfiguration | `/etc/q-me.env`, Firebase-Schlüssel in `/etc/q-me/` |
 
-Danach unter *Actions → Deploy to Hetzner → Run workflow* starten.
+Kein Docker, kein zweiter Caddy: Die Ports 80/443 gehören dem vorhandenen Caddy.
+`setup-server.sh` hängt nur einen Block an dessen Caddyfile an (mit Sicherung und
+Prüfung vorher) und lädt Caddy per `reload` neu. Die anderen Seiten laufen dabei
+ohne Unterbrechung weiter.
 
-### Variante B: Manuell
+## Vorher erledigen
+
+1. **DNS**: A-Record `q-me.spielmacherei.de` → `195.201.26.108`, dort, wo auch
+   `mamie.spielmacherei.de` eingetragen ist. Ohne den Eintrag bekommt Caddy kein
+   Zertifikat. Die anderen Seiten stört das nicht.
+2. **Firebase Console → Authentication → Settings → Autorisierte Domains**:
+   `q-me.spielmacherei.de` eintragen, sonst scheitert die Google-Anmeldung.
+3. **Firebase-Dienstkonto-Schlüssel**: Firebase Console → Projekteinstellungen →
+   Dienstkonten → „Neuen privaten Schlüssel generieren“ (Projekt `qmedata-7c79e`).
+   Die JSON-Datei gehört nie ins Repository.
+
+## Erstinstallation
 
 ```bash
-rsync -az --delete --exclude .git --exclude node_modules --exclude .venv \
-  --exclude .env --exclude secrets/ ./ root@<SERVER_IP>:/opt/q-me/
-ssh root@<SERVER_IP> 'cd /opt/q-me && docker compose up -d --build'
+ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108
 ```
+
+Das Repository ist privat. Der Server braucht einen **eigenen** Deploy-Key, denn
+GitHub erlaubt einen Schlüssel nur für ein Repository, und der vorhandene gehört
+zu Spielmacherei:
+
+```bash
+ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_ed25519_q-me -C "q-me deploy"
+cat >> /root/.ssh/config <<'EOF'
+Host github-q-me
+	HostName github.com
+	User git
+	IdentityFile /root/.ssh/id_ed25519_q-me
+	IdentitiesOnly yes
+EOF
+cat /root/.ssh/id_ed25519_q-me.pub
+```
+
+Den ausgegebenen Schlüssel bei GitHub unter *itebvgmbh/q-me-26 → Settings →
+Deploy keys → Add deploy key* eintragen (read-only). Dann:
+
+```bash
+git clone git@github-q-me:itebvgmbh/q-me-26.git /opt/q-me
+bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de
+```
+
+Das Skript installiert `uv` (Python 3.13 für das Backend), legt Konto, Dienst und
+`/etc/q-me.env` an, baut die Web-App, startet das Backend und ergänzt die
+Caddyfile. Ist Port 8090 belegt, bricht es ab, bevor es etwas ändert; dann mit
+`PORT=8091 bash …` erneut aufrufen.
+
+Zum Schluss den Schlüssel einspielen (vom eigenen Rechner aus):
+
+```bash
+scp -i ~/.ssh/id_ed25519_spielmacherei service-account.json \
+  root@195.201.26.108:/etc/q-me/firebase-service-account.json
+ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 \
+  'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me'
+```
+
+## Aktualisieren
+
+```bash
+bash /opt/q-me/deploy/update.sh
+```
+
+Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
+und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
+neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
 ## Prüfen
 
 ```bash
-ssh root@<SERVER_IP> 'cd /opt/q-me && docker compose ps && docker compose logs --tail 50'
+systemctl status q-me                  # Läuft der Dienst?
+journalctl -u q-me -n 50               # Letzte Meldungen
+curl -s https://q-me.spielmacherei.de/routes/scheduler-status
+# → {"detail":"Not authenticated"}: Caddy und Backend sind verbunden
 ```
 
-- `https://<DOMAIN>/` zeigt die Startseite.
-- `https://<DOMAIN>/routes/scheduler-status` antwortet ohne Login mit `{"detail":"Not authenticated"}`. Damit ist das Backend über den Proxy erreichbar.
-- Meldet das Backend `No such file or directory: '/run/secrets/q-me/firebase-service-account.json'`, fehlt der Schlüssel aus Schritt 2.
+Meldet das Backend `No such file or directory: '/etc/q-me/firebase-service-account.json'`,
+fehlt der Schlüssel.
+
+## Platzbedarf
+
+`npm ci` legt rund 660 MB in `/opt/q-me/frontend/node_modules` ab und braucht beim
+Bauen unter 1 GB RAM. Ein Update dauert rund eine Minute. Die ausgelieferte Web-App
+selbst ist knapp 3 MB groß, das von uv verwaltete Python 3.13 rund 100 MB.
+
+## Entfernen
+
+```bash
+systemctl disable --now q-me && rm /etc/systemd/system/q-me.service
+# Q-ME-Block aus /etc/caddy/Caddyfile löschen, dann: systemctl reload caddy
+rm -rf /opt/q-me /opt/q-me-web /etc/q-me /etc/q-me.env && userdel q-me
+```

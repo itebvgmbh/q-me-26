@@ -38,7 +38,7 @@ Without the project id every authenticated endpoint answers `401`; without the k
 
 ## Deployment
 
-See [deploy/README.md](deploy/README.md) for the Docker Compose setup on a Hetzner server.
+The test deployment runs next to Spielmacherei on its Hetzner server (systemd service behind the existing Caddy). See [deploy/README.md](deploy/README.md).
 
 ## Gotchas
 
