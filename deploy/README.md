@@ -7,7 +7,7 @@ Die App läuft als zwei Container mit Docker Compose:
 
 ## Voraussetzungen
 
-1. **Server**: Hetzner Cloud, Ubuntu 24.04, mindestens CX22 (2 vCPU, 4 GB RAM). Der Frontend-Build braucht viel Speicher. SSH-Key beim Anlegen hinterlegen.
+1. **Server**: Hetzner Cloud, Ubuntu 24.04, z. B. CX22 (2 vCPU, 4 GB RAM). Der Frontend-Build braucht in der Spitze knapp 1 GB RAM, das reicht also. SSH-Key beim Anlegen hinterlegen.
 2. **Domain**: Ein A-Record (z. B. `test.q-me.app`) muss auf die IPv4 des Servers zeigen, *bevor* die Container starten, sonst schlägt die Zertifikatsausstellung fehl. Ohne eigene Domain geht zum Testen `<ip-mit-bindestrichen>.sslip.io`, z. B. `203-0-113-10.sslip.io`.
 3. **Firebase-Dienstkonto**: Firebase Console → Projekteinstellungen → Dienstkonten → „Neuen privaten Schlüssel generieren“. Die JSON-Datei ist ein Geheimnis und gehört nicht ins Repo.
 4. **Firebase Auth**: Firebase Console → Authentication → Settings → Autorisierte Domains → Test-Domain hinzufügen. Ohne diesen Eintrag funktioniert die Google-Anmeldung nicht. Falls der Web-API-Key in der Google Cloud Console auf bestimmte HTTP-Referrer eingeschränkt ist, die Domain dort ebenfalls eintragen.
