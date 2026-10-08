@@ -1,0 +1,40 @@
+[Unit]
+Description=Q-ME — Backend (FastAPI)
+Documentation=https://github.com/itebvgmbh/q-me-26
+After=network-online.target
+Wants=network-online.target
+# Absturzschleifen abfangen
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=q-me
+Group=q-me
+WorkingDirectory=/opt/q-me/backend
+# PORT, FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_KEY_FILE
+EnvironmentFile=/etc/q-me.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+# Nur ein Prozess: die Scheduler-API hält ihren Zustand im Speicher
+ExecStart=/opt/q-me/backend/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port ${PORT} --proxy-headers
+Restart=always
+RestartSec=3
+
+# Härtung: Code gehört root, schreiben darf der Dienst nur in seinen Datenordner
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/q-me/backend/.local_data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=q-me
+
+[Install]
+WantedBy=multi-user.target

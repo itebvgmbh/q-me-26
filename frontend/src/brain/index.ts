@@ -3,14 +3,10 @@ import { API_PATH } from "../constants";
 import { Brain } from "./Brain";
 import type { RequestParams } from "./http-client";
 
-const isLocalhost = /localhost:\d{4}/i.test(window.location.origin);
-
+// The backend is always served from the same origin: the Vite dev server
+// proxies /routes locally, and the reverse proxy does the same in production.
 const constructBaseUrl = (): string => {
-  if (isLocalhost) {
-    return `${window.location.origin}${API_PATH}`;
-  }
-
-  return `https://api.databutton.com${API_PATH}`;
+  return `${window.location.origin}${API_PATH}`;
 };
 
 type BaseApiParams = Omit<RequestParams, "signal" | "baseUrl" | "cancelToken">;

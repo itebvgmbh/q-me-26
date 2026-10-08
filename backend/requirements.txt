@@ -8,3 +8,8 @@ openai
 beautifulsoup4
 requests
 firebase-admin
+
+# Imported directly by the backend; previously only pulled in transitively
+python-dotenv
+python-dateutil
+pyjwt[crypto]

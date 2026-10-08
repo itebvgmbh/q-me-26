@@ -4,7 +4,7 @@ This project consists of a FastAPI backend server and a React + TypeScript front
 
 ## Stack
 
-- React+Typescript frontend with `yarn` as package manager.
+- React+Typescript frontend with `npm` as package manager (`package.json` relies on npm `overrides`).
 - Python FastAPI server with `uv` as package manager.
 
 ## Quickstart
@@ -21,6 +21,24 @@ make
 make run-backend
 make run-frontend
 ```
+
+## Configuration
+
+The backend reads `backend/.env`:
+
+```bash
+FIREBASE_PROJECT_ID=qmedata-7c79e
+# Either the service account key JSON inline ...
+FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", ...}'
+# ... or a path to the JSON file
+FIREBASE_SERVICE_ACCOUNT_KEY_FILE=/path/to/service-account.json
+```
+
+Without the project id every authenticated endpoint answers `401`; without the key every endpoint that touches Firestore fails.
+
+## Deployment
+
+The test deployment runs next to Spielmacherei on its Hetzner server (systemd service behind the existing Caddy). See [deploy/README.md](deploy/README.md).
 
 ## Gotchas
 

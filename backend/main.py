@@ -71,6 +71,11 @@ def get_firebase_config() -> dict | None:
         if ext["name"] == "firebase-auth":
             return ext["config"]["firebaseConfig"]
 
+    # Outside Databutton: only the project id is needed to validate ID tokens
+    project_id = os.environ.get("FIREBASE_PROJECT_ID")
+    if project_id:
+        return {"projectId": project_id}
+
     return None
 
 

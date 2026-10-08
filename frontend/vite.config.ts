@@ -32,14 +32,39 @@ const listExtensions = (): Extension[] => {
 
 const extensions = listExtensions();
 
+// Fallbacks for builds outside Databutton, where DATABUTTON_EXTENSIONS is not set.
+// The Firebase project matches the one hardcoded in src/app/auth/firebase.ts.
+const defaultExtensionConfigs: Record<string, Record<string, unknown>> = {
+	[ExtensionName.FIREBASE_AUTH]: {
+		signInOptions: {
+			google: true,
+			github: false,
+			facebook: false,
+			twitter: false,
+			emailAndPassword: true,
+			magicLink: false,
+		},
+		siteName: "Q-ME",
+		signInSuccessUrl: "/",
+		firebaseConfig: {
+			apiKey: "AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE",
+			authDomain: "qmedata-7c79e.firebaseapp.com",
+			projectId: "qmedata-7c79e",
+			storageBucket: "qmedata-7c79e.firebasestorage.app",
+			messagingSenderId: "189966000888",
+			appId: "1:189966000888:web:73a249b8bacb35df2fd10d",
+		},
+	},
+};
+
 const getExtensionConfig = (name: string): string => {
 	const extension = extensions.find((it) => it.name === name);
 
 	if (!extension) {
-		console.warn(`Extension ${name} not found`);
+		console.warn(`Extension ${name} not found, using default config`);
 	}
 
-	return JSON.stringify(extension?.config);
+	return JSON.stringify(extension?.config ?? defaultExtensionConfigs[name] ?? {});
 };
 
 const buildVariables = () => {
@@ -53,7 +78,7 @@ const buildVariables = () => {
 		__API_URL__: JSON.stringify("http://localhost:8000"),
 		__WS_API_URL__: JSON.stringify("ws://localhost:8000"),
 		__APP_BASE_PATH__: JSON.stringify(""),
-		__APP_TITLE__: JSON.stringify("Databutton"),
+		__APP_TITLE__: JSON.stringify("Q-ME"),
 		__APP_FAVICON_LIGHT__: JSON.stringify("/favicon-light.svg"),
 		__APP_FAVICON_DARK__: JSON.stringify("/favicon-dark.svg"),
 		__APP_DEPLOY_USERNAME__: JSON.stringify(""),
@@ -84,12 +109,13 @@ export default defineConfig({
 		exclude: ['firebase', 'firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage']
 	},
 	resolve: {
+		// @firebase/auth and @firebase/firestore are not deduped: the only copies
+		// in the tree are the ones firebase@10 depends on (nested under it), and
+		// forcing root resolution used to pick stale v9-era copies instead.
 		dedupe: [
 			"firebase",
 			"@firebase/app",
 			"@firebase/storage",
-			"@firebase/auth",
-			"@firebase/firestore",
 			"@firebase/component"
 		],
 		alias: {

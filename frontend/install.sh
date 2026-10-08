@@ -1,9 +1,5 @@
 #!/bin/bash
+set -e
 
-corepack enable
-
-yarn set version stable
-
-yarn install 
-
-yarn dlx @yarnpkg/sdks vscode
+# npm, not yarn: package.json relies on npm "overrides" (pins @firebase/app)
+npm ci
