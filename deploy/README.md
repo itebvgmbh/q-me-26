@@ -29,33 +29,17 @@ ohne Unterbrechung weiter.
 
 ## Erstinstallation
 
-```bash
-ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108
-```
-
-Das Repository ist privat. Der Server braucht einen **eigenen** Deploy-Key, denn
-GitHub erlaubt einen Schlüssel nur für ein Repository, und der vorhandene gehört
-zu Spielmacherei:
+Das Repository ist öffentlich, der Server klont es per HTTPS ohne Deploy-Key.
+Ein Befehl vom eigenen Rechner aus:
 
 ```bash
-ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_ed25519_q-me -C "q-me deploy"
-cat >> /root/.ssh/config <<'EOF'
-Host github-q-me
-	HostName github.com
-	User git
-	IdentityFile /root/.ssh/id_ed25519_q-me
-	IdentitiesOnly yes
-EOF
-cat /root/.ssh/id_ed25519_q-me.pub
+ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 \
+  'git clone https://github.com/itebvgmbh/q-me-26.git /opt/q-me && bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de'
 ```
 
-Den ausgegebenen Schlüssel bei GitHub unter *itebvgmbh/q-me-26 → Settings →
-Deploy keys → Add deploy key* eintragen (read-only). Dann:
-
-```bash
-git clone git@github-q-me:itebvgmbh/q-me-26.git /opt/q-me
-bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de
-```
+Wird das Repository später privat, braucht der Server einen eigenen Deploy-Key
+(der vorhandene gehört zu Spielmacherei, GitHub erlaubt einen Key nur pro
+Repository) und `git -C /opt/q-me remote set-url origin git@…`.
 
 Das Skript installiert `uv` (Python 3.13 für das Backend), legt Konto, Dienst und
 `/etc/q-me.env` an, baut die Web-App, startet das Backend und ergänzt die
