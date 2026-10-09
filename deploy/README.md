@@ -32,10 +32,13 @@ ohne Unterbrechung weiter.
 Das Repository ist öffentlich, der Server klont es per HTTPS ohne Deploy-Key.
 Ein Befehl vom eigenen Rechner aus:
 
-```bash
-ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 \
-  'git clone https://github.com/itebvgmbh/q-me-26.git /opt/q-me && bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de'
+```powershell
+ssh root@195.201.26.108 'git clone https://github.com/itebvgmbh/q-me-26.git /opt/q-me && bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de'
 ```
+
+Jeder Befehl gehört in **eine** Zeile: PowerShell kennt das `\` am Zeilenende
+nicht und schickt sonst nur Bruchstücke an den Server. Einfache
+Anführungszeichen verwenden, damit PowerShell nichts darin ersetzt.
 
 Wird das Repository später privat, braucht der Server einen eigenen Deploy-Key
 (der vorhandene gehört zu Spielmacherei, GitHub erlaubt einen Key nur pro
@@ -48,11 +51,9 @@ Spielmacherei-Server ist 8090 belegt, dort läuft Q-ME auf 8091.
 
 Zum Schluss den Schlüssel einspielen (vom eigenen Rechner aus):
 
-```bash
-scp -i ~/.ssh/id_ed25519_spielmacherei service-account.json \
-  root@195.201.26.108:/etc/q-me/firebase-service-account.json
-ssh -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 \
-  'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me'
+```powershell
+scp service-account.json root@195.201.26.108:/etc/q-me/firebase-service-account.json
+ssh root@195.201.26.108 'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me'
 ```
 
 ## Aktualisieren
