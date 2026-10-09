@@ -5,7 +5,7 @@ neben den anderen Projekten dort:
 
 | Teil | Wo |
 |---|---|
-| Backend (FastAPI/uvicorn) | systemd-Dienst `q-me`, nur `127.0.0.1:8090`, Konto `q-me` |
+| Backend (FastAPI/uvicorn) | systemd-Dienst `q-me`, nur lokal auf `127.0.0.1:8091` (Port steht in `/etc/q-me.env`), Konto `q-me` |
 | Web-App (gebautes React) | statische Dateien in `/opt/q-me-web` |
 | HTTPS, `/routes/*` → Backend | eigener Block in der vorhandenen `/etc/caddy/Caddyfile` |
 | Code | `/opt/q-me` (Git-Checkout, gehört root) |
@@ -43,8 +43,8 @@ Repository) und `git -C /opt/q-me remote set-url origin git@…`.
 
 Das Skript installiert `uv` (Python 3.13 für das Backend), legt Konto, Dienst und
 `/etc/q-me.env` an, baut die Web-App, startet das Backend und ergänzt die
-Caddyfile. Ist Port 8090 belegt, bricht es ab, bevor es etwas ändert; dann mit
-`PORT=8091 bash …` erneut aufrufen.
+Caddyfile. Als Backend-Port nimmt es den ersten freien ab 8090; auf dem
+Spielmacherei-Server ist 8090 belegt, dort läuft Q-ME auf 8091.
 
 Zum Schluss den Schlüssel einspielen (vom eigenen Rechner aus):
 
