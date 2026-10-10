@@ -1,8 +1,6 @@
 export * from './useShops';
 export * from './useServices';
 export * from './useStaff';
-export * from './useTimeSlot';
-export * from './useQueueSubmission';
 
 // Export new hooks for PublicJoinQueue
 export { useShopData } from './useShopData';

@@ -18,14 +18,14 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
    * Format a date object with the proper timezone
    */
   const formatLocalDate = (date: Date) => {
-    return date.toLocaleDateString(undefined, { timeZone: 'Europe/Berlin' });
+    return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' });
   };
 
   /**
    * Format a date object with the proper timezone for time display
    */
   const formatLocalTime = (date: Date) => {
-    return date.toLocaleTimeString([], {
+    return date.toLocaleTimeString('de-DE', {
       hour: '2-digit', 
       minute: '2-digit', 
       timeZone: 'Europe/Berlin'

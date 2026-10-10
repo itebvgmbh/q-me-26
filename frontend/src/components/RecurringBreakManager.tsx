@@ -122,7 +122,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
   
   // Pause löschen
   const handleDeleteBreak = async (breakId: string, dayOfWeek: number) => {
-    if (!window.confirm('Möchten Sie diese Pause wirklich löschen?')) {
+    if (!window.confirm('Diese Pause wirklich löschen?')) {
       return;
     }
     
@@ -166,7 +166,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
   // Pause speichern (erstellen oder aktualisieren)
   const handleSaveBreak = async () => {
     if (!startTime || !endTime) {
-      toast.error('Bitte geben Sie Start- und Endzeit ein');
+      toast.error('Bitte gib Start- und Endzeit ein.');
       return;
     }
     
@@ -265,7 +265,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
         <CardHeader>
           <CardTitle>Wiederkehrende Pausen für {staff.name}</CardTitle>
           <CardDescription>
-            Legen Sie regelmäßige Pausen fest, die in jedem Terminkalender berücksichtigt werden
+            Regelmäßige Pausen – in dieser Zeit kann niemand buchen.
           </CardDescription>
         </CardHeader>
         <CardContent>

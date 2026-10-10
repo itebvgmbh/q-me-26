@@ -89,7 +89,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
     setEmailError(null);
     
     if (!name || !email || !phone || !role) {
-      toast.error('Bitte füllen Sie alle Pflichtfelder aus');
+      toast.error('Bitte füll alle Pflichtfelder aus.');
       return;
     }
 
@@ -101,7 +101,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
       
       if (emailInUse) {
         console.log('Email already in use, showing error');
-        const errorMessage = 'Diese E-Mail-Adresse wird bereits verwendet. Bitte wählen Sie eine andere E-Mail-Adresse.';
+        const errorMessage = 'Diese E-Mail ist schon im Team oder eingeladen.';
         toast.error(errorMessage, {
           duration: 5000,
           position: 'top-center',
@@ -171,7 +171,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
         <DialogHeader>
           <DialogTitle>Person anlegen</DialogTitle>
           <DialogDescription>
-            Legen Sie einen neuen Mitarbeiter direkt an. Sie können alle Details sofort festlegen.
+            Für dich selbst oder jemanden ohne eigenes Konto. Einladen kannst du später.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

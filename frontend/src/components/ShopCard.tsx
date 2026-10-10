@@ -10,6 +10,8 @@ export interface ShopCardProps {
   services?: Service[];
   /** "dark" für den schwarzen Abschnitt der Startseite */
   tone?: 'light' | 'dark';
+  /** Entfernung zum Nutzer (Shop-Karte) */
+  distanceKm?: number;
 }
 
 const formatAddress = (shop: Shop) =>
@@ -18,7 +20,7 @@ const formatAddress = (shop: Shop) =>
     : shop.address || '';
 
 /** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen */
-export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light' }) => {
+export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm }) => {
   const address = formatAddress(shop);
   const dark = tone === 'dark';
 
@@ -38,7 +40,10 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
         {address && (
           <p className={cn('flex items-start gap-1.5 text-sm', dark ? 'text-white/70' : 'text-muted-foreground')}>
             <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{address}</span>
+            <span>
+              {address}
+              {distanceKm !== undefined && <span className="font-mono"> · {distanceKm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} km</span>}
+            </span>
           </p>
         )}
       </div>

@@ -66,7 +66,7 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
         <DialogHeader>
           <DialogTitle>Neue Leistung</DialogTitle>
           <DialogDescription>
-            Fügen Sie einen neuen Service für Ihren Shop hinzu.
+            Was kann man bei dir buchen? Dauer und Preis bestimmen die freien Zeiten.
           </DialogDescription>
         </DialogHeader>
         <ServiceForm
@@ -128,7 +128,7 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
         <DialogHeader>
           <DialogTitle>Leistung bearbeiten</DialogTitle>
           <DialogDescription>
-            Aktualisieren Sie die Details des Services.
+            Änderungen gelten für neue Buchungen.
           </DialogDescription>
         </DialogHeader>
         <ServiceForm

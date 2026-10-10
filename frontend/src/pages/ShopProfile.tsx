@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserGuardContext } from 'app';
-import { Store } from 'lucide-react';
+import { ShopLogo } from '../components/brand/ShopLogo';
 import { getShopByOwner, Shop } from '../utils/firestore';
 import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
@@ -63,13 +63,7 @@ const ShopProfile = () => {
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          {shop.logoUrl ? (
-            <img src={shop.logoUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl border border-border object-cover" />
-          ) : (
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-foreground text-signal" aria-hidden="true">
-              <Store className="h-7 w-7" />
-            </span>
-          )}
+          <ShopLogo url={shop.logoUrl} />
           <div>
             <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{shop.name}</h1>
             {shop.industry && <p className="text-muted-foreground">{getIndustryNameById(shop.industry)}</p>}

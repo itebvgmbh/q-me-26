@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ShopProfile as ShopProfileType, updateShop } from '../utils/firestore';
+import { Shop as ShopProfileType, updateShop } from '../utils/firestore';
 import { uploadImage } from '../utils/firestore/storage';
 import { INDUSTRIES } from '../utils/industries';
 import { Loader2, Upload, X } from 'lucide-react';
@@ -47,7 +47,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     // Dateigröße prüfen - max 1MB
     const MAX_SIZE = 1024 * 1024; // 1MB
     if (file.size > MAX_SIZE) {
-      toast.error(`Datei zu groß. Maximum: 1MB, Ihre Datei: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+      toast.error(`Datei zu groß. Maximal 1 MB, deine Datei: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
       return;
     }
     
@@ -109,11 +109,12 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     }
     
     setIsUploading(true);
-    toast.loading('Logo wird hochgeladen...');
+    // Lade-Toast mit fester ID, damit Erfolg/Fehler ihn ersetzen (vorher blieb er für immer stehen)
+    const toastId = toast.loading('Logo wird hochgeladen …');
     
     try {
-      // Logo direkt hochladen
-      const logoUrl = await uploadImage(fileToUpload);
+      // Vorher fehlte der Pfad – Logos landeten unter "undefined/…"
+      const logoUrl = await uploadImage(fileToUpload, `shop-logos/${shop.id}`);
       
       // Form-Daten aktualisieren
       setFormData(prev => ({
@@ -121,10 +122,10 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
         logoUrl
       }));
       
-      toast.success('Logo erfolgreich hochgeladen');
+      toast.success('Logo hochgeladen.', { id: toastId });
     } catch (error) {
       console.error('Upload fehlgeschlagen:', error);
-      toast.error('Logo konnte nicht hochgeladen werden');
+      toast.error('Das Logo konnte nicht hochgeladen werden.', { id: toastId });
     } finally {
       setIsUploading(false);
     }
@@ -257,7 +258,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
                 placeholder="z.B. 9:00-18:00"
               />
               <p className="text-sm text-gray-500">
-                Einfaches Format für allgemeine Öffnungszeiten. Für tagesspezifische Zeiten, verwenden Sie die erweiterte Ansicht.
+                Kurzform für die Öffnungszeiten. Für einzelne Tage nimm die erweiterte Ansicht.
               </p>
             </div>
           </TabsContent>
@@ -288,7 +289,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
           </SelectContent>
         </Select>
         <p className="text-sm text-gray-500 mt-1">
-          Wählen Sie die Branche, die am besten zu Ihrem Geschäft passt.
+          Hilft Kunden bei der Suche.
         </p>
       </div>
       
@@ -350,7 +351,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
           />
           <p className="text-sm text-gray-500">
             Maximale Größe: 1MB. Empfohlene Größe: 200x200 Pixel.
-            {isUploading && <span className="block mt-1 text-blue-500">Upload läuft... Bitte warten Sie.</span>}
+            {isUploading && <span className="block mt-1 text-blue-500">Wird hochgeladen …</span>}
           </p>
         </div>
       </div>
@@ -383,7 +384,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
           id="description"
           value={formData.description}
           onChange={(e) => handleInputChange('description', e.target.value)}
-          placeholder="Beschreiben Sie Ihren Shop und Ihre Dienstleistungen..."
+          placeholder="Was macht deinen Laden aus?"
           className="h-32"
         />
       </div>

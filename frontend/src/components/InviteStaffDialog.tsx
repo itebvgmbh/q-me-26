@@ -41,7 +41,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
     setEmailError(null);
 
     if (!email) {
-      toast.error('Bitte geben Sie eine E-Mail-Adresse ein');
+      toast.error('Bitte gib eine E-Mail-Adresse ein.');
       return;
     }
 
@@ -53,7 +53,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
 
       if (emailInUse) {
         console.log('Email already in use for invitation, showing error');
-        const errorMessage = 'Diese E-Mail-Adresse wird bereits verwendet. Bitte wählen Sie eine andere E-Mail-Adresse.';
+        const errorMessage = 'Diese E-Mail ist schon im Team oder eingeladen.';
         toast.error(errorMessage, {
           duration: 5000,
           position: 'top-center',
@@ -85,7 +85,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
         <DialogHeader>
           <DialogTitle>Per E-Mail einladen</DialogTitle>
           <DialogDescription>
-            Laden Sie einen neuen Mitarbeiter per E-Mail ein. Der Mitarbeiter erhält einen Link zur Registrierung.
+            Die Person bekommt einen Link und legt ihr Passwort selbst fest.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
