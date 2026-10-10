@@ -1,79 +1,73 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Scissors } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Shop, Service } from '../utils/firestore/types';
 
 export interface ShopCardProps {
   shop: Shop;
   services?: Service[];
+  /** "dark" für den schwarzen Abschnitt der Startseite */
+  tone?: 'light' | 'dark';
 }
 
-export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [] }) => {
-  const navigate = useNavigate();
+const formatAddress = (shop: Shop) =>
+  shop.street || shop.city || shop.postalCode
+    ? [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+    : shop.address || '';
 
-  const handleBookAppointment = () => {
-    navigate(`/book-appointment?shopId=${shop.id}&fromMarketplace=true`);
-  };
-  
+/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen */
+export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light' }) => {
+  const address = formatAddress(shop);
+  const dark = tone === 'dark';
+
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg cursor-pointer hover:text-primary transition-colors" onClick={() => navigate(`/shop-details?shopId=${shop.id}`)}>
+    <article
+      className={cn(
+        'flex h-full flex-col gap-4 rounded-3xl border p-5',
+        dark ? 'border-white/10 bg-white/[0.06] text-background' : 'border-border bg-card',
+      )}
+    >
+      <div className="flex flex-col gap-1">
+        <h3 className="font-display text-xl font-bold">
+          <Link to={`/shop-details?shopId=${shop.id}`} className="rounded hover:underline">
             {shop.name}
-          </CardTitle>
-        <CardDescription className="flex items-center gap-1">
-          <MapPin className="h-3 w-3" />
-          <span>
-            {shop.street || shop.city || shop.postalCode ? (
-              // Wenn neue Adressfelder vorhanden sind, zeige diese
-              [shop.street, shop.postalCode, shop.city].filter(Boolean).join(', ')
-            ) : (
-              // Ansonsten zeige Legacy-Adresse oder Standardtext
-              shop.address || 'Keine Adresse angegeben'
-            )}
-          </span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        {shop.description && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {shop.description}
+          </Link>
+        </h3>
+        {address && (
+          <p className={cn('flex items-start gap-1.5 text-sm', dark ? 'text-white/70' : 'text-muted-foreground')}>
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{address}</span>
           </p>
         )}
-        {services && services.length > 0 && (
-          <div className="mt-2">
-            <p className="text-sm font-medium mb-1 flex items-center gap-1">
-              <Scissors className="h-3 w-3" /> Angebotene Leistungen:
-            </p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {services.slice(0, 3).map((service) => (
-                <Badge 
-                  key={service.id} 
-                  variant="outline" 
-                  className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                  onClick={() => navigate(`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`)}
-                >
-                  {service.name}
-                </Badge>
-              ))}
-              {services.length > 3 && (
-                <Badge variant="outline" className="text-xs">+{services.length - 3} weitere</Badge>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="pt-2 flex gap-2">
-        <Button variant="outline" onClick={() => navigate(`/shop-details?shopId=${shop.id}`)} className="flex-grow">
-          Details
+      </div>
+
+      {services.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Leistungen">
+          {services.slice(0, 3).map((service) => (
+            <li key={service.id} className={cn('rounded-full border px-2.5 py-1 text-xs', dark ? 'border-white/15' : 'border-border')}>
+              {service.name}
+            </li>
+          ))}
+          {services.length > 3 && (
+            <li className={cn('rounded-full px-2 py-1 text-xs', dark ? 'text-white/70' : 'text-muted-foreground')}>+{services.length - 3}</li>
+          )}
+        </ul>
+      )}
+
+      <div className="mt-auto flex gap-2">
+        <Button variant={dark ? 'signal' : 'default'} className="flex-1" asChild>
+          <Link to={`/public-join-queue?shopId=${shop.id}`}>Einreihen</Link>
         </Button>
-        <Button onClick={handleBookAppointment} className="flex-grow">
-          Termin buchen
+        <Button
+          variant="outline"
+          className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
+          asChild
+        >
+          <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>Termin</Link>
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </article>
   );
 };
