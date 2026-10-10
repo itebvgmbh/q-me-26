@@ -1,233 +1,196 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { format, isToday, isTomorrow } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
-import { EarlierSlotNotifications } from '../components/EarlierSlotNotifications';
+import { Button } from '@/components/ui/button';
 import type { EarlierSlotNotificationType } from '../utils/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { firestore } from '../utils/firestore-client';
-import type { Appointment, Service, Shop, Staff } from '../utils/firestore';
 import { cancelAppointment } from '../utils/firestore';
 import { safelyConvertToDate } from '../utils/datetime';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
 import { loadUserNotifications } from '../utils/notifications';
-import { AppointmentCard } from '../components/AppointmentCard';
+import { AppointmentCard, AppointmentWithDetails } from '../components/AppointmentCard';
 import { CancelAppointmentDialog } from '../components/CancelAppointmentDialog';
+import { Ticket } from '../components/brand/Ticket';
 
-/**
- * MyBookings page component for displaying user appointments 
- * and managing appointment cancellations/modifications
- */
+const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
+
+const isUpcoming = (a: AppointmentWithDetails) =>
+  (a.status === 'scheduled' || a.status === 'in-progress') && safelyConvertToDate(a.endTime) > new Date();
+
+/** Meine Termine: nächster Termin als Wartemarke, danach Kommendes und Vergangenes */
 const MyBookings = () => {
-  // State management
-  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useCurrentUser();
-  const [appointments, setAppointments] = useState<(Appointment & { service?: Service; shop?: Shop; staff?: Staff; queuePosition?: number })[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<EarlierSlotNotificationType[]>([]);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
 
-  /**
-   * Load appointments with details (service, shop, staff)
-   */
-  const loadAppointments = async () => {
-    setLoading(true);
-    if (user) {
-      try {
-        const appointmentsWithDetails = await loadAppointmentsWithDetails(user.uid);
-        setAppointments(appointmentsWithDetails);
-      } catch (error) {
-        console.error('Error loading appointments:', error);
-      }
-    }
-    setLoading(false);
-  };
-
-  /**
-   * Load notifications about earlier slots
-   */
-  const fetchNotifications = async () => {
-    if (!user) {
-      console.log('No user available to load notifications');
-      return;
-    }
-    
-    setLoadingNotifications(true);
+  const loadAppointments = useCallback(async () => {
+    if (!user) return;
     try {
-      const userNotifications = await loadUserNotifications(user.uid);
-      setNotifications(userNotifications);
+      setAppointments(await loadAppointmentsWithDetails(user.uid));
     } catch (error) {
-      console.error('Error loading notifications:', error);
-      setNotifications([]);
+      console.error('Error loading appointments:', error);
+      toast.error('Deine Termine konnten nicht geladen werden.');
     } finally {
-      setLoadingNotifications(false);
-    }
-  };
-
-  /**
-   * Handle accepting an earlier slot notification
-   */
-  const handleAcceptEarlierSlot = async (notificationId: string) => {
-    try {
-      // Use the repository function for better encapsulation and code reuse
-      const { acceptEarlierAppointmentSlot } = await import('../utils/firebase/appointmentRepository');
-      
-      const success = await acceptEarlierAppointmentSlot(notificationId);
-      
-      if (success) {
-        toast.success('Früherer Termin erfolgreich angenommen!');
-        
-        // Refresh both notifications and appointments
-        await fetchNotifications();
-        await loadAppointments();
-        return true;
-      }
-      
-      throw new Error('Failed to accept earlier slot');
-    } catch (error) {
-      console.error('Error accepting earlier slot:', error);
-      toast.error('Fehler beim Annehmen des früheren Termins');
-      throw error;
-    }
-  };
-
-  /**
-   * Load data on component mount and set up refresh interval
-   */
-  useEffect(() => {
-    if (user) {
-      loadAppointments();
-      fetchNotifications();
-      
-      // Set up periodic refresh for notifications
-      const refreshInterval = setInterval(() => {
-        console.log('Periodic refresh of notifications');
-        fetchNotifications();
-      }, 30000); // refresh every 30 seconds
-      
-      return () => clearInterval(refreshInterval);
+      setLoading(false);
     }
   }, [user]);
 
-  /**
-   * Loading state display
-   */
-  if (loading) {
-    return (
-    <>
-      <div className="container mx-auto py-8">
-        <p>Lädt...</p>
-      </div>
-    </>
-    );
-  }
-
-  /**
-   * Handle appointment cancellation
-   */
-  const handleCancelAppointment = async () => {
-    if (!appointmentToCancel) return;
-    
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
     try {
-      // Get the appointment data to extract shopId and date for cache invalidation
-      const appointmentRef = doc(firestore, 'appointments', appointmentToCancel);
-      const appointmentDoc = await getDoc(appointmentRef);
-      const appointmentData = appointmentDoc.exists() ? appointmentDoc.data() : null;
-      
-      await cancelAppointment(appointmentToCancel);
-      toast.success("Termin erfolgreich storniert");
-      
-      // Invalidate cache after cancellation
-      if (appointmentData && appointmentData.shopId && appointmentData.startTime) {
-        try {
-          const invalidateCache = useTimeSlotStore.getState().invalidateCache;
-          const date = safelyConvertToDate(appointmentData.startTime);
-          console.log(`Invalidating cache for shop ${appointmentData.shopId} after cancellation on date ${date.toISOString()}`);
-          invalidateCache(appointmentData.shopId, date);
-        } catch (cacheError) {
-          console.error('Error invalidating cache after cancellation:', cacheError);
-        }
+      setNotifications(await loadUserNotifications(user.uid));
+    } catch {
+      setNotifications([]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadAppointments();
+    fetchNotifications();
+    // Angebote für frühere Plätze regelmäßig nachladen
+    const refresh = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(refresh);
+  }, [user, loadAppointments, fetchNotifications]);
+
+  const handleAcceptEarlierSlot = async (notificationId: string) => {
+    try {
+      const { acceptEarlierAppointmentSlot } = await import('../utils/firebase/appointmentRepository');
+      if (!(await acceptEarlierAppointmentSlot(notificationId))) throw new Error('not accepted');
+      toast.success('Du hast den früheren Platz.');
+      await Promise.all([fetchNotifications(), loadAppointments()]);
+      return true;
+    } catch (error) {
+      console.error('Error accepting earlier slot:', error);
+      toast.error('Der Platz ist leider schon weg.');
+      await fetchNotifications();
+      return false;
+    }
+  };
+
+  const handleCancelAppointment = async () => {
+    const id = appointmentToCancel;
+    setAppointmentToCancel(null);
+    if (!id) return;
+    try {
+      const snap = await getDoc(doc(firestore, 'appointments', id));
+      const data = snap.exists() ? snap.data() : null;
+      await cancelAppointment(id);
+      toast.success('Termin abgesagt.');
+      if (data?.shopId && data?.startTime) {
+        useTimeSlotStore.getState().invalidateCache(data.shopId, safelyConvertToDate(data.startTime));
       }
-      
-      // Reload appointments to refresh the list
       loadAppointments();
     } catch (error) {
       console.error('Error cancelling appointment:', error);
-      toast.error("Fehler beim Stornieren des Termins");
-    } finally {
-      setAppointmentToCancel(null);
-      setIsDialogOpen(false);
+      toast.error('Das Absagen hat nicht geklappt. Versuch es noch einmal.');
     }
   };
-  
-  /**
-   * Open the cancellation dialog for a specific appointment
-   */
-  const handleOpenCancelDialog = (appointmentId: string) => {
-    setAppointmentToCancel(appointmentId);
-    setIsDialogOpen(true);
-  };
-  
-  /**
-   * Close the cancellation dialog without cancelling
-   */
-  const handleCloseDialog = () => {
-    setAppointmentToCancel(null);
-    setIsDialogOpen(false);
-  };
+
+  const upcoming = appointments
+    .filter(isUpcoming)
+    .sort((a, b) => safelyConvertToDate(a.startTime).getTime() - safelyConvertToDate(b.startTime).getTime());
+  const past = appointments
+    .filter((a) => !isUpcoming(a))
+    .sort((a, b) => safelyConvertToDate(b.startTime).getTime() - safelyConvertToDate(a.startTime).getTime());
+  const next = upcoming[0];
+  const offerFor = (a: AppointmentWithDetails) => notifications.find((n) => n.appointmentId === a.id && n.isAccepted !== true);
 
   return (
-    <>
-      <div className="container mx-auto py-8 space-y-8">
-        {/* Display earlier slot notifications if available */}
-        {!loadingNotifications && notifications.length > 0 && (
-          <EarlierSlotNotifications 
-            notifications={notifications} 
-            onAccept={handleAcceptEarlierSlot}
-            onRefresh={fetchNotifications}
-          />
-        )}
-        
-        {/* Page header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Meine Buchungen</h1>
-        </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Meine Termine</h1>
 
-        {/* List of appointments */}
-        <div className="space-y-4">
-          {appointments.length === 0 ? (
-            <p>Keine Buchungen vorhanden</p>
-          ) : (
-            appointments.map(appointment => {
-              // Find notification for this appointment if one exists
-              const appointmentNotification = notifications.find(n => 
-                n.appointmentId === appointment.id && 
-                n.isAccepted !== true
-              );
-              
-              return (
-                <AppointmentCard 
-                  key={appointment.id}
-                  appointment={appointment}
-                  notification={appointmentNotification}
-                  onCancelClick={handleOpenCancelDialog}
+      {loading ? (
+        <div className="flex flex-col gap-4" aria-busy="true" aria-label="Termine werden geladen">
+          <div className="h-56 animate-pulse rounded-3xl bg-muted" />
+          <div className="h-28 animate-pulse rounded-3xl bg-muted" />
+        </div>
+      ) : appointments.length === 0 ? (
+        <div className="flex flex-col items-start gap-4 rounded-3xl border border-border bg-card p-6">
+          <p className="font-display text-xl font-bold">Noch nichts gebucht.</p>
+          <p className="text-muted-foreground">Zieh eine Nummer für sofort oder buch eine feste Uhrzeit.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="signal" asChild>
+              <Link to="/public-join-queue">In die Schlange</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/book-appointment">Termin buchen</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {next && (
+            <section className="flex flex-col gap-3" aria-labelledby="als-naechstes">
+              <h2 id="als-naechstes" className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Als Nächstes
+              </h2>
+              <Ticket
+                eyebrow={next.shop?.name}
+                eyebrowRight={[next.service?.name, next.staff?.name].filter(Boolean).join(' · ')}
+                number={format(safelyConvertToDate(next.startTime), 'HH:mm')}
+                stats={[
+                  { label: 'Wann', value: dayLabel(safelyConvertToDate(next.startTime)) },
+                  {
+                    label: next.type === 'queue' ? 'In der Schlange' : 'Art',
+                    value: next.type === 'queue' ? ((next.queuePosition ?? 0) > 0 ? `Platz ${next.queuePosition}` : 'Eingereiht') : 'Fester Termin',
+                  },
+                ]}
+              />
+              <AppointmentCard
+                appointment={next}
+                notification={offerFor(next)}
+                onCancelClick={setAppointmentToCancel}
+                onAcceptEarlierSlot={handleAcceptEarlierSlot}
+                actionsOnly
+              />
+            </section>
+          )}
+
+          {upcoming.length > 1 && (
+            <section className="flex flex-col gap-3" aria-labelledby="danach">
+              <h2 id="danach" className="font-display text-2xl font-bold">
+                Danach
+              </h2>
+              {upcoming.slice(1).map((a) => (
+                <AppointmentCard
+                  key={a.id}
+                  appointment={a}
+                  notification={offerFor(a)}
+                  onCancelClick={setAppointmentToCancel}
                   onAcceptEarlierSlot={handleAcceptEarlierSlot}
                 />
-              );
-            })
+              ))}
+            </section>
           )}
-        </div>
-      </div>
 
-      {/* Confirmation dialog for appointment cancellation */}
-      <CancelAppointmentDialog 
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onCancel={handleCloseDialog}
+          {past.length > 0 && (
+            <section className="flex flex-col gap-3" aria-labelledby="vorbei">
+              <h2 id="vorbei" className="font-display text-2xl font-bold text-muted-foreground">
+                Vorbei
+              </h2>
+              {past.map((a) => (
+                <AppointmentCard key={a.id} appointment={a} onCancelClick={setAppointmentToCancel} past />
+              ))}
+            </section>
+          )}
+        </>
+      )}
+
+      <CancelAppointmentDialog
+        isOpen={!!appointmentToCancel}
+        onOpenChange={(open) => !open && setAppointmentToCancel(null)}
+        onCancel={() => setAppointmentToCancel(null)}
         onConfirm={handleCancelAppointment}
       />
-    </>
+    </div>
   );
 };
 

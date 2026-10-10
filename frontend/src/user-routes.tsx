@@ -2,9 +2,16 @@
 // Ursprünglich von Databutton erzeugt; wird seit dem Export von Hand gepflegt.
 import { lazy } from "react";
 import { RouteObject } from "react-router";
+import { Navigate, useLocation } from "react-router-dom";
 
 
 import { UserGuard } from "./app";
+
+// Alte Buchungsseiten zeigen auf die zwei gepflegten Abläufe; Query (shopId, serviceId) bleibt erhalten
+const RedirectKeepQuery = ({ to }: { to: string }) => {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
+};
 
 
 const App = lazy(() => import("./pages/App.tsx"));
@@ -14,8 +21,6 @@ const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazy(() => import("./pages/Features.tsx"));
-const JoinQueue = lazy(() => import("./pages/JoinQueue.tsx"));
-const JoinQueueRefactored = lazy(() => import("./pages/JoinQueueRefactored.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Logout = lazy(() => import("./pages/Logout.tsx"));
 const MyBookings = lazy(() => import("./pages/MyBookings.tsx"));
@@ -27,7 +32,6 @@ const RegisterOptions = lazy(() => import("./pages/RegisterOptions.tsx"));
 const RegisterShopOwner = lazy(() => import("./pages/RegisterShopOwner.tsx"));
 const RoleSelection = lazy(() => import("./pages/RoleSelection.tsx"));
 const SchedulerControl = lazy(() => import("./pages/SchedulerControl.tsx"));
-const ServiceBooking = lazy(() => import("./pages/ServiceBooking.tsx"));
 const ServiceManagement = lazy(() => import("./pages/ServiceManagement.tsx"));
 const ShopDashboard = lazy(() => import("./pages/ShopDashboard.tsx"));
 const ShopDetails = lazy(() => import("./pages/ShopDetails.tsx"));
@@ -50,10 +54,10 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/employeedashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/features", element: <Features />},
-	{ path: "/join-queue", element: <UserGuard><JoinQueue /></UserGuard>},
-	{ path: "/joinqueue", element: <UserGuard><JoinQueue /></UserGuard>},
-	{ path: "/join-queue-refactored", element: <UserGuard><JoinQueueRefactored /></UserGuard>},
-	{ path: "/joinqueuerefactored", element: <UserGuard><JoinQueueRefactored /></UserGuard>},
+	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
+	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
+	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},
+	{ path: "/joinqueuerefactored", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/login", element: <Login />},
 	{ path: "/logout", element: <UserGuard><Logout /></UserGuard>},
 	{ path: "/my-bookings", element: <UserGuard><MyBookings /></UserGuard>},
@@ -72,8 +76,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/roleselection", element: <UserGuard><RoleSelection /></UserGuard>},
 	{ path: "/scheduler-control", element: <UserGuard><SchedulerControl /></UserGuard>},
 	{ path: "/schedulercontrol", element: <UserGuard><SchedulerControl /></UserGuard>},
-	{ path: "/service-booking", element: <UserGuard><ServiceBooking /></UserGuard>},
-	{ path: "/servicebooking", element: <UserGuard><ServiceBooking /></UserGuard>},
+	{ path: "/service-booking", element: <RedirectKeepQuery to="/book-appointment" />},
+	{ path: "/servicebooking", element: <RedirectKeepQuery to="/book-appointment" />},
 	{ path: "/service-management", element: <UserGuard><ServiceManagement /></UserGuard>},
 	{ path: "/servicemanagement", element: <UserGuard><ServiceManagement /></UserGuard>},
 	{ path: "/shop-dashboard", element: <UserGuard><ShopDashboard /></UserGuard>},

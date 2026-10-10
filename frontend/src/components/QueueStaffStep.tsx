@@ -1,8 +1,6 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { EmployeeSelection } from './EmployeeSelection';
+import React, { useMemo } from 'react';
 import { Staff } from '../utils/firestore/types';
+import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
 
 export interface QueueStaffStepProps {
   staff: Staff[];
@@ -14,45 +12,33 @@ export interface QueueStaffStepProps {
   onBack: () => void;
 }
 
-/**
- * Component for selecting a staff member in the queue process
- * Displays available staff members for the selected service
- */
-export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({
-  staff,
-  selectedService,
-  selectedStaff,
-  onSelectStaff,
-  onSelectAny,
-  useAnyStaff,
-  onBack,
-}) => {
+export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({ staff, selectedService, selectedStaff, onSelectStaff, onSelectAny, useAnyStaff, onBack }) => {
+  // Nur wer die gewählte Leistung anbietet; ist niemand zugeordnet, alle zeigen
+  const eligible = useMemo(() => {
+    const offering = staff.filter((s) => s.serviceIds?.includes(selectedService));
+    return offering.length > 0 ? offering : staff;
+  }, [staff, selectedService]);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Mitarbeiter auswählen</CardTitle>
-        <CardDescription>
-          Wählen Sie einen Mitarbeiter oder den nächsten freien Mitarbeiter
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <EmployeeSelection 
-          staff={staff}
-          selectedService={selectedService}
-          selectedStaff={selectedStaff}
-          onSelectStaff={onSelectStaff}
-          onSelectAny={onSelectAny}
-          useAnyStaff={useAnyStaff}
+    <QueueStepShell title="Bei wem?" description="Am schnellsten geht’s mit der nächsten freien Person." onBack={onBack} backLabel="Andere Leistung wählen">
+      <div className="flex flex-col gap-2">
+        <QueueOption
+          selected={useAnyStaff}
+          onClick={onSelectAny}
+          title="Egal wer – Hauptsache schnell"
+          meta="Nächste freie Person"
+          badge={<span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-xs font-semibold text-signal-foreground">Am schnellsten</span>}
         />
-      </CardContent>
-      <CardFooter className="flex justify-start">
-        <Button 
-          variant="outline" 
-          onClick={onBack}
-        >
-          Zurück
-        </Button>
-      </CardFooter>
-    </Card>
+        {eligible.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Für diese Leistung ist niemand fest eingetragen.</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {eligible.map((s) => (
+              <QueueOption key={s.id} selected={!useAnyStaff && s.id === selectedStaff} onClick={() => onSelectStaff(s.id)} title={s.name} />
+            ))}
+          </div>
+        )}
+      </div>
+    </QueueStepShell>
   );
 };

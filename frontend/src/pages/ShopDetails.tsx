@@ -125,7 +125,7 @@ const ServiceDisplayShopDetails = ({ services, shopId }: ServiceDisplayProps) =>
                 <Button 
                   size="sm"
                   className="self-start"
-                  onClick={() => navigate(`/service-booking?shopId=${shopId}&serviceId=${service.id}`)}
+                  onClick={() => navigate(`/book-appointment?shopId=${shopId}&serviceId=${service.id}&fromMarketplace=true`)}
                 >
                   Diesen Service buchen
                 </Button>
