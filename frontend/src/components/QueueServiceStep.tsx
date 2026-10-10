@@ -1,9 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ServiceSelection } from './ServiceSelection';
 import { Service } from '../utils/firestore/types';
-import { CheckCircle2 } from 'lucide-react';
+import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
 
 export interface QueueServiceStepProps {
   services: Service[];
@@ -14,47 +11,26 @@ export interface QueueServiceStepProps {
   shopName: string | undefined;
 }
 
-/**
- * Component for selecting a service in the queue process
- * Displays available services for the user to select
- */
-export const QueueServiceStep: React.FC<QueueServiceStepProps> = ({
-  services,
-  selectedService,
-  onSelectService,
-  onBack,
-  arrivedFromQR,
-  shopName,
-}) => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Service auswählen</CardTitle>
-        <CardDescription>
-          {arrivedFromQR && (
-            <span className="text-green-600 flex items-center mb-2">
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              Shop vorausgewählt über QR-Code: {shopName}
-            </span>
-          )}
-          Wählen Sie den gewünschten Service
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ServiceSelection 
-          services={services} 
-          selectedService={selectedService} 
-          onSelectService={onSelectService} 
-        />
-      </CardContent>
-      <CardFooter className="flex justify-start">
-        <Button 
-          variant="outline" 
-          onClick={onBack}
-        >
-          Zurück
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
+const meta = (s: Service) =>
+  [s.duration && `${s.duration} Min`, typeof s.price === 'number' && `${s.price.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`]
+    .filter(Boolean)
+    .join(' · ');
+
+export const QueueServiceStep: React.FC<QueueServiceStepProps> = ({ services, selectedService, onSelectService, onBack, arrivedFromQR, shopName }) => (
+  <QueueStepShell
+    title="Was soll gemacht werden?"
+    description={shopName ? <>bei <strong className="text-foreground">{shopName}</strong></> : undefined}
+    onBack={onBack}
+    backLabel={arrivedFromQR ? 'Auswahl zurücksetzen' : 'Anderen Shop wählen'}
+  >
+    {services.length === 0 ? (
+      <p className="text-muted-foreground">Dieser Shop hat noch keine Leistungen eingetragen.</p>
+    ) : (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {services.map((s) => (
+          <QueueOption key={s.id} selected={s.id === selectedService} onClick={() => onSelectService(s.id)} title={s.name} meta={meta(s)} />
+        ))}
+      </div>
+    )}
+  </QueueStepShell>
+);

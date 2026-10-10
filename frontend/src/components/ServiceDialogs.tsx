@@ -46,13 +46,13 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
       
       await createService(serviceWithShopId);
       
-      toast.success('Service erfolgreich erstellt');
+      toast.success('Leistung angelegt.');
       onServiceAdded(true);
       setOpen(false);
       return true;
     } catch (error) {
       console.error('Error creating service:', error);
-      toast.error('Fehler beim Erstellen des Services');
+      toast.error('Die Leistung konnte nicht angelegt werden.');
       return false;
     }
   }, [shop, onServiceAdded]);
@@ -60,13 +60,13 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Service hinzufügen</Button>
+        <Button variant="signal">Leistung anlegen</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Service hinzufügen</DialogTitle>
+          <DialogTitle>Neue Leistung</DialogTitle>
           <DialogDescription>
-            Fügen Sie einen neuen Service für Ihren Shop hinzu.
+            Was kann man bei dir buchen? Dauer und Preis bestimmen die freien Zeiten.
           </DialogDescription>
         </DialogHeader>
         <ServiceForm
@@ -108,13 +108,13 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
     try {
       await updateService(service.id, serviceData);
       
-      toast.success('Service erfolgreich aktualisiert');
+      toast.success('Leistung gespeichert.');
       onServiceUpdated(true);
       setOpen(false);
       return true;
     } catch (error) {
       console.error('Error updating service:', error);
-      toast.error('Fehler beim Aktualisieren des Services');
+      toast.error('Die Leistung konnte nicht gespeichert werden.');
       return false;
     }
   }, [service.id, onServiceUpdated]);
@@ -122,13 +122,13 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">Bearbeiten</Button>
+        <Button variant="ghost" size="sm">Bearbeiten</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Service bearbeiten</DialogTitle>
+          <DialogTitle>Leistung bearbeiten</DialogTitle>
           <DialogDescription>
-            Aktualisieren Sie die Details des Services.
+            Änderungen gelten für neue Buchungen.
           </DialogDescription>
         </DialogHeader>
         <ServiceForm

@@ -1,8 +1,7 @@
 import { getFirestore } from 'firebase/firestore';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { TimeSlot } from '../types';
-import { isTimeSlotAvailable } from './appointments';
 
 /**
  * Holt verfügbare Zeitslots direkt aus Firestore ohne API-Aufruf
@@ -185,10 +184,11 @@ export const getAvailableTimeslotsDirect = async (
     console.log(`Prüfe Öffnungszeiten für Datum ${date}, Tag der Woche: ${dayOfWeek}`);
     
     // 5. Shop-Öffnungszeiten für diesen Wochentag finden
-    // Firestore speichert Tage als 0 = Montag, ... 6 = Sonntag
-    // JavaScript verwendet 0 = Sonntag, ... 6 = Samstag
-    // Daher müssen wir konvertieren
-    const firestoreDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    // Firestore speichert Tage wie JavaScript: 0 = Sonntag … 6 = Samstag.
+    // So schreiben es BusinessHoursEditor und WorkingHoursForm, und so liest es
+    // das Backend (available_timeslots). Früher wurde hier auf 0 = Montag
+    // umgerechnet; dadurch war jeder Tag um eins verschoben.
+    const firestoreDayOfWeek = dayOfWeek;
     console.log(`Firestore-Tag der Woche: ${firestoreDayOfWeek}`);
     
     // Prüfe, ob wir gültige Geschäftszeiten haben
@@ -290,7 +290,28 @@ export const getAvailableTimeslotsDirect = async (
       return [];
     }
 
-    // 8. Zeitslots in 15-Minuten-Intervallen erstellen
+    // 8. Bestehende Termine der Person EINMAL laden statt pro Slot neu abzufragen
+    const existingSnapshot = await getDocs(
+      query(collection(db, 'appointments'), where('shopId', '==', shopId), where('staffId', '==', staffId))
+    );
+    const busy: Array<[number, number]> = [];
+    existingSnapshot.forEach((d) => {
+      const a = d.data();
+      if (a.status === 'cancelled') return;
+      if (typeof a.startTime?.toDate !== 'function' || typeof a.endTime?.toDate !== 'function') return;
+      busy.push([a.startTime.toDate().getTime(), a.endTime.toDate().getTime()]);
+    });
+    // Gleiche Regel wie isTimeSlotAvailable, inklusive 1 Minute Toleranz
+    const overlapTolerance = 60000;
+    const isFree = (newStart: number, newEnd: number) =>
+      !busy.some(([existingStart, existingEnd]) =>
+        (newStart >= existingStart && newStart < existingEnd - overlapTolerance) ||
+        (newEnd > existingStart + overlapTolerance && newEnd <= existingEnd) ||
+        (newStart <= existingStart && newEnd >= existingEnd) ||
+        (newStart >= existingStart && newEnd <= existingEnd)
+      );
+
+    // 9. Zeitslots in 15-Minuten-Intervallen erstellen
     const timeSlots: TimeSlot[] = [];
     const intervalMinutes = 15; // 15-Minuten-Intervalle
 
@@ -312,13 +333,8 @@ export const getAvailableTimeslotsDirect = async (
       const endDate = new Date(dateObj);
       endDate.setHours(endHour, endMinute, 0, 0);
 
-      // 9. Prüfen, ob der Zeitslot verfügbar ist (keine Überschneidung mit bestehenden Terminen)
-      const isAvailable = await isTimeSlotAvailable(
-        shopId,
-        staffId,
-        Timestamp.fromDate(startDate),
-        Timestamp.fromDate(endDate)
-      );
+      // Prüfen, ob der Zeitslot frei ist (keine Überschneidung mit bestehenden Terminen)
+      const isAvailable = isFree(startDate.getTime(), endDate.getTime());
 
       if (isAvailable) {
         timeSlots.push({

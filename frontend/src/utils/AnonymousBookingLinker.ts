@@ -1,45 +1,49 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { firestore } from './firestore-client';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { updateAppointment } from './firestore';
 import { getAnonymousBookingCodes, removeAnonymousBookingCode } from './localStorageUtils';
 import { toast } from 'sonner';
 
+// Firestore-Dokument-IDs sind 20 Zeichen lang, Wartenummern nur zwei Stellen
+const isAppointmentId = (value: string) => value.length >= 15;
+
+// Login, Registrierung und Startseite können gleichzeitig verknüpfen – nur ein Lauf auf einmal
+let running: Promise<void> | null = null;
+
 /**
- * Versucht, alle anonymen Buchungen eines Benutzers zu verknüpfen
- * @param userId Die User-ID des angemeldeten Benutzers
- * @param specificShopId Optional: Spezifische Shop-ID für die Verknüpfung
- * @param specificReferenceCode Optional: Spezifischer Referenzcode für die Verknüpfung
+ * Verknüpft die in diesem Browser gezogenen Nummern mit dem Konto.
+ * @param userId User-ID des angemeldeten Benutzers
+ * @param specificShopId Optional: nur Buchungen dieses Shops
+ * @param specificReferenceCode Optional: Wartenummer, falls im Browser nichts gespeichert ist
  */
-export const linkAnonymousBookingsToUser = async (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+export const linkAnonymousBookingsToUser = (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+  if (!running) {
+    running = linkAll(userId, specificShopId, specificReferenceCode).finally(() => {
+      running = null;
+    });
+  }
+  return running;
+};
+
+const linkAll = async (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
   try {
     let linkedCount = 0;
-    
-    // Fall 1: Spezifische Buchung verknüpfen (wenn Shop-ID und Referenzcode angegeben)
-    if (specificShopId && specificReferenceCode) {
-      console.log(`Versuche, spezifische anonyme Buchung zu verknüpfen: Shop=${specificShopId}, Referenz=${specificReferenceCode}`);
-      const linked = await linkSingleAnonymousBooking(specificShopId, specificReferenceCode, userId);
-      if (linked) linkedCount++;
-    } 
-    // Fall 2: Alle gespeicherten anonymen Buchungen verknüpfen
-    else {
-      const anonymousBookings = getAnonymousBookingCodes();
-      console.log('Prüfe auf anonyme Buchungen für den Benutzer:', userId);
-      console.log('Gefundene anonyme Buchungen:', anonymousBookings);
-      
-      // Durchlaufe alle Shops mit anonymen Buchungen
-      for (const [shopId, referenceCodes] of Object.entries(anonymousBookings)) {
-        for (const referenceCode of referenceCodes) {
-          const linked = await linkSingleAnonymousBooking(shopId, referenceCode, userId);
-          if (linked) linkedCount++;
-        }
+    const stored = getAnonymousBookingCodes();
+    const shops = specificShopId ? { [specificShopId]: stored[specificShopId] || [] } : stored;
+
+    for (const [shopId, values] of Object.entries(shops)) {
+      for (const value of values) {
+        if (await linkSingleAnonymousBooking(shopId, value, userId)) linkedCount++;
       }
     }
-    
+
+    // Nichts im Browser gespeichert: nur die angegebene Nummer versuchen
+    if (linkedCount === 0 && specificShopId && specificReferenceCode && !(stored[specificShopId] || []).length) {
+      if (await linkSingleAnonymousBooking(specificShopId, specificReferenceCode, userId)) linkedCount++;
+    }
+
     if (linkedCount > 0) {
-      // Zeige eine Erfolgsmeldung an
-      toast.success(`${linkedCount} ${linkedCount === 1 ? 'anonymer Termin wurde' : 'anonyme Termine wurden'} mit Ihrem Konto verknüpft!`);
+      toast.success(linkedCount === 1 ? 'Deine Nummer ist jetzt in deinem Konto.' : `${linkedCount} Nummern sind jetzt in deinem Konto.`);
     }
   } catch (error) {
     console.error('Fehler beim Verknüpfen anonymer Buchungen:', error);
@@ -47,79 +51,50 @@ export const linkAnonymousBookingsToUser = async (userId: string, specificShopId
 };
 
 /**
- * Verknüpft eine einzelne anonyme Buchung mit einem Benutzer
- * @param shopId Shop-ID der Buchung
- * @param referenceCode Referenzcode der anonymen Buchung
- * @param userId User-ID des Benutzers
- * @returns true wenn die Verknüpfung erfolgreich war, false sonst
+ * Verknüpft eine einzelne anonyme Buchung mit einem Benutzer.
+ * Über die Termin-ID eindeutig; alte Einträge mit Wartenummer nur, wenn die Nummer im Shop eindeutig ist –
+ * sonst könnte die Buchung einer fremden Person übernommen werden.
  */
-const linkSingleAnonymousBooking = async (shopId: string, referenceCode: string, userId: string): Promise<boolean> => {
+const linkSingleAnonymousBooking = async (shopId: string, value: string, userId: string): Promise<boolean> => {
   try {
-    console.log(`Versuche, anonyme Buchung zu verknüpfen: Shop=${shopId}, Referenz=${referenceCode}, User=${userId}`);
-    // Suche nach der Buchung anhand des Referenzcodes
-    const appointmentsRef = collection(firestore, 'appointments');
-    const q = query(
-      appointmentsRef, 
-      where('shopId', '==', shopId),
-      where('referenceCode', '==', referenceCode),
-      where('isAnonymous', '==', true)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      console.log('Keine anonyme Buchung gefunden mit diesem Referenzcode');
-      // Entferne den Code aus dem localStorage, da er nicht mehr gültig ist
-      removeAnonymousBookingCode(shopId, referenceCode);
+    let appointmentId: string | null = null;
+
+    if (isAppointmentId(value)) {
+      const snap = await getDoc(doc(firestore, 'appointments', value));
+      const data = snap.data();
+      if (snap.exists() && data?.shopId === shopId && data?.isAnonymous === true) appointmentId = snap.id;
+    } else {
+      const snapshot = await getDocs(
+        query(
+          collection(firestore, 'appointments'),
+          where('shopId', '==', shopId),
+          where('referenceCode', '==', value),
+          where('isAnonymous', '==', true)
+        )
+      );
+      if (snapshot.size === 1) appointmentId = snapshot.docs[0].id;
+      else if (snapshot.size > 1) console.warn(`Wartenummer ${value} ist nicht eindeutig – keine Verknüpfung`);
+    }
+
+    if (!appointmentId) {
+      removeAnonymousBookingCode(shopId, value);
       return false;
     }
-    
-    // Nehme die erste gefundene Buchung
-    const appointmentDoc = querySnapshot.docs[0];
-    const appointmentId = appointmentDoc.id;
-    
-    console.log(`Anonyme Buchung gefunden: ${appointmentId}, wird mit Benutzer ${userId} verknüpft`);
-    
-    // Hole zunächst die Benutzerinformationen, um den Namen einzutragen
-    const db = getFirestore(firebaseApp);
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    const userData = userDoc.data();
-    // Gemäß Task QME-61: Verwende IMMER users.displayName wenn verfügbar
-    // Verbessere die Namensermittlung mit mehr Fallbacks
-    let customerName = userData?.displayName || '';
-    
-    if (!customerName) {
-      // Wenn kein displayName vorhanden ist, hole den Benutzer direkt aus Firebase Auth
-      try {
-        const authUser = await getAuth(firebaseApp).getUser(userId);
-        customerName = authUser.displayName || 
-                      (authUser.email ? authUser.email.split('@')[0] : null) || 
-                      userData?.email || '';
-      } catch (error) {
-        console.error('Fehler beim Abrufen des Firebase Auth Users:', error);
-        customerName = userData?.email || '';
-      }
-    }
-    
-    if (!customerName) {
-      customerName = 'Unbekannt';
-    }
-    
-    // Aktualisiere die Buchung, um sie mit dem Benutzer zu verknüpfen
+
+    // Name aus dem Profil übernehmen
+    const userData = (await getDoc(doc(firestore, 'users', userId))).data();
+    const customerName = userData?.displayName || userData?.email?.split('@')[0] || 'Unbekannt';
+
     await updateAppointment(appointmentId, {
       customerId: userId,
-      customerName: customerName,
-      isAnonymous: false
+      customerName,
+      isAnonymous: false,
     });
-    
-    console.log(`Buchung ${appointmentId} erfolgreich mit Benutzer ${userId} verknüpft`);
-    
-    // Entferne den Code aus dem localStorage, da er jetzt verknüpft ist
-    removeAnonymousBookingCode(shopId, referenceCode);
-    
+
+    removeAnonymousBookingCode(shopId, value);
     return true;
   } catch (error) {
-    console.error(`Fehler beim Verknüpfen der anonymen Buchung (${referenceCode}):`, error);
+    console.error(`Fehler beim Verknüpfen der anonymen Buchung (${value}):`, error);
     return false;
   }
 };

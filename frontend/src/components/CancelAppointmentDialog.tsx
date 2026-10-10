@@ -17,29 +17,20 @@ interface CancelAppointmentDialogProps {
   onConfirm: () => void;
 }
 
-/**
- * Dialog component for confirming appointment cancellation
- */
-export const CancelAppointmentDialog: React.FC<CancelAppointmentDialogProps> = ({
-  isOpen,
-  onOpenChange,
-  onCancel,
-  onConfirm
-}) => {
-  return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Termin stornieren</AlertDialogTitle>
-          <AlertDialogDescription>
-            Möchten Sie diesen Termin wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>Abbrechen</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Stornieren</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-};
+/** Rückfrage vor dem Absagen eines Termins */
+export const CancelAppointmentDialog: React.FC<CancelAppointmentDialogProps> = ({ isOpen, onOpenChange, onCancel, onConfirm }) => (
+  <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialogContent className="rounded-2xl">
+      <AlertDialogHeader>
+        <AlertDialogTitle className="font-display">Termin absagen?</AlertDialogTitle>
+        <AlertDialogDescription>Dein Platz wird sofort für andere frei. Das lässt sich nicht rückgängig machen.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onCancel} className="rounded-full">Behalten</AlertDialogCancel>
+        <AlertDialogAction onClick={onConfirm} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
+          Absagen
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);

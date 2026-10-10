@@ -3,11 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
 import { getAllShopsForMarketplace, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
-import { Navigation } from '../components/Navigation';
 import { ShopCard } from '../components/ShopCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Search, MapPin, Navigation2 } from 'lucide-react';
 import { geocodeAddress, calculateDistance, enrichShopsWithCoordinates } from '../utils/geocoding';
@@ -187,124 +185,85 @@ const ShopMap = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <Navigation />
-      
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Shops in Ihrer Nähe finden</h1>
-        
-        {/* Suchleiste und Standortbutton */}
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Shops finden</h1>
+        <p className="text-muted-foreground">Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.</p>
+      </div>
+
+      <form
+        role="search"
+        className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSearch();
+        }}
+      >
+        <div className="flex flex-col gap-2 md:flex-row">
+          <label htmlFor="karte-suche" className="sr-only">Adresse, Ort oder PLZ</label>
           <div className="relative flex-grow">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              className="pl-8"
-              placeholder="Adresse oder Ort eingeben..."
-              value={searchInput}
-              onChange={handleSearchChange}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input id="karte-suche" className="pl-10" placeholder="Adresse, Ort oder PLZ" value={searchInput} onChange={handleSearchChange} />
           </div>
-          <Button onClick={handleSearch}>Suchen</Button>
-          <Button 
-            variant="outline" 
-            onClick={getUserLocation}
-            className="whitespace-nowrap"
-          >
-            <MapPin className="mr-2 h-4 w-4" />
-            Meinen Standort verwenden
+          <Button type="submit">Suchen</Button>
+          <Button type="button" variant="outline" onClick={getUserLocation} className="whitespace-nowrap">
+            <MapPin className="mr-2 h-4 w-4" aria-hidden="true" />
+            In meiner Nähe
           </Button>
         </div>
-        
-        {/* Maximale Entfernung */}
-        <div className="mb-4">
-          <Label>Maximale Entfernung: {maxDistance} km</Label>
-          <input
-            type="range"
-            min="1"
-            max="50"
-            value={maxDistance}
-            onChange={(e) => setMaxDistance(parseInt(e.target.value))}
-            className="w-full"
-          />
-        </div>
-        
-        {/* Branchenfilter */}
-        <div className="mb-4">
-          <Label className="mb-2 block">Branche</Label>
-          <select 
-            className="w-full p-2 border rounded-md"
-            value={selectedIndustry}
-            onChange={(e) => setSelectedIndustry(e.target.value)}
-          >
-            <option value="">Alle Branchen</option>
-            {INDUSTRIES.map(industry => (
-              <option key={industry.id} value={industry.id}>
-                {industry.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {locationPermission === 'denied' && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-            <p className="text-yellow-700">
-              Standortfreigabe wurde abgelehnt. Um Shops in Ihrer Nähe zu finden, erlauben Sie den Zugriff auf Ihren Standort oder nutzen Sie die Suchfunktion.
-            </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="karte-entfernung">Umkreis: {maxDistance} km</Label>
+            <input
+              id="karte-entfernung"
+              type="range"
+              min="1"
+              max="50"
+              value={maxDistance}
+              onChange={(e) => setMaxDistance(parseInt(e.target.value))}
+              className="w-full accent-foreground"
+            />
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="karte-branche">Branche</Label>
+            <select
+              id="karte-branche"
+              className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
+              value={selectedIndustry}
+              onChange={(e) => setSelectedIndustry(e.target.value)}
+            >
+              <option value="">Alle Branchen</option>
+              {INDUSTRIES.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {locationPermission === 'denied' && (
+          <p className="rounded-2xl bg-muted p-3 text-sm">
+            Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.
+          </p>
         )}
-      </div>
-      
-      {/* Haupt-Content-Bereich */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Linke Spalte: Shop-Liste */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-xl font-semibold mb-2">
-            {userPosition ? `Gefundene Shops (${shops.length})` : 'Alle Shops'}
+      </form>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-3 lg:col-span-1">
+          <h2 className="font-display text-xl font-bold">
+            {userPosition ? `${shops.length} ${shops.length === 1 ? 'Shop' : 'Shops'} gefunden` : 'Alle Shops'}
           </h2>
-          
           {loading ? (
-            <p>Lädt Shops...</p>
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Shops werden geladen">
+              <div className="h-40 animate-pulse rounded-3xl bg-muted" />
+              <div className="h-40 animate-pulse rounded-3xl bg-muted" />
+            </div>
           ) : shops.length === 0 ? (
-            <p>Keine Shops gefunden. Versuchen Sie die Suche anzupassen.</p>
+            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.</p>
           ) : (
-            <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
-              {shops.map(shop => (
-                <Card key={shop.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{shop.name}</CardTitle>
-                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {shop.street || shop.city || shop.postalCode ? (
-                        // Wenn neue Adressfelder vorhanden sind, zeige diese
-                        [shop.street, shop.postalCode, shop.city].filter(Boolean).join(', ')
-                      ) : (
-                        // Ansonsten zeige Legacy-Adresse oder Standardtext
-                        shop.address || 'Keine Adresse angegeben'
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {shop.distance !== undefined && (
-                      <p className="text-sm font-medium">
-                        Entfernung: {shop.distance.toFixed(1)} km
-                      </p>
-                    )}
-                    {services[shop.id] && services[shop.id].length > 0 && (
-                      <p className="text-sm mt-2">
-                        {services[shop.id].length} verfügbare Leistungen
-                      </p>
-                    )}
-                    <div className="mt-3 flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/shop-details?shopId=${shop.id}`)}>
-                        Details
-                      </Button>
-                      <Button size="sm" onClick={() => navigate(`/book-appointment?shopId=${shop.id}&fromMarketplace=true`)}>
-                        Termin buchen
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pr-1">
+              {shops.map((shop) => (
+                <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} />
               ))}
             </div>
           )}
@@ -312,7 +271,7 @@ const ShopMap = () => {
         
         {/* Rechte Spalte: Karte */}
         <div className="lg:col-span-2">
-          <div style={{ height: 'calc(100vh - 250px)', width: '100%' }}>
+          <div className="h-[60vh] overflow-hidden rounded-3xl border border-border lg:h-[calc(100vh-260px)]">
             <MapContainer 
               center={mapCenter} 
               zoom={userPosition ? 13 : 6} 
@@ -326,7 +285,7 @@ const ShopMap = () => {
               {userPosition && (
                 <Marker position={userPosition}>
                   <Popup>
-                    Ihr Standort
+                    Du bist hier
                   </Popup>
                 </Marker>
               )}
@@ -343,14 +302,14 @@ const ShopMap = () => {
                 >
                   <Popup>
                     <div className="text-center">
-                      <h3 className="font-bold">{shop.name}</h3>
+                      <h3 className="font-display font-bold">{shop.name}</h3>
                       <p className="text-sm">
                         {shop.street || shop.city || shop.postalCode ? (
                           // Wenn neue Adressfelder vorhanden sind, zeige diese
                           [shop.street, shop.postalCode, shop.city].filter(Boolean).join(', ')
                         ) : (
                           // Ansonsten zeige Legacy-Adresse oder Standardtext
-                          shop.address || 'Keine Adresse angegeben'
+                          shop.address || ''
                         )}
                       </p>
                       {shop.distance !== undefined && (
@@ -362,9 +321,9 @@ const ShopMap = () => {
                         <Button 
                           size="sm" 
                           className="w-full" 
-                          onClick={() => navigate(`/book-appointment?shopId=${shop.id}&fromMarketplace=true`)}
+                          onClick={() => navigate(`/public-join-queue?shopId=${shop.id}`)}
                         >
-                          Termin buchen
+                          Einreihen
                         </Button>
                       </div>
                     </div>

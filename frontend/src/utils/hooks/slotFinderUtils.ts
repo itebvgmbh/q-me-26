@@ -1,21 +1,22 @@
-import { collection, getDocs, getFirestore, query, where } from 'firebase/firestore';
-import { firebaseApp } from 'app';
-import { getAvailableTimeSlots } from '../firestore/appointments';
-import { getServiceByIdLegacy } from '../firestore/services';
+import { addDays } from 'date-fns';
+import useTimeSlotStore from '../timeSlotStore';
 import { TimeSlot } from '../types';
 import { Staff } from '../firestore/types';
 
+// Wie weit die Schlange höchstens vorausschaut
+const MAX_DAYS_AHEAD = 14;
+
 /**
- * Find the next available time slot for a service
- * Will search either for a specific staff member or for any available staff member
- * 
- * @param shopId The ID of the shop
- * @param serviceId The ID of the service
- * @param staffId The ID of the specific staff member (if not using any)
- * @param useAnyStaff Whether to search for any available staff member
- * @param staffList List of staff members to consider
- * @param isAuthenticated Whether the user is authenticated
- * @returns The next available time slot and the selected staff member
+ * Sucht den frühesten freien Platz ab jetzt – Tag für Tag, bis zu zwei Wochen voraus.
+ * Bei "egal wer" gewinnt die Person mit dem frühesten Platz.
+ *
+ * @param shopId Shop
+ * @param serviceId Leistung
+ * @param staffId gewählte Person (ignoriert, wenn useAnyStaff)
+ * @param useAnyStaff jede Person, die die Leistung anbietet
+ * @param staffList Personen des Shops
+ * @param isAuthenticated ob der Kunde angemeldet ist
+ * @returns frühester Slot und die Person dazu
  */
 export const findAvailableTimeSlot = async (
   shopId: string,
@@ -25,47 +26,45 @@ export const findAvailableTimeSlot = async (
   staffList: Staff[],
   isAuthenticated: boolean
 ): Promise<{ slot: TimeSlot | null; selectedStaffForSlot: string }> => {
-  try {
-    // Get service details to know duration
-    const service = await getServiceByIdLegacy(serviceId);
-    if (!service) {
-      console.error('Service not found');
-      return { slot: null, selectedStaffForSlot: '' };
-    }
+  // Fehlt isActive im Dokument, gilt die Person als aktiv
+  const active = staffList.filter((staff) => staff.isActive !== false);
+  const staffToSearch = useAnyStaff ? active : active.filter((staff) => staff.id === staffId);
 
-    // If using any staff, we need to search for all staff members
-    const staffToSearch = useAnyStaff 
-      ? staffList.filter(staff => staff.isActive) 
-      : staffList.filter(staff => staff.id === staffId && staff.isActive);
-
-    if (staffToSearch.length === 0) {
-      console.error('No staff members to search');
-      return { slot: null, selectedStaffForSlot: '' };
-    }
-
-    // Search for each staff member in sequence
-    for (const staff of staffToSearch) {
-      // Get available time slots for this staff member
-      const availableSlots = await getAvailableTimeSlots({
-        shopId,
-        serviceId,
-        staffId: staff.id,
-        isAuthenticated
-      });
-
-      if (availableSlots && availableSlots.length > 0) {
-        // Return the first available slot
-        return { 
-          slot: availableSlots[0],
-          selectedStaffForSlot: staff.id
-        };
-      }
-    }
-
-    // No slots found
-    return { slot: null, selectedStaffForSlot: '' };
-  } catch (error) {
-    console.error('Error finding available time slot:', error);
+  if (staffToSearch.length === 0) {
+    console.error('No staff members to search');
     return { slot: null, selectedStaffForSlot: '' };
   }
+
+  const { getTimeSlots } = useTimeSlotStore.getState();
+  const today = new Date();
+
+  for (let offset = 0; offset < MAX_DAYS_AHEAD; offset++) {
+    const day = addDays(today, offset);
+    const now = new Date();
+
+    const perStaff = await Promise.all(
+      staffToSearch.map(async (staff) => {
+        try {
+          const slots = await getTimeSlots(shopId, serviceId, staff.id, day, false, isAuthenticated);
+          const first = slots
+            .filter((slot) => slot.isAvailable && slot.start > now)
+            .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+          return first ? { slot: first, staffId: staff.id } : null;
+        } catch (error) {
+          console.error('Error loading slots for staff', staff.id, error);
+          return null;
+        }
+      })
+    );
+
+    const earliest = perStaff
+      .filter((result): result is { slot: TimeSlot; staffId: string } => result !== null)
+      .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime())[0];
+
+    if (earliest) {
+      return { slot: earliest.slot, selectedStaffForSlot: earliest.staffId };
+    }
+  }
+
+  return { slot: null, selectedStaffForSlot: '' };
 };

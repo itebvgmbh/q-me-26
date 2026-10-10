@@ -12,7 +12,7 @@ export const AppWrapper = () => {
       <ThemeProvider defaultTheme={DEFAULT_THEME}>
         <RouterProvider router={router} />
         <Head />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-center" toastOptions={{ className: "font-sans rounded-2xl" }} />
       </ThemeProvider>
     </OuterErrorBoundary>
   );

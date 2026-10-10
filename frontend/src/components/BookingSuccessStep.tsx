@@ -1,78 +1,69 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { format, isToday, isTomorrow } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { Ticket } from './brand/Ticket';
+import { TimeSlot } from '../utils/types';
 
 export interface BookingSuccessStepProps {
   bookingReference: string;
   shopId: string;
+  slot?: TimeSlot | null;
+  shopName?: string;
+  serviceName?: string;
+  staffName?: string;
 }
 
-/**
- * Success step shown after a successful anonymous booking
- * Displays the booking reference code and offers options to go home or login
- */
-export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({
-  bookingReference,
-  shopId,
-}) => {
+// Kurz halten, damit die Monospace-Zeile im Ticket nicht umbricht
+const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
+
+/** Wartemarke nach dem Einreihen ohne Konto */
+export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingReference, shopId, slot, shopName, serviceName, staffName }) => {
   const navigate = useNavigate();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-center text-green-600">Buchung erfolgreich!</CardTitle>
-        <CardDescription className="text-center">
-          Ihr Termin wurde erfolgreich gebucht. Bitte bewahren Sie Ihren Referenzcode auf.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-col items-center justify-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-xl font-bold">Vielen Dank für Ihre Buchung</h2>
-          <p className="text-gray-500 mb-6">Ihr Termin wurde bestätigt.</p>
-        </div>
+    <div className="flex flex-col gap-5">
+      <Ticket
+        size="lg"
+        eyebrow="Deine Nummer"
+        eyebrowRight={[serviceName, staffName].filter(Boolean).join(' · ')}
+        number={bookingReference || '—'}
+        stats={
+          slot
+            ? [
+                { label: 'Dran um ca.', value: format(slot.start, 'HH:mm') },
+                { label: 'Wann', value: dayLabel(slot.start) },
+              ]
+            : []
+        }
+        footer={shopName ? <p className="text-sm font-semibold">{shopName}</p> : undefined}
+      />
 
-        <div className="p-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 text-center">
-          <h3 className="text-sm text-gray-500 mb-2">Ihr Referenzcode:</h3>
-          <p className="text-2xl font-bold tracking-wider mb-2">{bookingReference}</p>
-          <p className="text-sm text-gray-500">
-            Bitte notieren Sie sich diesen Code, um Ihren Termin zu verfolgen oder zu stornieren.
-          </p>
-        </div>
+      <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5">
+        <p className="font-semibold">Mach einen Screenshot von deiner Nummer.</p>
+        <p className="text-sm text-muted-foreground">
+          Ohne Konto schicken wir dir keine Erinnerung. Mit Konto siehst du die Nummer unter „Meine Termine“ und bekommst frühere
+          Plätze angeboten. Deine Nummer wird dabei übernommen.
+        </p>
+      </div>
 
-        <div className="p-4 bg-yellow-50 rounded-md border border-yellow-200">
-          <div className="flex items-start">
-            <AlertTriangle className="h-6 w-6 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-yellow-800">Wichtige Information</p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Ohne Anmeldung erfolgt keine Erinnerung per E-Mail. Sie können sich jedoch jederzeit
-                mit diesem Referenzcode anmelden, um Ihren Termin zu verwalten.
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={() => navigate('/')}>
-          Zurück zur Startseite
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          size="lg"
+          className="sm:flex-1"
+          onClick={() =>
+            navigate('/register-customer', {
+              state: { redirectAfterLogin: '/my-bookings', linkAnonymousBooking: true, shopId, referenceCode: bookingReference },
+            })
+          }
+        >
+          Konto anlegen und Nummer behalten
         </Button>
-        <Button onClick={() => {
-          // Navigate to login page with instructions to link booking after successful login
-          navigate('/login', { 
-            state: { 
-              redirectAfterLogin: '/my-bookings',
-              linkAnonymousBooking: true,
-              shopId: shopId,
-              referenceCode: bookingReference
-            }
-          });
-        }}>
-          Jetzt anmelden
+        <Button size="lg" variant="outline" className="sm:flex-1" onClick={() => navigate('/')}>
+          Fertig
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 };

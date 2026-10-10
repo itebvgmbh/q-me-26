@@ -16,9 +16,9 @@ export const NotLoggedInState = ({ user }: Props) => {
   return (
     <div>
       <EmployeeNavigation user={user} employee={null} showLogout={false} />
-      <div className="container mx-auto py-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="text-center">
-          <p className="mb-4">Bitte melden Sie sich an.</p>
+          <p className="mb-4">Bitte melde dich an.</p>
           <Button onClick={() => navigate('/login')}>Zum Login</Button>
         </div>
       </div>

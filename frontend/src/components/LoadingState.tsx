@@ -12,7 +12,7 @@ export const LoadingState = ({ user }: Props) => {
   return (
     <div>
       <EmployeeNavigation user={user} employee={null} showLogout={false} />
-      <div className="container mx-auto py-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="text-center">Laden...</div>
       </div>
     </div>

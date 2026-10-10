@@ -256,7 +256,7 @@ export const CreateAppointmentForm = ({
             />
           )}
           {(!newAppointmentData.serviceId || !newAppointmentData.staffId) && (
-            <p className="text-xs text-amber-600 mt-1">Bitte wählen Sie zuerst einen Service und Mitarbeiter</p>
+            <p className="text-xs text-amber-600 mt-1">Wähl zuerst Leistung und Person.</p>
           )}
         </div>
       </div>

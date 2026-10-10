@@ -41,7 +41,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
     setEmailError(null);
 
     if (!email) {
-      toast.error('Bitte geben Sie eine E-Mail-Adresse ein');
+      toast.error('Bitte gib eine E-Mail-Adresse ein.');
       return;
     }
 
@@ -53,7 +53,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
 
       if (emailInUse) {
         console.log('Email already in use for invitation, showing error');
-        const errorMessage = 'Diese E-Mail-Adresse wird bereits verwendet. Bitte wählen Sie eine andere E-Mail-Adresse.';
+        const errorMessage = 'Diese E-Mail ist schon im Team oder eingeladen.';
         toast.error(errorMessage, {
           duration: 5000,
           position: 'top-center',
@@ -79,13 +79,13 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Mitarbeiter per E-Mail einladen</Button>
+        <Button variant="outline">Per E-Mail einladen</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Mitarbeiter per E-Mail einladen</DialogTitle>
+          <DialogTitle>Per E-Mail einladen</DialogTitle>
           <DialogDescription>
-            Laden Sie einen neuen Mitarbeiter per E-Mail ein. Der Mitarbeiter erhält einen Link zur Registrierung.
+            Die Person bekommt einen Link und legt ihr Passwort selbst fest.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -106,7 +106,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
               </div>
             )}
           </div>
-          <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/90 text-white font-bold">Einladung senden</Button>
+          <Button onClick={handleSubmit}>Einladung senden</Button>
         </div>
       </DialogContent>
     </Dialog>

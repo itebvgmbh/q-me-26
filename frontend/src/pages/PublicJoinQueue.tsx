@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from 'app';
-import { Navigation } from '../components/Navigation';
 import { TimeSlot } from '../utils/types';
 
 // Import all hooks from index
@@ -20,7 +19,7 @@ import { QueueStaffStep } from '../components/QueueStaffStep';
 import { QueueConfirmationStep } from '../components/QueueConfirmationStep';
 import { BookingSuccessStep } from '../components/BookingSuccessStep';
 import { StepIndicator } from '../components/StepIndicator';
-import { LoadingState } from '../components/LoadingState';
+import type { QueueContact } from '../components/QueueConfirmationStep';
 
 /**
  * Consolidated Queue Join component
@@ -82,24 +81,38 @@ const PublicJoinQueue = () => {
     bookingReference, 
     checkEarlierOptions, 
     setCheckEarlierOptions, 
-    handleJoinQueue 
+    handleJoinQueue,
+    bookedSlot,
+    submitting
   } = useBookingState();
+  const [contact, setContact] = useState<QueueContact>({ name: '', phone: '' });
 
-  // Initialize step based on URL parameters
+  // Einstieg über Link/QR-Code nur EINMAL auswerten. Vorher lief dieser Effekt bei jeder
+  // Änderung der Leistung erneut und warf Nutzer von Schritt 3 auf Schritt 2 zurück.
+  const urlStepApplied = useRef(false);
   React.useEffect(() => {
-    if (shopIdFromQR) {
-      setCurrentStep(2); // Skip to service selection
-    }
-    
-    if (serviceIdFromURL && selectedService) {
-      setCurrentStep(3); // Skip to staff selection
+    if (urlStepApplied.current) return;
+    if (serviceIdFromURL && selectedService === serviceIdFromURL) {
+      setCurrentStep(3);
+      urlStepApplied.current = true;
+    } else if (shopIdFromQR && !serviceIdFromURL) {
+      setCurrentStep(2);
+      urlStepApplied.current = true;
+    } else if (shopIdFromQR) {
+      setCurrentStep(2);
     }
   }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep]);
 
+  // Bei jedem Schrittwechsel nach oben, sonst landet man auf dem Handy mitten im nächsten Schritt
+  React.useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [currentStep, bookingSuccess]);
 
-
-
-
+  // Bei "egal wer" nur Personen durchsuchen, die die Leistung anbieten (Fallback: alle)
+  const serviceStaff = useMemo(() => {
+    const offering = staff.filter((s) => s.serviceIds?.includes(selectedService));
+    return offering.length > 0 ? offering : staff;
+  }, [staff, selectedService]);
 
   // Use the custom hook for slot finding
   const { 
@@ -111,7 +124,7 @@ const PublicJoinQueue = () => {
     serviceId: selectedService,
     staffId: selectedStaff,
     useAnyStaff,
-    staffList: staff,
+    staffList: serviceStaff,
     isAuthenticated: !!user,
     shouldSearch: currentStep >= 3 // Only search when at staff selection or confirmation step
   });
@@ -126,7 +139,8 @@ const PublicJoinQueue = () => {
       selectedService,
       selectedStaffForSlot,
       nextAvailableSlot,
-      user
+      user,
+      contact
     );
   };
 
@@ -135,7 +149,7 @@ const PublicJoinQueue = () => {
    */
   const renderContent = () => {
     if (loading) {
-      return <LoadingState />;
+      return <div className="h-64 animate-pulse rounded-3xl bg-muted" aria-busy="true" aria-label="Wird geladen" />;
     }
 
     // Successful anonymous booking
@@ -144,6 +158,10 @@ const PublicJoinQueue = () => {
         <BookingSuccessStep 
           bookingReference={bookingReference}
           shopId={selectedShop}
+          slot={bookedSlot}
+          shopName={shops.find(s => s.id === selectedShop)?.name}
+          serviceName={services.find(s => s.id === selectedService)?.name}
+          staffName={staff.find(s => s.id === selectedStaffForSlot)?.name}
         />
       );
     }
@@ -235,6 +253,9 @@ const PublicJoinQueue = () => {
           onConfirm={processBooking}
           user={user}
           authLoading={authLoading}
+          contact={contact}
+          onContactChange={setContact}
+          submitting={submitting}
         />
       );
     }
@@ -243,19 +264,22 @@ const PublicJoinQueue = () => {
   };
 
   return (
-    <>
-      <Navigation />
-      <div className="container mx-auto py-8 space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">In Warteschlange einreihen</h1>
-        </div>
-
-        {/* Step indicator */}
-        <StepIndicator currentStep={currentStep} totalSteps={4} />
-
-        {renderContent()}
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
+          {currentStep === 5 ? 'Du bist eingereiht.' : 'Nummer ziehen'}
+        </h1>
+        {currentStep !== 5 && (
+          <p className="text-muted-foreground">Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <a href="/book-appointment?fromMarketplace=true" className="font-semibold text-foreground underline">Termin buchen</a></p>
+        )}
       </div>
-    </>
+
+      {currentStep !== 5 && (
+        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Shop', 'Leistung', 'Person', 'Bestätigen']} />
+      )}
+
+      {renderContent()}
+    </div>
   );
 };
 

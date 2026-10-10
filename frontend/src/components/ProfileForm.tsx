@@ -3,7 +3,6 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserProfile, USER_ROLES } from '../utils/types';
@@ -34,7 +33,7 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
           setPhoneNumber(data.phoneNumber || '');
         }
       } catch (error) {
-        toast.error('Fehler beim Laden des Profils');
+        toast.error('Dein Profil konnte nicht geladen werden.');
       } finally {
         setLoading(false);
       }
@@ -57,60 +56,45 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
         updatedAt: new Date()
       });
 
-      toast.success('Profil erfolgreich aktualisiert');
+      toast.success('Gespeichert.');
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren des Profils');
+      toast.error('Speichern hat nicht geklappt.');
     } finally {
       setUpdating(false);
     }
   };
 
   if (loading) {
-    return <div>Lade Profil...</div>;
+    return <div className="h-64 animate-pulse rounded-3xl bg-muted" aria-busy="true" aria-label="Profil wird geladen" />;
   }
 
   if (!profile) {
-    return <div>Profil nicht gefunden</div>;
+    return <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Zu deinem Konto gibt es noch kein Profil.</p>;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profil bearbeiten</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>E-Mail</Label>
-            <Input value={profile.email} disabled />
-          </div>
-          <div className="space-y-2">
-            <Label>Rolle</Label>
-            <Input value={USER_ROLES[profile.role]} disabled />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Name</Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Ihr Name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Telefonnummer</Label>
-            <Input
-              id="phoneNumber"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="Ihre Telefonnummer"
-            />
-          </div>
-          <Button type="submit" disabled={updating}>
-            {updating ? 'Aktualisiere...' : 'Aktualisieren'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:p-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="profil-email">E-Mail</Label>
+          <Input id="profil-email" value={profile.email} disabled />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="profil-rolle">Konto</Label>
+          <Input id="profil-rolle" value={USER_ROLES[profile.role]} disabled />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="displayName">Name</Label>
+        <Input id="displayName" autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="So rufen wir dich auf" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="phoneNumber">Handynummer</Label>
+        <Input id="phoneNumber" type="tel" autoComplete="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Damit der Laden dich erreicht" />
+      </div>
+      <Button type="submit" className="self-start" disabled={updating}>
+        {updating ? 'Wird gespeichert …' : 'Speichern'}
+      </Button>
+    </form>
   );
 };

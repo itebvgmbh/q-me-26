@@ -1,249 +1,122 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { CalendarClock, Megaphone, QrCode, Store, Users, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarPlus, Users, Store, Clock, BellRing, BarChart, CheckSquare, Calendar } from "lucide-react";
+import { Ticket } from "../components/brand/Ticket";
+
+// Nur, was die App heute wirklich kann – keine Erinnerungen/SMS versprechen
+const FEATURES = [
+  {
+    icon: QrCode,
+    title: "QR-Code an die Tür",
+    text: "Kunden scannen, wählen Leistung und Person und ziehen eine Nummer. Ohne App, ohne Konto.",
+  },
+  {
+    icon: Megaphone,
+    title: "Tresen mit einem Knopf",
+    text: "Pro Person siehst du, wer dran ist und wer als Nächstes kommt. „Nächste Nummer aufrufen“ – fertig.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Feste Termine und Schlange in einem",
+    text: "Gebuchte Termine und spontane Nummern landen im selben Tag. Freie Zeiten ergeben sich aus Arbeitszeiten und Leistungen.",
+  },
+  {
+    icon: ArrowUpRight,
+    title: "Früher dran",
+    text: "Wer möchte, bekommt einen früheren Platz angeboten, wenn einer frei wird – und nimmt ihn mit einem Tipp.",
+  },
+  {
+    icon: Users,
+    title: "Team mit eigenem Tag",
+    text: "Lade Leute per Link ein. Jede Person sieht unter „Mein Tag“ nur ihre eigenen Kunden.",
+  },
+  {
+    icon: Store,
+    title: "Gefunden werden",
+    text: "Dein Laden erscheint in der Shop-Suche und auf der Karte – mit Leistungen, Preisen und Öffnungszeiten.",
+  },
+];
 
 export default function Features() {
-  const navigate = useNavigate();
-  
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold cursor-pointer" onClick={() => navigate('/')}>Q-ME</div>
-          <div className="flex gap-4">
-            <Button variant="ghost" onClick={() => navigate('/features')}>Funktionen</Button>
-            <Button variant="ghost" onClick={() => navigate('/about')}>Über uns</Button>
-            <Button variant="ghost" onClick={() => navigate('/login')}>Anmelden</Button>
-            <Button variant="default" onClick={() => navigate('/register')}>Registrieren</Button>
+    <div className="flex flex-col">
+      <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_1fr] md:py-20">
+        <div className="flex flex-col gap-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Für Betriebe</p>
+          <h1 className="font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] sm:text-6xl">
+            Volles Wartezimmer? Muss nicht sein.
+          </h1>
+          <p className="max-w-xl text-lg text-muted-foreground">
+            q-me ordnet Laufkundschaft und feste Termine in eine Reihenfolge. Deine Kunden warten draußen statt im Laden – und
+            kommen zurück, wenn sie dran sind.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="signal" size="lg" asChild>
+              <Link to="/register-shop-owner">Betrieb anmelden</Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link to="/login">Anmelden</Link>
+            </Button>
           </div>
         </div>
-      </nav>
+        <Ticket
+          size="lg"
+          eyebrow="Tresen · Jetzt dran"
+          eyebrowRight="Haarschnitt · Alex"
+          number="31"
+          stats={[
+            { label: "Wartet noch", value: "4" },
+            { label: "Nächste um", value: "14:20" },
+          ]}
+          className="mx-auto w-full max-w-sm rotate-[1.5deg]"
+        />
+      </section>
 
-      {/* Hero Section */}
-      <section className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold mb-4">Unsere Funktionen</h1>
-          <p className="text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
-            Entdecken Sie alle Möglichkeiten, die Q-ME für Ihre Terminverwaltung bietet.
-          </p>
+      <section className="bg-foreground py-16 text-background md:py-20">
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 sm:px-6">
+          <h2 className="max-w-2xl font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Was du damit machst</h2>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.06] p-6">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-signal text-signal-foreground">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="font-display text-xl font-bold">{title}</h3>
+                <p className="text-sm text-white/75">{text}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Features for Shop Owners */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">Für Shopbetreiber</h2>
-          <p className="text-center text-gray-600 mb-10 max-w-3xl mx-auto">
-            Optimieren Sie Ihr Geschäft mit leistungsstarken Verwaltungswerkzeugen
-          </p>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <Store className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Shop-Verwaltung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Erstellen und verwalten Sie Ihr Shop-Profil mit allen relevanten Informationen und Öffnungszeiten.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Users className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Mitarbeitermanagement</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Verwalten Sie Ihr Team, weisen Sie Rollen zu und überwachen Sie Arbeitszeiten und Leistung.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Calendar className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Terminplanung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Konfigurieren Sie verfügbare Zeitfenster und Dienstleistungen für eine optimale Terminplanung.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <BellRing className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Benachrichtigungssystem</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Automatische Benachrichtigungen für neue Buchungen, Änderungen und Stornierungen.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Clock className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Warteschlangen-Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Effizientes Management von Walk-in-Kunden und Warteschlangen für einen reibungslosen Betrieb.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <BarChart className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Analysen & Berichte</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Detaillierte Einblicke in Geschäftsdaten, Kundenverhalten und Mitarbeiterleistung.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-16 sm:px-6 md:py-20">
+        <h2 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">In drei Schritten startklar</h2>
+        <ol className="grid gap-4 md:grid-cols-3">
+          {[
+            ["Laden anlegen", "Name, Adresse, Öffnungszeiten. Dauert zwei Minuten."],
+            ["Leistungen und Team", "Was man buchen kann, wie lange es dauert und wer es macht."],
+            ["QR-Code aufhängen", "Ausdrucken, an Tür oder Tresen kleben. Ab jetzt reihen sich Kunden selbst ein."],
+          ].map(([title, text], i) => (
+            <li key={title} className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-6">
+              <span className="font-mono text-4xl font-bold">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="font-display text-xl font-bold">{title}</h3>
+              <p className="text-sm text-muted-foreground">{text}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      {/* Features for Employees */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">Für Mitarbeiter</h2>
-          <p className="text-center text-gray-600 mb-10 max-w-3xl mx-auto">
-            Optimieren Sie Ihren Arbeitsalltag mit effizienten Tools
-          </p>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <Calendar className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Persönlicher Terminkalender</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Übersichtliche Darstellung aller Termine und Verfügbarkeiten auf einen Blick.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CheckSquare className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Terminverwaltung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Einfaches Bestätigen, Verschieben oder Stornieren von Kundenterminen.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Clock className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Arbeitszeiterfassung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Transparente Erfassung von Arbeitszeiten und Pausen für eine faire Abrechnung.
-                </p>
-              </CardContent>
-            </Card>
+      <section className="bg-signal">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-5 px-4 py-14 text-signal-foreground sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">Probier’s mit deinem Laden aus.</h2>
+            <p className="mt-1">Einrichten dauert ein paar Minuten.</p>
           </div>
+          <Button size="lg" asChild>
+            <Link to="/register-shop-owner">Betrieb anmelden</Link>
+          </Button>
         </div>
       </section>
-
-      {/* Features for Customers */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">Für Kunden</h2>
-          <p className="text-center text-gray-600 mb-10 max-w-3xl mx-auto">
-            Genießen Sie eine stressfreie Terminplanung
-          </p>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <Store className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Shop-Entdeckung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Durchsuchen Sie Shops nach Branchen, Standort oder Dienstleistungen und finden Sie genau das, was Sie suchen.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CalendarPlus className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Online-Buchung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Buchen Sie Termine rund um die Uhr online, ohne Wartezeiten am Telefon oder vor Ort.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <BellRing className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Terminerinnerungen</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Automatische Erinnerungen vor Ihrem Termin, damit Sie nichts verpassen.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Clock className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Warteschlangensystem</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  Treten Sie einer virtuellen Warteschlange bei und werden Sie benachrichtigt, wenn Sie an der Reihe sind.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Überzeugt von unseren Funktionen?</h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Starten Sie jetzt und optimieren Sie Ihre Terminverwaltung mit Q-ME.
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Button size="lg" variant="default" onClick={() => navigate('/register')}>Kostenlos registrieren</Button>
-            <Button size="lg" variant="outline" onClick={() => navigate('/login')}>Anmelden</Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>© 2024 Q-ME. Alle Rechte vorbehalten.</p>
-        </div>
-      </footer>
     </div>
   );
 }

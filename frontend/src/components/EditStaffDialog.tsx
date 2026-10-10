@@ -22,7 +22,7 @@ import { Staff, Shop, Service, WorkingHours, updateStaff, createStaffInvitation 
 import { firestore as db } from '../utils/firestore-client';
 import { BreakManager } from './BreakManager';
 import { RecurringBreakManager } from './RecurringBreakManager';
-import { getDayName } from '../utils/staff-utils';
+import { getDayName, defaultWorkingHours } from '../utils/staff-utils';
 
 /**
  * Interface for EditStaffDialog component props
@@ -54,7 +54,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string>(staff.profileImageUrl || '');
 
-  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(staff.workingHours);
+  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(staff.workingHours?.length ? staff.workingHours : defaultWorkingHours);
   const [registrationLink, setRegistrationLink] = useState<string>('');
   const [emailSent, setEmailSent] = useState<boolean>(false);
   const [emailSentTime, setEmailSentTime] = useState<string>('');
@@ -145,7 +145,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
     setEmailError(null);
     
     if (!name || !email || !phone || !role) {
-      toast.error('Bitte füllen Sie alle Pflichtfelder aus');
+      toast.error('Bitte füll alle Pflichtfelder aus.');
       return;
     }
 
@@ -170,7 +170,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
         
         if (emailInUse) {
           console.log('Email already in use for edit, showing error');
-          const errorMessage = 'Diese E-Mail-Adresse wird bereits verwendet. Bitte wählen Sie eine andere E-Mail-Adresse.';
+          const errorMessage = 'Diese E-Mail ist schon im Team oder eingeladen.';
           toast.error(errorMessage, {
             duration: 5000,
             position: 'top-center',
@@ -209,7 +209,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
         <DialogHeader>
           <DialogTitle>Mitarbeiter bearbeiten</DialogTitle>
           <DialogDescription>
-            Bearbeiten Sie die Details des Mitarbeiters oder generieren Sie einen Registrierungslink.
+            Leistungen, Arbeitszeiten und Kontakt. Ohne Konto kannst du hier einen Registrierungslink erzeugen.
           </DialogDescription>
         </DialogHeader>
         
@@ -325,7 +325,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
               <div className="space-y-4">
                 <div className="border-t pt-4">
                   <Label>Registrierungslink</Label>
-                  <p className="text-sm text-muted-foreground mb-2">Generieren Sie einen Registrierungslink für den Mitarbeiter.</p>
+                  <p className="text-sm text-muted-foreground mb-2">Erzeug einen Link, mit dem die Person ihr Konto anlegt.</p>
                   {registrationLink ? (
                     <div className="space-y-2">
                       {emailSent && (

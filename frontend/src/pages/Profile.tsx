@@ -1,19 +1,14 @@
 import { useUserGuardContext } from 'app';
-import { Navigation } from '../components/Navigation';
 import { ProfileForm } from '../components/ProfileForm';
 
+/** Mein Profil – für alle Rollen dasselbe Formular */
 const Profile = () => {
   const { user } = useUserGuardContext();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="container mx-auto max-w-2xl py-12">
-        <h1 className="text-3xl font-bold mb-8">Profil bearbeiten</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <ProfileForm userId={user.uid} />
-        </div>
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Mein Profil</h1>
+      <ProfileForm userId={user.uid} />
     </div>
   );
 };
