@@ -103,7 +103,7 @@ export const EmployeeCalendar = ({ employee, appointments, onAppointmentUpdate }
     // Generate working hours events for the entire month
     for (let date = new Date(startOfMonth); date <= endOfMonth; date.setDate(date.getDate() + 1)) {
       const dayOfWeek = date.getDay();
-      const workingHours = employee.workingHours.find(wh => wh.dayOfWeek === dayOfWeek);
+      const workingHours = employee.workingHours?.find(wh => wh.dayOfWeek === dayOfWeek);
 
       if (workingHours?.isWorking) {
         const [startHour, startMinute] = workingHours.startTime.split(':').map(Number);

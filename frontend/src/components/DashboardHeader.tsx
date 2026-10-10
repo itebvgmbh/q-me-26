@@ -27,7 +27,7 @@ export const DashboardHeader = ({
   onEditWorkingHours
 }: DashboardHeaderProps) => {
   return (
-    <>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       {/* Dashboard header with employee name and date selector */}
       <EmployeeHeader 
         employee={employee}
@@ -42,6 +42,6 @@ export const DashboardHeader = ({
         onCreateCustomer={onCreateCustomer}
         onEditWorkingHours={onEditWorkingHours}
       />
-    </>
+    </div>
   );
 };

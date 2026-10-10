@@ -165,11 +165,11 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Mitarbeiter direkt anlegen</Button>
+        <Button variant="signal">Person anlegen</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Mitarbeiter direkt anlegen</DialogTitle>
+          <DialogTitle>Person anlegen</DialogTitle>
           <DialogDescription>
             Legen Sie einen neuen Mitarbeiter direkt an. Sie können alle Details sofort festlegen.
           </DialogDescription>
@@ -273,7 +273,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
             ))}
           </div>
 
-          <Button onClick={handleSubmit} id="create-staff-button" className="bg-primary hover:bg-primary/90 text-white font-bold">Mitarbeiter anlegen</Button>
+          <Button onClick={handleSubmit} id="create-staff-button" >Anlegen</Button>
         </div>
       </DialogContent>
     </Dialog>

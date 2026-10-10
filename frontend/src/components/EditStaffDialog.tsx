@@ -22,7 +22,7 @@ import { Staff, Shop, Service, WorkingHours, updateStaff, createStaffInvitation 
 import { firestore as db } from '../utils/firestore-client';
 import { BreakManager } from './BreakManager';
 import { RecurringBreakManager } from './RecurringBreakManager';
-import { getDayName } from '../utils/staff-utils';
+import { getDayName, defaultWorkingHours } from '../utils/staff-utils';
 
 /**
  * Interface for EditStaffDialog component props
@@ -54,7 +54,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string>(staff.profileImageUrl || '');
 
-  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(staff.workingHours);
+  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(staff.workingHours?.length ? staff.workingHours : defaultWorkingHours);
   const [registrationLink, setRegistrationLink] = useState<string>('');
   const [emailSent, setEmailSent] = useState<boolean>(false);
   const [emailSentTime, setEmailSentTime] = useState<string>('');

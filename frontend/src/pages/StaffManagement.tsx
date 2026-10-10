@@ -1,179 +1,113 @@
 import { useState, useEffect } from 'react';
 import { useCurrentUser } from 'app';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Staff, Shop, Service, getStaffByShopId, getShopsByOwnerId, getServicesByShopId } from '../utils/firestore';
 import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
 
-/**
- * StaffManagement page component
- * Provides an interface for shop owners to manage their staff members
- * Features include:
- * - Selecting between different shops owned by the user
- * - Viewing all active staff members for a selected shop
- * - Adding new staff members directly or via invitation
- * - Editing staff details including profile, services, and working hours
- * - Deactivating staff members
- */
+/** Team: Personen anlegen, einladen, Leistungen und Arbeitszeiten pflegen */
 const StaffManagement = () => {
-  // Current user from Firebase Auth
-  const { user } = useCurrentUser(); // Logged in user from Firebase Auth
-  const [shops, setShops] = useState<Shop[]>([]); // List of shops owned by current user
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null); // Currently selected shop
-  const [loading, setLoading] = useState<boolean>(true); // Loading state for initial data fetch
-  const [staff, setStaff] = useState<Staff[]>([]); // Staff members for selected shop
-  const [services, setServices] = useState<Service[]>([]); // Services offered at selected shop
+  const { user } = useCurrentUser();
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
-  /**
-   * Load staff and services data for a selected shop
-   * Fetches both staff and services in parallel for efficiency
-   * @param shopId - The ID of the shop to load data for
-   */
   const loadShopData = async (shopId: string) => {
     try {
-      const [staffList, servicesList] = await Promise.all([
-        getStaffByShopId(shopId),
-        getServicesByShopId(shopId)
-      ]);
-      // Only show active staff members
-      setStaff(staffList.filter(s => s.isActive));
+      const [staffList, servicesList] = await Promise.all([getStaffByShopId(shopId), getServicesByShopId(shopId)]);
+      setStaff(staffList.filter((s) => s.isActive !== false));
       setServices(servicesList);
     } catch (error) {
       console.error('Error loading staff:', error);
-      toast.error('Fehler beim Laden der Mitarbeiter');
+      toast.error('Das Team konnte nicht geladen werden.');
     }
   };
 
-  /**
-   * Load initial shop data when component mounts or user changes
-   * This effect runs once on component mount and again if the user changes
-   * Automatically selects the first shop if available
-   */
   useEffect(() => {
-    const loadShops = async () => {
-      if (!user) return;
-
+    if (!user) return;
+    (async () => {
       try {
-        // Initialize shop data and fetch shops by owner
         const userShops = await getShopsByOwnerId(user.uid);
         setShops(userShops);
-        // Auto-select first shop if available
         if (userShops.length > 0) {
-          const firstShop = userShops[0];
-          setSelectedShop(firstShop);
-          await loadShopData(firstShop.id);
+          setSelectedShop(userShops[0]);
+          await loadShopData(userShops[0].id);
         }
-        setLoading(false);
       } catch (error) {
         console.error('Error loading shops:', error);
-        toast.error('Fehler beim Laden der Shops');
+        toast.error('Deine Läden konnten nicht geladen werden.');
+      } finally {
+        setLoading(false);
       }
-    };
-
-    loadShops();
+    })();
   }, [user]);
 
-  /**
-   * Handle shop selection change from the dropdown
-   * Finds the shop object by ID and loads its staff and services
-   * @param shopId - The ID of the newly selected shop
-   */
   const handleShopChange = async (shopId: string) => {
-    // Find the selected shop object by ID
-    const shop = shops.find(s => s.id === shopId);
-    // Update selected shop and load its data
+    const shop = shops.find((s) => s.id === shopId);
     if (shop) {
       setSelectedShop(shop);
       await loadShopData(shop.id);
     }
   };
 
-  // Display loading state while fetching initial data
-  // This prevents showing an empty UI during data fetch
-  if (loading) {
-    return (
-      <>
-        <div className="container mx-auto py-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
-          <p>Lädt...</p>
-        </div>
-      </>
-    );
-  }
+  const reload = async () => {
+    if (selectedShop) await loadShopData(selectedShop.id);
+  };
 
-  // Render the staff management interface once data is loaded
   return (
-    <>
-      <div className="container mx-auto py-8 space-y-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Mitarbeiterverwaltung</h1>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Team</h1>
+          <p className="text-muted-foreground">Wer arbeitet wann und bietet was an. Nur so entstehen freie Zeiten.</p>
         </div>
-
-        {/* Shop selection section - dropdown to choose which shop to manage */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Shop auswählen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedShop?.id} onValueChange={handleShopChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Shop auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {shops.map(shop => (
-                  <SelectItem key={shop.id} value={shop.id}>
-                    {shop.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Staff list section - only shown when a shop is selected 
-           Displays all active staff members and provides actions to manage them */}
         {selectedShop && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Mitarbeiter von {selectedShop.name}</CardTitle>
-              <div className="flex gap-2">
-                <InviteStaffDialog
-                  shop={selectedShop}
-                  onStaffInvited={async () => {
-                    await loadShopData(selectedShop.id);
-                  }}
-                />
-                <AddStaffDialog
-                  shop={selectedShop}
-                  services={services}
-                  onStaffAdded={async () => {
-                    await loadShopData(selectedShop.id);
-                  }}
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Render each staff member as a card with their details and actions */}
-                {staff.map((employee) => (
-                  <StaffCard
-                    key={employee.id}
-                    employee={employee}
-                    shop={selectedShop}
-                    services={services}
-                    onStaffUpdated={async () => {
-                      await loadShopData(selectedShop.id);
-                    }}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-wrap gap-2">
+            <AddStaffDialog shop={selectedShop} services={services} onStaffAdded={reload} />
+            <InviteStaffDialog shop={selectedShop} onStaffInvited={reload} />
+          </div>
         )}
       </div>
-    </>
+
+      {shops.length > 1 && (
+        <Select value={selectedShop?.id} onValueChange={handleShopChange}>
+          <SelectTrigger className="sm:w-72" aria-label="Laden wählen">
+            <SelectValue placeholder="Laden wählen" />
+          </SelectTrigger>
+          <SelectContent>
+            {shops.map((shop) => (
+              <SelectItem key={shop.id} value={shop.id}>
+                {shop.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {loading ? (
+        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Team wird geladen">
+          <div className="h-24 animate-pulse rounded-3xl bg-muted" />
+          <div className="h-24 animate-pulse rounded-3xl bg-muted" />
+        </div>
+      ) : !selectedShop ? (
+        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">Leg zuerst am Tresen deinen Laden an.</p>
+      ) : staff.length === 0 ? (
+        <div className="rounded-3xl border border-border bg-card p-6">
+          <p className="font-display text-xl font-bold">Noch niemand im Team.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Leg dich selbst als erste Person an, wenn du allein arbeitest. Mitarbeiter kannst du auch per E-Mail einladen.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {staff.map((employee) => (
+            <StaffCard key={employee.id} employee={employee} shop={selectedShop} services={services} onStaffUpdated={reload} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -25,7 +25,7 @@ export const EmployeeSelection = ({
   // Filter staff who can perform the selected service
   const eligibleStaff = useMemo(() => {
     if (!selectedService) return [];
-    return staff.filter(s => s.serviceIds.includes(selectedService));
+    return staff.filter(s => s.serviceIds?.includes(selectedService));
   }, [staff, selectedService]);
 
   return (

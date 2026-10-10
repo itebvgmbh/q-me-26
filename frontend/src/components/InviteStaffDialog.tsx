@@ -79,11 +79,11 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Mitarbeiter per E-Mail einladen</Button>
+        <Button variant="outline">Per E-Mail einladen</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Mitarbeiter per E-Mail einladen</DialogTitle>
+          <DialogTitle>Per E-Mail einladen</DialogTitle>
           <DialogDescription>
             Laden Sie einen neuen Mitarbeiter per E-Mail ein. Der Mitarbeiter erhält einen Link zur Registrierung.
           </DialogDescription>
@@ -106,7 +106,7 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
               </div>
             )}
           </div>
-          <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/90 text-white font-bold">Einladung senden</Button>
+          <Button onClick={handleSubmit}>Einladung senden</Button>
         </div>
       </DialogContent>
     </Dialog>
