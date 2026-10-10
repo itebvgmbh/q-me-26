@@ -7,13 +7,25 @@ import { toast } from 'sonner';
 // Firestore-Dokument-IDs sind 20 Zeichen lang, Wartenummern nur zwei Stellen
 const isAppointmentId = (value: string) => value.length >= 15;
 
+// Login, Registrierung und Startseite können gleichzeitig verknüpfen – nur ein Lauf auf einmal
+let running: Promise<void> | null = null;
+
 /**
  * Verknüpft die in diesem Browser gezogenen Nummern mit dem Konto.
  * @param userId User-ID des angemeldeten Benutzers
  * @param specificShopId Optional: nur Buchungen dieses Shops
  * @param specificReferenceCode Optional: Wartenummer, falls im Browser nichts gespeichert ist
  */
-export const linkAnonymousBookingsToUser = async (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+export const linkAnonymousBookingsToUser = (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+  if (!running) {
+    running = linkAll(userId, specificShopId, specificReferenceCode).finally(() => {
+      running = null;
+    });
+  }
+  return running;
+};
+
+const linkAll = async (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
   try {
     let linkedCount = 0;
     const stored = getAnonymousBookingCodes();

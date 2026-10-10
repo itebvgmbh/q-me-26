@@ -11,6 +11,18 @@ export interface UpdateProfileData {
 }
 
 
+// Benachrichtigt die Navigation, sobald ein Profil angelegt wurde (sonst fehlt nach der
+// Registrierung die Rolle, weil das Profil vor dem Speichern schon einmal gelesen wurde)
+type ProfileListener = (uid: string, profile: UserProfile) => void;
+const profileListeners = new Set<ProfileListener>();
+export const onProfileSaved = (listener: ProfileListener) => {
+  profileListeners.add(listener);
+  return () => {
+    profileListeners.delete(listener);
+  };
+};
+export const emitProfileSaved = (uid: string, profile: UserProfile) => profileListeners.forEach((listener) => listener(uid, profile));
+
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   console.log('Getting user profile for:', userId);
   try {
@@ -42,6 +54,7 @@ export const createUserProfile = async (uid: string, email: string, role: UserRo
   };
 
   await setDoc(doc(db, 'users', uid), profile);
+  emitProfileSaved(uid, profile);
   return profile;
 };
 
@@ -83,7 +96,7 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
       const staff = await getStaffByUserId(userId);
       return staff ? '/employee-dashboard' : '/';
     case 'customer':
-      return '/customer-dashboard';
+      return '/my-bookings';
     default:
       return '/';
   }

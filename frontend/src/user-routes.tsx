@@ -7,7 +7,7 @@ import { Navigate, useLocation } from "react-router-dom";
 
 import { UserGuard } from "./app";
 
-// Alte Buchungsseiten zeigen auf die zwei gepflegten Abläufe; Query (shopId, serviceId) bleibt erhalten
+// Alte Seiten zeigen auf die gepflegten Abläufe; Query (shopId, serviceId) bleibt erhalten
 const RedirectKeepQuery = ({ to }: { to: string }) => {
   const { search } = useLocation();
   return <Navigate to={`${to}${search}`} replace />;
@@ -17,7 +17,6 @@ const RedirectKeepQuery = ({ to }: { to: string }) => {
 const App = lazy(() => import("./pages/App.tsx"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
 const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
-const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazy(() => import("./pages/Features.tsx"));
@@ -47,8 +46,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/bookappointment", element: <BookAppointment />},
 	{ path: "/code-health", element: <UserGuard><CodeHealth /></UserGuard>},
 	{ path: "/codehealth", element: <UserGuard><CodeHealth /></UserGuard>},
-	{ path: "/customer-dashboard", element: <UserGuard><CustomerDashboard /></UserGuard>},
-	{ path: "/customerdashboard", element: <UserGuard><CustomerDashboard /></UserGuard>},
+	{ path: "/customer-dashboard", element: <RedirectKeepQuery to="/my-bookings" />},
+	{ path: "/customerdashboard", element: <RedirectKeepQuery to="/my-bookings" />},
 	{ path: "/customer-profile", element: <UserGuard><CustomerProfile /></UserGuard>},
 	{ path: "/customerprofile", element: <UserGuard><CustomerProfile /></UserGuard>},
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},

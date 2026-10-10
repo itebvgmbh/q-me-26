@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCurrentUser } from 'app';
-import { getUserProfile } from '../user-profile-service';
+import { getUserProfile, onProfileSaved } from '../user-profile-service';
 import type { UserProfile } from '../types';
 
 // Profil pro Sitzung zwischenspeichern, damit die Navigation beim
@@ -21,15 +21,25 @@ export const useUserProfile = () => {
       return;
     }
     let active = true;
+    let savedMeanwhile = false;
     getUserProfile(user.uid)
       .then((p) => {
+        // Eine langsame Antwort ohne Profil darf das gerade gespeicherte nicht überschreiben
+        if (savedMeanwhile) return;
         cache.set(user.uid, p);
         if (active) setProfile(p);
       })
       .catch((error) => console.error('Profil konnte nicht geladen werden:', error))
       .finally(() => active && setLoading(false));
+    const unsubscribe = onProfileSaved((uid, saved) => {
+      if (uid !== user.uid) return;
+      savedMeanwhile = true;
+      cache.set(uid, saved);
+      if (active) setProfile(saved);
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [user, userLoading]);
 
