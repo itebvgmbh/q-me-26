@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
 import { getAllShopsForMarketplace, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
-import { Navigation } from '../components/Navigation';
 import { ShopCard } from '../components/ShopCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -188,7 +187,6 @@ const ShopMap = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <Navigation />
       
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-4">Shops in Ihrer Nähe finden</h1>

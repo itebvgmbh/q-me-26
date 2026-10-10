@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Navigation } from '../components/Navigation';
 import { getUserProfile, updateUserProfile, type UpdateProfileData } from '../utils/user-profile-service';
 import type { UserProfile } from '../utils/types';
 
@@ -57,7 +56,6 @@ const CustomerProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
         <div className="container mx-auto py-8">
           <p>Lädt...</p>
         </div>
@@ -67,7 +65,6 @@ const CustomerProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Mein Profil</h1>

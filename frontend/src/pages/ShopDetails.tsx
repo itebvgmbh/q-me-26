@@ -8,7 +8,6 @@
  * - Staff/team members
  */
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Navigation } from '../components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft } from 'lucide-react';
@@ -37,7 +36,6 @@ const ShopDetails = () => {
   if (loading) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <p>Lädt...</p>
         </div>
@@ -49,7 +47,6 @@ const ShopDetails = () => {
   if (!shop) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <p>Shop nicht gefunden</p>
         </div>
@@ -59,7 +56,6 @@ const ShopDetails = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         {/* Page header with back button */}
         <div className="flex items-center space-x-2">

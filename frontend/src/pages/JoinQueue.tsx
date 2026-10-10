@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Button } from '@/components/ui/button';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from 'app';
-import { Navigation } from '../components/Navigation';
 import { ShopCardSelector } from '../components/ShopCardSelector';
 import { ServiceSelectorStep } from '../components/ServiceSelectorStep';
 import { StaffSelectorStep } from '../components/StaffSelectorStep';
@@ -218,7 +217,6 @@ const JoinQueue = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">In Warteschlange einreihen</h1>

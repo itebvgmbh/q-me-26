@@ -7,7 +7,6 @@
 
 import { useState, useEffect } from 'react';
 import { useCurrentUser } from 'app';
-import { Navigation } from '../components/Navigation';
 import {
   Card,
   CardContent,
@@ -81,7 +80,6 @@ const ServiceManagement = () => {
   if (shopLoading || servicesLoading) {
     return (
       <div className="container mx-auto p-4">
-        <Navigation />
         <LoadingState message="Lade Services..." />
       </div>
     );
@@ -91,7 +89,6 @@ const ServiceManagement = () => {
   if (!shop) {
     return (
       <div className="container mx-auto p-4">
-        <Navigation />
         <EmptyState message="Kein Shop gefunden. Bitte erstellen Sie zuerst einen Shop." />
       </div>
     );
@@ -99,7 +96,6 @@ const ServiceManagement = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <Navigation />
       <div className="max-w-5xl mx-auto">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

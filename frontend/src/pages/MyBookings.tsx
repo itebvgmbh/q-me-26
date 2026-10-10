@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { EarlierSlotNotifications } from '../components/EarlierSlotNotifications';
 import type { EarlierSlotNotificationType } from '../utils/types';
-import { Navigation } from '../components/Navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { firestore } from '../utils/firestore-client';
 import type { Appointment, Service, Shop, Staff } from '../utils/firestore';
@@ -117,7 +116,6 @@ const MyBookings = () => {
   if (loading) {
     return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8">
         <p>Lädt...</p>
       </div>
@@ -181,7 +179,6 @@ const MyBookings = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         {/* Display earlier slot notifications if available */}
         {!loadingNotifications && notifications.length > 0 && (

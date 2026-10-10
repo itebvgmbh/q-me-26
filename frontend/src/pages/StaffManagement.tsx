@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useCurrentUser } from 'app';
-import { Navigation } from '../components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -97,7 +96,6 @@ const StaffManagement = () => {
   if (loading) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
           <p>Lädt...</p>
         </div>
@@ -108,7 +106,6 @@ const StaffManagement = () => {
   // Render the staff management interface once data is loaded
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Mitarbeiterverwaltung</h1>

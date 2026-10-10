@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
-import { Navigation } from '../components/Navigation';
 import { createCustomer } from '../utils/firestore';
 import { BookingForm } from '../components/BookingForm';
 
@@ -114,7 +113,6 @@ const BookAppointment = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Termin buchen</h1>

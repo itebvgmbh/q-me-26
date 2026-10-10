@@ -10,7 +10,6 @@ export interface UpdateProfileData {
   phone: string;
 }
 
-import { toast } from 'sonner';
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   console.log('Getting user profile for:', userId);
@@ -22,11 +21,10 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
       return userDoc.data() as UserProfile;
     }
     console.log('No user profile found');
-    toast.error('Kein Profil in der Datenbank gefunden! Bitte registrieren Sie sich.');
     return null;
   } catch (error: any) {
+    // Kein Toast: Aufrufer (Navigation, Login) entscheiden selbst, was angezeigt wird
     console.error('Error getting user profile:', error);
-    toast.error('Fehler beim Laden des Profils (Firestore): ' + (error.message || 'Unbekannt'));
     return null;
   }
 };

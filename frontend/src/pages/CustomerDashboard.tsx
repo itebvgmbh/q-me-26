@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Navigation } from '../components/Navigation';
 import { getUserProfile } from '../utils/user-profile-service';
 import { UserProfile } from '../utils/types';
 
@@ -28,7 +27,6 @@ const CustomerDashboard = () => {
   if (loading) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <p>Lädt...</p>
         </div>
@@ -38,7 +36,6 @@ const CustomerDashboard = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Willkommen bei Q-ME</h1>

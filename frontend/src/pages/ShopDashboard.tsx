@@ -11,7 +11,6 @@ import { APP_BASE_PATH } from 'app';
 import { collection, query, where, onSnapshot, Timestamp, getFirestore } from 'firebase/firestore';
 
 // Components
-import { Navigation } from '../components/Navigation';
 import { DailyMetricsCard } from '../components/DailyMetricsCard';
 import { AppointmentsList } from '../components/AppointmentsList';
 import { EditShopForm } from '../components/EditShopForm';
@@ -237,7 +236,6 @@ declare global {
   if (isLoading) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto p-6 flex justify-center items-center h-screen">
           <p>Lädt...</p>
         </div>
@@ -248,7 +246,6 @@ declare global {
   if (!shop) {
     return (
     <>
-      <Navigation />
       <div className="container mx-auto p-6">
         <Dialog open={showCreateShop} onOpenChange={setShowCreateShop}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -278,7 +275,6 @@ declare global {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">

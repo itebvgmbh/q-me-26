@@ -5,7 +5,6 @@ import { getShopByOwner, ShopProfile as ShopProfileType } from '../utils/firesto
 import { EditShopForm } from '../components/EditShopForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Navigation } from '../components/Navigation';
 import { getIndustryNameById } from '../utils/industries';
 import { Store } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,7 +40,6 @@ const ShopProfile = () => {
   if (loading) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <div className="text-center">Laden...</div>
         </div>
@@ -52,7 +50,6 @@ const ShopProfile = () => {
   if (!user) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <div className="text-center">
             <p className="mb-4">Bitte melden Sie sich an.</p>
@@ -66,7 +63,6 @@ const ShopProfile = () => {
   if (!shop) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <div className="text-center">
             <p className="mb-4">Sie haben noch keinen Shop erstellt.</p>
@@ -79,7 +75,6 @@ const ShopProfile = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center space-x-4">

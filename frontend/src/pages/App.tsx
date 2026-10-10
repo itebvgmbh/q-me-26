@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 // Import components
 import { AnonymousBookingHandler } from '../components/AnonymousBookingHandler';
-import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { HeroSection } from "../components/HeroSection";
 import { CTASection } from "../components/CTASection";
@@ -25,7 +24,6 @@ export default function App() {
       <AnonymousBookingHandler />
       
       {/* Navigation bar */}
-      <Navbar />
 
       {/* Hero Section with main value proposition */}
       <HeroSection />

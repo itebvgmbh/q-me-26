@@ -5,7 +5,6 @@ import { format, startOfDay, addDays } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { doc, collection, setDoc } from 'firebase/firestore';
 
-import { Navigation } from '../components/Navigation';
 import { CustomerTimelineView } from '../components/CustomerTimelineView';
 import { firestore } from '../utils/firestore-client';
 import useTimeSlotStore from '../utils/timeSlotStore';
@@ -84,7 +83,6 @@ const ServiceBooking = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2">

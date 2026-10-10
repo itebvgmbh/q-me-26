@@ -9,18 +9,6 @@ export default function Features() {
   
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold cursor-pointer" onClick={() => navigate('/')}>Q-ME</div>
-          <div className="flex gap-4">
-            <Button variant="ghost" onClick={() => navigate('/features')}>Funktionen</Button>
-            <Button variant="ghost" onClick={() => navigate('/about')}>Über uns</Button>
-            <Button variant="ghost" onClick={() => navigate('/login')}>Anmelden</Button>
-            <Button variant="default" onClick={() => navigate('/register')}>Registrieren</Button>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero Section */}
       <section className="py-12 bg-gray-50">

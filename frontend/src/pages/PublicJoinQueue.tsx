@@ -1,7 +1,6 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from 'app';
-import { Navigation } from '../components/Navigation';
 import { TimeSlot } from '../utils/types';
 
 // Import all hooks from index
@@ -244,7 +243,6 @@ const PublicJoinQueue = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">In Warteschlange einreihen</h1>
