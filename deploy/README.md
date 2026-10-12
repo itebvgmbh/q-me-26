@@ -104,7 +104,8 @@ Vom eigenen Rechner aus, ganzen Block in PowerShell einfügen:
   Write-Host 'Aktualisiere q-me (dauert etwa eine Minute) ...' -ForegroundColor Cyan
   ssh -o BatchMode=yes $server 'bash /opt/q-me/deploy/update.sh'
   if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Update fehlgeschlagen, Meldungen oben.' -ForegroundColor Red; return }
-  Write-Host 'Fertig: q-me ist aktualisiert und laeuft.' -ForegroundColor Green
+  $umgebung = ssh -o BatchMode=yes $server 'systemctl show q-me -p Environment' 2>&1 | Out-String
+  if ($umgebung -match 'TZ=Europe/Berlin') { Write-Host 'Zeitzone: Backend rechnet jetzt in deutscher Zeit.' -ForegroundColor Green } else { Write-Host 'Zeitzone ist NICHT gesetzt. Ausgabe vom Server:' -ForegroundColor Red; Write-Host $umgebung; return }
   ssh -o BatchMode=yes $server 'journalctl -u q-me -n 300 --no-pager | grep -q Scheduler.autostarted'
   if ($LASTEXITCODE -eq 0) { Write-Host 'Frueher dran: Hintergrunddienst laeuft (prueft alle 5 Minuten).' -ForegroundColor Green } else { Write-Host 'Frueher dran: Hintergrunddienst laeuft NICHT. Meist fehlt der Firebase-Schluessel (Block "Schluessel einspielen").' -ForegroundColor Yellow }
 }
