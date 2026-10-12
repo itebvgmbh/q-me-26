@@ -25,7 +25,7 @@ export const WorkingHoursDialog = ({
         <DialogHeader>
           <DialogTitle>Arbeitszeiten bearbeiten</DialogTitle>
           <DialogDescription>
-            Legen Sie Ihre regulären Arbeitszeiten fest.
+            Deine regulären Arbeitszeiten. Nur darin kann man bei dir buchen.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -66,7 +66,7 @@ export const CreateCustomerDialog = ({
         <DialogHeader>
           <DialogTitle>Neuen Kunden anlegen</DialogTitle>
           <DialogDescription>
-            Legen Sie einen neuen Kunden an. Der Kunde erhält einen Link zur Aktivierung seines Kontos.
+            Die Person bekommt einen Link, um ihr Konto zu aktivieren.
           </DialogDescription>
         </DialogHeader>
         <CreateCustomerForm

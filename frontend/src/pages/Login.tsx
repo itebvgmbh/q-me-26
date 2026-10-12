@@ -1,129 +1,109 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { APP_BASE_PATH } from 'app';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { firebaseAuth } from 'app';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { firebaseAuth, useCurrentUser } from 'app';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
+import { authErrorMessage, safeRedirect } from '../utils/auth-errors';
 import { getRedirectPath } from '../utils/user-profile-service';
 import { linkAnonymousBookingsToUser } from '../utils/AnonymousBookingLinker';
+
+type LoginState = { redirectAfterLogin?: string; linkAnonymousBooking?: boolean; shopId?: string; referenceCode?: string };
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo');
+  const { user, loading: userLoading } = useCurrentUser();
+  const state = (location.state || {}) as LoginState;
+  // UserGuard hängt ?next= an, ältere Links ?returnTo=
+  const next = safeRedirect(state.redirectAfterLogin) || safeRedirect(searchParams.get('next')) || safeRedirect(searchParams.get('returnTo'));
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
+    setError(null);
+    setSubmitting(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-      
-      // If returnTo parameter exists, navigate there, otherwise use role-based redirect
-      // Nach erfolgreichem Login, prüfe ob es eine anonyme Buchung gibt, die verknüpft werden soll
-      if (location.state?.linkAnonymousBooking) {
-        console.log('Verknüpfe anonyme Buchung nach Login:', location.state);
-        
-        // Verknüpfe spezifische Buchung, wenn shopId und referenceCode vorhanden sind
-        if (location.state.shopId && location.state.referenceCode) {
-          await linkAnonymousBookingsToUser(
-            userCredential.user.uid,
-            location.state.shopId,
-            location.state.referenceCode
-          );
-        } else {
-          // Ansonsten alle anonymen Buchungen verknüpfen
-          await linkAnonymousBookingsToUser(userCredential.user.uid);
-        }
-        
-        // Navigiere zur angegebenen Seite nach der Verknüpfung
-        if (location.state.redirectAfterLogin) {
-          navigate(location.state.redirectAfterLogin);
-        } else {
-          navigate('/my-bookings');
-        }
-      } else if (returnTo) {
-        navigate(returnTo);
-      } else {
-        const redirectPath = await getRedirectPath(userCredential.user.uid);
-        navigate(redirectPath);
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error('Anmeldung fehlgeschlagen: ' + (error.message || 'Unbekannter Fehler'));
+      const { user: signedIn } = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+      const linking = linkAnonymousBookingsToUser(signedIn.uid, state.shopId, state.referenceCode);
+      // Nach "Nummer behalten" erst verknüpfen, damit sie in "Meine Termine" schon auftaucht
+      if (state.linkAnonymousBooking) await linking;
+      navigate(next || (await getRedirectPath(signedIn.uid)), { replace: true });
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(authErrorMessage(err));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  const handleReset = async () => {
+    if (!email.trim()) {
+      setError('Gib oben deine E-Mail ein, dann schicken wir dir einen Link zum Zurücksetzen.');
+      return;
+    }
+    setResetting(true);
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email.trim());
+      setError(null);
+      toast.success('Wenn es ein Konto gibt, ist der Link unterwegs. Schau in dein Postfach.');
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  // Schon angemeldet (z. B. Zurück-Taste): direkt weiter
+  if (!userLoading && user && !submitting) {
+    return <Navigate to={next || '/'} replace />;
+  }
+
+  const registerSearch = next ? `?next=${encodeURIComponent(next)}` : '';
+  const cameFromBooking = !!next && /^\/(public-join-queue|book-appointment)/.test(next);
+
   return (
-    <div className="container mx-auto max-w-md py-12">
-      <Card>
-        <CardHeader>
-          <CardTitle>Anmeldung</CardTitle>
-          <CardDescription>Melden Sie sich bei Ihrem Q-ME Konto an</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {returnTo?.includes('/public-join-queue') && (
-            <div className="mb-4 p-4 bg-blue-50 rounded-md border border-blue-100">
-              <h3 className="font-medium text-blue-800 mb-1">Anonyme Buchung möglich</h3>
-              <p className="text-sm text-blue-700">
-                Sie können einen Termin auch ohne Anmeldung buchen. 
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-blue-600"
-                  onClick={() => navigate(returnTo || '/public-join-queue')}
-                >
-                  Zurück zur anonymen Buchung
-                </Button>
-              </p>
-            </div>
+    <AuthShell
+      title="Willkommen zurück."
+      intro={cameFromBooking ? 'Melde dich an, dann geht’s direkt weiter mit deiner Buchung.' : 'Melde dich an, um deine Nummern und Termine zu sehen.'}
+      footer={
+        <>
+          <p>
+            Noch kein Konto?{' '}
+            <Link to={`/register-options${registerSearch}`} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
+              Jetzt registrieren
+            </Link>
+          </p>
+          {cameFromBooking && (
+            <p>
+              Ohne Konto geht’s auch:{' '}
+              <Link to="/public-join-queue" className="font-semibold text-foreground underline-offset-4 hover:underline">
+                Einfach einreihen
+              </Link>
+            </p>
           )}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Anmeldung...' : 'Anmelden'}
-            </Button>
-            <div className="text-center text-sm text-gray-600">
-              Noch kein Konto?{' '}
-              <a
-                href={`${APP_BASE_PATH}/register-options`}
-                className="text-primary hover:underline font-normal"
-              >
-                Jetzt registrieren
-              </a>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        {error && <FormError>{error}</FormError>}
+        <EmailField value={email} onChange={(v) => { setEmail(v); setError(null); }} invalid={!!error} />
+        <PasswordField value={password} onChange={setPassword} />
+        <Button type="submit" size="lg" disabled={submitting}>
+          {submitting ? 'Anmelden …' : 'Anmelden'}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="self-center" onClick={handleReset} disabled={resetting}>
+          {resetting ? 'Wird gesendet …' : 'Passwort vergessen?'}
+        </Button>
+      </form>
+    </AuthShell>
   );
 };
 

@@ -1,105 +1,68 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
-import { firebaseApp, useCurrentUser } from 'app';
-import { getFirestore } from 'firebase/firestore';
-import { getUserProfile } from '../utils/user-profile-service';
-import { getRedirectPath } from '../utils/user-profile-service';
-import { createCustomer } from '../utils/firestore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { USER_ROLES, UserRole } from '../utils/types';
+import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
+import { createUserProfile, getRedirectPath, getUserProfile } from '../utils/user-profile-service';
+import { authErrorMessage } from '../utils/auth-errors';
+import { ROLE_CHOICES, RoleChoiceCard } from '../components/auth/RoleChoice';
+import { FormError } from '../components/auth/AuthShell';
 
+/**
+ * Für Konten ohne Profil (z. B. abgebrochene Registrierung). Mitarbeiter-Rolle gibt es nur
+ * per Einladung – vorher konnte sich hier jeder selbst zum Mitarbeiter machen.
+ */
 const RoleSelection = () => {
   const navigate = useNavigate();
   const { user, loading: userLoading } = useCurrentUser();
-  const [role, setRole] = useState<UserRole>('customer');
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkUser = async () => {
-      if (!userLoading) {
-        if (!user) {
-          navigate('/login');
-          return;
-        }
-
-        // Check if user already has a role
-        const profile = await getUserProfile(user.uid);
-        if (profile) {
-          const redirectPath = await getRedirectPath(user.uid);
-          navigate(redirectPath);
-        }
-      }
-    };
-
-    checkUser();
+    if (userLoading) return;
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    // Wer schon eine Rolle hat, muss hier nicht wählen
+    getUserProfile(user.uid).then(async (profile) => {
+      if (profile) navigate(await getRedirectPath(user.uid), { replace: true });
+    });
   }, [user, userLoading, navigate]);
 
-  const handleRoleSelection = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const choose = async (role: 'customer' | 'shopOwner') => {
     if (!user) return;
-
-    setLoading(true);
+    setSaving(role);
+    setError(null);
     try {
-      const db = getFirestore(firebaseApp);
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        role,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      // Customer records will be created when they select a shop
-
-      toast.success('Rolle erfolgreich festgelegt');
-      const redirectPath = await getRedirectPath(user.uid);
-      navigate(redirectPath);
-    } catch (error: any) {
-      console.error('Firestore Error:', error);
-      toast.error('Fehler beim Speichern der Rolle: ' + (error?.message || 'Unbekannt'));
+      await createUserProfile(user.uid, user.email || '', role);
+      toast.success('Alles klar, los geht’s.');
+      navigate(await getRedirectPath(user.uid), { replace: true });
+    } catch (err) {
+      console.error('Firestore Error:', err);
+      setError(authErrorMessage(err));
     } finally {
-      setLoading(false);
+      setSaving(null);
     }
   };
 
-  if (userLoading || !user) {
-    return null;
-  }
+  if (userLoading || !user) return null;
 
   return (
-    <div className="container mx-auto max-w-md py-12">
-      <Card>
-        <CardHeader>
-          <CardTitle>Wählen Sie Ihre Rolle</CardTitle>
-          <CardDescription>Legen Sie fest, wie Sie Q-ME nutzen möchten</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleRoleSelection} className="space-y-4">
-            <div className="space-y-2">
-              <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Wählen Sie Ihre Rolle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(USER_ROLES).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Speichere...' : 'Rolle festlegen'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Fast fertig.</h1>
+        <p className="text-muted-foreground">Sag uns noch, wie du q-me nutzt. Das lässt sich später nicht selbst ändern.</p>
+      </div>
+      {error && <FormError>{error}</FormError>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {ROLE_CHOICES.map((choice, i) => (
+          <button key={choice.role} type="button" onClick={() => choose(choice.role)} disabled={!!saving} className="rounded-3xl disabled:opacity-60">
+            <RoleChoiceCard icon={choice.icon} title={choice.title} text={choice.text} as="span" dark={i === 0}>
+              {saving === choice.role ? 'Wird gespeichert …' : 'Auswählen'}
+            </RoleChoiceCard>
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

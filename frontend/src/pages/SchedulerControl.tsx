@@ -1,5 +1,4 @@
 import { useUserGuardContext } from 'app';
-import { Navigation } from '../components/Navigation';
 
 // Import custom hook for scheduler control functionality
 import { useSchedulerControl } from '../utils/hooks/useSchedulerControl';
@@ -44,7 +43,6 @@ const SchedulerControl = () => {
   if (loading && !status) {
     return (
       <>
-        <Navigation />
         <div className="container mx-auto py-8">
           <p>Lädt...</p>
         </div>
@@ -54,7 +52,6 @@ const SchedulerControl = () => {
 
   return (
     <>
-      <Navigation />
       <div className="container mx-auto py-8 space-y-8">
         <h1 className="text-2xl font-bold">Scheduler-Kontrolle</h1>
         <p className="text-sm text-slate-600">

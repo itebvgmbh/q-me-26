@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from datetime import datetime, timedelta
+import os
 import threading
 import time
 from typing import Dict, List, Optional
+
+from app.auth import AuthorizedUser
 
 from app.apis.check_slots import check_earlier_slots_v2
 from app.apis.appointment_helpers import update_appointment
@@ -13,7 +16,33 @@ from app.apis.cleanup import cleanup_past_timeslot_suggestions
 scheduler_thread = None
 scheduler_running = False
 last_run_time = None
-run_interval = 3600  # Default: Check once per hour
+# Alle 5 Minuten statt stündlich – sonst kommt ein frei gewordener Platz bis zu
+# einer Stunde zu spät. Über QME_SCHEDULER_INTERVAL (Sekunden, min. 60) änderbar.
+try:
+    run_interval = max(60, int(os.environ.get("QME_SCHEDULER_INTERVAL", "300")))
+except ValueError:
+    run_interval = 300
+
+
+def require_shop_owner(user: AuthorizedUser) -> None:
+    """Steuern dürfen nur Betriebe – vorher reichte jedes Konto, auch ein Kundenkonto."""
+    from app.apis.firebase_utils import get_firestore_db
+
+    profile = get_firestore_db().collection("users").document(user.sub).get()
+    if not profile.exists or (profile.to_dict() or {}).get("role") != "shopOwner":
+        raise HTTPException(status_code=403, detail="Only shop owners may control the scheduler")
+
+
+def start_scheduler_thread() -> bool:
+    """Startet den Hintergrund-Thread, falls er noch nicht läuft. True, wenn neu gestartet."""
+    global scheduler_thread, scheduler_running
+
+    if scheduler_running:
+        return False
+    scheduler_running = True
+    scheduler_thread = threading.Thread(target=scheduler_task, daemon=True)
+    scheduler_thread.start()
+    return True
 
 # Define models (if needed)
 
@@ -46,22 +75,14 @@ def scheduler_task():
             print(f"Error in scheduler task: {e}")
             time.sleep(60)  # Wait a minute before trying again
 
-@router.post("/start-scheduler")
+@router.post("/start-scheduler", dependencies=[Depends(require_shop_owner)])
 async def start_scheduler() -> Dict[str, str]:
     """Start the scheduler to periodically check for earlier slots"""
-    global scheduler_thread, scheduler_running, last_run_time, run_interval
-    
-    if scheduler_running:
+    if not start_scheduler_thread():
         return {"status": "already_running", "message": "Scheduler is already running"}
-    
-    scheduler_running = True
-    scheduler_thread = threading.Thread(target=scheduler_task)
-    scheduler_thread.daemon = True  # Allow the thread to exit when the main process exits
-    scheduler_thread.start()
-    
     return {"status": "started", "message": "Scheduler started successfully"}
 
-@router.post("/stop-scheduler")
+@router.post("/stop-scheduler", dependencies=[Depends(require_shop_owner)])
 async def stop_scheduler() -> Dict[str, str]:
     """Stop the scheduler"""
     global scheduler_running
@@ -84,7 +105,7 @@ async def get_scheduler_status() -> Dict[str, object]:
         "next_run": (last_run_time + timedelta(seconds=run_interval)).isoformat() if last_run_time else None
     }
 
-@router.post("/set-interval")
+@router.post("/set-interval", dependencies=[Depends(require_shop_owner)])
 async def set_interval(interval_seconds: int) -> Dict[str, object]:
     """Set the interval for running the scheduler task"""
     global run_interval
@@ -95,7 +116,7 @@ async def set_interval(interval_seconds: int) -> Dict[str, object]:
     run_interval = interval_seconds
     return {"status": "success", "message": f"Interval set to {interval_seconds} seconds"}
 
-@router.post("/run-now")
+@router.post("/run-now", dependencies=[Depends(require_shop_owner)])
 async def run_now() -> Dict[str, object]:
     """Run the earlier slots check immediately"""
     global last_run_time

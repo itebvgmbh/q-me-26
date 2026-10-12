@@ -16,9 +16,9 @@ export const NoEmployeeState = ({ user }: Props) => {
   return (
     <div>
       <EmployeeNavigation user={user} employee={null} showLogout={false} />
-      <div className="container mx-auto py-8">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="text-center">
-          <p className="mb-4">Kein Mitarbeiterprofil gefunden.</p>
+          <p className="mb-4">Dein Konto ist noch mit keinem Laden verknüpft. Frag deinen Betrieb nach einem Einladungslink.</p>
           <Button onClick={() => navigate('/')}>Zurück zur Startseite</Button>
         </div>
       </div>

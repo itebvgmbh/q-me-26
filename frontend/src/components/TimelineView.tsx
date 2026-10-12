@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragEndEvent, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 import { Staff, Appointment, updateAppointment, Service } from '../utils/firestore';
 import { RecurringBreak } from '../utils/firestore/recurring-breaks';
@@ -6,11 +6,40 @@ import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addDays, addMinutes, startOfDay } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import useTimeSlotStore from '../utils/timeSlotStore';
 
-const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9:00 - 17:00
+// Sichtbarer Bereich: Arbeitszeiten der Person plus alle Termine im Zeitraum.
+// Vorher fest 9–17 Uhr – Termine davor oder danach lagen außerhalb des Rasters.
+type HourRange = { start: number; end: number };
+const HourRangeContext = createContext<HourRange>({ start: 9, end: 17 });
+const useHourRange = () => {
+  const { start, end } = useContext(HourRangeContext);
+  return { start, end, hours: Array.from({ length: end - start + 1 }, (_, i) => i + start) };
+};
+
+const getHourRange = (employee: Staff, appointments: Appointment[]): HourRange => {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  const ceilHour = (d: Date) => d.getHours() + (d.getMinutes() > 0 ? 1 : 0);
+  (employee.workingHours || [])
+    .filter((h) => h.isWorking && h.startTime && h.endTime)
+    .forEach((h) => {
+      const [sh] = h.startTime.split(':').map(Number);
+      const [eh, em] = h.endTime.split(':').map(Number);
+      starts.push(sh);
+      ends.push(eh + (em > 0 ? 1 : 0));
+    });
+  appointments.forEach((a) => {
+    starts.push(a.startTime.toDate().getHours());
+    ends.push(ceilHour(a.endTime.toDate()));
+  });
+  const start = Math.max(0, Math.min(...(starts.length ? starts : [9])));
+  const end = Math.min(24, Math.max(...(ends.length ? ends : [17])));
+  return { start, end: Math.max(end, start + 1) };
+};
 
 interface DraggableAppointmentProps {
   appointment: Appointment;
@@ -56,7 +85,7 @@ const DraggableAppointment = ({
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 px-1 rounded-md ${statusColor} cursor-move transition-colors group overflow-hidden flex items-center shadow-sm`}
+      className={`absolute left-0 right-0 px-2 rounded-lg ${statusColor} cursor-move transition-colors group overflow-hidden flex items-center`}
       style={{
         ...draggableStyle,
         paddingTop: 0,
@@ -68,51 +97,11 @@ const DraggableAppointment = ({
     >
       <div className="flex justify-between items-center w-full min-w-0 h-full">
         <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
-          {format(appointment.startTime.toDate(), 'HH:mm')}-
-          {format(appointment.endTime.toDate(), 'HH:mm')} | {appointment.customerName} | 
+          <span className="font-mono">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
+          <span className="mx-1.5 opacity-50">·</span>
+          {appointment.customerName || 'Gast'}
+          <span className="mx-1.5 opacity-50">·</span>
           {services.find(s => s.id === appointment.serviceId)?.name}
-        </div>
-        <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/40 rounded pl-1 ml-1 flex-shrink-0 ${durationMinutes <= 15 ? 'scale-75 origin-right' : ''}`}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-4 w-4 md:h-5 md:w-5"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            🕒
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-4 w-4 md:h-5 md:w-5"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            ▶️
-          </Button>
-          <Button
-             variant="ghost"
-             size="icon"
-             className="h-4 w-4 md:h-5 md:w-5"
-             onClick={(e) => {
-               e.stopPropagation();
-             }}
-           >
-             ✅
-           </Button>
-           <Button
-             variant="ghost"
-             size="icon"
-             className="h-4 w-4 md:h-5 md:w-5"
-             onClick={(e) => {
-               e.stopPropagation();
-             }}
-           >
-             ❌
-           </Button>
         </div>
       </div>
     </div>
@@ -127,6 +116,7 @@ interface DroppableAreaProps {
   onDrop: (appointment: Appointment, dropPoint: { x: number, y: number }) => void;
   onClick: (e: React.MouseEvent) => void;
   children?: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
 const DroppableArea = ({
@@ -135,6 +125,7 @@ const DroppableArea = ({
   onDrop,
   onClick,
   children,
+  style,
 }: DroppableAreaProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `droppable-${date.toISOString()}`,
@@ -144,7 +135,8 @@ const DroppableArea = ({
     <div
       data-testid={`calendar-drop-area-${date.toISOString()}`}
       ref={setNodeRef}
-      className={`${className} ${isOver ? 'bg-blue-100/50' : ''} relative`}
+      className={`${className} ${isOver ? 'bg-signal/20' : ''} relative`}
+      style={style}
       onClick={onClick}
     >
       {children}
@@ -180,6 +172,19 @@ const DayView: React.FC<DayViewProps> = ({
   draggedAppointment,
   recurringBreaks = [],
 }: DayViewProps) => {
+  const { start: FIRST_HOUR, end: LAST_HOUR, hours: HOURS } = useHourRange();
+  // Beim Öffnen zur aktuellen Uhrzeit (heute) bzw. zum ersten Termin scrollen
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dayKey = date.toDateString();
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const now = new Date();
+    const first = appointments.map((a) => a.startTime.toDate()).sort((a, b) => a.getTime() - b.getTime())[0];
+    const target = date.toDateString() === now.toDateString() ? now : first;
+    if (target) el.scrollTop = Math.max(0, (target.getHours() - FIRST_HOUR) * 60 + target.getMinutes() - 90);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayKey, FIRST_HOUR]);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -212,7 +217,7 @@ const DayView: React.FC<DayViewProps> = ({
     const endHour = appointment.endTime.toDate().getHours();
     const endMinutes = appointment.endTime.toDate().getMinutes();
 
-    const top = (startHour - 9) * 60 + startMinutes;
+    const top = (startHour - FIRST_HOUR) * 60 + startMinutes;
     const height = (endHour - startHour) * 60 + (endMinutes - startMinutes);
 
     return {
@@ -233,7 +238,7 @@ const DayView: React.FC<DayViewProps> = ({
     const [startHour, startMinute] = breakItem.startTime.split(':').map(Number);
     const [endHour, endMinute] = breakItem.endTime.split(':').map(Number);
 
-    const top = (startHour - 9) * 60 + startMinute;
+    const top = (startHour - FIRST_HOUR) * 60 + startMinute;
     const height = (endHour - startHour) * 60 + (endMinute - startMinute);
 
     return {
@@ -255,15 +260,15 @@ const DayView: React.FC<DayViewProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return 'bg-blue-100 hover:bg-blue-200';
+        return 'border border-foreground/20 bg-card hover:border-foreground';
       case 'in-progress':
-        return 'bg-yellow-100 hover:bg-yellow-200';
+        return 'bg-signal text-signal-foreground';
       case 'completed':
-        return 'bg-green-100 hover:bg-green-200';
+        return 'bg-foreground/80 text-background';
       case 'cancelled':
-        return 'bg-red-100 hover:bg-red-200';
+        return 'bg-destructive/10 text-destructive line-through';
       default:
-        return 'bg-gray-100 hover:bg-gray-200';
+        return 'bg-muted';
     }
   };
 
@@ -280,16 +285,16 @@ const DayView: React.FC<DayViewProps> = ({
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
-    const top = (hours - 9) * 60 + minutes;
+    const top = (hours - FIRST_HOUR) * 60 + minutes;
     return { top: `${top}px` };
   };
 
   return (
-    <div className="relative bg-white rounded-lg shadow h-[600px] overflow-hidden">
-      <div className="absolute left-0 right-0 px-4 py-2 border-b bg-white rounded-t-lg z-10">
+    <div className="relative h-[600px] overflow-hidden rounded-3xl border border-border bg-card">
+      <div className="absolute left-0 right-0 z-30 border-b border-border bg-card px-4 py-2">
         <div className="flex justify-between items-center">
           <div className="font-medium">
-            {format(date, 'EEEE, dd.MM.yyyy')}
+            {format(date, 'EEEE, d. MMMM', { locale: de })}
           </div>
           <Button
             variant="outline"
@@ -305,12 +310,12 @@ const DayView: React.FC<DayViewProps> = ({
               setShowCreateDialog(true);
             }}
           >
-            + Termin anlegen
+            + Termin
           </Button>
         </div>
       </div>
 
-      <div className="pt-12 pb-4 px-4 h-full overflow-y-auto">
+      <div ref={scrollRef} className="pt-12 pb-4 px-4 h-full overflow-y-auto">
         <div className="relative">
           {/* Time grid */}
           <div className="absolute inset-0 ml-16 pointer-events-none z-0">
@@ -318,29 +323,29 @@ const DayView: React.FC<DayViewProps> = ({
             {HOURS.map((hour) => (
               <div
                 key={`hour-${hour}`}
-                className="absolute left-0 right-0 border-t-2 border-gray-300"
-                style={{ top: `${(hour - 9) * 60}px` }}
+                className="absolute left-0 right-0 border-t border-border"
+                style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
               />
             ))}
             {/* Half hour lines */}
             {HOURS.map((hour) => (
               <div
                 key={`half-${hour}`}
-                className="absolute left-0 right-0 border-t border-gray-200"
-                style={{ top: `${(hour - 9) * 60 + 30}px` }}
+                className="absolute left-0 right-0 border-t border-border/50"
+                style={{ top: `${(hour - FIRST_HOUR) * 60 + 30}px` }}
               />
             ))}
             {/* Quarter hour lines */}
             {HOURS.map((hour) => [
               <div
                 key={`quarter1-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-gray-200"
-                style={{ top: `${(hour - 9) * 60 + 15}px` }}
+                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                style={{ top: `${(hour - FIRST_HOUR) * 60 + 15}px` }}
               />,
               <div
                 key={`quarter2-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-gray-200"
-                style={{ top: `${(hour - 9) * 60 + 45}px` }}
+                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                style={{ top: `${(hour - FIRST_HOUR) * 60 + 45}px` }}
               />
             ])}
           </div>
@@ -349,8 +354,8 @@ const DayView: React.FC<DayViewProps> = ({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="absolute left-0 text-sm text-gray-500"
-              style={{ top: `${(hour - 9) * 60}px` }}
+              className="absolute left-0 font-mono text-xs text-muted-foreground"
+              style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
             >
               {`${hour}:00`}
             </div>
@@ -359,7 +364,7 @@ const DayView: React.FC<DayViewProps> = ({
           {/* Current time indicator */}
           {isCurrentDay(date) && (
             <div
-              className="absolute left-16 right-0 border-t-2 border-red-500 z-10"
+              className="absolute left-16 right-0 z-10 border-t-2 border-destructive"
               style={getCurrentTimePosition()}
             />
           )}
@@ -368,36 +373,34 @@ const DayView: React.FC<DayViewProps> = ({
           {getBreaksForDay(date).map((breakItem) => (
             <div
               key={breakItem.id}
-              className="absolute left-16 right-0 bg-yellow-200 bg-opacity-70 border border-yellow-300 z-5"
+              className="absolute left-16 right-0 z-5 border border-dashed border-foreground/30 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,hsl(var(--muted))_6px,hsl(var(--muted))_12px)]"
               style={getBreakStyle(breakItem)}
               title={getBreakTypeLabel(breakItem.type)}
             >
-              <div className="px-2 py-1 text-xs text-yellow-800 font-medium truncate">
+              <div className="truncate px-2 py-1 text-xs font-medium text-muted-foreground">
                 {getBreakTypeLabel(breakItem.type)}
               </div>
             </div>
           ))}
 
           {/* Create appointment hint */}
-          <div className="ml-16 mb-2 text-sm text-gray-500">
-            Klicken Sie auf einen freien Zeitslot, um einen neuen Termin anzulegen
-          </div>
 
           {/* Appointment blocks */}
           <DroppableArea
-            className="ml-16 relative min-h-[480px] bg-blue-50/30 hover:bg-blue-50/50 transition-colors cursor-pointer z-20"
+            style={{ minHeight: `${(LAST_HOUR - FIRST_HOUR) * 60}px` }}
+            className="ml-16 relative cursor-pointer transition-colors hover:bg-muted/40 z-20"
             date={date}
             onDrop={() => {}}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const y = e.clientY - rect.top;
-              const hour = Math.floor(y / 60) + 9;
+              const hour = Math.floor(y / 60) + FIRST_HOUR;
               const minutes = Math.floor((y % 60) / 15) * 15;
               const newTime = new Date(date);
               newTime.setHours(hour, minutes, 0, 0);
 
               // Only allow creating appointments during working hours
-              if (hour >= 9 && hour < 17) {
+              if (hour >= FIRST_HOUR && hour < LAST_HOUR) {
                 setNewAppointmentTime(newTime);
                 setShowCreateDialog(true);
               }
@@ -406,13 +409,13 @@ const DayView: React.FC<DayViewProps> = ({
             {/* Preview des Zeitraums während des Drags */}
             {dragPreview && draggedAppointment && dragPreview.startTime.toDateString() === date.toDateString() && (
               <div
-                className="absolute left-0 right-0 bg-blue-200/50 border-2 border-blue-400 border-dashed rounded-md pointer-events-none transition-all duration-150"
+                className="pointer-events-none absolute left-0 right-0 rounded-lg border-2 border-dashed border-foreground bg-signal/30 transition-all duration-150"
                 style={{
-                  top: `${(dragPreview.startTime.getHours() - 9) * 60 + dragPreview.startTime.getMinutes()}px`,
+                  top: `${(dragPreview.startTime.getHours() - FIRST_HOUR) * 60 + dragPreview.startTime.getMinutes()}px`,
                   height: `${(dragPreview.endTime.getTime() - dragPreview.startTime.getTime()) / (1000 * 60)}px`,
                 }}
               >
-                <div className="p-2 text-sm font-medium text-blue-800">
+                <div className="p-2 text-sm font-medium">
                   {format(dragPreview.startTime, 'HH:mm')}-
                   {format(dragPreview.endTime, 'HH:mm')} | {draggedAppointment.customerName}
                 </div>
@@ -458,37 +461,13 @@ const DayView: React.FC<DayViewProps> = ({
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Terminstatus ändern</DialogTitle>
+            <DialogTitle>Status ändern</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 p-4">
-            <Button
-              variant="outline"
-              onClick={() => handleStatusChange('scheduled')}
-              className="bg-blue-100 hover:bg-blue-200"
-            >
-              Geplant
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleStatusChange('in-progress')}
-              className="bg-yellow-100 hover:bg-yellow-200"
-            >
-              In Bearbeitung
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleStatusChange('completed')}
-              className="bg-green-100 hover:bg-green-200"
-            >
-              Abgeschlossen
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleStatusChange('cancelled')}
-              className="bg-red-100 hover:bg-red-200"
-            >
-              Storniert
-            </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant={selectedAppointment?.status === 'scheduled' ? 'default' : 'outline'} onClick={() => handleStatusChange('scheduled')}>Wartet</Button>
+            <Button variant={selectedAppointment?.status === 'in-progress' ? 'default' : 'outline'} onClick={() => handleStatusChange('in-progress')}>Ist dran</Button>
+            <Button variant={selectedAppointment?.status === 'completed' ? 'default' : 'outline'} onClick={() => handleStatusChange('completed')}>Fertig</Button>
+            <Button variant={selectedAppointment?.status === 'cancelled' ? 'default' : 'outline'} onClick={() => handleStatusChange('cancelled')}>Abgesagt</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -548,6 +527,7 @@ export const TimelineView = ({
     },
   });
   const sensors = useSensors(mouseSensor, touchSensor);
+  const hourRange = useMemo(() => getHourRange(employee, appointments), [employee, appointments]);
 
   const getDayAppointments = (date: Date) => {
     const dayStart = startOfDay(date);
@@ -581,6 +561,7 @@ export const TimelineView = ({
   };
 
   return (
+    <HourRangeContext.Provider value={hourRange}>
     <div className="overflow-x-auto">
       <DndContext
         sensors={sensors}
@@ -639,7 +620,7 @@ export const TimelineView = ({
           const totalMinutes = Math.round((yPositionRelative * minutesPerPixel) / 15) * 15;
 
           // Berechne die Stunde basierend auf der Position im Kalender
-          const newHour = Math.floor(totalMinutes / 60) + 9; // 9 Uhr ist der Start
+          const newHour = Math.floor(totalMinutes / 60) + hourRange.start;
           const newMinutes = totalMinutes % 60;
 
           console.log('Time Calculation:', {
@@ -655,9 +636,9 @@ export const TimelineView = ({
           const previewEndTime = new Date(previewStartTime.getTime() + duration);
 
           // Prüfe ob der Termin innerhalb der Arbeitszeiten liegt
-          if (previewStartTime.getHours() >= 9 && 
-              (previewEndTime.getHours() < 17 || 
-               (previewEndTime.getHours() === 17 && previewEndTime.getMinutes() === 0))) {
+          if (previewStartTime.getHours() >= hourRange.start &&
+              (previewEndTime.getHours() < hourRange.end ||
+               (previewEndTime.getHours() === hourRange.end && previewEndTime.getMinutes() === 0))) {
             console.log('Setting preview:', { previewStartTime, previewEndTime });
             setDragPreview({ startTime: previewStartTime, endTime: previewEndTime });
           } else {
@@ -740,5 +721,6 @@ export const TimelineView = ({
         </div>
       </DndContext>
     </div>
+    </HourRangeContext.Provider>
   );
 };

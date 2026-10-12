@@ -1,18 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { format, addMinutes, startOfDay, endOfDay, parseISO, setHours, setMinutes } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { de } from 'date-fns/locale';
-import { Appointment, Service, Staff, Customer, updateAppointment, getAppointmentsInRange, getUniqueCustomers } from '../utils/firestore';
-import { useState, useRef, useEffect } from 'react';
-import { toast } from 'sonner';
+import { Appointment, Service, Staff, Customer, updateAppointment, getUniqueCustomers } from '../utils/firestore';
+import { customerLabel } from './counter/CounterLane';
+
+export const STATUS_LABEL: Record<Appointment['status'], string> = {
+  scheduled: 'Wartet',
+  'in-progress': 'Ist dran',
+  completed: 'Fertig',
+  cancelled: 'Abgesagt',
+};
 
 interface Props {
   appointments: Appointment[];
@@ -24,7 +31,6 @@ interface Props {
 }
 
 export const AppointmentsList = ({ appointments, services, staff, customers = [], selectedDate, onAppointmentUpdate }: Props) => {
-  const calendarRef = useRef<HTMLDivElement>(null);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState<Date | undefined>(undefined);
@@ -32,55 +38,16 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
   const [appointmentDuration, setAppointmentDuration] = useState<number>(30);
   const [appointmentFormData, setAppointmentFormData] = useState<Partial<Appointment>>({});
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
 
-  // Schließen des Kalenders bei Klick außerhalb
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setCalendarOpen(false);
-      }
-    }
 
-    // Nur Event-Listener hinzufügen, wenn Kalender geöffnet ist
-    if (calendarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [calendarOpen]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-blue-100 hover:bg-blue-200';
-      case 'in-progress':
-        return 'bg-yellow-100 hover:bg-yellow-200';
-      case 'completed':
-        return 'bg-green-100 hover:bg-green-200';
-      case 'cancelled':
-        return 'bg-red-100 hover:bg-red-200';
-      default:
-        return 'bg-gray-100 hover:bg-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return '🕒';
-      case 'in-progress':
-        return '▶️';
-      case 'completed':
-        return '✅';
-      case 'cancelled':
-        return '❌';
-      default:
-        return '❓';
-    }
-  };
+  const statusChip = (status: Appointment['status']) =>
+    cn(
+      'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+      status === 'in-progress' && 'bg-signal text-signal-foreground',
+      status === 'scheduled' && 'border border-border',
+      status === 'completed' && 'bg-foreground text-background',
+      status === 'cancelled' && 'bg-destructive/10 text-destructive',
+    );
 
   const handleStatusChange = async (status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled') => {
     if (!selectedAppointment) return;
@@ -88,11 +55,11 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
     try {
       const updatedAppointment = await updateAppointment(selectedAppointment.id, { status });
       onAppointmentUpdate(updatedAppointment);
-      toast.success('Status erfolgreich aktualisiert');
+      toast.success(`Status: ${STATUS_LABEL[status]}`);
       setShowStatusDialog(false);
     } catch (error) {
       console.error('Error updating appointment status:', error);
-      toast.error('Fehler beim Aktualisieren des Status');
+      toast.error('Der Status konnte nicht geändert werden.');
     }
   };
   const handleAppointmentEdit = async () => {
@@ -124,11 +91,11 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
       
       const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData);
       onAppointmentUpdate(updatedAppointment);
-      toast.success('Termin erfolgreich aktualisiert');
+      toast.success('Termin gespeichert.');
       setShowEditDialog(false);
     } catch (error: any) {
       console.error('Error updating appointment:', error);
-      toast.error('Fehler beim Aktualisieren des Termins: ' + (error.message || 'Unbekannter Fehler'));
+      toast.error('Speichern hat nicht geklappt: ' + (error.message || 'unbekannter Fehler'));
     }
   };
   
@@ -177,108 +144,70 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
     }
   };
 
-  if (!appointments.length) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Termine für {format(selectedDate, 'PPP', { locale: de })}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500">Keine Termine für diesen Tag</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const sorted = [...appointments].sort((a, b) => a.startTime.toMillis() - b.startTime.toMillis());
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Termine für {format(selectedDate, 'PPP', { locale: de })}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {appointments.map((appointment) => {
-            const service = services.find(s => s.id === appointment.serviceId);
+    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-labelledby="tagesliste">
+      <h3 id="tagesliste" className="font-display text-xl font-bold">
+        Alle Termine am {format(selectedDate, 'EEEE, d. MMMM', { locale: de })}
+      </h3>
+      {sorted.length === 0 ? (
+        <p className="text-sm text-muted-foreground">An diesem Tag ist nichts eingetragen.</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {sorted.map((appointment) => {
+            const service = services.find((s) => s.id === appointment.serviceId);
+            const person = staff.find((s) => s.id === appointment.staffId);
             return (
-              <div
-                key={appointment.id}
-                className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${getStatusColor(appointment.status)}`}
-              >
-                <div className="flex-1">
-                  <p className="font-medium">
-                    {appointment.isAnonymous ? 
-                      `Anonym (#${appointment.referenceCode})` : 
-                      appointment.customerName || 'Unbekannt'}
-                  </p>
-                  <p className="text-sm text-gray-600">{service?.name || 'Unbekannter Service'}</p>
-                  <p className="text-xs text-gray-500">
-                    {staff.find(s => s.id === appointment.staffId)?.name || 'Kein Mitarbeiter zugewiesen'}
-                  </p>
-                  <p className="text-xs text-gray-400">ID: {appointment.id}</p>
-                </div>
-                <div className="text-right flex items-center gap-4">
-                  <div>
-                    <p className="font-medium">
-                      {format(appointment.startTime.toDate(), 'HH:mm', { locale: de })} - 
-                      {format(appointment.endTime.toDate(), 'HH:mm', { locale: de })}
-                    </p>
-                    <p className="text-sm text-gray-600 flex items-center justify-end gap-1">
-                      {getStatusIcon(appointment.status)} {appointment.status}
-                    </p>
-                  </div>
-                </div>
-                <div className="ml-2 flex gap-2">
-                  <div className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 rounded" onClick={() => {
-                    setSelectedAppointment(appointment);
-                    setShowStatusDialog(true);
-                  }}>
+              <li key={appointment.id} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 py-3 sm:flex-nowrap sm:gap-x-4', appointment.status === 'cancelled' && 'opacity-60')}>
+                <span className="flex w-14 shrink-0 flex-col whitespace-nowrap">
+                  <span className="font-mono text-[15px] font-semibold">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
+                  <span className="text-xs text-muted-foreground">bis {format(appointment.endTime.toDate(), 'HH:mm')}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{customerLabel(appointment)}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {[service?.name || 'Leistung', person?.name || 'nicht zugeordnet', appointment.type === 'queue' ? 'Schlange' : 'Termin'].join(' · ')}
+                  </span>
+                </span>
+                <span className={statusChip(appointment.status)}>{STATUS_LABEL[appointment.status] ?? appointment.status}</span>
+                <span className="ml-auto flex gap-1 sm:ml-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setShowStatusDialog(true);
+                    }}
+                  >
                     Status
-                  </div>
-                  <div className="px-2 py-1 text-sm cursor-pointer hover:bg-gray-100 rounded" onClick={() => openEditDialog(appointment)}>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(appointment)}>
                     Bearbeiten
-                  </div>
-                </div>
-              </div>
+                  </Button>
+                </span>
+              </li>
             );
           })}
-        </div>
-      </CardContent>
+        </ul>
+      )}
 
-      {/* Status change dialog */}
+      {/* Status ändern */}
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Terminstatus ändern</DialogTitle>
+            <DialogTitle>Status ändern</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 p-4">
-            <div
-              className="rounded-md border border-input bg-blue-100 hover:bg-blue-200 p-2 text-center cursor-pointer"
-              onClick={() => handleStatusChange('scheduled')}
-            >
-              🕒 Geplant
-            </div>
-            <div
-              className="rounded-md border border-input bg-yellow-100 hover:bg-yellow-200 p-2 text-center cursor-pointer"
-              onClick={() => handleStatusChange('in-progress')}
-            >
-              ▶️ In Bearbeitung
-            </div>
-            <div
-              className="rounded-md border border-input bg-green-100 hover:bg-green-200 p-2 text-center cursor-pointer"
-              onClick={() => handleStatusChange('completed')}
-            >
-              ✅ Abgeschlossen
-            </div>
-            <div
-              className="rounded-md border border-input bg-red-100 hover:bg-red-200 p-2 text-center cursor-pointer"
-              onClick={() => handleStatusChange('cancelled')}
-            >
-              ❌ Storniert
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(STATUS_LABEL) as Appointment['status'][]).map((status) => (
+              <Button key={status} variant={selectedAppointment?.status === status ? 'default' : 'outline'} onClick={() => handleStatusChange(status)}>
+                {STATUS_LABEL[status]}
+              </Button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit appointment dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -328,7 +257,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                 <SelectContent>
                   {services.map((service) => (
                     <SelectItem key={service.id} value={service.id}>
-                      {service.name} ({service.duration} Min, {service.price.toFixed(2)} €)
+                      {service.name} ({service.duration} Min, {Number(service.price || 0).toFixed(2)} €)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -373,7 +302,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             <div className="space-y-2">
               <Label htmlFor="time">Uhrzeit</Label>
               <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-gray-500" />
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="time"
                   type="time"
@@ -437,21 +366,19 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Status auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="scheduled">🕒 Geplant</SelectItem>
-                  <SelectItem value="in-progress">▶️ In Bearbeitung</SelectItem>
-                  <SelectItem value="completed">✅ Abgeschlossen</SelectItem>
-                  <SelectItem value="cancelled">❌ Storniert</SelectItem>
+                  <SelectItem value="scheduled">{STATUS_LABEL.scheduled}</SelectItem>
+                  <SelectItem value="in-progress">{STATUS_LABEL['in-progress']}</SelectItem>
+                  <SelectItem value="completed">{STATUS_LABEL.completed}</SelectItem>
+                  <SelectItem value="cancelled">{STATUS_LABEL.cancelled}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 id="checkEarlierOptions"
-                className="rounded border-gray-300 focus:ring-primary"
                 checked={appointmentFormData.checkEarlierOptions || false}
-                onChange={(e) => handleInputChange('checkEarlierOptions', e.target.checked)}
+                onCheckedChange={(v) => handleInputChange('checkEarlierOptions', v === true)}
               />
               <Label htmlFor="checkEarlierOptions">Bei früherem freien Termin benachrichtigen</Label>
             </div>
@@ -463,6 +390,6 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
           </div>
         </DialogContent>
       </Dialog>
-    </Card>
+    </section>
   );
 };

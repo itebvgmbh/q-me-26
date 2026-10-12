@@ -35,16 +35,21 @@ export const UserGuard = (props: {
   const { pathname } = useLocation();
 
   if (loading) {
-    return <React.Fragment />;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
+        <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
+        <span className="sr-only">Wird geladen …</span>
+      </div>
+    );
   }
 
   if (!user) {
-    const queryParams = new URLSearchParams(window.location.search);
+    const queryParams = new URLSearchParams();
 
     // Don't set the next param if the user is logging out
     // to avoid ending up in an infinite redirect loop
     if (pathname !== "/logout" && pathname !== "/sign-out") {
-      queryParams.set("next", pathname);
+      queryParams.set("next", pathname + window.location.search);
     }
 
     const queryString = queryParams.toString();

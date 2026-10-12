@@ -82,7 +82,7 @@ export const useAppointmentBooking = () => {
       );
       
       if (!isAvailable) {
-        toast.error('Dieser Zeitslot ist leider nicht mehr verfügbar. Bitte wählen Sie einen anderen Termin.');
+        toast.error('Die Uhrzeit ist gerade weggegangen. Such dir bitte eine andere aus.');
         // Invalidate cache to refresh available slots
         useTimeSlotStore.getState().invalidateCache(shopId, startTime);
         setLoading(false);

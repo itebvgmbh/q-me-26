@@ -1,12 +1,8 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useCurrentUser } from 'app';
-import { doc, getDoc } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { firebaseApp } from 'app';
-import { UserProfile } from '../utils/types';
+import { useState } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { Menu, LogOut, UserRound } from 'lucide-react';
+import { firebaseAuth } from 'app';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,199 +11,173 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { firebaseAuth } from 'app';
-import { Scissors } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
+import { Logo } from './brand/Logo';
+import { useUserProfile } from '../utils/hooks/useUserProfile';
+import type { UserRole } from '../utils/types';
 
+type NavItem = { to: string; label: string };
+
+const LINKS: Record<UserRole | 'guest', NavItem[]> = {
+  guest: [
+    { to: '/shop-map', label: 'Shops finden' },
+    { to: '/public-join-queue', label: 'In die Schlange' },
+    { to: '/features', label: 'Für Betriebe' },
+  ],
+  customer: [
+    { to: '/my-bookings', label: 'Meine Termine' },
+    { to: '/shop-map', label: 'Shops finden' },
+    { to: '/public-join-queue', label: 'In die Schlange' },
+  ],
+  shopOwner: [
+    { to: '/shop-dashboard', label: 'Tresen' },
+    { to: '/staff-management', label: 'Team' },
+    { to: '/service-management', label: 'Leistungen' },
+    { to: '/shop-profile', label: 'Mein Laden' },
+  ],
+  employee: [
+    { to: '/employee-dashboard', label: 'Mein Tag' },
+  ],
+};
+
+const PROFILE_PATH: Record<UserRole, string> = {
+  customer: '/customer-profile',
+  shopOwner: '/profile',
+  employee: '/profile',
+};
+
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'inline-flex h-10 items-center rounded-full px-4 text-[15px] font-medium transition-colors',
+    isActive ? 'bg-signal text-signal-foreground' : 'text-foreground hover:bg-foreground/5',
+  );
+
+/** Einheitliche Kopfzeile für alle Seiten, abhängig von der Rolle */
 export function Navigation() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useCurrentUser();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, loading } = useUserProfile();
+  const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const db = getFirestore(firebaseApp);
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserProfile();
-  }, [user]);
+  const role: UserRole | 'guest' = user && profile ? profile.role : 'guest';
+  const links = user && !profile ? [] : LINKS[role];
+  const displayName = profile?.displayName || user?.displayName || user?.email || '';
+  const initial = (displayName.trim()[0] || 'Q').toUpperCase();
 
   const handleLogout = async () => {
-    try {
-      await firebaseAuth.signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
-
-  const showBackButton = location.pathname !== '/' && location.pathname !== '/customer-dashboard';
-
-  const handleBackClick = () => {
-    if (location.pathname === '/my-bookings') {
-      navigate('/customer-dashboard');
-    } else {
-      navigate(-1);
-    }
+    setOpen(false);
+    await firebaseAuth.signOut();
+    navigate('/');
   };
 
   return (
-    <nav className="border-b">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            {showBackButton && (
-              <Button
-                variant="ghost"
-                onClick={handleBackClick}
-              >
-                ← Zurück
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Logo />
+
+        <nav aria-label="Hauptnavigation" className="hidden items-center gap-1 md:flex">
+          {links.map((item) => (
+            <NavLink key={item.to} to={item.to} className={linkClass}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          {!loading && !user && (
+            <div className="hidden items-center gap-2 sm:flex">
+              <Button variant="ghost" asChild>
+                <Link to="/login">Anmelden</Link>
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-            >
-              Q-ME
-            </Button>
-          </div>
-
-          {user && (
-            <div className="flex items-center space-x-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {user.displayName 
-                          ? getInitials(user.displayName) 
-                          : (userProfile?.email && userProfile.email.charAt(0).toUpperCase()) || 
-                            (user.email && user.email.charAt(0).toUpperCase()) || 
-                            'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.displayName || 'User'}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {/* Navigation based on user role */}
-                  {!loading && userProfile && (
-                    <>
-                      {userProfile.role === 'shopOwner' && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate('/shop-dashboard')}>
-                            Shop Dashboard
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/staff-management')}>
-                            Mitarbeiterverwaltung
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/shop-profile')}>
-                            Shop Profil
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/service-management')}>
-                            <div className="flex items-center">
-                              <Scissors className="h-4 w-4 mr-2" />
-                              Services
-                            </div>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/scheduler-control')}>
-                            <div className="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <polyline points="12 6 12 12 16 14"/>
-                              </svg>
-                              Scheduler
-                            </div>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-
-                      {userProfile.role === 'employee' && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate('/employee-dashboard')}>
-                            Mitarbeiter Dashboard
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/profile')}>
-                            Mein Profil
-                          </DropdownMenuItem>
-                        </>
-                      )}
-
-                      {userProfile.role === 'customer' && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate('/customer-dashboard')}>
-                            Kunden Dashboard
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/customer-profile')}>
-                            Mein Profil
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/my-bookings')}>
-                            Meine Buchungen
-                          </DropdownMenuItem>
-                        </>
-                      )}
-
-                      {/* Common navigation items for shop owners and customers */}
-                      {userProfile.role !== 'employee' && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate('/book-appointment?fromMarketplace=true')}>
-                            Termin buchen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate('/public-join-queue')}>
-                            Warteschlange
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-red-600"
-                    onClick={handleLogout}
-                  >
-                    Abmelden
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button asChild>
+                <Link to="/register-options">Registrieren</Link>
+              </Button>
             </div>
           )}
+
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Konto-Menü öffnen"
+                  className="hidden h-11 w-11 items-center justify-center rounded-full bg-foreground font-display text-base font-bold text-signal sm:flex"
+                >
+                  {initial}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-60 rounded-xl" align="end">
+                <DropdownMenuLabel className="font-normal">
+                  <p className="truncate text-sm font-semibold">{profile?.displayName || 'Dein Konto'}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {profile && (
+                  <DropdownMenuItem onSelect={() => navigate(PROFILE_PATH[profile.role])}>
+                    <UserRound className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Mein Profil
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Abmelden
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menü öffnen">
+                <Menu className="h-6 w-6" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="flex w-[85vw] max-w-sm flex-col gap-6 bg-background">
+              <SheetHeader className="text-left">
+                <SheetTitle className="font-display text-2xl">Menü</SheetTitle>
+              </SheetHeader>
+              <nav aria-label="Hauptnavigation" className="flex flex-col gap-1">
+                {links.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex h-12 items-center rounded-xl px-4 text-lg font-medium',
+                        isActive ? 'bg-signal text-signal-foreground' : 'hover:bg-foreground/5',
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+                {profile && (
+                  <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
+                    Mein Profil
+                  </NavLink>
+                )}
+              </nav>
+              <div className="mt-auto flex flex-col gap-2">
+                {user ? (
+                  <Button variant="outline" size="lg" onClick={handleLogout}>
+                    Abmelden
+                  </Button>
+                ) : (
+                  <>
+                    <Button size="lg" asChild>
+                      <Link to="/register-options" onClick={() => setOpen(false)}>Registrieren</Link>
+                    </Button>
+                    <Button variant="outline" size="lg" asChild>
+                      <Link to="/login" onClick={() => setOpen(false)}>Anmelden</Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

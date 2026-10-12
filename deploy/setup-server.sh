@@ -10,7 +10,8 @@
 set -euo pipefail
 
 DOMAIN=${1:-q-me.spielmacherei.de}
-PORT=${PORT:-8090}
+# Leer: erster freier Port ab 8090
+PORT=${PORT:-}
 APP_DIR=/opt/q-me
 WEB_ROOT=/opt/q-me-web
 ENV_FILE=/etc/q-me.env
@@ -19,6 +20,21 @@ CADDYFILE=/etc/caddy/Caddyfile
 UV_VERSION=0.8.17
 
 fail() { echo "FEHLER: $*" >&2; exit 1; }
+port_busy() { ss -ltnH "sport = :$1" | grep -q .; }
+# Liest eine Datei wie systemds EnvironmentFile: KEY=Wert je Zeile, der Wert gilt
+# wörtlich, auch mit Leerzeichen (". datei" würde ihn als Befehl ausführen).
+export_env_file() {
+	local line key value
+	while IFS= read -r line || [ -n "$line" ]; do
+		[[ $line =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+		key=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then
+			value=${BASH_REMATCH[1]}
+		fi
+		export "$key=$value"
+	done < "$1"
+}
 
 echo "==> Voraussetzungen prüfen"
 [ "$(id -u)" -eq 0 ] || fail "als root ausführen"
@@ -42,9 +58,16 @@ if [ -f "$ENV_FILE" ]; then
 	# Erneuter Aufruf: Port und übrige Werte bleiben, wie sie sind
 	PORT=$(sed -n 's/^PORT=//p' "$ENV_FILE")
 else
-	if ss -ltnH "sport = :$PORT" | grep -q .; then
-		fail "Port $PORT ist belegt. Anderen Port wählen: PORT=8091 bash $0 $DOMAIN"
+	if [ -n "$PORT" ]; then
+		port_busy "$PORT" && fail "Port $PORT ist belegt. Ohne PORT=… wählt das Skript selbst einen freien."
+	else
+		PORT=8090
+		while port_busy "$PORT"; do
+			PORT=$((PORT + 1))
+			[ "$PORT" -le 8199 ] || fail "Kein freier Port zwischen 8090 und 8199"
+		done
 	fi
+	echo "    Backend-Port: $PORT"
 	cat > "$ENV_FILE" <<EOF
 # Q-ME Backend. Liest der Dienst q-me beim Start.
 PORT=$PORT
@@ -81,7 +104,7 @@ else
 	# Caddy-Dienst (Konto caddy) könnte sie danach nicht mehr beschreiben.
 	[ -f /var/log/caddy/q-me.log ] || install -m 644 -o caddy -g caddy /dev/null /var/log/caddy/q-me.log
 	# Mit derselben Umgebung prüfen, die der Caddy-Dienst bekommt
-	if ! (set -a; [ -f /etc/default/caddy ] && . /etc/default/caddy; set +a
+	if ! (if [ -f /etc/default/caddy ]; then export_env_file /etc/default/caddy; fi
 		caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1); then
 		cp "$backup" "$CADDYFILE"
 		fail "Caddyfile ungültig, alte Fassung wiederhergestellt. Prüfen: caddy validate --config $CADDYFILE"

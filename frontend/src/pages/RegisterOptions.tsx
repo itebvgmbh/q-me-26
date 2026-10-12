@@ -1,75 +1,36 @@
-import { useNavigate } from 'react-router-dom';
-import { APP_BASE_PATH } from 'app';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Store, User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ROLE_CHOICES, RoleChoiceCard } from '../components/auth/RoleChoice';
 
-// @ts-ignore
-// @auth open
+const TARGET = { customer: '/register-customer', shopOwner: '/register-shop-owner' } as const;
+
+/** Auswahl vor der Registrierung: buchen oder Betrieb */
 const RegisterOptions = () => {
-  const navigate = useNavigate();
+  const { search, state } = useLocation();
 
   return (
-    <div className="container mx-auto max-w-4xl py-12">
-      <CardHeader className="text-center mb-8">
-        <CardTitle className="text-3xl">Registrierung bei Q-ME</CardTitle>
-        <CardDescription className="text-lg">
-          Wählen Sie, wie Sie Q-ME nutzen möchten
-        </CardDescription>
-      </CardHeader>
-
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card className="relative overflow-hidden transition-all hover:shadow-md cursor-pointer group" onClick={() => {
-          window.location.href = `${window.location.origin}${APP_BASE_PATH}/register-shop-owner`;
-        }}>
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <CardHeader className="text-center">
-            <Store className="w-16 h-16 mx-auto text-primary mb-2" />
-            <CardTitle>Als Shop-Betreiber registrieren</CardTitle>
-            <CardDescription>Verwalten Sie Ihr Geschäft, Termine und Mitarbeiter</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <ul className="text-left text-gray-600 space-y-2 mb-6">
-              <li>• Terminplanung für Ihr Geschäft</li>
-              <li>• Mitarbeiterverwaltung</li>
-              <li>• Service-Konfiguration</li>
-              <li>• Kundenverwaltung</li>
-            </ul>
-            <Button className="w-full">Als Shop-Betreiber fortfahren</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden transition-all hover:shadow-md cursor-pointer group" onClick={() => {
-          window.location.href = `${window.location.origin}${APP_BASE_PATH}/register-customer`;
-        }}>
-          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <CardHeader className="text-center">
-            <User className="w-16 h-16 mx-auto text-primary mb-2" />
-            <CardTitle>Als Kunde registrieren</CardTitle>
-            <CardDescription>Buchen Sie Termine bei Ihren Lieblingsshops</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <ul className="text-left text-gray-600 space-y-2 mb-6">
-              <li>• Einfache Terminbuchung</li>
-              <li>• Terminübersicht</li>
-              <li>• Benachrichtigungen</li>
-              <li>• Favoriten speichern</li>
-            </ul>
-            <Button className="w-full">Als Kunde fortfahren</Button>
-          </CardContent>
-        </Card>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Wofür brauchst du q&#8209;me?</h1>
+        <p className="text-muted-foreground">Zum Einreihen brauchst du kein Konto. Mit Konto behältst du deine Nummern und Termine im Blick.</p>
       </div>
 
-      <div className="mt-8 text-center text-gray-600">
-        <p>Mitarbeiter werden von Shop-Betreibern eingeladen und haben einen speziellen Registrierungslink.</p>
-        <p className="mt-4">
-          Bereits ein Konto?{' '}
-          <a
-            href={`${APP_BASE_PATH}/login`}
-            className="text-primary hover:underline font-normal"
-          >
-            Jetzt anmelden
-          </a>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {ROLE_CHOICES.map((choice, i) => (
+          <Link key={choice.role} to={`${TARGET[choice.role]}${search}`} state={state} className="rounded-3xl">
+            <RoleChoiceCard icon={choice.icon} title={choice.title} text={choice.text} as="span" dark={i === 0}>
+              {choice.role === 'customer' ? 'Als Kunde registrieren' : 'Als Betrieb registrieren'}
+            </RoleChoiceCard>
+          </Link>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+        <p>Du arbeitest in einem Betrieb? Dann bekommst du von deiner Chefin oder deinem Chef einen Einladungslink.</p>
+        <p>
+          Schon ein Konto?{' '}
+          <Link to={`/login${search}`} state={state} className="font-semibold text-foreground underline-offset-4 hover:underline">
+            Anmelden
+          </Link>
         </p>
       </div>
     </div>

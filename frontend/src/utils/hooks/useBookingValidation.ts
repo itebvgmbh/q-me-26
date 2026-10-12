@@ -22,22 +22,22 @@ export const useBookingValidation = () => {
   }): boolean => {
     // Specific validation checks with clear error messages
     if (!selectedShop) {
-      toast.error('Bitte wählen Sie einen Shop aus');
+      toast.error('Wähl zuerst einen Shop.');
       return false;
     }
     
     if (!selectedStaff) {
-      toast.error('Bitte wählen Sie einen Mitarbeiter aus');
+      toast.error('Wähl aus, bei wem.');
       return false;
     }
     
     if (!selectedService) {
-      toast.error('Bitte wählen Sie einen Service aus');
+      toast.error('Wähl eine Leistung.');
       return false;
     }
     
     if (!selectedTimeSlot) {
-      toast.error('Bitte wählen Sie einen Termin aus');
+      toast.error('Wähl eine Uhrzeit.');
       return false;
     }
 

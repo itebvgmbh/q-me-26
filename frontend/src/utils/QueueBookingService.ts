@@ -19,6 +19,8 @@ export interface BookingRequest {
   nextAvailableSlot: TimeSlot;
   checkEarlierOptions: boolean;
   user: User | null;
+  /** Name und Telefon bei Buchung ohne Konto */
+  contact?: { name: string; phone: string };
 }
 
 /**
@@ -49,7 +51,8 @@ export const QueueBookingService = {
       selectedStaffForSlot, 
       nextAvailableSlot, 
       checkEarlierOptions, 
-      user 
+      user,
+      contact
     } = request;
     
     const startTime = nextAvailableSlot.start;
@@ -76,7 +79,8 @@ export const QueueBookingService = {
           selectedStaffForSlot, 
           startTime, 
           endTime, 
-          checkEarlierOptions
+          checkEarlierOptions,
+          contact
         });
       }
     } catch (error) {
@@ -85,7 +89,7 @@ export const QueueBookingService = {
         success: false,
         isAnonymous: !user,
         error,
-        message: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
+        message: error instanceof Error && error.message ? error.message : 'Das hat nicht geklappt. Versuch es gleich noch einmal.'
       };
     }
   },
@@ -120,7 +124,7 @@ export const QueueBookingService = {
       return {
         success: false,
         isAnonymous: false,
-        message: 'Sie befinden sich bereits in der Warteschlange dieses Shops'
+        message: 'Du stehst schon in der Schlange dieses Shops.'
       };
     }
     
@@ -154,7 +158,7 @@ export const QueueBookingService = {
     return {
       success: true,
       isAnonymous: false,
-      message: 'Sie wurden erfolgreich in die Warteschlange eingereiht'
+      message: 'Du bist eingereiht'
     };
   },
   
@@ -170,6 +174,7 @@ export const QueueBookingService = {
     startTime: Date;
     endTime: Date;
     checkEarlierOptions: boolean;
+    contact?: { name: string; phone: string };
   }): Promise<BookingResponse> {
     const { 
       selectedShop, 
@@ -177,8 +182,11 @@ export const QueueBookingService = {
       selectedStaffForSlot, 
       startTime, 
       endTime, 
-      checkEarlierOptions
+      checkEarlierOptions,
+      contact
     } = params;
+    const name = contact?.name.trim();
+    const phone = contact?.phone.trim();
 
     // Anonymous booking without customer data
     const appointment = await createAppointment({
@@ -190,15 +198,18 @@ export const QueueBookingService = {
       status: 'scheduled',
       type: 'queue',
       isAnonymous: true, // Mark as anonymous booking
+      ...(name ? { customerName: name } : {}),
+      ...(phone ? { customerPhone: phone } : {}),
       checkEarlierOptions: checkEarlierOptions,
-      checkEarlierOptionsCreatedAt: checkEarlierOptions ? Timestamp.now() : undefined
+      // Firestore lehnt Felder mit undefined ab – nur setzen, wenn gewünscht
+      ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
     });
 
     console.log('Anonymous booking successfully created:', appointment);
     
-    // Save reference code in localStorage for later linking
-    if (appointment.referenceCode) {
-      saveAnonymousBookingCode(selectedShop, appointment.referenceCode);
+    // Termin-ID merken, um die Buchung später eindeutig einem Konto zuzuordnen
+    if (appointment.id) {
+      saveAnonymousBookingCode(selectedShop, appointment.id);
     }
     
     return {

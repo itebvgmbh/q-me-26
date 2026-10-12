@@ -49,33 +49,6 @@ export function useAppointments(
       
       // Real-time listener for appointments
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        // Debug: Log all appointment docs returned from Firestore
-        console.log('Raw appointment data from Firestore:');
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          try {
-            // Be extra careful with date conversion for debugging
-            let startTimeStr = 'invalid';
-            if (data.startTime) {
-              if (typeof data.startTime.toDate === 'function') {
-                const date = data.startTime.toDate();
-                startTimeStr = `${date.toISOString()} (${date.toLocaleString('de-DE', {timeZone: 'Europe/Berlin'})})`;  
-              } else {
-                startTimeStr = String(data.startTime);
-              }
-            }
-            
-            console.log(
-              `- Appointment ${doc.id}:`,
-              `staffId=${data.staffId || 'undefined'} (type: ${typeof data.staffId})`,
-              `status=${data.status || 'undefined'}`,
-              `startTime=${startTimeStr}`
-            );
-          } catch (err) {
-            console.error('Error logging appointment:', err, data);
-          }
-        });
-        
         const appointmentsData = snapshot.docs.map(doc => {
           const data = doc.data();
           return { id: doc.id, ...data } as Appointment;
@@ -98,41 +71,11 @@ export function useAppointments(
     }
   };
 
-  // Filter appointments for a specific employee
+  // Alle Termine der Person außer abgesagten – vorher nur "scheduled", dadurch fehlte
+  // ausgerechnet der Kunde, der gerade dran ist
   function filterAppointmentsForEmployee(appointments: Appointment[], employee: Staff): Appointment[] {
-    // Compare staffId as strings to handle potential type mismatches
     const staffIdStr = String(employee.id);
-    
-    // Filter appointments for this staff member with status 'scheduled'
-    return appointments.filter(apt => {
-      // Convert staffId to string for safer comparison
-      let aptStaffIdStr = '';
-      if (apt.staffId) {
-        aptStaffIdStr = String(apt.staffId).trim();
-      }
-      const isForThisStaff = aptStaffIdStr === staffIdStr;
-      const isScheduled = apt.status === 'scheduled';
-      
-      // Debug output
-      console.log(`Filtering appointment ${apt.id}:`, {
-        'appointment staffId': aptStaffIdStr,
-        'appointment staffId type': typeof apt.staffId,
-        'employee id': staffIdStr, 
-        'isMatch': isForThisStaff,
-        'status': apt.status,
-        'isScheduled': isScheduled
-      });
-      
-      if (isForThisStaff && !isScheduled) {
-        console.log(`Found appointment for this staff but status is not 'scheduled': ${apt.id}, status=${apt.status}`);
-      }
-      
-      if (isScheduled && !isForThisStaff) {
-        console.log(`Found 'scheduled' appointment but for different staff: ${apt.id}, staffId=${apt.staffId} vs ${employee.id}`);
-      }
-      
-      return isForThisStaff && isScheduled;
-    });
+    return appointments.filter((apt) => String(apt.staffId || '').trim() === staffIdStr && apt.status !== 'cancelled');
   }
 
   // Setup listeners when date range or employee changes

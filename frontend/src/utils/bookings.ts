@@ -1,5 +1,6 @@
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { firestore } from './firestore-client';
+import { safelyConvertToDate } from './datetime';
 import { getAppointmentsByCustomerId, getServiceByIdLegacy, getShopByOwner } from './firestore';
 import type { Appointment, Service, Shop, Staff } from './firestore';
 
@@ -17,17 +18,27 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
   try {
     const appointmentsRef = collection(firestore, 'appointments');
     
-    // Query for appointments with the same staff that are scheduled before this one
+    // Eine Schlangenposition gibt es nur am Tag selbst
+    const start = safelyConvertToDate(appointment.startTime);
+    const dayStart = new Date(start);
+    dayStart.setHours(0, 0, 0, 0);
+    if (dayStart.getTime() !== new Date().setHours(0, 0, 0, 0)) return 0;
+
+    // Wer heute bei derselben Person vorher dran ist und noch nicht fertig ist.
+    // Vorher zählten auch alle alten, nie abgeschlossenen Termine mit ("Platz 60").
     const q = query(
       appointmentsRef,
       where('staffId', '==', appointment.staffId),
+      where('startTime', '>=', Timestamp.fromDate(dayStart)),
       where('startTime', '<', appointment.startTime)
     );
     
+    const now = Date.now();
     const snapshot = await getDocs(q);
-    let earlierAppointments = snapshot.docs
+    const earlierAppointments = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }) as Appointment)
-      .filter(apt => apt.status !== 'completed' && apt.status !== 'cancelled');
+      .filter(apt => apt.status !== 'completed' && apt.status !== 'cancelled')
+      .filter(apt => !apt.endTime || safelyConvertToDate(apt.endTime).getTime() > now);
     
     return earlierAppointments.length + 1; // +1 to count from 1 instead of 0
   } catch (error) {

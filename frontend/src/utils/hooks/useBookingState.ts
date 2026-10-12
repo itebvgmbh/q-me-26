@@ -17,6 +17,8 @@ export const useBookingState = () => {
   const [checkEarlierOptions, setCheckEarlierOptions] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingReference, setBookingReference] = useState<string>('');
+  const [bookedSlot, setBookedSlot] = useState<TimeSlot | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   /**
    * Initialize the step based on whether a shop ID was provided
@@ -41,13 +43,15 @@ export const useBookingState = () => {
     selectedService: string,
     selectedStaffForSlot: string,
     nextAvailableSlot: TimeSlot | null,
-    user: User | null
+    user: User | null,
+    contact?: { name: string; phone: string }
   ) => {
     // Validate required data is available
     if (!selectedShop || !selectedService || !nextAvailableSlot || !selectedStaffForSlot) {
-      toast.error('Bitte füllen Sie alle Felder aus und warten Sie, bis ein verfügbarer Zeitslot gefunden wurde');
+      toast.error('Es wurde noch kein freier Platz gefunden. Warte kurz oder wähl eine andere Person.');
       return;
     }
+    setSubmitting(true);
     
     // Use the booking service to process the booking
     const bookingResult = await QueueBookingService.processBooking({
@@ -56,23 +60,24 @@ export const useBookingState = () => {
       selectedStaffForSlot,
       nextAvailableSlot,
       checkEarlierOptions,
-      user
+      user,
+      contact
     });
+    setSubmitting(false);
     
     if (bookingResult.success) {
-      toast.success(bookingResult.message || 'Buchung erfolgreich');
-      
       if (bookingResult.isAnonymous) {
+        setBookedSlot(nextAvailableSlot);
         // Show successful anonymous booking with reference code
         setBookingSuccess(true);
         setBookingReference(bookingResult.referenceCode || '');
         setCurrentStep(5); // Switch to success step
       } else {
-        // Navigate to MyBookings page after successful authenticated booking
+        toast.success(bookingResult.message || 'Du bist eingereiht');
         navigate('/my-bookings');
       }
     } else {
-      toast.error(bookingResult.message || 'Fehler beim Einreihen in die Warteschlange');
+      toast.error(bookingResult.message || 'Das Einreihen hat nicht geklappt. Versuch es noch einmal.');
       console.error('Booking error:', bookingResult.error);
     }
   }, [checkEarlierOptions, navigate]);
@@ -82,6 +87,8 @@ export const useBookingState = () => {
     setCurrentStep,
     bookingSuccess,
     bookingReference,
+    bookedSlot,
+    submitting,
     checkEarlierOptions,
     setCheckEarlierOptions,
     handleJoinQueue,

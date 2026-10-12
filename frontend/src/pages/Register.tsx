@@ -1,14 +1,9 @@
-import { useEffect } from 'react';
-import { APP_BASE_PATH } from 'app';
+import { Navigate, useLocation } from 'react-router-dom';
 
-// This component is just a redirect to the new registration flow
+// Alte Adresse: weiter zur Auswahl Kunde/Betrieb
 const Register = () => {
-  useEffect(() => {
-    // Redirect to the new registration options page using APP_BASE_PATH
-    window.location.href = `${window.location.origin}${APP_BASE_PATH}/register-options`;
-  }, []);
-
-  return null;
+  const { search, state } = useLocation();
+  return <Navigate to={`/register-options${search}`} state={state} replace />;
 };
 
 export default Register;

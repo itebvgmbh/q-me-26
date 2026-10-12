@@ -119,7 +119,7 @@ export const AvailableTimeSlotPicker = ({
               ))}
             </SelectGroup>
           ) : (
-            <div className="px-2 py-1 text-sm text-gray-500">Bitte wählen Sie Service, Mitarbeiter und Datum</div>
+            <div className="px-2 py-1 text-sm text-gray-500">Wähl zuerst Leistung, Person und Datum.</div>
           )}
         </SelectContent>
       </Select>

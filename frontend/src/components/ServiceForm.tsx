@@ -133,7 +133,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Beschreiben Sie den Service..."
+          placeholder="z. B. Waschen, Schneiden, Föhnen"
           disabled={isSubmitting}
         />
       </div>

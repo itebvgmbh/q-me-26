@@ -102,6 +102,8 @@ export interface Appointment {
   shopId: string;
   customerId?: string;
   customerName?: string;
+  /** Telefonnummer bei Buchung ohne Konto */
+  customerPhone?: string;
   serviceId: string;
   staffId?: string;
   type?: 'queue' | 'booked';

@@ -1,80 +1,82 @@
-import { Staff, Shop, Service, deleteStaff } from '../utils/firestore';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Staff, Shop, Service, deleteStaff } from '../utils/firestore';
 import { EditStaffDialog } from './EditStaffDialog';
 
-/**
- * Props for StaffCard component
- */
 export interface StaffCardProps {
-  /** Staff member to display */
   employee: Staff;
-  /** Current shop */
   shop: Shop;
-  /** Available services */
   services: Service[];
-  /** Callback function when staff data is updated */
   onStaffUpdated: () => Promise<void>;
 }
 
-/**
- * Card component for displaying individual staff member information
- * Includes profile details and actions like edit and deactivate
- */
+/** Eine Person im Team: Leistungen auf einen Blick, Bearbeiten, Deaktivieren mit Rückfrage */
 export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCardProps) => {
-  /**
-   * Handle staff deactivation (soft delete)
-   */
-  const handleDeactivateStaff = async () => {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const offered = (employee.serviceIds || []).map((id) => services.find((s) => s.id === id)?.name).filter(Boolean);
+  const workingDays = (employee.workingHours || []).filter((h) => h.isWorking).length;
+
+  const handleDeactivate = async () => {
     try {
       await deleteStaff(employee.id);
       await onStaffUpdated();
-      toast.success('Mitarbeiter deaktiviert');
+      toast.success(`${employee.name} ist deaktiviert.`);
     } catch (error) {
       console.error('Error deleting staff:', error);
-      toast.error('Fehler beim Deaktivieren des Mitarbeiters');
+      toast.error('Deaktivieren hat nicht geklappt.');
     }
   };
-  
+
   return (
-    <Card key={employee.id}>
-      <CardContent className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          {employee.profileImageUrl ? (
-            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary">
-              <img 
-                src={employee.profileImageUrl} 
-                alt={`${employee.name} Profilbild`} 
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
-              {employee.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <h3 className="font-semibold">{employee.name}</h3>
-            <p className="text-sm text-gray-500">{employee.role}</p>
-            <p className="text-sm">{employee.email}</p>
-          </div>
+    <article className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        {employee.profileImageUrl ? (
+          <img src={employee.profileImageUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+        ) : (
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-foreground font-display text-lg font-bold text-signal" aria-hidden="true">
+            {employee.name.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <div className="min-w-0">
+          <h3 className="truncate font-display text-lg font-bold">{employee.name}</h3>
+          <p className="truncate text-sm text-muted-foreground">{employee.email}{employee.email && ' · '}{workingDays ? `${workingDays} Tage pro Woche` : <span className="text-destructive">keine Arbeitszeiten</span>}</p>
+          <p className="mt-1 text-sm">
+            {offered.length ? offered.join(', ') : <span className="text-destructive">Keine Leistung zugeordnet – taucht bei der Buchung nicht auf.</span>}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <EditStaffDialog
-            staff={employee}
-            services={services}
-            shop={shop}
-            onStaffUpdated={onStaffUpdated}
-          />
-          <Button
-            variant="destructive"
-            onClick={handleDeactivateStaff}
-          >
-            Deaktivieren
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex gap-2">
+        <EditStaffDialog staff={employee} services={services} shop={shop} onStaffUpdated={onStaffUpdated} />
+        <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmOpen(true)}>
+          Deaktivieren
+        </Button>
+      </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">{employee.name} deaktivieren?</AlertDialogTitle>
+            <AlertDialogDescription>Für {employee.name} kann dann niemand mehr buchen. Bestehende Termine bleiben.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivate} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Deaktivieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </article>
   );
 };

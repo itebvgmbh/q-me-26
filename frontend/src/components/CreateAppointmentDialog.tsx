@@ -64,7 +64,7 @@ export const CreateAppointmentDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId || (isNewCustomer && !customerName) || (!isNewCustomer && !selectedCustomerId)) {
-      toast.error('Bitte füllen Sie alle Pflichtfelder aus');
+      toast.error('Bitte füll alle Pflichtfelder aus.');
       return;
     }
 

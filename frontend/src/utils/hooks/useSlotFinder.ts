@@ -39,6 +39,8 @@ export const useSlotFinder = (options: {
     // Reset when selection changes
     setNextAvailableSlot(null);
     setSelectedStaffForSlot('');
+    // Ergebnisse einer überholten Suche verwerfen
+    let active = true;
     
     const searchForAvailableSlot = async () => {
       if (!shopId || !serviceId) return;
@@ -63,21 +65,25 @@ export const useSlotFinder = (options: {
           isAuthenticated
         );
         
+        if (!active) return;
+        // Kein Treffer zeigt die Bestätigungsseite selbst an – kein zusätzlicher Toast
         if (result.slot) {
           setNextAvailableSlot(result.slot);
           setSelectedStaffForSlot(result.selectedStaffForSlot);
-        } else {
-          toast.error('Leider konnte kein freier Zeitslot gefunden werden');
         }
       } catch (error) {
         console.error('Error finding available slot:', error);
-        toast.error('Fehler bei der Suche nach verfügbaren Zeitslots');
+        if (active) toast.error('Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.');
       } finally {
-        setSearchingForSlot(false);
+        if (active) setSearchingForSlot(false);
       }
     };
     
     searchForAvailableSlot();
+    return () => {
+      active = false;
+      setSearchingForSlot(false);
+    };
   }, [shopId, serviceId, staffId, useAnyStaff, staffList, isAuthenticated, shouldSearch]);
   
   return {

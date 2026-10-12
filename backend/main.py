@@ -104,6 +104,21 @@ def create_app() -> FastAPI:
 
         app.state.auth_config = AuthConfig(**auth_config)
 
+    @app.on_event("startup")
+    def autostart_scheduler() -> None:
+        # "Früher dran" braucht den Hintergrunddienst; vorher musste ihn jemand nach
+        # jedem Neustart von Hand starten. Ohne Dienstkonto-Schlüssel bleibt er aus.
+        key_file = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", "")
+        if os.environ.get("QME_SCHEDULER_AUTOSTART", "1") != "1":
+            print("Scheduler autostart disabled (QME_SCHEDULER_AUTOSTART)")
+        elif not (key_file and os.path.isfile(key_file)) and not os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY"):
+            print("Scheduler autostart skipped: no Firebase service account key")
+        else:
+            from app.apis.schedulers import start_scheduler_thread
+
+            start_scheduler_thread()
+            print("Scheduler autostarted")
+
     return app
 
 

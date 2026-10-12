@@ -243,7 +243,7 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
         );
         
         if (!isAvailable) {
-          throw new Error('Zeitslot ist bereits belegt. Bitte wählen Sie eine andere Zeit.');
+          throw new Error('Diese Uhrzeit ist schon belegt. Bitte wähl eine andere.');
         }
       } else {
         console.error('Invalid timestamp format in appointment data:', {
