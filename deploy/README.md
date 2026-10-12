@@ -105,8 +105,16 @@ Vom eigenen Rechner aus, ganzen Block in PowerShell einfügen:
   ssh -o BatchMode=yes $server 'bash /opt/q-me/deploy/update.sh'
   if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Update fehlgeschlagen, Meldungen oben.' -ForegroundColor Red; return }
   Write-Host 'Fertig: q-me ist aktualisiert und laeuft.' -ForegroundColor Green
+  ssh -o BatchMode=yes $server 'journalctl -u q-me -n 300 --no-pager | grep -q Scheduler.autostarted'
+  if ($LASTEXITCODE -eq 0) { Write-Host 'Frueher dran: Hintergrunddienst laeuft (prueft alle 5 Minuten).' -ForegroundColor Green } else { Write-Host 'Frueher dran: Hintergrunddienst laeuft NICHT. Meist fehlt der Firebase-Schluessel (Block "Schluessel einspielen").' -ForegroundColor Yellow }
 }
 ```
+
+Der Block meldet zum Schluss auch, ob der Hintergrunddienst für „Früher dran“
+läuft. Er startet mit dem Backend automatisch, sobald der Firebase-Schlüssel da ist,
+und prüft alle 5 Minuten. Abweichend einstellbar in `/etc/q-me.env`:
+`QME_SCHEDULER_INTERVAL=<Sekunden>` (mindestens 60) und `QME_SCHEDULER_AUTOSTART=0`
+zum Abschalten.
 
 Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
