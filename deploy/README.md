@@ -36,9 +36,9 @@ Ein Befehl vom eigenen Rechner aus:
 ssh root@195.201.26.108 'git clone https://github.com/itebvgmbh/q-me-26.git /opt/q-me && bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de'
 ```
 
-Jeder Befehl gehört in **eine** Zeile: PowerShell kennt das `\` am Zeilenende
-nicht und schickt sonst nur Bruchstücke an den Server. Einfache
-Anführungszeichen verwenden, damit PowerShell nichts darin ersetzt.
+Einzeilige Befehle bleiben in **einer** Zeile: PowerShell kennt das `\` am
+Zeilenende nicht. Mehrschrittige Abläufe stehen als `& { ... }`-Block da und
+werden als Ganzes eingefügt. Regeln dafür: `CLAUDE.md`.
 
 Wird das Repository später privat, braucht der Server einen eigenen Deploy-Key
 (der vorhandene gehört zu Spielmacherei, GitHub erlaubt einen Key nur pro
@@ -49,17 +49,52 @@ Das Skript installiert `uv` (Python 3.13 für das Backend), legt Konto, Dienst u
 Caddyfile. Als Backend-Port nimmt es den ersten freien ab 8090; auf dem
 Spielmacherei-Server ist 8090 belegt, dort läuft Q-ME auf 8091.
 
-Zum Schluss den Schlüssel einspielen (vom eigenen Rechner aus):
+Zum Schluss den Schlüssel einspielen: den ganzen Block in PowerShell einfügen. Er
+sucht die neueste Schlüsseldatei in `Downloads` (oder fragt nach dem Pfad), prüft,
+dass sie zum Projekt `qmedata-7c79e` gehört, lädt sie hoch, startet das Backend neu,
+testet, ob es damit Firestore lesen kann, und bietet an, die lokale Datei zu löschen.
 
 ```powershell
-scp service-account.json root@195.201.26.108:/etc/q-me/firebase-service-account.json
-ssh root@195.201.26.108 'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me'
+& {
+  $server = 'root@195.201.26.108'
+  $downloads = Join-Path $env:USERPROFILE 'Downloads'
+  $vorschlag = Get-ChildItem -Path $downloads -Filter 'qmedata-7c79e-firebase-adminsdk-*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($vorschlag) {
+    $eingabe = Read-Host "Schluessel gefunden: $($vorschlag.FullName)`nEnter = diese Datei nehmen, sonst Pfad eingeben oder Datei hier hineinziehen"
+  } else {
+    $eingabe = Read-Host 'Keine Schluesseldatei in Downloads gefunden. Pfad eingeben oder Datei hier hineinziehen'
+  }
+  if ([string]::IsNullOrWhiteSpace($eingabe)) { $datei = $vorschlag.FullName } else { $datei = $eingabe.Trim().Trim('"').Trim("'") }
+  if (-not $datei -or -not (Test-Path -LiteralPath $datei)) { Write-Host "Abbruch: Datei nicht gefunden: $datei" -ForegroundColor Red; return }
+  try { $json = Get-Content -LiteralPath $datei -Raw | ConvertFrom-Json } catch { Write-Host 'Abbruch: Das ist keine JSON-Datei.' -ForegroundColor Red; return }
+  if ($json.type -ne 'service_account' -or $json.project_id -ne 'qmedata-7c79e') { Write-Host "Abbruch: Falsche Datei. Erwartet: Dienstkonto von qmedata-7c79e. Gefunden: $($json.type) / $($json.project_id)" -ForegroundColor Red; return }
+  Write-Host '1/3 Schluessel hochladen ...' -ForegroundColor Cyan
+  scp $datei "${server}:/etc/q-me/firebase-service-account.json"
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Hochladen fehlgeschlagen.' -ForegroundColor Red; return }
+  Write-Host '2/3 Rechte setzen und Backend neu starten ...' -ForegroundColor Cyan
+  ssh $server 'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me && sleep 4 && systemctl is-active q-me'
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Backend laeuft nicht. Letzte Meldungen:' -ForegroundColor Red; ssh $server 'journalctl -u q-me -n 30 --no-pager'; return }
+  Write-Host '3/3 Pruefen, ob das Backend mit dem Schluessel Firestore lesen kann ...' -ForegroundColor Cyan
+  $anfrage = '{"shop_id":"zNS505OFvKZpFaR1vTdN","service_id":"QJd2oXDcbaHJH9jViOGu","date":"' + (Get-Date -Format 'yyyy-MM-dd') + 'T12:00:00"}'
+  $antwort = $anfrage | ssh $server 'curl -s -X POST -H Content-Type:application/json --data-binary @- http://127.0.0.1:$(sed -n s/^PORT=//p /etc/q-me.env)/routes/available-timeslots'
+  if ("$antwort" -match '^\s*\{"timeslots":') {
+    Write-Host 'Fertig: Schluessel ist eingespielt und funktioniert.' -ForegroundColor Green
+  } else {
+    Write-Host 'Schluessel ist hochgeladen, aber die Pruefung schlug fehl. Antwort des Backends:' -ForegroundColor Yellow
+    Write-Host "$antwort"
+    ssh $server 'journalctl -u q-me -n 30 --no-pager'
+    return
+  }
+  if ((Read-Host 'Lokale Schluesseldatei jetzt loeschen? (j/n)') -eq 'j') { Remove-Item -LiteralPath $datei; Write-Host 'Lokale Datei geloescht.' }
+}
 ```
 
 ## Aktualisieren
 
-```bash
-bash /opt/q-me/deploy/update.sh
+Vom eigenen Rechner aus (PowerShell):
+
+```powershell
+ssh root@195.201.26.108 'bash /opt/q-me/deploy/update.sh'
 ```
 
 Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
