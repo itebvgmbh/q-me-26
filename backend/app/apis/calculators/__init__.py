@@ -27,7 +27,8 @@ def calculate_available_timeslots(
     
     # Berechne das Slot-Intervall basierend auf der Service-Dauer
     if slot_interval_minutes is None:
-        slot_interval_minutes = service_duration
+        # Gleiches 15-Minuten-Raster wie im Frontend (vorher: Raster = Dauer der Leistung)
+        slot_interval_minutes = 15
     
     # Total time needed for the service = duration + setup time
     total_service_time = service_duration + service_setup_time

@@ -1,52 +1,10 @@
 import { useState } from 'react';
-import { Timestamp, doc, collection, setDoc } from 'firebase/firestore';
-import { firestore } from '../firestore-client';
+import { Timestamp } from 'firebase/firestore';
+import { createAppointment } from '../firestore';
+import { isSlotConflict } from '../booking-rules';
 import { toast } from 'sonner';
 import useTimeSlotStore from '../timeSlotStore';
 import { CalendarTimeSlot } from '../types';
-
-/**
- * Hilfsfunktion zur Prüfung der Timeslot-Verfügbarkeit
- */
-const checkDirectAvailability = async (
-  shopId: string, 
-  staffId: string, 
-  serviceId: string, 
-  startTime: Date, 
-  endTime: Date
-): Promise<boolean> => {
-  // Prüfen Sie die Verfügbarkeit gegen die Firestore oder API
-  if (!shopId || !staffId || !serviceId) return false;
-  
-  try {
-    const dateStr = startTime.toISOString().split('T')[0];
-    const slots = await useTimeSlotStore.getState().getTimeSlots(
-      shopId,
-      serviceId,
-      staffId,
-      startTime,
-      true // Force refresh to get latest data
-    );
-
-    // Slot suchen, der mit dem ausgewählten übereinstimmt
-    const matchingSlot = slots.find(slot => {
-      const slotStartMs = slot.start.getTime();
-      const slotEndMs = slot.end.getTime();
-      const requestStartMs = startTime.getTime();
-      const requestEndMs = endTime.getTime();
-      
-      // Toleranz von 2 Minuten für API-Rundungen
-      return Math.abs(slotStartMs - requestStartMs) < 120000 && 
-             Math.abs(slotEndMs - requestEndMs) < 120000 && 
-             slot.isAvailable;
-    });
-
-    return !!matchingSlot;
-  } catch (error) {
-    console.error('Error checking timeslot availability:', error);
-    return false;
-  }
-};
 
 /**
  * Custom hook to handle appointment booking logic
@@ -72,28 +30,9 @@ export const useAppointmentBooking = () => {
       const startTime = selectedTimeSlot.start;
       const endTime = selectedTimeSlot.end;
       
-      // Check if timeslot is still available
-      const isAvailable = await checkDirectAvailability(
-        shopId,
-        staffId,
-        serviceId,
-        startTime,
-        endTime
-      );
-      
-      if (!isAvailable) {
-        toast.error('Die Uhrzeit ist gerade weggegangen. Such dir bitte eine andere aus.');
-        // Invalidate cache to refresh available slots
-        useTimeSlotStore.getState().invalidateCache(shopId, startTime);
-        setLoading(false);
-        return { success: false, reason: 'slot-unavailable' };
-      }
-      
-      // Create appointment
-      const appointmentRef = doc(collection(firestore, 'appointments'));
-      
-      const appointmentData = {
-        id: appointmentRef.id,
+      // Speichern über createAppointment: prüft Öffnungs- und Arbeitszeiten, Pausen und andere Termine.
+      // Vorher wurde direkt geschrieben und nur gegen die (zwischengespeicherte) Slot-Liste geprüft.
+      const created = await createAppointment({
         shopId,
         staffId,
         customerId: userId,
@@ -105,21 +44,23 @@ export const useAppointmentBooking = () => {
         type: 'booked',
         checkEarlierOptions,
         ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {}),
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-      
-      await setDoc(appointmentRef, appointmentData);
+      });
       
       // Invalidate the cache
       useTimeSlotStore.getState().invalidateCache(shopId, startTime);
       
-      toast.success('Termin erfolgreich gebucht');
-      return { success: true, appointmentId: appointmentRef.id };
+      toast.success('Dein Termin ist gebucht.');
+      return { success: true, appointmentId: created.id };
     } catch (error) {
       console.error('Error booking appointment:', error);
       setError(error instanceof Error ? error : new Error('Failed to book appointment'));
-      toast.error('Fehler beim Buchen des Termins');
+      if (isSlotConflict(error)) {
+        // Platz inzwischen vergeben oder nicht (mehr) buchbar – Liste neu laden lassen
+        useTimeSlotStore.getState().invalidateCache(shopId, selectedTimeSlot.start);
+        toast.error(`Diese Uhrzeit geht leider nicht: ${error.message} Such dir bitte eine andere aus.`);
+        return { success: false, reason: 'slot-unavailable' };
+      }
+      toast.error('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.');
       return { success: false, reason: 'error' };
     } finally {
       setLoading(false);

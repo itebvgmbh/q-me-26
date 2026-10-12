@@ -43,6 +43,12 @@ mv "$WEB_ROOT.new" "$WEB_ROOT"
 rm -rf "$WEB_ROOT.old"
 
 echo "==> Dienst neu starten"
+# Geänderte Dienstdatei (z. B. Zeitzone) mitnehmen – sonst gälte nur die bei der Einrichtung kopierte
+if ! cmp -s "$APP_DIR/deploy/q-me.service" /etc/systemd/system/q-me.service; then
+	cp "$APP_DIR/deploy/q-me.service" /etc/systemd/system/q-me.service
+	systemctl daemon-reload
+	echo "    Dienstdatei aktualisiert"
+fi
 systemctl restart q-me
 PORT=$(sed -n 's/^PORT=//p' "$ENV_FILE")
 for _ in $(seq 20); do

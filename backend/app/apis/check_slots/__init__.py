@@ -100,7 +100,9 @@ async def check_earlier_slots_v2(background_tasks: BackgroundTasks) -> CheckEarl
                         shop_id=shop_id,
                         service_id=service_id,
                         staff_id=staff_id,
-                        date=check_date
+                        date=check_date,
+                        # Immer frisch rechnen: ein veralteter Cache böte bereits vergebene Plätze an
+                        force_refresh=True
                     )
 
                     response = get_available_timeslots(request, background_tasks)
