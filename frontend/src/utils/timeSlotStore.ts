@@ -53,9 +53,8 @@ interface TimeSlotsState {
   getDateFromCacheKey: (cacheKey: string) => string | null;
 }
 
-// Cache-Ablaufzeit in Millisekunden (4 Stunden)
-// Längere Cache-Dauer, da sich Zeitslots nur durch Buchungen, Stornierungen oder Änderungen an Arbeitszeiten ändern
-const CACHE_EXPIRY = 4 * 60 * 60 * 1000;
+// Kurz zwischenspeichern: Buchungen anderer Kunden und neue Pausen sollen schnell sichtbar sein
+const CACHE_EXPIRY = 60 * 1000;
 
 const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
   cachedTimeSlots: {},
@@ -233,8 +232,6 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
   getTimeSlots: async (shopId, serviceId, staffId, date, forceRefresh = false, isAuthenticatedArg?: boolean) => {
     // forceRefresh kann nun ein boolean oder ein timestamp sein
     const shouldRefresh = forceRefresh !== false;
-    // Bestimme Authentifizierungsstatus, wenn nicht explizit übergeben
-    const isAuthenticated = isAuthenticatedArg !== undefined ? isAuthenticatedArg : !!firebaseAuth.currentUser;
     
     // Wenn Parameter fehlen, leere Liste zurückgeben
     if (!shopId || !serviceId) {
@@ -280,64 +277,10 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
       const adjustedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
       const dateStr = adjustedDate.toISOString().split('T')[0];
       
-      // API-Aufruf - mit oder ohne Authentifizierung
-      const requestPayload = {
-        shop_id: shopId,
-        service_id: serviceId,
-        staff_id: staffId,
-        date: dateStr,
-        force_refresh: shouldRefresh
-      };
-      
-      let timeSlots;
-      if (isAuthenticated) {
-        // Authentifizierter Benutzer - verwende normalen Endpunkt
-        console.log('Using authenticated endpoint for timeslots');
-        try {
-          const response = await brain.get_available_timeslots(requestPayload);
-          
-          let data;
-          // Verify if response has json method (might already be data)
-          if (typeof response.json === 'function') {
-            data = await response.json();
-          } else {
-            data = response;
-          }
-          
-          // Konvertiere API-Response in TimeSlot-Objekte
-          timeSlots = data.timeslots.map((slot: any) => ({
-            start: new Date(slot.start_time),
-            end: new Date(slot.end_time),
-            isAvailable: slot.is_available
-          }));
-        } catch (apiError) {
-          console.error("Authenticated API failed, falling back to direct Firestore access", apiError);
-          timeSlots = await getAvailableTimeslotsDirect(shopId, serviceId, staffId, dateStr);
-          console.log(`Found ${timeSlots?.length || 0} slots via direct Firestore access:`, timeSlots);
-        }
-      } else {
-        // Nicht authentifiziert - verwende den dedizierten öffentlichen Endpunkt OHNE Authentifizierungs-Header
-        console.log('Using endpoint for unauthenticated user timeslots with secure:false');
-        try {
-          const response = await brain.get_public_available_timeslots(requestPayload, { secure: false });
-          let data;
-          if (typeof response.json === 'function') {
-            data = await response.json();
-          } else {
-            data = response;
-          }
-          timeSlots = data.timeslots.map((slot: any) => ({
-            start: new Date(slot.start_time),
-            end: new Date(slot.end_time),
-            isAvailable: slot.is_available
-          }));
-          console.log(`Found ${timeSlots.length} slots via Brain API structure access`);
-        } catch (apiError) {
-          console.error("Direct API failed, falling back to direct Firestore access", apiError);
-          timeSlots = await getAvailableTimeslotsDirect(shopId, serviceId, staffId, dateStr);
-          console.log(`Found ${timeSlots.length} slots via direct Firestore access:`, timeSlots);
-        }
-      }
+      // Immer dieselbe Regel wie beim Speichern (booking-rules): Öffnungszeiten, Arbeitszeiten,
+      // Pausen, Termine. Das Backend rechnete in Serverzeit und mit eigenem Cache – dadurch
+      // wichen angezeigte und tatsächlich freie Zeiten voneinander ab.
+      const timeSlots = await getAvailableTimeslotsDirect(shopId, serviceId, staffId, dateStr);
       
       // Speichere im Cache
       set(state => ({

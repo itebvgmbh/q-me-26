@@ -45,6 +45,8 @@ interface DraggableAppointmentProps {
   appointment: Appointment;
   style: { top: string; height: string };
   statusColor: string;
+  /** Hinweis, wenn der Termin gegen eine Regel verstößt (z. B. liegt in der Pause) */
+  conflict?: string;
   services: Service[];
   onClick: (e: React.MouseEvent) => void;
 }
@@ -53,6 +55,7 @@ const DraggableAppointment = ({
   appointment,
   style,
   statusColor,
+  conflict,
   services,
   onClick,
 }: DraggableAppointmentProps) => {
@@ -85,7 +88,7 @@ const DraggableAppointment = ({
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 px-2 rounded-lg ${statusColor} cursor-move transition-colors group overflow-hidden flex items-center`}
+      className={`absolute left-0 right-0 px-2 rounded-lg ${statusColor} ${conflict ? 'ring-2 ring-destructive z-10' : ''} cursor-move transition-colors group overflow-hidden flex items-center`}
       style={{
         ...draggableStyle,
         paddingTop: 0,
@@ -96,7 +99,8 @@ const DraggableAppointment = ({
       {...attributes}
     >
       <div className="flex justify-between items-center w-full min-w-0 h-full">
-        <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
+        <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${conflict ? conflict + ' | ' : ''}${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
+          {conflict && <span className="mr-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">Konflikt</span>}
           <span className="font-mono">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
           <span className="mx-1.5 opacity-50">·</span>
           {appointment.customerName || 'Gast'}
@@ -231,7 +235,23 @@ const DayView: React.FC<DayViewProps> = ({
     if (!recurringBreaks || recurringBreaks.length === 0) return [];
     
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    return recurringBreaks.filter(breakItem => breakItem.dayOfWeek === dayOfWeek);
+    return recurringBreaks.filter(breakItem => breakItem.dayOfWeek === dayOfWeek && breakItem.active !== false);
+  };
+
+  const toMinutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  // Pause, die den Zeitraum (Minuten seit Mitternacht) berührt – für Klick-Sperre und Konflikt-Markierung
+  const breakOverlapping = (day: Date, fromMinutes: number, toMinutesValue: number) =>
+    getBreaksForDay(day).find((b) => fromMinutes < toMinutes(b.endTime) && toMinutes(b.startTime) < toMinutesValue);
+
+  const conflictFor = (appointment: Appointment) => {
+    const start = appointment.startTime.toDate();
+    const end = appointment.endTime.toDate();
+    const b = breakOverlapping(start, start.getHours() * 60 + start.getMinutes(), end.getHours() * 60 + end.getMinutes());
+    return b ? `Liegt in der ${getBreakTypeLabel(b.type)} (${b.startTime}–${b.endTime}) – bitte verschieben` : undefined;
   };
 
   const getBreakStyle = (breakItem: RecurringBreak) => {
@@ -399,6 +419,14 @@ const DayView: React.FC<DayViewProps> = ({
               const newTime = new Date(date);
               newTime.setHours(hour, minutes, 0, 0);
 
+              // In einer Pause gar nicht erst anlegen lassen
+              const clicked = hour * 60 + minutes;
+              const pause = breakOverlapping(date, clicked, clicked + 1);
+              if (pause) {
+                toast.info(`Da ist ${getBreakTypeLabel(pause.type)} (${pause.startTime}–${pause.endTime}).`);
+                return;
+              }
+
               // Only allow creating appointments during working hours
               if (hour >= FIRST_HOUR && hour < LAST_HOUR) {
                 setNewAppointmentTime(newTime);
@@ -428,6 +456,7 @@ const DayView: React.FC<DayViewProps> = ({
                 appointment={appointment}
                 style={getAppointmentStyle(appointment)}
                 statusColor={getStatusColor(appointment.status)}
+                conflict={appointment.status !== 'cancelled' ? conflictFor(appointment) : undefined}
                 services={services}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -705,7 +734,7 @@ export const TimelineView = ({
             })
             .catch((error) => {
               console.error('Error updating appointment time:', error);
-              toast.error('Fehler beim Verschieben des Termins');
+              toast.error(`Nicht verschoben: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`);
               setDraggedAppointment(null);
               setDragPreview(null);
             });

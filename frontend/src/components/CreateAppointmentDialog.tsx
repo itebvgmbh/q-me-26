@@ -121,7 +121,7 @@ export const CreateAppointmentDialog = ({
       onClose();
     } catch (error) {
       console.error('Error creating appointment:', error);
-      toast.error('Fehler beim Anlegen des Termins');
+      toast.error(`Termin nicht angelegt: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`);
     } finally {
       setIsSubmitting(false);
     }

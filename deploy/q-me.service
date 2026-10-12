@@ -15,6 +15,9 @@ WorkingDirectory=/opt/q-me/backend
 # PORT, FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_KEY_FILE
 EnvironmentFile=/etc/q-me.env
 Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+# Öffnungs-, Arbeits- und Pausenzeiten sind deutsche Ortszeit. Ohne diese Zeile rechnet das
+# Backend in Serverzeit (meist UTC) und verschiebt bestehende Termine um 1–2 Stunden.
+Environment=TZ=Europe/Berlin
 # Nur ein Prozess: die Scheduler-API hält ihren Zustand im Speicher
 ExecStart=/opt/q-me/backend/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port ${PORT} --proxy-headers
 Restart=always

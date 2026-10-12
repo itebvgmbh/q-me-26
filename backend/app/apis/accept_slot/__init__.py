@@ -13,6 +13,34 @@ from app.apis.cache import invalidate_shop_date_cache
 # Create the router
 router = APIRouter()
 
+
+def _slot_still_free(shop_id, staff_id, service_id, start) -> bool:
+    """Prüft mit derselben Berechnung wie das Angebot, ob der Platz jetzt noch frei ist."""
+    import zoneinfo
+    from app.apis.available_timeslots import get_available_timeslots
+    from app.apis.models import AvailableTimeslotsRequest
+
+    try:
+        if not (shop_id and staff_id and service_id) or not isinstance(start, datetime):
+            return False
+        local = start.astimezone(zoneinfo.ZoneInfo("Europe/Berlin")).replace(tzinfo=None) if start.tzinfo else start
+        request = AvailableTimeslotsRequest(
+            shop_id=shop_id,
+            staff_id=staff_id,
+            service_id=service_id,
+            date=local.replace(hour=0, minute=0, second=0, microsecond=0),
+            force_refresh=True,
+        )
+        result = get_available_timeslots(request, BackgroundTasks())
+        for slot in result.timeslots:
+            slot_start = slot.start_time.replace(tzinfo=None) if slot.start_time.tzinfo else slot.start_time
+            if slot.is_available and slot_start == local:
+                return True
+        return False
+    except Exception as e:
+        print(f"Could not re-check earlier slot, refusing to move appointment: {e}")
+        return False
+
 async def accept_earlier_slot_impl(notification_id: str, background_tasks: BackgroundTasks = None, user_id: str = None) -> Dict[str, str]:
     """Implementation of accepting an earlier slot.
     
@@ -179,6 +207,12 @@ async def accept_earlier_slot_impl(notification_id: str, background_tasks: Backg
                 'staffId': staff_id
             }
         
+        # Ist der Platz noch frei? Zwischen Angebot (bis zu 5 Minuten alt) und Annahme kann
+        # jemand anderes gebucht oder eine Pause eingetragen worden sein.
+        if not _slot_still_free(shop_id, staff_id, current_appointment.get('serviceId'), appointment_update.get('startTime')):
+            notification_ref.delete()
+            return {"status": "error", "message": "Der frühere Platz ist inzwischen vergeben."}
+
         print(f"Updating appointment {appointment_id} with new times using central update function")
         # Extract the original date string for both original and new dates for accurate cache invalidation
         original_start_date = None

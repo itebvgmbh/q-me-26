@@ -113,7 +113,7 @@ export const CreateAppointmentForm = ({
       });
     } catch (error: any) {
       console.error('Error creating appointment:', error);
-      toast.error(`Fehler beim Erstellen des ${appointmentType === 'booked' ? 'Termins' : 'Warteschlangen-Eintrags'}: ${error.message || 'Unbekannter Fehler'}`);
+      toast.error(`${appointmentType === 'booked' ? 'Termin' : 'Nummer'} nicht angelegt: ${error.message || 'unbekannter Fehler'}`);
     }
   };
 

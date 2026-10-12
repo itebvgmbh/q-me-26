@@ -1,4 +1,5 @@
 import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, DocumentData, updateDoc } from 'firebase/firestore';
+import { assertBookable } from '../booking-rules';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Appointment } from './types';
@@ -218,42 +219,30 @@ export const isTimeSlotAvailable = async (
   }
 };
 
+// Timestamp, Date oder {seconds} einheitlich in Date umwandeln
+const toDateValue = (value: any): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === 'function') return value.toDate();
+  if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+  return null;
+};
+
 export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment> => {
   console.log('Creating appointment with data:', data);
   try {
     const db = getFirestore(firebaseApp);
     const appointmentRef = doc(collection(db, 'appointments'));
     
-    // Überprüfen, ob Termin bereits existiert, der überschneiden würde
-    if (data.staffId && data.startTime && data.endTime) {
-      // Ensure data.startTime and data.endTime are Timestamp objects
-      const startTime = data.startTime instanceof Date ? Timestamp.fromDate(data.startTime) : data.startTime;
-      const endTime = data.endTime instanceof Date ? Timestamp.fromDate(data.endTime) : data.endTime;
-      
-      // Additional type safety check for timestamp objects
-      if (startTime && endTime && 
-          typeof startTime.toDate === 'function' && 
-          typeof endTime.toDate === 'function') {
-          
-        const isAvailable = await isTimeSlotAvailable(
-          data.shopId,
-          data.staffId,
-          startTime,
-          endTime
-        );
-        
-        if (!isAvailable) {
-          throw new Error('Diese Uhrzeit ist schon belegt. Bitte wähl eine andere.');
-        }
-      } else {
-        console.error('Invalid timestamp format in appointment data:', {
-          startTimeType: typeof startTime,
-          endTimeType: typeof endTime,
-          startTime,
-          endTime
-        });
-        throw new Error('Ungültige Zeitformat für den Termin.');
-      }
+    // Jeder neue Termin muss die Regeln erfüllen: Öffnungszeiten, Arbeitszeiten, Pausen, andere Termine.
+    // Vorher wurde hier nur auf Überschneidung mit Terminen geprüft – Pausen und Zeiten fehlten.
+    const newStart = toDateValue(data.startTime);
+    const newEnd = toDateValue(data.endTime);
+    if (!newStart || !newEnd) {
+      throw new Error('Ungültige Zeitangabe für den Termin.');
+    }
+    if (data.status !== 'cancelled') {
+      await assertBookable({ shopId: data.shopId, staffId: data.staffId, start: newStart, end: newEnd });
     }
     
     // Ensure startTime and endTime are Timestamp objects
@@ -419,6 +408,18 @@ export const updateAppointment = async (appointmentId: string, appointmentData: 
       throw new Error('Appointment not found for update');
     }
     const originalAppointment = { id: originalAppointmentDoc.id, ...originalAppointmentDoc.data() } as Appointment;
+    
+    // Ändern sich Zeit oder Person, gelten dieselben Regeln wie beim Anlegen (ohne den Termin selbst)
+    const merged = { ...originalAppointment, ...appointmentData } as Appointment;
+    const before = [toDateValue(originalAppointment.startTime)?.getTime(), toDateValue(originalAppointment.endTime)?.getTime(), originalAppointment.staffId];
+    const after = [toDateValue(merged.startTime)?.getTime(), toDateValue(merged.endTime)?.getTime(), merged.staffId];
+    const timeOrStaffChanged = before.some((value, i) => value !== after[i]);
+    if (timeOrStaffChanged && merged.status !== 'cancelled') {
+      const start = toDateValue(merged.startTime);
+      const end = toDateValue(merged.endTime);
+      if (!start || !end) throw new Error('Ungültige Zeitangabe für den Termin.');
+      await assertBookable({ shopId: merged.shopId, staffId: merged.staffId, start, end, excludeAppointmentId: appointmentId });
+    }
     
     const now = Timestamp.now();
     const updateData = {

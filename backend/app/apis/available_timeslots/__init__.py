@@ -221,14 +221,14 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                             else:
                                 # Fallback to legacy format
                                 print(f"Using legacy businessHours format for shop constraint {request.shop_id}")
-                                business_hours_str = shop.get('businessHours', "9:00-17:00")
+                                business_hours_str = shop.get('businessHours') or "00:00-23:59"
                                 # Parse business hours string (assuming format like "9:00-17:00")
                                 try:
                                     start_time_str, end_time_str = business_hours_str.split('-')
                                 except ValueError:
                                     # Fallback to default hours if the format is incorrect
                                     print(f"Invalid business hours format: {business_hours_str}, using defaults")
-                                    start_time_str, end_time_str = "9:00", "17:00"
+                                    start_time_str, end_time_str = "00:00", "23:59"  # wie Frontend: unlesbar = keine Einschränkung
 
                                 shop_hours = [{
                                     'dayOfWeek': day_of_week,
@@ -353,14 +353,14 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     else:
                         # Fallback to legacy format
                         print(f"Using legacy businessHours format for shop {request.shop_id}")
-                        business_hours_str = shop.get('businessHours', "9:00-17:00")
+                        business_hours_str = shop.get('businessHours') or "00:00-23:59"
                         # Parse business hours string (assuming format like "9:00-17:00")
                         try:
                             start_time_str, end_time_str = business_hours_str.split('-')
                         except ValueError:
                             # Fallback to default hours if the format is incorrect
                             print(f"Invalid business hours format: {business_hours_str}, using defaults")
-                            start_time_str, end_time_str = "9:00", "17:00"
+                            start_time_str, end_time_str = "00:00", "23:59"  # wie Frontend: unlesbar = keine Einschränkung
 
                         return [{
                             'dayOfWeek': day_of_week,
