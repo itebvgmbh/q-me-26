@@ -11,17 +11,22 @@ export const useStaffData = (shopId: string) => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>('');
   const [useAnyStaff, setUseAnyStaff] = useState(false);
+  // Solange geladen wird, nicht "niemand eingetragen" anzeigen
+  const [loading, setLoading] = useState(!!shopId);
 
   useEffect(() => {
+    let active = true;
     const loadStaff = async () => {
       if (!shopId) {
         setStaff([]);
         setSelectedStaff('');
+        setLoading(false);
         return;
       }
-      
+      setLoading(true);
       try {
         const shopStaff = await getStaffByShopId(shopId);
+        if (!active) return;
         const activeStaff = shopStaff.filter(s => s.isActive);
         setStaff(activeStaff);
         
@@ -30,11 +35,16 @@ export const useStaffData = (shopId: string) => {
         setUseAnyStaff(false);
       } catch (error) {
         console.error('Error loading staff:', error);
-        toast.error('Fehler beim Laden der Mitarbeiter');
+        if (active) toast.error('Fehler beim Laden der Mitarbeiter');
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
     loadStaff();
+    return () => {
+      active = false;
+    };
   }, [shopId]);
 
   /**
@@ -55,6 +65,7 @@ export const useStaffData = (shopId: string) => {
   };
 
   return {
+    loading,
     staff,
     selectedStaff,
     setSelectedStaff,

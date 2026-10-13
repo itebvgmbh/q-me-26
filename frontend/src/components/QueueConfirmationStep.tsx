@@ -1,6 +1,5 @@
 import React from 'react';
-import { format, isToday, isTomorrow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { format } from 'date-fns';
 import { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { TimeSlot } from '../utils/types';
 import { Shop, Service, Staff } from '../utils/firestore/types';
 import { QueueStepShell } from './queue/QueueStepShell';
+import { slotDayLabel } from './queue/SlotStatus';
 
 export interface QueueContact {
   name: string;
@@ -23,6 +23,9 @@ export interface QueueConfirmationStepProps {
   nextAvailableSlot: TimeSlot | null;
   selectedStaffForSlot: string;
   searchingForSlot: boolean;
+  /** Suche ist fehlgeschlagen (Netz) – nicht mit "kein Platz frei" verwechseln */
+  searchFailed?: boolean;
+  onRetrySearch?: () => void;
   checkEarlierOptions: boolean;
   onCheckEarlierOptionsChange: (checked: boolean) => void;
   shops: Shop[];
@@ -37,14 +40,14 @@ export interface QueueConfirmationStepProps {
   submitting?: boolean;
 }
 
-const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEE, d. MMMM', { locale: de }));
-
 export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
   selectedShop,
   selectedService,
   nextAvailableSlot,
   selectedStaffForSlot,
   searchingForSlot,
+  searchFailed = false,
+  onRetrySearch,
   checkEarlierOptions,
   onCheckEarlierOptionsChange,
   shops,
@@ -69,12 +72,27 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
       <div className="flex flex-col gap-1 rounded-2xl bg-signal p-5 text-signal-foreground" aria-live="polite">
         <span className="text-xs font-semibold uppercase tracking-[0.08em]">Du bist dran um ca.</span>
         {searchingForSlot ? (
-          <span className="font-mono text-4xl font-bold">…</span>
+          <>
+            <span className="animate-pulse font-mono text-5xl font-bold tracking-tight opacity-50" aria-hidden="true">--:--</span>
+            <span className="font-semibold">Wir suchen deinen Platz …</span>
+            <span className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-signal-foreground/15" aria-hidden="true">
+              <span className="absolute inset-y-0 left-0 w-1/3 animate-scan rounded-full bg-signal-foreground" />
+            </span>
+          </>
         ) : nextAvailableSlot ? (
           <>
             <span className="font-mono text-5xl font-bold tracking-tight">{format(nextAvailableSlot.start, 'HH:mm')}</span>
-            <span className="font-semibold">{dayLabel(nextAvailableSlot.start)}</span>
+            <span className="font-semibold">{slotDayLabel(nextAvailableSlot.start)}</span>
           </>
+        ) : searchFailed ? (
+          <span className="flex flex-col items-start gap-3 font-semibold">
+            Die freien Plätze konnten nicht geladen werden.
+            {onRetrySearch && (
+              <Button size="sm" onClick={onRetrySearch}>
+                Noch mal suchen
+              </Button>
+            )}
+          </span>
         ) : (
           <span className="font-semibold">Gerade ist kein Platz frei. Versuch eine andere Person oder Leistung.</span>
         )}

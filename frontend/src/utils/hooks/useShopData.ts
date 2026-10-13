@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Shop, getShops } from '../firestore';
+import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/firestore';
+import { Shop } from '../firestore';
+import { firestore as db } from '../firestore-client';
+import { isConnectionError, retryWithSimpleConnection } from '../connection';
 
 /**
  * Custom hook for fetching and managing shop data
@@ -9,37 +12,51 @@ import { Shop, getShops } from '../firestore';
  */
 export const useShopData = (shopIdFromQR: string | null) => {
   const [shops, setShops] = useState<Shop[]>([]);
-  const [selectedShop, setSelectedShop] = useState<string>('');
+  // Vom QR-Code sofort vorauswählen: Leistungen und Personen laden dann gleichzeitig mit dem Shop
+  const [selectedShop, setSelectedShop] = useState<string>(shopIdFromQR || '');
   const [loading, setLoading] = useState(true);
-  const [arrivedFromQR, setArrivedFromQR] = useState(false);
+  const [arrivedFromQR, setArrivedFromQR] = useState(!!shopIdFromQR);
+  // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   useEffect(() => {
+    let active = true;
     const loadShops = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
-        const allShops = await getShops();
-        setShops(allShops);
-        
-        // If shopId is provided in URL (from QR code), pre-select it
+        // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
+        // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
         if (shopIdFromQR) {
-          const shopExists = allShops.some(shop => shop.id === shopIdFromQR);
-          if (shopExists) {
-            setSelectedShop(shopIdFromQR);
+          const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
+          if (!active) return;
+          if (snap.exists()) {
+            setShops([{ id: snap.id, ...snap.data() } as Shop]);
+            setSelectedShop(snap.id);
             setArrivedFromQR(true);
-          } else {
-            console.error('Shop from QR code not found:', shopIdFromQR);
-            toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+            return;
           }
+          console.error('Shop from QR code not found:', shopIdFromQR);
+          toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+          setSelectedShop('');
+          setArrivedFromQR(false);
         }
-        setLoading(false);
+        const snapshot = await getDocsFromServer(collection(db, 'shops'));
+        if (active) setShops(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Shop));
       } catch (error) {
         console.error('Error loading shops:', error);
-        toast.error('Fehler beim Laden der Shops');
-        setLoading(false);
+        if (!active) return;
+        if (isConnectionError(error) && retryWithSimpleConnection()) return;
+        setLoadError(error);
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
     loadShops();
+    return () => {
+      active = false;
+    };
   }, [shopIdFromQR]);
 
   return {
@@ -47,6 +64,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
     selectedShop,
     setSelectedShop,
     loading,
+    loadError,
     arrivedFromQR,
     setArrivedFromQR
   };

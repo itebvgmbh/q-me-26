@@ -139,7 +139,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
     } else {
       setAppointmentFormData(prev => ({
         ...prev,
-        [field]: field === 'price' ? Number(value) : value
+        // Leeres Preisfeld = kein eigener Preis (dann gilt der Preis der Leistung), nicht 0 €
+        [field]: field === 'price' ? (value === '' || value === null ? undefined : Number(value)) : value
       }));
     }
   };

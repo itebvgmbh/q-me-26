@@ -3,7 +3,8 @@ import { User } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { TimeSlot } from '../types';
-import { QueueBookingService } from '../QueueBookingService';
+import { BookingResponse, QueueBookingService } from '../QueueBookingService';
+import { isSlotConflict } from '../booking-rules';
 
 /**
  * Custom hook for managing the state of the booking process
@@ -45,11 +46,11 @@ export const useBookingState = () => {
     nextAvailableSlot: TimeSlot | null,
     user: User | null,
     contact?: { name: string; phone: string }
-  ) => {
+  ): Promise<BookingResponse | null> => {
     // Validate required data is available
     if (!selectedShop || !selectedService || !nextAvailableSlot || !selectedStaffForSlot) {
       toast.error('Es wurde noch kein freier Platz gefunden. Warte kurz oder wähl eine andere Person.');
-      return;
+      return null;
     }
     setSubmitting(true);
     
@@ -76,10 +77,14 @@ export const useBookingState = () => {
         toast.success(bookingResult.message || 'Du bist eingereiht');
         navigate('/my-bookings');
       }
+    } else if (isSlotConflict(bookingResult.error)) {
+      // Jemand war schneller: die Seite sucht neu (siehe PublicJoinQueue)
+      toast.error('Der Platz ist gerade weggegangen. Wir suchen dir den nächsten – bitte gleich noch mal bestätigen.');
     } else {
       toast.error(bookingResult.message || 'Das Einreihen hat nicht geklappt. Versuch es noch einmal.');
       console.error('Booking error:', bookingResult.error);
     }
+    return bookingResult;
   }, [checkEarlierOptions, navigate]);
 
   return {

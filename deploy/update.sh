@@ -23,6 +23,12 @@ if [ "${SKIP_PULL:-0}" != 1 ]; then
 fi
 git log --oneline -1
 
+# Bash führt dieses Skript aus der beim Start geöffneten (alten) Datei weiter aus. Damit neue
+# Schritte aus dem gerade geholten Stand sofort gelten, einmal die frische Fassung starten.
+if [ "${QME_UPDATE_REEXEC:-0}" != 1 ]; then
+	QME_UPDATE_REEXEC=1 SKIP_PULL=1 exec bash "$APP_DIR/deploy/update.sh"
+fi
+
 echo "==> Backend-Abhängigkeiten"
 cd "$APP_DIR/backend"
 [ -x .venv/bin/python ] || uv venv --quiet --python 3.13 .venv

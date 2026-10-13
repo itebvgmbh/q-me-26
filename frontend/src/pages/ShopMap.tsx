@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
-import { getAllShopsForMarketplace, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
+import { fetchMarketplaceShops, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
+import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
+import { ConnectionProblem } from '../components/ConnectionProblem';
 import { ShopCard } from '../components/ShopCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +51,8 @@ const ShopMap = () => {
   const [shops, setShops] = useState<ShopWithCoordinates[]>([]);
   const [services, setServices] = useState<{[shopId: string]: Service[]}>({});
   const [loading, setLoading] = useState(true);
+  // Datenbank nicht erreichbar – sonst sähe es aus, als gäbe es keine Shops
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [searchInput, setSearchInput] = useState("");
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([51.1657, 10.4515]); // Deutschland Zentrum
@@ -82,7 +86,8 @@ const ShopMap = () => {
       setLoading(true);
       try {
         // Alle Shops laden
-        const shopsData = await getAllShopsForMarketplace();
+        setLoadError(null);
+        const shopsData = await fetchMarketplaceShops();
         
         // Koordinaten für jeden Shop hinzufügen
         const shopsWithCoordinates = await enrichShopsWithCoordinates(shopsData);
@@ -124,6 +129,8 @@ const ShopMap = () => {
         }
       } catch (error) {
         console.error('Error loading shops with coordinates:', error);
+        if (isConnectionError(error) && retryWithSimpleConnection()) return;
+        setLoadError(error);
       } finally {
         setLoading(false);
       }
@@ -253,7 +260,9 @@ const ShopMap = () => {
           <h2 className="font-display text-xl font-bold">
             {userPosition ? `${shops.length} ${shops.length === 1 ? 'Shop' : 'Shops'} gefunden` : 'Alle Shops'}
           </h2>
-          {loading ? (
+          {loadError ? (
+            <ConnectionProblem error={loadError} />
+          ) : loading ? (
             <div className="flex flex-col gap-3" aria-busy="true" aria-label="Shops werden geladen">
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />

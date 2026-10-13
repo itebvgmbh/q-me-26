@@ -61,6 +61,11 @@ export default {
         },
       },
       keyframes: {
+        // Ladebalken ohne festen Fortschritt: ein Stück wandert von links nach rechts
+        scan: {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(300%)" },
+        },
         "accordion-down": {
           from: {
             height: "0",
@@ -79,6 +84,7 @@ export default {
         },
       },
       animation: {
+        scan: "scan 1.2s ease-in-out infinite",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },

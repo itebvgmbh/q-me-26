@@ -1,19 +1,22 @@
-import { collection, getDocs, query, where, getDoc, doc, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, getDocsFromServer, query, where, getDoc, doc, orderBy, limit } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Shop, Service } from './firestore/types';
 
 // Holen Sie alle aktiven Shops für den Marktplatz
+/** Alle Shops vom Server; wirft bei fehlender Verbindung (statt still eine leere Liste zu liefern) */
+export const fetchMarketplaceShops = async (): Promise<Shop[]> => {
+  const db = getFirestore(firebaseApp);
+  const querySnapshot = await getDocsFromServer(collection(db, 'shops'));
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as Shop[];
+};
+
 export const getAllShopsForMarketplace = async (): Promise<Shop[]> => {
   try {
-    const db = getFirestore(firebaseApp);
-    const shopsRef = collection(db, 'shops');
-    const querySnapshot = await getDocs(shopsRef);
-    
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Shop[];
+    return await fetchMarketplaceShops();
   } catch (error) {
     console.error('Error getting shops for marketplace:', error);
     return [];

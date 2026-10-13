@@ -11,13 +11,20 @@ import { Service, getServicesByShopId } from '../firestore';
 export const useServiceData = (shopId: string, serviceIdFromURL: string | null) => {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<string>('');
+  // Solange geladen wird, nicht "keine Leistungen" anzeigen
+  const [loading, setLoading] = useState(!!shopId);
 
   useEffect(() => {
+    let active = true;
     const loadServices = async () => {
-      if (!shopId) return;
-
+      if (!shopId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
       try {
         const servicesData = await getServicesByShopId(shopId);
+        if (!active) return;
         setServices(servicesData);
         
         // If a service is provided in URL, pre-select it
@@ -35,14 +42,20 @@ export const useServiceData = (shopId: string, serviceIdFromURL: string | null) 
         }
       } catch (error) {
         console.error('Error loading services:', error);
-        toast.error('Fehler beim Laden der Services');
+        if (active) toast.error('Fehler beim Laden der Services');
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
     loadServices();
+    return () => {
+      active = false;
+    };
   }, [shopId, serviceIdFromURL]);
 
   return {
+    loading,
     services,
     selectedService,
     setSelectedService
