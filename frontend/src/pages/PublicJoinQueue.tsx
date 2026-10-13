@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
-import { TimeSlot } from '../utils/types';
+import { isSlotConflict } from '../utils/booking-rules';
 
 // Import all hooks from index
 import { 
@@ -20,6 +21,7 @@ import { QueueConfirmationStep } from '../components/QueueConfirmationStep';
 import { BookingSuccessStep } from '../components/BookingSuccessStep';
 import { StepIndicator } from '../components/StepIndicator';
 import type { QueueContact } from '../components/QueueConfirmationStep';
+import { Spinner } from '../components/queue/SlotStatus';
 
 /**
  * Consolidated Queue Join component
@@ -61,12 +63,14 @@ const PublicJoinQueue = () => {
   } = useShopData(shopIdFromQR);
   
   const { 
+    loading: servicesLoading,
     services, 
     selectedService, 
     setSelectedService 
   } = useServiceData(selectedShop, serviceIdFromURL);
   
   const { 
+    loading: staffLoading,
     staff, 
     selectedStaff, 
     useAnyStaff, 
@@ -91,6 +95,12 @@ const PublicJoinQueue = () => {
   // Änderung der Leistung erneut und warf Nutzer von Schritt 3 auf Schritt 2 zurück.
   const urlStepApplied = useRef(false);
   React.useEffect(() => {
+    // Shop aus dem QR-Code gibt es nicht (mehr): Liste aller Shops zeigen
+    if (shopIdFromQR && !loading && !selectedShop) {
+      setCurrentStep(1);
+      urlStepApplied.current = true;
+      return;
+    }
     if (urlStepApplied.current) return;
     if (serviceIdFromURL && selectedService === serviceIdFromURL) {
       setCurrentStep(3);
@@ -101,7 +111,7 @@ const PublicJoinQueue = () => {
     } else if (shopIdFromQR) {
       setCurrentStep(2);
     }
-  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep]);
+  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep, loading, selectedShop]);
 
   // Bei jedem Schrittwechsel nach oben, sonst landet man auf dem Handy mitten im nächsten Schritt
   React.useEffect(() => {
@@ -114,27 +124,38 @@ const PublicJoinQueue = () => {
     return offering.length > 0 ? offering : staff;
   }, [staff, selectedService]);
 
-  // Use the custom hook for slot finding
-  const { 
+  // Suche startet schon bei der Personenauswahl (Schritt 3) für alle passenden Personen –
+  // bis jemand gewählt hat, ist das Ergebnis meist schon da
+  const {
     searchingForSlot,
+    searchFailed,
     nextAvailableSlot,
-    selectedStaffForSlot 
+    selectedStaffForSlot,
+    earliestByStaff,
+    refresh: refreshSlots,
+    refreshIfOlderThan,
   } = useSlotFinder({
     shopId: selectedShop,
     serviceId: selectedService,
     staffId: selectedStaff,
     useAnyStaff,
     staffList: serviceStaff,
-    isAuthenticated: !!user,
-    shouldSearch: currentStep >= 3 // Only search when at staff selection or confirmation step
+    shouldSearch: currentStep >= 3,
   });
 
-  /**
-   * Wrapper around the handleJoinQueue from useBookingState
-   * to provide the current context values
-   */
-  const processBooking = () => {
-    handleJoinQueue(
+  // Wer länger auf einem Schritt stand, bekommt beim Bestätigen einen frischen Platz
+  React.useEffect(() => {
+    if (currentStep === 4) refreshIfOlderThan(60 * 1000);
+  }, [currentStep, refreshIfOlderThan]);
+
+  const processBooking = async () => {
+    // Inzwischen vorbei (Seite stand offen)? Dann nicht einreihen, sondern neu suchen.
+    if (nextAvailableSlot && nextAvailableSlot.start.getTime() <= Date.now()) {
+      toast.error('Die Zeit ist schon vorbei. Wir suchen dir den nächsten Platz – bitte gleich noch mal bestätigen.');
+      refreshSlots();
+      return;
+    }
+    const result = await handleJoinQueue(
       selectedShop,
       selectedService,
       selectedStaffForSlot,
@@ -142,14 +163,23 @@ const PublicJoinQueue = () => {
       user,
       contact
     );
+    if (result && !result.success && isSlotConflict(result.error)) refreshSlots();
   };
 
   /**
    * Render step content based on current step
    */
   const renderContent = () => {
-    if (loading) {
-      return <div className="h-64 animate-pulse rounded-3xl bg-muted" aria-busy="true" aria-label="Wird geladen" />;
+    // Shop, Leistungen und Personen laden gleichzeitig; bis alles da ist, ein deutlicher Ladezustand
+    // statt kurz "keine Leistungen" oder "niemand eingetragen"
+    const stepNeedsShopData = currentStep >= 2 && currentStep <= 4;
+    if (loading || (stepNeedsShopData && (servicesLoading || staffLoading))) {
+      return (
+        <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card" role="status" aria-live="polite">
+          <Spinner className="h-9 w-9 border-4" />
+          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Shops' : 'die Leistungen'} …</span>
+        </div>
+      );
     }
 
     // Successful anonymous booking
@@ -229,6 +259,8 @@ const PublicJoinQueue = () => {
           }}
           useAnyStaff={useAnyStaff}
           onBack={() => setCurrentStep(2)}
+          earliestByStaff={earliestByStaff}
+          searching={searchingForSlot}
         />
       );
     }
@@ -244,6 +276,8 @@ const PublicJoinQueue = () => {
           nextAvailableSlot={nextAvailableSlot}
           selectedStaffForSlot={selectedStaffForSlot}
           searchingForSlot={searchingForSlot}
+          searchFailed={searchFailed}
+          onRetrySearch={refreshSlots}
           checkEarlierOptions={checkEarlierOptions}
           onCheckEarlierOptionsChange={(checked) => setCheckEarlierOptions(checked)}
           shops={shops}

@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, DocumentData, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import { firestore as db } from './firestore-client';
 
 /**
@@ -62,32 +62,83 @@ export const shopWindowForDay = (shop: any, dayOfWeek: number): Window | 'closed
   return null;
 };
 
-/** Lädt alles, was einen Tag einer Person einschränkt */
-export const loadStaffDayContext = async (
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Rohdaten zu einer Person über einen Zeitraum – einmal geladen, für beliebig viele Tage nutzbar */
+export interface StaffRangeData {
+  shop: DocumentData | null;
+  staffId: string | null | undefined;
+  staff: DocumentData | null;
+  recurringBreaks: DocumentData[];
+  breaks: DocumentData[];
+  appointments: { id: string; data: DocumentData }[];
+}
+
+export const loadShopData = async (shopId: string): Promise<DocumentData | null> => {
+  const snap = await getDoc(doc(db, 'shops', shopId));
+  return snap.exists() ? snap.data() : null;
+};
+
+/**
+ * Lädt alles, was die Tage einer Person zwischen from und to einschränkt – alle Abfragen gleichzeitig,
+ * also eine Rundreise zum Server. Vorher lud die Platzsuche das für jeden Tag einzeln und nacheinander
+ * (bis zu 14 Tage × 3 Rundreisen) und jedes Mal alle Termine der Person seit Anbeginn.
+ * Termine nur im Zeitraum (Index staffId + startTime ist vorhanden), mit einem Tag Vorlauf für
+ * Termine, die vor Mitternacht beginnen. Einzelne Pausen nur nach Person, den Tag filtert
+ * buildDayContext – eine Abfrage mit Datumsbereich bräuchte einen eigenen Index.
+ */
+export const loadStaffRange = async (
   shopId: string,
   staffId: string | null | undefined,
-  day: Date,
-  excludeAppointmentId?: string,
-): Promise<StaffDayContext> => {
+  from: Date,
+  to: Date,
+  shop?: Promise<DocumentData | null>,
+): Promise<StaffRangeData> => {
+  const shopPromise = shop ?? loadShopData(shopId);
+  if (!staffId) {
+    return { shop: await shopPromise, staffId, staff: null, recurringBreaks: [], breaks: [], appointments: [] };
+  }
+  const [shopData, staffSnap, recurringSnap, breaksSnap, apptSnap] = await Promise.all([
+    shopPromise,
+    getDoc(doc(db, 'staff', staffId)),
+    getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId))),
+    getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
+    getDocs(
+      query(
+        collection(db, 'appointments'),
+        where('staffId', '==', staffId),
+        where('startTime', '>=', Timestamp.fromMillis(from.getTime() - DAY_MS)),
+        where('startTime', '<', Timestamp.fromDate(to)),
+      ),
+    ),
+  ]);
+  return {
+    shop: shopData,
+    staffId,
+    staff: staffSnap.exists() ? staffSnap.data() : null,
+    recurringBreaks: recurringSnap.docs.map((d) => d.data()),
+    breaks: breaksSnap.docs.map((d) => d.data()),
+    appointments: apptSnap.docs.filter((d) => d.data().shopId === shopId).map((d) => ({ id: d.id, data: d.data() })),
+  };
+};
+
+/** Rechnet aus den geladenen Daten, was an einem Tag buchbar ist – ohne Netz */
+export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointmentId?: string): StaffDayContext => {
   const midnight = new Date(day);
   midnight.setHours(0, 0, 0, 0);
   const dayStart = midnight.getTime();
-  const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+  const dayEnd = new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate() + 1).getTime();
   const dayOfWeek = midnight.getDay();
   const at = (minutes: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate(), Math.floor(minutes / 60), minutes % 60).getTime();
 
-  const [shopSnap, staffSnap] = await Promise.all([
-    getDoc(doc(db, 'shops', shopId)),
-    staffId ? getDoc(doc(db, 'staff', staffId)) : Promise.resolve(null),
-  ]);
-  const shopWin = shopWindowForDay(shopSnap.exists() ? shopSnap.data() : null, dayOfWeek);
+  const shopWin = shopWindowForDay(data.shop, dayOfWeek);
   if (shopWin === 'closed') return { open: null, closedReason: `Der Laden hat ${WEEKDAYS[dayOfWeek]} geschlossen.`, blocked: [] };
 
   let window: Window = shopWin ? { start: at(shopWin.start), end: at(shopWin.end) } : { start: dayStart, end: dayEnd };
   const blocked: Blocked[] = [];
 
-  if (staffId) {
-    const staff = staffSnap && staffSnap.exists() ? staffSnap.data() : null;
+  if (data.staffId) {
+    const staff = data.staff;
     const name = staff?.name || 'Diese Person';
     if (!staff) return { open: null, closedReason: 'Diese Person gibt es nicht mehr.', blocked: [] };
     if (staff.isActive === false) return { open: null, closedReason: `${name} ist deaktiviert.`, blocked: [] };
@@ -101,33 +152,22 @@ export const loadStaffDayContext = async (
     }
     window = { start: Math.max(window.start, at(ws)), end: Math.min(window.end, at(we)) };
 
-    // Pausen und Termine der Person. Einzelne Pausen nur nach Person abfragen und den Tag im
-    // Speicher filtern – die Abfrage mit Datumsbereich bräuchte einen eigenen Firestore-Index
-    // und lieferte ohne ihn stillschweigend nichts.
-    const [recurringSnap, breaksSnap, apptSnap] = await Promise.all([
-      getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId), where('dayOfWeek', '==', dayOfWeek))),
-      getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
-      getDocs(query(collection(db, 'appointments'), where('shopId', '==', shopId), where('staffId', '==', staffId))),
-    ]);
-    recurringSnap.forEach((d) => {
-      const b = d.data();
-      if (b.active === false) return;
+    data.recurringBreaks.forEach((b) => {
+      if (b.active === false || Number(b.dayOfWeek) !== dayOfWeek) return;
       const s = parseHHMM(b.startTime);
       const e = parseHHMM(b.endTime);
       if (s === null || e === null || e <= s) return;
       const label = BREAK_LABEL[b.type] || 'Pause';
       blocked.push({ start: at(s), end: at(e), reason: `${label} von ${hhmm(at(s))} bis ${hhmm(at(e))}.` });
     });
-    breaksSnap.forEach((d) => {
-      const b = d.data();
+    data.breaks.forEach((b) => {
       const s = toMs(b.startTime);
       const e = toMs(b.endTime);
       if (s === null || e === null || e <= s || e <= dayStart || s >= dayEnd) return;
       blocked.push({ start: s, end: e, reason: `Pause von ${hhmm(s)} bis ${hhmm(e)}.` });
     });
-    apptSnap.forEach((d) => {
-      if (d.id === excludeAppointmentId) return;
-      const a = d.data();
+    data.appointments.forEach(({ id, data: a }) => {
+      if (id === excludeAppointmentId) return;
       if (a.status === 'cancelled') return;
       const s = toMs(a.startTime);
       const e = toMs(a.endTime);
@@ -140,6 +180,19 @@ export const loadStaffDayContext = async (
     return { open: null, closedReason: 'Öffnungs- und Arbeitszeiten überschneiden sich an diesem Tag nicht.', blocked: [] };
   }
   return { open: window, closedReason: null, blocked };
+};
+
+/** Lädt alles, was einen Tag einer Person einschränkt */
+export const loadStaffDayContext = async (
+  shopId: string,
+  staffId: string | null | undefined,
+  day: Date,
+  excludeAppointmentId?: string,
+): Promise<StaffDayContext> => {
+  const from = new Date(day);
+  from.setHours(0, 0, 0, 0);
+  const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 1);
+  return buildDayContext(await loadStaffRange(shopId, staffId, from, to), day, excludeAppointmentId);
 };
 
 /** Grund, warum der Zeitraum nicht geht, oder null, wenn er frei ist */
