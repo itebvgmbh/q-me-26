@@ -4,6 +4,7 @@ import { ShopLogo } from '../components/brand/ShopLogo';
 import { Button } from '@/components/ui/button';
 import { useShopDetails } from '../utils/hooks/useShopDetails';
 import { getIndustryNameById } from '../utils/industries';
+import { ConnectionProblem } from '../components/ConnectionProblem';
 
 const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -13,7 +14,15 @@ const euro = (value: number) => `${Number(value || 0).toLocaleString('de-DE', { 
 const ShopDetails = () => {
   const [searchParams] = useSearchParams();
   const shopId = searchParams.get('shopId');
-  const { shop, services, staff, loading } = useShopDetails(shopId);
+  const { shop, services, staff, loading, loadError } = useShopDetails(shopId);
+
+  if (loadError) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-16 sm:px-6">
+        <ConnectionProblem error={loadError} />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

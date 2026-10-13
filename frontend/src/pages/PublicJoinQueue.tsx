@@ -22,6 +22,7 @@ import { BookingSuccessStep } from '../components/BookingSuccessStep';
 import { StepIndicator } from '../components/StepIndicator';
 import type { QueueContact } from '../components/QueueConfirmationStep';
 import { Spinner } from '../components/queue/SlotStatus';
+import { ConnectionProblem } from '../components/ConnectionProblem';
 
 /**
  * Consolidated Queue Join component
@@ -58,6 +59,7 @@ const PublicJoinQueue = () => {
     selectedShop, 
     setSelectedShop, 
     loading, 
+    loadError,
     arrivedFromQR, 
     setArrivedFromQR 
   } = useShopData(shopIdFromQR);
@@ -96,7 +98,7 @@ const PublicJoinQueue = () => {
   const urlStepApplied = useRef(false);
   React.useEffect(() => {
     // Shop aus dem QR-Code gibt es nicht (mehr): Liste aller Shops zeigen
-    if (shopIdFromQR && !loading && !selectedShop) {
+    if (shopIdFromQR && !loading && !loadError && !selectedShop) {
       setCurrentStep(1);
       urlStepApplied.current = true;
       return;
@@ -111,7 +113,7 @@ const PublicJoinQueue = () => {
     } else if (shopIdFromQR) {
       setCurrentStep(2);
     }
-  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep, loading, selectedShop]);
+  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep, loading, loadError, selectedShop]);
 
   // Bei jedem Schrittwechsel nach oben, sonst landet man auf dem Handy mitten im nächsten Schritt
   React.useEffect(() => {
@@ -170,6 +172,8 @@ const PublicJoinQueue = () => {
    * Render step content based on current step
    */
   const renderContent = () => {
+    if (loadError) return <ConnectionProblem error={loadError} />;
+
     // Shop, Leistungen und Personen laden gleichzeitig; bis alles da ist, ein deutlicher Ladezustand
     // statt kurz "keine Leistungen" oder "niemand eingetragen"
     const stepNeedsShopData = currentStep >= 2 && currentStep <= 4;

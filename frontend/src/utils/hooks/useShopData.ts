@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Shop, getShopById, getShops } from '../firestore';
+import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/firestore';
+import { Shop } from '../firestore';
+import { firestore as db } from '../firestore-client';
+import { isConnectionError, retryWithSimpleConnection } from '../connection';
 
 /**
  * Custom hook for fetching and managing shop data
@@ -13,19 +16,23 @@ export const useShopData = (shopIdFromQR: string | null) => {
   const [selectedShop, setSelectedShop] = useState<string>(shopIdFromQR || '');
   const [loading, setLoading] = useState(true);
   const [arrivedFromQR, setArrivedFromQR] = useState(!!shopIdFromQR);
+  // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   useEffect(() => {
     let active = true;
     const loadShops = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
-        // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform
+        // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
+        // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
         if (shopIdFromQR) {
-          const shop = await getShopById(shopIdFromQR);
+          const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
           if (!active) return;
-          if (shop) {
-            setShops([shop]);
-            setSelectedShop(shop.id);
+          if (snap.exists()) {
+            setShops([{ id: snap.id, ...snap.data() } as Shop]);
+            setSelectedShop(snap.id);
             setArrivedFromQR(true);
             return;
           }
@@ -34,11 +41,13 @@ export const useShopData = (shopIdFromQR: string | null) => {
           setSelectedShop('');
           setArrivedFromQR(false);
         }
-        const allShops = await getShops();
-        if (active) setShops(allShops);
+        const snapshot = await getDocsFromServer(collection(db, 'shops'));
+        if (active) setShops(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Shop));
       } catch (error) {
         console.error('Error loading shops:', error);
-        if (active) toast.error('Fehler beim Laden der Shops');
+        if (!active) return;
+        if (isConnectionError(error) && retryWithSimpleConnection()) return;
+        setLoadError(error);
       } finally {
         if (active) setLoading(false);
       }
@@ -55,6 +64,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
     selectedShop,
     setSelectedShop,
     loading,
+    loadError,
     arrivedFromQR,
     setArrivedFromQR
   };

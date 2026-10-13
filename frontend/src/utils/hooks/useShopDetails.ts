@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getShopById, getServicesByShopId, getStaffByShopId, Service, Shop, Staff } from '../firestore';
+import { doc, getDocFromServer } from 'firebase/firestore';
+import { getServicesByShopId, getStaffByShopId, Service, Shop, Staff } from '../firestore';
+import { firestore as db } from '../firestore-client';
+import { isConnectionError, retryWithSimpleConnection } from '../connection';
 
 /**
  * Custom hook for fetching and managing shop details
@@ -15,6 +18,8 @@ export const useShopDetails = (shopId: string | null) => {
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
+  // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   useEffect(() => {
     const loadShopDetails = async () => {
@@ -27,14 +32,14 @@ export const useShopDetails = (shopId: string | null) => {
       try {
         setLoading(true);
         
-        // Load shop data
-        const shopData = await getShopById(shopId);
-        if (!shopData) {
+        // Vom Server lesen: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
+        const snap = await getDocFromServer(doc(db, 'shops', shopId));
+        if (!snap.exists()) {
           toast.error('Shop nicht gefunden');
           navigate('/');
           return;
         }
-        setShop(shopData);
+        setShop({ id: snap.id, ...snap.data() } as Shop);
 
         // Load services data
         const servicesData = await getServicesByShopId(shopId);
@@ -48,6 +53,12 @@ export const useShopDetails = (shopId: string | null) => {
         setLoading(false);
       } catch (error) {
         console.error('Fehler beim Laden der Shop-Details:', error);
+        if (isConnectionError(error)) {
+          if (retryWithSimpleConnection()) return;
+          setLoadError(error);
+          setLoading(false);
+          return;
+        }
         toast.error('Fehler beim Laden der Shop-Details');
         navigate('/');
       }
@@ -56,5 +67,5 @@ export const useShopDetails = (shopId: string | null) => {
     loadShopDetails();
   }, [shopId, navigate]);
 
-  return { shop, services, staff, loading };
+  return { shop, services, staff, loading, loadError };
 };
