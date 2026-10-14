@@ -92,6 +92,10 @@ export interface EarlierSlotNotificationType {
   createdAt: Date;
   isRead: boolean;
   isAccepted: boolean;
+  /** 'offered' oder 'expired' (Frist abgelaufen, der Platz ging an die nächste Person) */
+  status?: string;
+  /** bis dann gehört das Angebot exklusiv diesem Kunden */
+  expiresAt?: Date;
 }
 
 /**

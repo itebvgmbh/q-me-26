@@ -39,6 +39,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, o
   const start = safelyConvertToDate(appointment.startTime);
   const end = safelyConvertToDate(appointment.endTime);
   const earlier = notification ? safelyConvertToDate(notification.earlierStartTime) : null;
+  const offerUntil = notification?.expiresAt ? safelyConvertToDate(notification.expiresAt) : null;
   const price = appointment.service?.price;
 
   const accept = async () => {
@@ -97,6 +98,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, o
           <p className="text-sm">
             <strong className="block font-display text-base">Früher dran?</strong>
             Frei geworden: <span className="font-mono font-bold text-signal">{format(earlier, "EEE d. MMM, HH:mm", { locale: de })}</span>
+            {offerUntil && <span className="block text-background/75">Für dich reserviert bis {format(offerUntil, 'HH:mm')} Uhr</span>}
           </p>
           <Button variant="signal" size="sm" onClick={accept} disabled={accepting}>
             <ArrowUpRight className="mr-1.5 h-4 w-4" aria-hidden="true" />

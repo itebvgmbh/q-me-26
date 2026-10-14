@@ -253,6 +253,16 @@ export interface UpdateResult {
   message: string;
 }
 
+/** SlotFreedRequest */
+export interface SlotFreedRequest {
+  /** Shop Id */
+  shop_id: string;
+  /** Staff Id */
+  staff_id?: string | null;
+}
+
+export type SlotFreedData = Record<string, string>;
+
 /** UpdateUserIdRequest */
 export interface UpdateUserIdRequest {
   /** Appointment Id */

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { requestEarlierSlotCheck } from '../earlierSlots';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from '../firestore-client';
 import { createAppointment as createAppointmentRepo, updateAppointment as updateAppointmentRepo, deleteAppointment as deleteAppointmentRepo } from '../firebase/repository';
@@ -298,6 +299,8 @@ const useAppointmentStore = create<AppointmentState>((set, get) => {
           status: 'cancelled',
           updatedAt: new Date()
         });
+        // "Früher dran": der frei gewordene Platz geht sofort an die nächste Person in der Reihe
+        requestEarlierSlotCheck(appointment.shopId, appointment.staffId);
       } catch (error) {
         console.error('Fehler beim Stornieren des Termins:', error);
         throw error;
