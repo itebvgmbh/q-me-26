@@ -5,171 +5,68 @@ from fastapi import APIRouter
 # Leerer Router, damit das Modul als API-Modul erkannt wird
 router = APIRouter()
 
+def _local_naive(dt: datetime) -> datetime:
+    """Zeit mit Zeitzone -> naive Ortszeit des Servers (TZ=Europe/Berlin), ohne Zeitzone unverändert."""
+    return dt.astimezone().replace(tzinfo=None) if dt.tzinfo is not None else dt
+
+
 def convert_timestamp_to_datetime(timestamp: Union[Dict[str, Any], datetime, Any]) -> Optional[datetime]:
     """
-    Konvertiert verschiedene Timestamp-Formate in ein datetime-Objekt.
-    Unterstützt:
-    - Firestore-Timestamp als Dict mit 'seconds'-Schlüssel
-    - Firestore-Timestamp-Objekte mit seconds-Attribut
-    - Python datetime-Objekte
-    - Firestore DatetimeWithNanoseconds-Objekte
-    - String-Timestamps (ISO-Format)
-    
-    Returns None für nicht erkannte Formate.
+    Wandelt Firestore-Zeitstempel, datetime, ISO-Strings und {seconds}-Dicts in ein datetime um.
+
+    Ergebnis ist immer NAIVE ORTSZEIT des Servers – wie datetime.now(), die Arbeitszeiten ("09:00")
+    und die freien Zeiten aus available_timeslots. Vorher wurde bei Firestore-Zeitstempeln (UTC) die
+    Zeitzone nur abgeschnitten statt umgerechnet: Seit der Server in deutscher Zeit läuft, lagen damit
+    alle Termine für die Angebotsprüfung 1–2 Stunden zu früh (13:15 wurde zu 11:15).
+    Strings ohne Zeitzone (so speichert die Angebotsprüfung earlierStartTime) gelten als Ortszeit.
+    Gibt None zurück, wenn das Format unbekannt ist.
     """
-    try:
-        # Handling None values
-        if timestamp is None:
-            return None
-            
-        # Log the timestamp type for debugging
-        timestamp_type = type(timestamp).__name__
-        
-        # If it's already a datetime object, just return it (normalizing timezone if needed)
-        if isinstance(timestamp, datetime):
-            if timestamp.tzinfo is not None:
-                return timestamp.replace(tzinfo=None)
-            return timestamp
-        
-        # Handle string timestamps first for better reliability
-        if isinstance(timestamp, str):
-            try:
-                # Handle ISO format strings
-                clean_timestamp = timestamp.rstrip('Z')
-                
-                # Remove any timezone info for consistent parsing
-                if '+' in clean_timestamp:
-                    clean_timestamp = clean_timestamp.split('+')[0]
-                
-                # Try with 'T' format
-                if 'T' in clean_timestamp:
-                    parsed_dt = datetime.fromisoformat(clean_timestamp)
-                    if parsed_dt.tzinfo is not None:
-                        parsed_dt = parsed_dt.replace(tzinfo=None)
-                    return parsed_dt
-                else:
-                    # Try to replace space with T for cases like "2023-01-01 12:00:00"
-                    parsed_dt = datetime.fromisoformat(clean_timestamp.replace(' ', 'T'))
-                    if parsed_dt.tzinfo is not None:
-                        parsed_dt = parsed_dt.replace(tzinfo=None)
-                    return parsed_dt
-            except ValueError as e:
-                print(f"First attempt parsing string timestamp '{timestamp}' failed: {str(e)}")
-                
-                # Second attempt with dateutil if available
-                try:
-                    from dateutil import parser
-                    parsed_dt = parser.parse(timestamp)
-                    if parsed_dt.tzinfo is not None:
-                        parsed_dt = parsed_dt.replace(tzinfo=None)
-                    return parsed_dt
-                except (ImportError, ValueError) as e2:
-                    print(f"Second attempt parsing string timestamp failed: {str(e2)}")
-                    
-                    # Last resort for string parsing
-                    try:
-                        # Try common date formats manually
-                        formats = [
-                            "%Y-%m-%dT%H:%M:%S",
-                            "%Y-%m-%d %H:%M:%S",
-                            "%Y/%m/%d %H:%M:%S",
-                            "%d.%m.%Y %H:%M:%S",
-                            "%Y-%m-%d",
-                        ]
-                        
-                        for fmt in formats:
-                            try:
-                                return datetime.strptime(timestamp, fmt)
-                            except ValueError:
-                                continue
-                    except Exception as e3:
-                        print(f"Final attempt parsing string timestamp failed: {str(e3)}")
-        
-        # Handle Firestore DatetimeWithNanoseconds objects
-        if timestamp_type == 'DatetimeWithNanoseconds':
-            # Most reliable way - convert to a string in ISO format and parse
-            try:
-                dt_str = str(timestamp)
-                # Handle various timestamp string formats
-                dt_str = dt_str.rstrip('Z')  # Remove trailing Z if present
-                if 'T' in dt_str:
-                    dt = datetime.fromisoformat(dt_str)
-                else:
-                    dt = datetime.fromisoformat(dt_str.replace(' ', 'T'))
-                if dt.tzinfo is not None:
-                    dt = dt.replace(tzinfo=None)
-                return dt
-            except (ValueError, TypeError):
-                # Fallback: Try accessing attributes directly
-                try:
-                    return datetime(
-                        year=timestamp.year,
-                        month=timestamp.month,
-                        day=timestamp.day,
-                        hour=timestamp.hour,
-                        minute=timestamp.minute,
-                        second=timestamp.second,
-                        microsecond=0
-                    )
-                except (AttributeError, TypeError):
-                    pass
-            
-            # Another fallback: Try accessing _seconds and _nanoseconds
-            try:
-                if hasattr(timestamp, '_seconds'):
-                    seconds = timestamp._seconds
-                    # Convert nanoseconds to microseconds by dividing by 1000
-                    if hasattr(timestamp, '_nanoseconds'):
-                        microseconds = timestamp._nanoseconds // 1000
-                    else:
-                        microseconds = 0
-                    return datetime.fromtimestamp(seconds).replace(microsecond=microseconds)
-            except (AttributeError, TypeError):
-                pass
-            
-            # Final fallback for DatetimeWithNanoseconds
-            try:
-                dt = datetime.fromtimestamp(timestamp.timestamp())
-                if dt.tzinfo is not None:
-                    dt = dt.replace(tzinfo=None)
-                return dt
-            except (AttributeError, TypeError):
-                # Use current time as last resort
-                return datetime.now()
-        
-        # Handle Firebase/Firestore Timestamp objects
-        if hasattr(timestamp, 'seconds'):
-            try:
-                seconds = timestamp.seconds
-                if hasattr(timestamp, 'nanoseconds'):
-                    microseconds = timestamp.nanoseconds // 1000
-                    return datetime.fromtimestamp(seconds).replace(microsecond=microseconds)
-                return datetime.fromtimestamp(seconds)
-            except (AttributeError, TypeError):
-                pass
-        
-        # Handle dictionary format with 'seconds' key
-        if isinstance(timestamp, dict) and 'seconds' in timestamp:
-            try:
-                seconds = timestamp['seconds']
-                microseconds = 0
-                if 'nanoseconds' in timestamp:
-                    microseconds = timestamp['nanoseconds'] // 1000
-                return datetime.fromtimestamp(seconds).replace(microsecond=microseconds)
-            except (TypeError, ValueError):
-                pass
-        
-        # If we got here, the format is unrecognized
-        print(f"Unrecognized timestamp format: {timestamp_type} - {str(timestamp)[:100]}")
+    if timestamp is None:
         return None
-        
+    try:
+        # Auch DatetimeWithNanoseconds von Firestore ist ein datetime (mit UTC)
+        if isinstance(timestamp, datetime):
+            return _local_naive(timestamp)
+
+        if isinstance(timestamp, str):
+            text = timestamp.strip()
+            if text.endswith('Z'):
+                text = text[:-1] + '+00:00'
+            if 'T' not in text and ' ' in text:
+                text = text.replace(' ', 'T', 1)
+            try:
+                return _local_naive(datetime.fromisoformat(text))
+            except ValueError:
+                pass
+            try:
+                from dateutil import parser
+                return _local_naive(parser.parse(timestamp))
+            except Exception:
+                pass
+            for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%d.%m.%Y %H:%M:%S", "%Y-%m-%d"):
+                try:
+                    return datetime.strptime(timestamp.strip(), fmt)
+                except ValueError:
+                    continue
+            print(f"Unrecognized timestamp string: {timestamp[:100]}")
+            return None
+
+        # Dict aus JSON ({seconds, nanoseconds}) oder Objekte mit seconds/_seconds
+        if isinstance(timestamp, dict):
+            seconds = timestamp.get('seconds', timestamp.get('_seconds'))
+            nanos = timestamp.get('nanoseconds', timestamp.get('_nanoseconds', 0)) or 0
+        else:
+            seconds = getattr(timestamp, 'seconds', getattr(timestamp, '_seconds', None))
+            nanos = getattr(timestamp, 'nanoseconds', getattr(timestamp, '_nanoseconds', 0)) or 0
+        if seconds is not None:
+            return datetime.fromtimestamp(float(seconds) + float(nanos) / 1e9)
+        if hasattr(timestamp, 'timestamp'):
+            return datetime.fromtimestamp(timestamp.timestamp())
+
+        print(f"Unrecognized timestamp format: {type(timestamp).__name__} - {str(timestamp)[:100]}")
+        return None
     except Exception as e:
-        # Something unexpected happened
-        timestamp_type = type(timestamp).__name__
-        print(f"Error in convert_timestamp_to_datetime: {str(e)}")
-        print(f"Problematic timestamp type: {timestamp_type}")
-        print(f"Timestamp value: {str(timestamp)[:100]}..." if isinstance(timestamp, str) and len(str(timestamp)) > 100 else f"Timestamp value: {timestamp}")
-        print(f"Timestamp dir: {dir(timestamp)[:200]}..." if len(dir(timestamp)) > 200 else f"Timestamp dir: {dir(timestamp)}")
+        print(f"Error in convert_timestamp_to_datetime ({type(timestamp).__name__}): {e}")
         return None
 
 def datetime_to_minutes(dt: datetime) -> int:

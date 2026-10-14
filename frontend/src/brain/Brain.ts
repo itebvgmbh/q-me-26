@@ -39,6 +39,8 @@ import {
   SetIntervalData,
   SetIntervalError,
   SetIntervalParams,
+  SlotFreedData,
+  SlotFreedRequest,
   StaffInvitationEmailRequest,
   StartSchedulerData,
   StopSchedulerData,
@@ -113,6 +115,23 @@ export class Brain<SecurityDataType = unknown> extends HttpClient<SecurityDataTy
       path: `/routes/notification-history`,
       method: "GET",
       query: query,
+      ...params,
+    });
+
+  /**
+   * @description Ein Platz ist frei geworden: sofort "Früher dran" prüfen statt auf den 5-Minuten-Takt zu warten.
+   *
+   * @tags dbtn/module:check_slots, dbtn/hasAuth
+   * @name slot_freed
+   * @summary Slot Freed
+   * @request POST:/routes/slot-freed
+   */
+  slot_freed = (data: SlotFreedRequest, params: RequestParams = {}) =>
+    this.request<SlotFreedData, any>({
+      path: `/routes/slot-freed`,
+      method: "POST",
+      body: data,
+      type: ContentType.Json,
       ...params,
     });
 

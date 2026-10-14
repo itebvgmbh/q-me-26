@@ -113,9 +113,14 @@ Vom eigenen Rechner aus, ganzen Block in PowerShell einfügen:
 
 Der Block meldet zum Schluss auch, ob der Hintergrunddienst für „Früher dran“
 läuft. Er startet mit dem Backend automatisch, sobald der Firebase-Schlüssel da ist,
-und prüft alle 5 Minuten. Abweichend einstellbar in `/etc/q-me.env`:
-`QME_SCHEDULER_INTERVAL=<Sekunden>` (mindestens 60) und `QME_SCHEDULER_AUTOSTART=0`
-zum Abschalten.
+und prüft alle 5 Minuten. Sofort geprüft wird zusätzlich nach jeder Absage,
+Verschiebung und Annahme. Jeder frei gewordene Platz geht zuerst exklusiv an die
+Person, die als Nächste in der Reihe steht, und erst nach Ablauf der Frist an die
+nächste. Abweichend einstellbar in `/etc/q-me.env`:
+`QME_SCHEDULER_INTERVAL=<Sekunden>` (mindestens 60), `QME_SCHEDULER_AUTOSTART=0`
+zum Abschalten, `QME_OFFER_HOLD_MINUTES` (Frist je Angebot, Standard 15) und
+`QME_OFFER_LEAD_MINUTES` (ein angebotener Platz liegt mindestens so weit in der
+Zukunft, Standard 15).
 
 Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend

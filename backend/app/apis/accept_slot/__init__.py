@@ -7,7 +7,7 @@ from google.cloud import firestore
 from app.apis.appointment_helpers import update_appointment
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
-from app.apis.find_slots import find_new_slots_for_appointments
+from app.apis.check_slots import trigger_check_in_background
 from app.apis.cache import invalidate_shop_date_cache
 
 # Create the router
@@ -73,6 +73,10 @@ async def accept_earlier_slot_impl(notification_id: str, background_tasks: Backg
 
         notification = notification_doc.to_dict()
         notification['id'] = notification_id
+
+        # Verfallene Angebote gehören schon der nächsten Person in der Reihe
+        if notification.get('status') == 'expired':
+            return {"status": "error", "message": "Das Angebot ist abgelaufen."}
 
         # Get the appointment
         appointment_id = notification.get('appointmentId')
@@ -363,14 +367,9 @@ async def accept_earlier_slot_impl(notification_id: str, background_tasks: Backg
         # Cache invalidation is now handled automatically by the updateAppointment function
         # No need for manual invalidation here, which makes the code simpler and more consistent
         
-        # Trigger check for new slots for affected appointments
-        if appointment_ids_to_check:
-            print(f"Triggering check for new available slots for {len(appointment_ids_to_check)} affected appointments")
-            if background_tasks:
-                background_tasks.add_task(find_new_slots_for_appointments, appointment_ids_to_check)
-            else:
-                # If no background_tasks are provided, run synchronously
-                await find_new_slots_for_appointments(appointment_ids_to_check)
+        # Der alte Platz ist jetzt frei: sofort neu verteilen (Kaskade – die nächste Person in der Reihe
+        # bekommt ihn angeboten). Dieselbe Prüfung wie im Hintergrund-Takt, siehe check_slots.
+        trigger_check_in_background(shop_id, staff_id)
         
         # Log completion of operation with timestamp
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

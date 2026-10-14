@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, DocumentData, updateDoc } from 'firebase/firestore';
 import { assertBookable } from '../booking-rules';
+import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Appointment } from './types';
@@ -307,6 +308,8 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
       updatedAt: Timestamp.now(),
     };
     await setDoc(appointmentRef, appointmentData);
+    // Neuer Termin mit "früher benachrichtigen": gleich nach einem früheren Platz suchen
+    if (appointmentData.checkEarlierOptions) requestEarlierSlotCheck(appointmentData.shopId, appointmentData.staffId);
     
     // NEUE FUNKTIONALITÄT: Cache-Invalidierung und Event-Emission
     try {
@@ -389,7 +392,9 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
       throw new Error('Appointment not found after cancellation');
     }
 
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Appointment;
+    const cancelled = { id: updatedDoc.id, ...updatedDoc.data() } as Appointment;
+    requestEarlierSlotCheck(cancelled.shopId, cancelled.staffId);
+    return cancelled;
   } catch (error) {
     console.error('Error in cancelAppointment:', error);
     throw error;
@@ -429,6 +434,12 @@ export const updateAppointment = async (appointmentId: string, appointmentData: 
 
     await setDoc(appointmentRef, updateData, { merge: true });
     console.log('Appointment updated successfully');
+
+    // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten
+    if (freesOrWantsSlot(originalAppointment, merged)) {
+      requestEarlierSlotCheck(originalAppointment.shopId, originalAppointment.staffId);
+      if (merged.staffId && merged.staffId !== originalAppointment.staffId) requestEarlierSlotCheck(merged.shopId, merged.staffId);
+    }
 
     // Fetch the updated document
     const updatedDoc = await getDoc(appointmentRef);

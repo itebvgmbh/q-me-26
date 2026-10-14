@@ -101,7 +101,13 @@ export const loadUserNotifications = async (userId: string): Promise<EarlierSlot
         console.error('Error parsing notification:', parseError, notification);
         return null;
       }
-    }).filter(Boolean); // Remove null values from failed parsing
+    }).filter(Boolean) // Remove null values from failed parsing
+      // Abgelaufene Angebote gehören schon der nächsten Person in der Reihe
+      .filter((n: any) => {
+        if (n.status === 'expired') return false;
+        const expires = n.expiresAt?.toDate ? n.expiresAt.toDate() : n.expiresAt ? new Date(n.expiresAt) : null;
+        return !expires || expires.getTime() > Date.now();
+      });
     
     console.log('Parsed notifications count:', parsedNotifications.length);
     console.log('Active notifications:', parsedNotifications.filter(n => !n.isAccepted).length);

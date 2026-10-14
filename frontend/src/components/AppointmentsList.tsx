@@ -375,14 +375,19 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
               </Select>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="checkEarlierOptions"
-                checked={appointmentFormData.checkEarlierOptions || false}
-                onCheckedChange={(v) => handleInputChange('checkEarlierOptions', v === true)}
-              />
-              <Label htmlFor="checkEarlierOptions">Bei früherem freien Termin benachrichtigen</Label>
-            </div>
+            {/* Angebote sieht der Kunde nur in seinem Konto – bei Nummern ohne Konto käme nichts an */}
+            {selectedAppointment?.customerId && selectedAppointment.customerId !== 'walk-in' ? (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="checkEarlierOptions"
+                  checked={appointmentFormData.checkEarlierOptions || false}
+                  onCheckedChange={(v) => handleInputChange('checkEarlierOptions', v === true)}
+                />
+                <Label htmlFor="checkEarlierOptions">Bei früherem freien Termin benachrichtigen</Label>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">„Früher dran“ geht nur bei Kunden mit Konto – sonst erreicht sie das Angebot nicht.</p>
+            )}
             
             <div className="pt-4 flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
