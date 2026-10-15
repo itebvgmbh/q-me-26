@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { getShopByOwner, Shop } from '../utils/firestore';
 import { useServiceManagement } from '../utils/hooks/useServiceManagement';
@@ -42,7 +43,12 @@ const ServiceManagement = () => {
           <div className="h-20 animate-pulse rounded-3xl bg-muted" />
         </div>
       ) : !shop ? (
-        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">Leg zuerst am Tresen deinen Laden an.</p>
+        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">
+          Richte zuerst deinen Laden ein.{' '}
+          <Link to="/shop-setup" className="font-semibold text-foreground underline underline-offset-4">
+            Laden einrichten
+          </Link>
+        </p>
       ) : (
         <ServicesList services={services} onServiceUpdated={refresh} />
       )}

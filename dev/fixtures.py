@@ -10,7 +10,8 @@ Laden "Testladen (wird gleich gelöscht)", der bis zum Löschen auch in der Shop
 Aufbau (alle Zeiten deutsche Zeit, "Montag" = nächster Montag nach heute):
   Laden Mo–Fr 09:00–17:00, Person Robin Mo–Sa 08:00–18:00, Leistung "Schnitt" 30 Minuten
   Montag Mittagspause 12:00–13:00 (wiederkehrend), Dienstag einmalige Pause 15:00–15:30,
-  Montag Termin 10:00–10:30.
+  Mittwoch Pause des Ladens 12:30–13:30 (gilt für alle), Montag Termin 10:00–10:30.
+Löschen räumt auch Läden weg, die Tests mit diesem Konto angelegt haben (z. B. laden-einrichten.cjs).
 Zugangsdaten und IDs stehen danach in dev/.local/fixture.json (nicht im Git).
 Nur Standardbibliothek; läuft mit Python 3.9+ unter Windows, macOS und Linux.
 """
@@ -80,7 +81,8 @@ def anlegen():
     now = dt.datetime.now(dt.timezone.utc)
     docs = [create('users', {'uid': uid, 'email': email, 'role': 'shopOwner'}, token, uid)]
 
-    hours = [{'dayOfWeek': d, 'isOpen': d in (1, 2, 3, 4, 5), 'openTime': '09:00', 'closeTime': '17:00'} for d in range(7)]
+    hours = [{'dayOfWeek': d, 'isOpen': d in (1, 2, 3, 4, 5), 'openTime': '09:00', 'closeTime': '17:00',
+              'breaks': [{'startTime': '12:30', 'endTime': '13:30'}] if d == 3 else []} for d in range(7)]
     shop = create('shops', {'name': 'Testladen (wird gleich gelöscht)', 'owner': uid, 'phone': '1', 'email': email,
                             'businessHoursByDay': hours, 'createdAt': now, 'updatedAt': now}, token)
     shop_id = shop.split('/')[1]
@@ -118,12 +120,23 @@ def loeschen():
         return
     fx = json.loads(FILE.read_text())
     token = call('POST', f'{AUTH}:signInWithPassword?key={KEY}', {'email': fx['email'], 'password': fx['pw'], 'returnSecureToken': True})['idToken']
+    def find(collection, field, value):
+        query = {'structuredQuery': {'from': [{'collectionId': collection}], 'where': {'fieldFilter': {
+            'field': {'fieldPath': field}, 'op': 'EQUAL', 'value': {'stringValue': value}}}, 'limit': 500}}
+        rows = call('POST', f'{FS}:runQuery', query, token)
+        return [row['document']['name'].split('/documents/')[1] for row in rows if row.get('document')]
+
     extra = []
     for collection in ('appointments', 'earlier_slot_notifications'):
-        query = {'structuredQuery': {'from': [{'collectionId': collection}], 'where': {'fieldFilter': {
-            'field': {'fieldPath': 'shopId'}, 'op': 'EQUAL', 'value': {'stringValue': fx['shopId']}}}, 'limit': 500}}
-        rows = call('POST', f'{FS}:runQuery', query, token)
-        extra += [row['document']['name'].split('/documents/')[1] for row in rows if row.get('document')]
+        extra += find(collection, 'shopId', fx['shopId'])
+    # Läden, die Tests mit dem Testkonto angelegt haben, samt allem, was daran hängt
+    for shop in find('shops', 'owner', fx['uid']):
+        shop_id = shop.split('/')[1]
+        if shop_id == fx['shopId']:
+            continue
+        extra.append(shop)
+        for collection in ('services', 'staff', 'staff-invitations', 'recurring-breaks', 'breaks', 'appointments'):
+            extra += find(collection, 'shopId', shop_id)
     for doc in sorted(set(fx['docs'] + extra)):
         call('DELETE', f'{FS}/{doc}', token=token)
         print('gelöscht', doc)

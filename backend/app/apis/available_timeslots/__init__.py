@@ -24,6 +24,28 @@ from app.apis.appointment_helpers import update_appointment
 
 router = APIRouter()
 
+
+def shop_breaks_for_day(shop: Optional[dict], day_of_week: int) -> list:
+    """Pausen des Ladens an einem Wochentag (businessHoursByDay[].breaks, z. B. mittags zu).
+
+    Gelten für alle Personen; im Format der wiederkehrenden Pausen, damit der Rechner sie gleich behandelt.
+    Wie im Frontend (booking-rules.ts, shopBreaksForDay): nur an offenen Tagen, unlesbare fallen weg.
+    """
+    entries = (shop or {}).get('businessHoursByDay') or []
+    entry = next((d for d in entries if str(d.get('dayOfWeek')) == str(day_of_week)), None)
+    if not entry or not entry.get('isOpen'):
+        return []
+    result = []
+    for b in entry.get('breaks') or []:
+        try:
+            sh, sm = map(int, str(b.get('startTime', '')).split(':'))
+            eh, em = map(int, str(b.get('endTime', '')).split(':'))
+        except (ValueError, AttributeError):
+            continue
+        if eh * 60 + em > sh * 60 + sm:
+            result.append({'startTime': f"{sh:02d}:{sm:02d}", 'endTime': f"{eh:02d}:{em:02d}", 'active': True, 'type': 'shop'})
+    return result
+
 # In externe Module ausgelagert
 
 @router.post("/available-timeslots", tags=["open"])
@@ -148,6 +170,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                 
             return service
         
+        # Pausen des Ladens am angefragten Tag; get_working_hours füllt sie, sobald der Laden gelesen ist
+        shop_breaks: list = []
+
         # Führe Datenbankabfragen parallel aus mit ThreadPoolExecutor
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Starte Service-Abfrage
@@ -191,7 +216,8 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     if shop_doc.exists:
                         shop = shop_doc.to_dict()
                         if shop:
-                            
+                            shop_breaks.extend(shop_breaks_for_day(shop, day_of_week))
+
                             # Check if shop has the new businessHoursByDay structure
                             business_hours_by_day = shop.get('businessHoursByDay', [])
                             
@@ -324,9 +350,11 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
                     # Convert to 0-6 format where 0 is Sunday (to match Firebase convention)
                     day_of_week = (requested_day + 1) % 7  # Firebase uses 0=Sunday, Python uses 0=Monday
                     
+                    shop_breaks.extend(shop_breaks_for_day(shop, day_of_week))
+
                     # Check if shop has the new businessHoursByDay structure
                     business_hours_by_day = shop.get('businessHoursByDay', [])
-                    
+
                     if business_hours_by_day:
                         print(f"Using new businessHoursByDay structure for shop {request.shop_id}")
                         # Find the entry for the requested day
@@ -664,7 +692,12 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
             print(f"Using old breaks format (list only).")
             regular_breaks = breaks
             recurring_breaks = []
-            
+
+        # Pausen des Ladens gelten für alle, auch ohne gewählte Person
+        if shop_breaks:
+            print(f"Shop breaks on this day: {shop_breaks}")
+            recurring_breaks = list(recurring_breaks) + shop_breaks
+
         # Kombiniere die beiden Pausentypen für den Algorithmus
         prepared_breaks = {
             'regular_breaks': regular_breaks,

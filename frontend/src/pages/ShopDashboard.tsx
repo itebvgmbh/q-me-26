@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
@@ -11,13 +11,11 @@ import { AppointmentsList } from '../components/AppointmentsList';
 import { EditShopForm } from '../components/EditShopForm';
 import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
-import { CreateShopForm } from '../components/CreateShopForm';
 import { CounterLane } from '../components/counter/CounterLane';
 import {
   getShopsByOwnerId,
   getShopById,
   getShopStaff,
-  createShop,
   createAppointment,
   Shop,
   Staff,
@@ -47,6 +45,7 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
 /** Tresen: Schlange und Termine des Tages je Person, mit "Nächste Nummer aufrufen" */
 const ShopDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: userLoading } = useCurrentUser();
   const [shops, setShops] = useState<Shop[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -56,7 +55,6 @@ const ShopDashboard = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [now, setNow] = useState(new Date());
-  const [showCreateShop, setShowCreateShop] = useState(false);
   const [showEditShop, setShowEditShop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
@@ -108,7 +106,9 @@ const ShopDashboard = () => {
       try {
         const userShops = await getShopsByOwnerId(user.uid);
         setShops(userShops);
-        if (userShops.length > 0) await loadShopData(userShops[0].id);
+        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens
+        const wanted = userShops.find((s) => s.id === searchParams.get('shopId')) ?? userShops[0];
+        if (wanted) await loadShopData(wanted.id);
         else setIsLoading(false);
       } catch (error) {
         console.error('Error loading shops:', error);
@@ -166,26 +166,6 @@ const ShopDashboard = () => {
 
   if (userLoading || !user) return null;
 
-  const createShopDialog = (
-    <Dialog open={showCreateShop} onOpenChange={setShowCreateShop}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Neuen Laden anlegen</DialogTitle>
-        </DialogHeader>
-        <CreateShopForm
-          userId={user.uid}
-          onShopCreated={(createdShop) => {
-            setShops((prev) => [...prev, createdShop]);
-            setShowCreateShop(false);
-            toast.success('Dein Laden ist angelegt.');
-            loadShopData(createdShop.id);
-          }}
-          createShop={createShop}
-        />
-      </DialogContent>
-    </Dialog>
-  );
-
   if (isLoading) {
     return (
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6" aria-busy="true" aria-label="Tresen wird geladen">
@@ -203,11 +183,12 @@ const ShopDashboard = () => {
   if (!shop) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
-        {createShopDialog}
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Willkommen am Tresen.</h1>
-        <p className="text-muted-foreground">Leg zuerst deinen Laden an. Danach fügst du Leistungen und Team hinzu und hängst den QR-Code auf.</p>
-        <Button variant="signal" size="lg" onClick={() => setShowCreateShop(true)}>
-          Laden anlegen
+        <p className="text-muted-foreground">
+          Richte zuerst deinen Laden ein: ein paar Fragen, und Öffnungszeiten, Leistungen und Team stehen. Ist dein Laden bei Google, übernehme ich das meiste von dort.
+        </p>
+        <Button variant="signal" size="lg" onClick={() => navigate('/shop-setup')}>
+          Laden einrichten
         </Button>
       </div>
     );
@@ -215,7 +196,6 @@ const ShopDashboard = () => {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-      {createShopDialog}
 
       {/* Kopf: Laden, Tag, Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -280,7 +260,7 @@ const ShopDashboard = () => {
               <DropdownMenuItem onSelect={() => setShowEditShop(true)}>Laden bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/staff-management')}>Team</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/service-management')}>Leistungen</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowCreateShop(true)}>Weiteren Laden anlegen</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>Weiteren Laden einrichten</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

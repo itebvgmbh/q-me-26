@@ -25,15 +25,16 @@ npm ci
 # 1. App starten (eigenes Fenster), läuft auf http://localhost:5173
 cd frontend; npm run dev
 
-# 2. Testladen anlegen (Konto, Laden, Person Robin, Mittagspause Mo, einmalige Pause Di, Termin Mo 10:00)
+# 2. Testladen anlegen (Konto, Laden, Person Robin, Mittagspause Mo, einmalige Pause Di, Ladenpause Mi, Termin Mo 10:00)
 python dev/fixtures.py anlegen
 
 # 3. Tests
-node dev/e2e/regeln.cjs                     # Pausen, Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben (20 Prüfungen)
+node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben (24 Prüfungen)
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
+node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent zweimal durchklicken (mit nachgebildetem Google/KI und ohne), prüft die Datenbank
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen
@@ -65,7 +66,8 @@ Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im 
 Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) und brauchen deshalb den
 Entwicklungsserver, nicht den Build.
 
-Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`
+Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py` und
+`uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen)
 
 ## PowerShell-Blöcke testen
 

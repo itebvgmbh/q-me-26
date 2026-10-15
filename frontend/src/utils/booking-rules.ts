@@ -7,7 +7,8 @@ import { firestore as db } from './firestore-client';
  *
  * Geprüft wird in dieser Reihenfolge:
  *  1. Öffnungszeiten des Ladens (businessHoursByDay; altes Format "HH:mm-HH:mm" gilt für jeden Tag;
- *     ohne Angabe keine Einschränkung durch den Laden)
+ *     ohne Angabe keine Einschränkung durch den Laden), dazu Pausen des Ladens je Tag
+ *     (businessHoursByDay[].breaks, z. B. mittags geschlossen) – gelten für alle Personen
  *  2. Arbeitszeiten der Person (ohne Arbeitszeiten ist nichts buchbar)
  *  3. Wiederkehrende Pausen (recurring-breaks) und einzelne Pausen (breaks) der Person
  *  4. Andere Termine der Person (abgesagte zählen nicht)
@@ -60,6 +61,17 @@ export const shopWindowForDay = (shop: any, dayOfWeek: number): Window | 'closed
     if (start !== null && end !== null && end > start) return { start, end };
   }
   return null;
+};
+
+/** Pausen des Ladens an einem Wochentag in Minuten (nur innerhalb der Öffnungszeit, unlesbare fallen weg) */
+export const shopBreaksForDay = (shop: any, dayOfWeek: number): Window[] => {
+  const byDay = shop?.businessHoursByDay;
+  if (!Array.isArray(byDay)) return [];
+  const entry = byDay.find((d: any) => Number(d.dayOfWeek) === dayOfWeek);
+  if (!entry?.isOpen || !Array.isArray(entry.breaks)) return [];
+  return entry.breaks
+    .map((b: any) => ({ start: parseHHMM(b?.startTime), end: parseHHMM(b?.endTime) }))
+    .filter((b: { start: number | null; end: number | null }): b is Window => b.start !== null && b.end !== null && b.end > b.start);
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -135,7 +147,11 @@ export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointm
   if (shopWin === 'closed') return { open: null, closedReason: `Der Laden hat ${WEEKDAYS[dayOfWeek]} geschlossen.`, blocked: [] };
 
   let window: Window = shopWin ? { start: at(shopWin.start), end: at(shopWin.end) } : { start: dayStart, end: dayEnd };
-  const blocked: Blocked[] = [];
+  const blocked: Blocked[] = shopBreaksForDay(data.shop, dayOfWeek).map((b) => ({
+    start: at(b.start),
+    end: at(b.end),
+    reason: `Der Laden macht Pause von ${hhmm(at(b.start))} bis ${hhmm(at(b.end))}.`,
+  }));
 
   if (data.staffId) {
     const staff = data.staff;

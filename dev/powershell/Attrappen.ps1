@@ -5,7 +5,7 @@
 #   Set-QmeAttrappe -Antworten @('', 'j') -Ssh ([ordered]@{ 'echo q-me-ok' = 'q-me-ok'; 'update.sh' = @{ Ausgabe = 'Fertig.'; Exit = 0 } }) -Fehlt @('claude')
 #   . .\mein-block.ps1
 #
-# -Antworten: was Read-Host der Reihe nach "eingibt"
+# -Antworten: was Read-Host der Reihe nach "eingibt" (bei -AsSecureString als SecureString)
 # -Ssh:       Teil des Server-Befehls -> Ausgabe (Text) oder @{ Ausgabe = ...; Exit = n }; erster Treffer gilt
 # -Fehlt:     Programme, die Get-Command als "nicht installiert" meldet (z. B. git, claude)
 # Get-QmeAufrufe zeigt danach, welche ssh/scp-Befehle der Block abgesetzt haette.
@@ -24,17 +24,26 @@ function global:Set-QmeAttrappe {
 function global:Get-QmeAufrufe { $global:QmeAttrappe.Aufrufe }
 
 function global:Read-Host {
-  param($Prompt)
+  param($Prompt, [switch]$AsSecureString)
   $a = ''
   if ($global:QmeAttrappe.Antworten.Count -gt 0) { $a = $global:QmeAttrappe.Antworten.Dequeue() }
+  if ($AsSecureString) {
+    Write-Host "[Frage verdeckt] $Prompt -> ($($a.Length) Zeichen)" -ForegroundColor DarkGray
+    $sicher = New-Object System.Security.SecureString
+    foreach ($c in $a.ToCharArray()) { $sicher.AppendChar($c) }
+    return $sicher
+  }
   Write-Host "[Frage] $Prompt -> '$a'" -ForegroundColor DarkGray
   return $a
 }
 
 function global:ssh {
   $befehl = [string]$args[-1]
-  [void]$global:QmeAttrappe.Aufrufe.Add("ssh $befehl")
-  Write-Host "[ssh] $befehl" -ForegroundColor DarkGray
+  $eingabe = @($input) -join "`n"
+  $hinweis = ''
+  if ($eingabe) { $hinweis = " (per Pipe: $($eingabe.Length) Zeichen)" }
+  [void]$global:QmeAttrappe.Aufrufe.Add("ssh $befehl$hinweis")
+  Write-Host "[ssh] $befehl$hinweis" -ForegroundColor DarkGray
   foreach ($muster in $global:QmeAttrappe.Ssh.Keys) {
     if ($befehl -like "*$muster*") {
       $r = $global:QmeAttrappe.Ssh[$muster]

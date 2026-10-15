@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useShopDetails } from '../utils/hooks/useShopDetails';
 import { getIndustryNameById } from '../utils/industries';
 import { ConnectionProblem } from '../components/ConnectionProblem';
+import { formatDayHours } from '../utils/opening-hours';
 
 const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -129,7 +130,7 @@ const ShopDetails = () => {
                 {hours.map(({ day, entry }) => (
                   <div key={day} className="contents">
                     <dt className="text-muted-foreground">{DAYS[day]}</dt>
-                    <dd className="font-mono">{entry?.isOpen ? `${entry.openTime}–${entry.closeTime}` : 'zu'}</dd>
+                    <dd className="font-mono">{formatDayHours(entry)}</dd>
                   </div>
                 ))}
               </dl>

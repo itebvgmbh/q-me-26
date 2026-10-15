@@ -5,6 +5,8 @@ export interface BusinessHoursDay {
   isOpen: boolean;
   openTime: string; // Format: "HH:mm"
   closeTime: string; // Format: "HH:mm"
+  /** Zeiten, in denen der Laden zwischendurch zu hat (z. B. Mittag); gelten für alle Personen */
+  breaks?: { startTime: string; endTime: string }[];
 }
 
 export interface Shop {
@@ -22,6 +24,9 @@ export interface Shop {
   businessHoursByDay?: BusinessHoursDay[]; // New format with day-specific hours
   industry?: string; // ID der Branche (barbershop, physiotherapy, etc.)
   logoUrl?: string; // URL des Shop-Logos
+  website?: string;
+  /** Google-Eintrag, aus dem der Laden übernommen wurde */
+  googlePlaceId?: string;
   owner: string;
   coordinates?: {
     latitude: number;

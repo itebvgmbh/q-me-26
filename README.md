@@ -36,6 +36,15 @@ FIREBASE_SERVICE_ACCOUNT_KEY_FILE=/path/to/service-account.json
 
 Without the project id every authenticated endpoint answers `401`; without the key every endpoint that touches Firestore fails.
 
+Optional, for the shop setup assistant (`/shop-setup`); without them it simply asks for everything:
+
+```bash
+GOOGLE_MAPS_API_KEY=...   # Places API (New): find the shop, take over address, hours, website
+ANTHROPIC_API_KEY=...     # read the price list from the shop's website (QME_SETUP_MODEL overrides the model)
+```
+
+On the server both go into `/etc/q-me.env` – see "Schlüssel für „Laden einrichten“" in [deploy/README.md](deploy/README.md).
+
 ## Deployment
 
 The test deployment runs next to Spielmacherei on its Hetzner server (systemd service behind the existing Caddy). See [deploy/README.md](deploy/README.md).

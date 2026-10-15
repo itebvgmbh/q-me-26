@@ -2,7 +2,7 @@ import { doc, getDoc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
-import { getStaffByUserId } from './firestore';
+import { getShopsByOwnerId, getStaffByUserId } from './firestore';
 
 export interface UpdateProfileData {
   displayName: string;
@@ -91,7 +91,8 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
   console.log('Profile found, redirecting based on role:', profile.role);
   switch (profile.role) {
     case 'shopOwner':
-      return '/shop-dashboard';
+      // Noch kein Laden: gleich in den Einrichtungsassistenten
+      return (await getShopsByOwnerId(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
     case 'employee':
       const staff = await getStaffByUserId(userId);
       return staff ? '/employee-dashboard' : '/';
