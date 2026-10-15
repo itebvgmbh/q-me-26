@@ -1,0 +1,11 @@
+{
+  "name": "q-me-dev",
+  "private": true,
+  "description": "Testskripte für q-me – nicht Teil der App, siehe dev/README.md",
+  "scripts": {
+    "browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

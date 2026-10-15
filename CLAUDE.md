@@ -14,3 +14,10 @@ Der Nutzer führt Befehle in PowerShell auf Windows aus (meist Windows PowerShel
 - Vor der Ausgabe testen, z. B. mit PowerShell 7 für Linux und Attrappen für `ssh`/`scp`/`Read-Host`.
 
 Server: `root@195.201.26.108`, Code in `/opt/q-me`, Einzelheiten in `deploy/README.md`.
+
+## Testen
+
+- Testskripte liegen in `dev/` (Anleitung: `dev/README.md`): Testladen anlegen/löschen (`dev/fixtures.py`), Regel- und Oberflächentests mit Playwright (`dev/e2e/`), Datenblick (`dev/daten.py`), Attrappen für PowerShell-Blöcke (`dev/powershell/`).
+- Achtung: Es gibt nur ein Firebase-Projekt – Tests laufen gegen die echte Datenbank. Schreibende Tests nur im Testladen aus `dev/fixtures.py`.
+- Backend: `backend/tests/test_earlier_slots.py` (ohne Firebase lauffähig).
+- Nach Änderungen an Buchung/Warteschlange mindestens `regeln.cjs`, `fruehester-platz.cjs` und `seiten.cjs` laufen lassen.

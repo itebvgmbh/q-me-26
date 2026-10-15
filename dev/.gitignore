@@ -1,0 +1,4 @@
+node_modules/
+# Testdaten-Konto (Passwort) und Bildschirmfotos bleiben lokal
+.local/
+out/
