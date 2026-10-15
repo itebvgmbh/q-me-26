@@ -8,6 +8,7 @@ import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { getIndustryNameById } from '../utils/industries';
+import { formatDayHours } from '../utils/opening-hours';
 
 const DAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 // Montag zuerst
@@ -47,9 +48,9 @@ const ShopProfile = () => {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">Noch kein Laden.</h1>
-        <p className="text-muted-foreground">Leg deinen Laden am Tresen an. Danach siehst du ihn hier so, wie Kunden ihn sehen.</p>
+        <p className="text-muted-foreground">Richte deinen Laden in ein paar Fragen ein. Danach siehst du ihn hier so, wie Kunden ihn sehen.</p>
         <Button variant="signal" asChild>
-          <Link to="/shop-dashboard">Zum Tresen</Link>
+          <Link to="/shop-setup">Laden einrichten</Link>
         </Button>
       </div>
     );
@@ -90,7 +91,7 @@ const ShopProfile = () => {
                 {hours.map(({ day, entry }) => (
                   <div key={day} className="contents">
                     <dt className="text-muted-foreground">{DAYS[day]}</dt>
-                    <dd className="font-mono">{entry?.isOpen ? `${entry.openTime}–${entry.closeTime}` : 'zu'}</dd>
+                    <dd className="font-mono">{formatDayHours(entry)}</dd>
                   </div>
                 ))}
               </dl>

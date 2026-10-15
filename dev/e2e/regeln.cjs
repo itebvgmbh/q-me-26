@@ -1,4 +1,4 @@
-// Terminregeln (booking-rules): Pausen, Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben, Absage.
+// Terminregeln (booking-rules): Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben, Absage.
 // Braucht: Entwicklungsserver (npm run dev im frontend) und Testdaten (python dev/fixtures.py anlegen).
 const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
 
@@ -31,6 +31,13 @@ run(async () => {
     const sat = at(fx.monday, 0, 0); sat.setDate(sat.getDate() + 5);
     const satStr = `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`;
     await check('samstagZu', satStr, 10, 0, 10, 30);
+    const wed = at(fx.monday, 0, 0); wed.setDate(wed.getDate() + 2);
+    const wedStr = `${wed.getFullYear()}-${String(wed.getMonth() + 1).padStart(2, '0')}-${String(wed.getDate()).padStart(2, '0')}`;
+    await check('ladenpause', wedStr, 12, 45, 13, 15);
+    await check('nachLadenpause', wedStr, 13, 30, 14, 0);
+    const ohnePerson = await rules.loadStaffDayContext(fx.shopId, null, at(wedStr, 0, 0));
+    res.ladenpauseOhnePerson = rules.findConflict(ohnePerson, at(wedStr, 12, 30).getTime(), at(wedStr, 13, 0).getTime());
+    res.slotsMittwoch = (await getAvailableTimeslotsDirect(fx.shopId, fx.serviceId, fx.staffId, wedStr)).map((s) => s.start.toTimeString().slice(0, 5));
     res.slotsMontag = (await getAvailableTimeslotsDirect(fx.shopId, fx.serviceId, fx.staffId, fx.monday)).map((s) => s.start.toTimeString().slice(0, 5));
     res.slotsSamstag = (await getAvailableTimeslotsDirect(fx.shopId, fx.serviceId, fx.staffId, satStr)).length;
     const base = { shopId: fx.shopId, staffId: fx.staffId, serviceId: fx.serviceId, customerName: 'Regeltest', status: 'scheduled', type: 'booked', isAnonymous: false };
@@ -67,6 +74,10 @@ run(async () => {
     { name: 'Samstag Laden zu', pass: /samstags geschlossen/.test(out.samstagZu), detail: out.samstagZu },
     { name: 'Freie Zeiten Montag', pass: out.slotsMontag.join(' ') === expectedMonday, detail: `${out.slotsMontag.length} Zeiten` },
     { name: 'Freie Zeiten Samstag', pass: out.slotsSamstag === 0 },
+    { name: 'Pause des Ladens Mittwoch', pass: /Der Laden macht Pause von 12:30 bis 13:30/.test(out.ladenpause), detail: out.ladenpause },
+    { name: 'Mittwoch 13:30 frei (nach Ladenpause)', pass: out.nachLadenpause === null, detail: out.nachLadenpause },
+    { name: 'Ladenpause gilt auch ohne Person', pass: /Der Laden macht Pause/.test(out.ladenpauseOhnePerson || ''), detail: out.ladenpauseOhnePerson },
+    { name: 'Freie Zeiten Mittwoch ohne 12:15–13:15', pass: out.slotsMittwoch.includes('12:00') && out.slotsMittwoch.includes('13:30') && !['12:15', '12:30', '12:45', '13:00', '13:15'].some((t) => out.slotsMittwoch.includes(t)), detail: `${out.slotsMittwoch.length} Zeiten` },
     { name: 'Anlegen in der Pause abgelehnt', pass: /abgelehnt: Mittagspause/.test(out.anlegenInPause), detail: out.anlegenInPause },
     { name: 'Anlegen 13:00', pass: out.anlegen1300 === 'gespeichert' },
     { name: 'Doppelbuchung 13:15 abgelehnt', pass: /abgelehnt: Da ist schon ein Termin/.test(out.doppelt1315), detail: out.doppelt1315 },

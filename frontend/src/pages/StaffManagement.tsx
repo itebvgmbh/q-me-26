@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -94,7 +95,12 @@ const StaffManagement = () => {
           <div className="h-24 animate-pulse rounded-3xl bg-muted" />
         </div>
       ) : !selectedShop ? (
-        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">Leg zuerst am Tresen deinen Laden an.</p>
+        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">
+          Richte zuerst deinen Laden ein.{' '}
+          <Link to="/shop-setup" className="font-semibold text-foreground underline underline-offset-4">
+            Laden einrichten
+          </Link>
+        </p>
       ) : staff.length === 0 ? (
         <div className="rounded-3xl border border-border bg-card p-6">
           <p className="font-display text-xl font-bold">Noch niemand im Team.</p>

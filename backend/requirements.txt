@@ -6,6 +6,7 @@ uvicorn[standard]==0.29.0
 
 openai
 beautifulsoup4
+anthropic
 requests
 firebase-admin
 

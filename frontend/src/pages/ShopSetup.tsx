@@ -1,0 +1,742 @@
+import { InputHTMLAttributes, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check, Copy, Globe, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCurrentUser } from 'app';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { StepIndicator } from '../components/StepIndicator';
+import { QueueOption } from '../components/queue/QueueStepShell';
+import { OpeningHoursEditor } from '../components/OpeningHoursEditor';
+import { PlaceSearch } from '../components/setup/PlaceSearch';
+import { ServicePicker } from '../components/setup/ServicePicker';
+import { QRCodeDisplay } from '../components/QRCodeDisplay';
+import { INDUSTRIES, getIndustryById } from '../utils/industries';
+import { getUserProfile } from '../utils/user-profile-service';
+import { DAY_SHORT, formatDayHours, hoursProblem, normalizeHours, WEEK_ORDER } from '../utils/opening-hours';
+import {
+  applyPlace,
+  assignmentOf,
+  clearDraft,
+  createFromDraft,
+  emptyDraft,
+  loadDraft,
+  mergeWebsiteServices,
+  newKey,
+  peopleOf,
+  saveDraft,
+  setupStatus,
+  SetupResult,
+  ShopDraft,
+  websiteServices,
+  withTemplates,
+} from '../utils/shop-setup';
+import type { ShopSetupStatusData } from '../brain/data-contracts';
+
+/**
+ * Laden einrichten – eine Frage pro Bildschirm, wie bei einer Steuer-App:
+ * Laden finden (Google) → prüfen → Branche → Öffnungszeiten → Leistungen (Webseite + Vorlagen)
+ * → selbst mitarbeiten? → Team → wer macht was → wer arbeitet wann → Zusammenfassung → fertig.
+ * Fragen, die nichts ändern (z. B. "Kann jeder alles?" bei nur einer Person), werden übersprungen.
+ */
+
+type Step = 'find' | 'check' | 'industry' | 'hours' | 'services' | 'owner' | 'team' | 'skills' | 'staffHours' | 'summary';
+const ORDER: Step[] = ['find', 'check', 'industry', 'hours', 'services', 'owner', 'team', 'skills', 'staffHours', 'summary'];
+const GROUPS: { label: string; steps: Step[] }[] = [
+  { label: 'Laden', steps: ['find', 'check', 'industry'] },
+  { label: 'Zeiten', steps: ['hours'] },
+  { label: 'Leistungen', steps: ['services'] },
+  { label: 'Team', steps: ['owner', 'team', 'skills', 'staffHours'] },
+  { label: 'Fertig', steps: ['summary'] },
+];
+
+const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const host = (url: string) => {
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+};
+
+const Problem = ({ children }: { children: ReactNode }) => (
+  <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+    {children}
+  </p>
+);
+
+const Field = ({ id, label, hint, ...props }: { id: string; label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) => (
+  <div className="flex flex-col gap-1.5">
+    <Label htmlFor={id}>{label}</Label>
+    <Input id={id} className="h-12 text-base" {...props} />
+    {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+  </div>
+);
+
+const Chip = ({ on, onClick, children, label }: { on: boolean; onClick: () => void; children: ReactNode; label?: string }) => (
+  <button
+    type="button"
+    aria-pressed={on}
+    aria-label={label}
+    onClick={onClick}
+    className={cn(
+      'min-h-10 rounded-full border px-3.5 text-sm font-semibold transition-colors',
+      on ? 'border-foreground bg-foreground text-background' : 'border-border bg-background hover:border-foreground',
+    )}
+  >
+    {children}
+  </button>
+);
+
+const ShopSetup = () => {
+  const navigate = useNavigate();
+  const { user, loading } = useCurrentUser();
+  const [draft, setDraft] = useState<ShopDraft | null>(null);
+  const [status, setStatus] = useState<ShopSetupStatusData>({ google: false, ai: false });
+  const [query, setQuery] = useState('');
+  const [problem, setProblem] = useState('');
+  const [website, setWebsite] = useState<{ state: 'idle' | 'reading' | 'done' | 'failed'; text?: string }>({ state: 'idle' });
+  const [creating, setCreating] = useState('');
+  const [result, setResult] = useState<SetupResult | null>(null);
+  const createdShopId = useRef<string | null>(null);
+  const top = useRef<HTMLDivElement>(null);
+
+  // Start: Profil prüfen, Entwurf fortsetzen oder neu beginnen
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      navigate('/login?next=/shop-setup');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [profile, st] = await Promise.all([getUserProfile(user.uid), setupStatus()]);
+      if (cancelled) return;
+      if (!profile || profile.role !== 'shopOwner') {
+        navigate(profile ? '/' : '/role-selection');
+        return;
+      }
+      setStatus(st);
+      const fallbackName = profile.displayName || user.displayName || '';
+      const saved = loadDraft(user.uid);
+      setDraft(saved ?? emptyDraft(user.email || '', fallbackName));
+      if (saved?.name) setQuery(saved.name);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user && draft && !result) saveDraft(user.uid, draft);
+  }, [user, draft, result]);
+
+  const people = useMemo(() => (draft ? peopleOf(draft) : []), [draft]);
+  const chosenServices = useMemo(() => (draft ? draft.services.filter((s) => s.selected && s.name.trim()) : []), [draft]);
+
+  const applies = (step: Step, d: ShopDraft): boolean => {
+    const persons = peopleOf(d).length;
+    if (step === 'skills') return persons > 1 && d.services.filter((s) => s.selected).length > 1;
+    if (step === 'staffHours') return persons > 1;
+    return true;
+  };
+
+  const go = (step: Step, d: ShopDraft = draft!) => {
+    setProblem('');
+    setDraft({ ...d, step });
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const next = (d: ShopDraft = draft!) => {
+    const i = ORDER.indexOf(d.step as Step);
+    const following = ORDER.slice(i + 1).find((s) => applies(s, d)) ?? 'summary';
+    go(following, d);
+  };
+  const back = () => {
+    const i = ORDER.indexOf(draft!.step as Step);
+    const previous = [...ORDER.slice(0, i)].reverse().find((s) => applies(s, draft!));
+    if (previous) go(previous);
+  };
+  const patch = (p: Partial<ShopDraft>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+  // Leistungen: Vorlagen der Branche bereitlegen, Webseite einmal automatisch lesen
+  const step = (draft?.step as Step) || 'find';
+  useEffect(() => {
+    if (!draft || step !== 'services') return;
+    if (!draft.services.some((s) => s.source === 'template')) patch({ services: withTemplates(draft.services, draft.industry) });
+    if (status.ai && draft.website && draft.websiteRead !== draft.website && website.state !== 'reading') readWebsite(draft.website);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, status.ai]);
+
+  const readWebsite = async (url: string) => {
+    setWebsite({ state: 'reading' });
+    patch({ websiteRead: url });
+    try {
+      const found = await websiteServices(url, draft?.industry);
+      setDraft((d) => (d ? { ...d, services: mergeWebsiteServices(d.services, found.services) } : d));
+      setWebsite({
+        state: 'done',
+        text: found.services.length
+          ? `${found.services.length} Leistungen von ${host(url)} übernommen. Prüf kurz Dauer und Preis.`
+          : `Auf ${host(url)} habe ich keine Preisliste gefunden. Nimm die Vorschläge unten oder trag selbst ein.`,
+      });
+    } catch (e) {
+      setWebsite({ state: 'failed', text: (e as Error).message });
+    }
+  };
+
+  if (loading || !user || !draft) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10 sm:px-6" aria-busy="true" aria-label="Wird geladen">
+        <div className="h-10 w-56 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-80 animate-pulse rounded-3xl bg-muted" />
+      </div>
+    );
+  }
+
+  const industryName = getIndustryById(draft.industry)?.name;
+
+  // --- Fertig ------------------------------------------------------------------------------------
+  if (result) {
+    const { shop, invitations } = result;
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10 sm:px-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Fertig</p>
+          <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{shop.name} ist startklar.</h1>
+          <p className="text-muted-foreground">Ab jetzt können Kunden eine Nummer ziehen und Termine buchen. Alles lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.</p>
+        </div>
+        {invitations.length > 0 && (
+          <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
+            <h2 id="einladungen" className="font-display text-xl font-bold">Einladungen fürs Team</h2>
+            <p className="text-sm text-muted-foreground">Schick jedem seinen Link. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag. Die Links gelten 7 Tage.</p>
+            <ul className="flex flex-col gap-2">
+              {invitations.map((inv) => (
+                <li key={inv.link} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-semibold">{inv.name}</span>
+                    <span className="truncate text-sm text-muted-foreground">{inv.email}</span>
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
+                  >
+                    <Copy className="h-4 w-4" aria-hidden="true" />
+                    Link kopieren
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <QRCodeDisplay shopId={shop.id} shopName={shop.name} />
+        <Button variant="signal" size="lg" className="self-start" onClick={() => navigate(`/shop-dashboard?shopId=${shop.id}`)}>
+          Zum Tresen
+        </Button>
+      </div>
+    );
+  }
+
+  // --- Schritte ------------------------------------------------------------------------------------
+  const finish = async () => {
+    setProblem('');
+    try {
+      const res = await createFromDraft(user.uid, draft, setCreating, (shop) => (createdShopId.current = shop.id));
+      clearDraft(user.uid);
+      setResult(res);
+      window.scrollTo({ top: 0 });
+    } catch (e) {
+      console.error('Laden einrichten fehlgeschlagen:', e);
+      setProblem(
+        createdShopId.current
+          ? 'Der Laden ist angelegt, aber nicht alles wurde gespeichert. Prüf am Tresen unter „Leistungen“ und „Team“, was fehlt.'
+          : 'Das Speichern hat nicht geklappt. Prüf dein Internet und versuch es noch einmal.',
+      );
+    } finally {
+      setCreating('');
+    }
+  };
+
+  let title = '';
+  let intro: ReactNode = null;
+  let body: ReactNode = null;
+  let primary: { label: string; onClick: () => void; disabled?: boolean } | null = { label: 'Weiter', onClick: () => next() };
+
+  switch (step) {
+    case 'find': {
+      title = 'Wie heißt dein Laden?';
+      intro = status.google
+        ? 'Tipp den Namen und den Ort. Findest du deinen Laden, übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google.'
+        : 'Wie er draußen am Schild steht.';
+      body = status.google ? (
+        <div className="flex flex-col gap-4">
+          <PlaceSearch
+            query={query}
+            onQueryChange={setQuery}
+            onPicked={(place) => {
+              if (place.closedPermanently) toast.warning('Google führt diesen Laden als dauerhaft geschlossen. Prüf die Angaben.');
+              next({ ...applyPlace(draft, place), step: 'find' });
+            }}
+          />
+          <Button
+            variant="ghost"
+            className="h-auto min-h-11 self-start whitespace-normal text-left"
+            onClick={() => next({ ...draft, source: 'manual', name: query.trim() || draft.name, step: 'find' })}
+          >
+            Nicht bei Google? Selbst eintragen
+          </Button>
+        </div>
+      ) : (
+        <Field id="laden-name" label="Name des Ladens" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
+      );
+      primary = status.google
+        ? null
+        : {
+            label: 'Weiter',
+            disabled: !query.trim(),
+            onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
+          };
+      break;
+    }
+    case 'check': {
+      title = 'Stimmt das so?';
+      intro = draft.source === 'google' ? 'Von Google übernommen. Du kannst alles ändern.' : 'So finden dich deine Kunden. Nur der Name und die E-Mail sind Pflicht.';
+      body = (
+        <div className="grid gap-4 sm:grid-cols-6">
+          <div className="sm:col-span-6">
+            <Field id="name" label="Name des Ladens" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
+          </div>
+          <div className="sm:col-span-6">
+            <Field id="strasse" label="Straße und Hausnummer" autoComplete="street-address" value={draft.street} onChange={(e) => patch({ street: e.target.value })} />
+          </div>
+          <div className="sm:col-span-2">
+            <Field id="plz" label="PLZ" inputMode="numeric" autoComplete="postal-code" value={draft.postalCode} onChange={(e) => patch({ postalCode: e.target.value })} />
+          </div>
+          <div className="sm:col-span-4">
+            <Field id="ort" label="Ort" autoComplete="address-level2" value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
+          </div>
+          <div className="sm:col-span-3">
+            <Field id="telefon" label="Telefon" type="tel" autoComplete="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} />
+          </div>
+          <div className="sm:col-span-3">
+            <Field id="email" label="E-Mail" type="email" autoComplete="email" value={draft.email} onChange={(e) => patch({ email: e.target.value })} />
+          </div>
+          <div className="sm:col-span-6">
+            <Field
+              id="webseite"
+              label="Webseite"
+              type="url"
+              inputMode="url"
+              placeholder="www.dein-laden.de"
+              hint={status.ai ? 'Steht hier eine Webseite, lese ich gleich deine Preisliste aus.' : undefined}
+              value={draft.website}
+              onChange={(e) => patch({ website: e.target.value })}
+            />
+          </div>
+        </div>
+      );
+      primary = {
+        label: 'Ja, weiter',
+        onClick: () => {
+          if (!draft.name.trim()) return setProblem('Wie heißt dein Laden?');
+          if (!isEmail(draft.email)) return setProblem('Bitte eine gültige E-Mail eintragen.');
+          next();
+        },
+      };
+      break;
+    }
+    case 'industry': {
+      title = 'Was für ein Laden ist das?';
+      intro = draft.industryGuessed && industryName ? `Laut Google: ${industryName}. Stimmt das?` : 'Danach richten sich die Vorschläge für deine Leistungen.';
+      body = (
+        <div className="flex flex-col gap-2">
+          {INDUSTRIES.map((i) => (
+            <QueueOption
+              key={i.id}
+              selected={draft.industry === i.id}
+              title={i.name}
+              meta={i.description}
+              onClick={() => next({ ...draft, industry: i.id, industryGuessed: false, services: draft.industry === i.id ? draft.services : draft.services.filter((s) => s.source !== 'template') })}
+            />
+          ))}
+          <QueueOption
+            title="Etwas anderes"
+            meta="Du trägst deine Leistungen selbst ein"
+            onClick={() => next({ ...draft, industry: '', industryGuessed: false, services: draft.services.filter((s) => s.source !== 'template') })}
+          />
+        </div>
+      );
+      primary = null;
+      break;
+    }
+    case 'hours': {
+      title = 'Wann hast du geöffnet?';
+      intro = draft.hoursFromGoogle
+        ? 'So steht es bei Google. Mittagspausen gelten für alle – in der Zeit bucht niemand.'
+        : 'Tipp eine Vorlage an und pass sie an. Machst du mittags zu, trag eine Pause ein.';
+      body = <OpeningHoursEditor value={draft.hours} onChange={(hours) => patch({ hours })} presets={!draft.hoursFromGoogle} />;
+      primary = {
+        label: 'Weiter',
+        onClick: () => {
+          const p = hoursProblem(normalizeHours(draft.hours));
+          if (p) return setProblem(p);
+          next();
+        },
+      };
+      break;
+    }
+    case 'services': {
+      title = 'Was bietest du an?';
+      intro = 'Tipp an, was man bei dir buchen kann. Dauer und Preis änderst du direkt.';
+      body = (
+        <div className="flex flex-col gap-5">
+          {status.ai && (
+            <WebsiteBox
+              website={draft.website}
+              state={website}
+              onRead={(url) => {
+                patch({ website: url });
+                readWebsite(url);
+              }}
+            />
+          )}
+          <ServicePicker
+            services={draft.services}
+            onChange={(services) => patch({ services })}
+            templateTitle={industryName ? `Typisch für ${industryName}` : 'Vorschläge'}
+          />
+        </div>
+      );
+      primary = {
+        label: 'Weiter',
+        disabled: website.state === 'reading',
+        onClick: () => {
+          const selected = draft.services.filter((s) => s.selected);
+          if (selected.length === 0) return setProblem('Wähl mindestens eine Leistung aus – sonst kann niemand buchen.');
+          if (selected.some((s) => !s.name.trim())) return setProblem('Eine Leistung hat noch keinen Namen.');
+          if (selected.some((s) => !(s.duration >= 5))) return setProblem('Jede Leistung braucht eine Dauer von mindestens 5 Minuten.');
+          next();
+        },
+      };
+      break;
+    }
+    case 'owner': {
+      title = 'Nimmst du selbst Kundschaft an?';
+      intro = 'Dann bekommst du eigene Termine und eine eigene Spur am Tresen.';
+      body = (
+        <div className="flex flex-col gap-2">
+          <QueueOption selected={draft.ownerWorks === true} title="Ja, ich arbeite selbst mit" onClick={() => next({ ...draft, ownerWorks: true })} />
+          <QueueOption selected={draft.ownerWorks === false} title="Nein, nur mein Team" onClick={() => next({ ...draft, ownerWorks: false })} />
+        </div>
+      );
+      primary = null;
+      break;
+    }
+    case 'team': {
+      title = draft.ownerWorks ? 'Wer arbeitet noch mit?' : 'Wer arbeitet bei dir?';
+      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person einen Einladungslink für ihren eigenen Tagesplan.';
+      const setPerson = (key: string, p: Partial<{ name: string; email: string }>) => patch({ team: draft.team.map((t) => (t.key === key ? { ...t, ...p } : t)) });
+      body = (
+        <div className="flex flex-col gap-3">
+          {draft.ownerWorks && (
+            <div className="rounded-2xl border border-foreground bg-background p-3">
+              <Field id="ich" label="Du – so sehen Kunden dich" placeholder="Dein Vorname" value={draft.ownerName} onChange={(e) => patch({ ownerName: e.target.value })} />
+            </div>
+          )}
+          {draft.team.map((t, i) => (
+            <div key={t.key} className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <Field id={`name-${t.key}`} label="Name" autoFocus={!t.name && i === draft.team.length - 1} value={t.name} onChange={(e) => setPerson(t.key, { name: e.target.value })} />
+              </div>
+              <div className="flex-1">
+                <Field id={`mail-${t.key}`} label="E-Mail (freiwillig)" type="email" value={t.email} onChange={(e) => setPerson(t.key, { email: e.target.value })} />
+              </div>
+              <Button variant="ghost" size="icon" className="self-end" onClick={() => patch({ team: draft.team.filter((x) => x.key !== t.key) })} aria-label={`${t.name || 'Person'} entfernen`}>
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" className="self-start" onClick={() => patch({ team: [...draft.team, { key: newKey('p'), name: '', email: '' }] })}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Person hinzufügen
+          </Button>
+        </div>
+      );
+      const others = draft.team.filter((t) => t.name.trim());
+      primary = {
+        label: draft.ownerWorks && others.length === 0 ? 'Nur ich, weiter' : 'Weiter',
+        onClick: () => {
+          if (draft.ownerWorks && !draft.ownerName.trim()) return setProblem('Wie sollen Kunden dich sehen? Trag deinen Vornamen ein.');
+          if (peopleOf(draft).length === 0) return setProblem('Mindestens eine Person muss Termine annehmen – sonst gibt es keine freien Zeiten.');
+          const bad = others.find((t) => t.email.trim() && !isEmail(t.email));
+          if (bad) return setProblem(`Die E-Mail von ${bad.name} stimmt nicht.`);
+          const emails = others.map((t) => t.email.trim().toLowerCase()).filter(Boolean);
+          if (new Set(emails).size !== emails.length || (draft.ownerWorks && emails.includes(draft.email.trim().toLowerCase()))) {
+            return setProblem('Jede E-Mail darf nur einmal vorkommen.');
+          }
+          next({ ...draft, team: draft.team.filter((t) => t.name.trim()) });
+        },
+      };
+      break;
+    }
+    case 'skills': {
+      title = 'Kann jeder alles?';
+      intro = 'Bei der Buchung sieht der Kunde dann nur, wer die gewählte Leistung auch macht.';
+      const toggle = (personKey: string, serviceKey: string) => {
+        const a = assignmentOf(draft, personKey);
+        const current = a.serviceKeys.length ? a.serviceKeys : chosenServices.map((s) => s.key);
+        const serviceKeys = current.includes(serviceKey) ? current.filter((k) => k !== serviceKey) : [...current, serviceKey];
+        patch({ assignments: { ...draft.assignments, [personKey]: { ...a, serviceKeys } } });
+      };
+      body = (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <QueueOption selected={draft.everyoneDoesAll === true} title="Ja, jeder macht alle Leistungen" onClick={() => next({ ...draft, everyoneDoesAll: true })} />
+            <QueueOption selected={draft.everyoneDoesAll === false} title="Nein, das ist verteilt" onClick={() => patch({ everyoneDoesAll: false })} />
+          </div>
+          {draft.everyoneDoesAll === false &&
+            people.map((p) => {
+              const a = assignmentOf(draft, p.key);
+              const picked = a.serviceKeys.length ? a.serviceKeys : chosenServices.map((s) => s.key);
+              return (
+                <fieldset key={p.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-3">
+                  <legend className="px-1 font-semibold">{p.isOwner ? `${p.name} (du)` : p.name}</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {chosenServices.map((s) => (
+                      <Chip key={s.key} on={picked.includes(s.key)} onClick={() => toggle(p.key, s.key)}>
+                        {s.name}
+                      </Chip>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
+        </div>
+      );
+      primary =
+        draft.everyoneDoesAll === false
+          ? {
+              label: 'Weiter',
+              onClick: () => {
+                const empty = people.find((p) => {
+                  const keys = assignmentOf(draft, p.key).serviceKeys;
+                  return keys.length > 0 && !keys.some((k) => chosenServices.some((s) => s.key === k));
+                });
+                if (empty) return setProblem(`${empty.name} braucht mindestens eine Leistung.`);
+                next();
+              },
+            }
+          : null;
+      break;
+    }
+    case 'staffHours': {
+      title = 'Arbeiten alle, wenn offen ist?';
+      intro = 'Genauere Zeiten und Pausen einzelner Leute stellst du später unter „Team“ ein.';
+      const openDays = WEEK_ORDER.filter((d) => normalizeHours(draft.hours)[d].isOpen);
+      const toggleDay = (personKey: string, day: number) => {
+        const a = assignmentOf(draft, personKey);
+        const current = a.days.length ? a.days : openDays;
+        const days = current.includes(day) ? current.filter((x) => x !== day) : [...current, day];
+        patch({ assignments: { ...draft.assignments, [personKey]: { ...a, days } } });
+      };
+      body = (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <QueueOption selected={draft.sameHours === true} title="Ja, immer zu den Öffnungszeiten" onClick={() => next({ ...draft, sameHours: true })} />
+            <QueueOption selected={draft.sameHours === false} title="Nein, an unterschiedlichen Tagen" onClick={() => patch({ sameHours: false })} />
+          </div>
+          {draft.sameHours === false &&
+            people.map((p) => {
+              const a = assignmentOf(draft, p.key);
+              const days = a.days.length ? a.days : openDays;
+              return (
+                <fieldset key={p.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-3">
+                  <legend className="px-1 font-semibold">{p.isOwner ? `${p.name} (du)` : p.name}</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {openDays.map((d) => (
+                      <Chip key={d} on={days.includes(d)} onClick={() => toggleDay(p.key, d)} label={`${p.name} arbeitet ${DAY_SHORT[d]}`}>
+                        {DAY_SHORT[d]}
+                      </Chip>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
+        </div>
+      );
+      primary =
+        draft.sameHours === false
+          ? {
+              label: 'Weiter',
+              onClick: () => {
+                const none = people.find((p) => {
+                  const days = assignmentOf(draft, p.key).days;
+                  return days.length > 0 && !days.some((d) => openDays.includes(d));
+                });
+                if (none) return setProblem(`${none.name} braucht mindestens einen Arbeitstag.`);
+                next();
+              },
+            }
+          : null;
+      break;
+    }
+    case 'summary': {
+      title = 'Alles bereit?';
+      intro = 'Prüf kurz. Mit „Laden eröffnen“ wird alles angelegt.';
+      const hours = normalizeHours(draft.hours);
+      const Section = ({ label, to, children }: { label: string; to: Step; children: ReactNode }) => (
+        <section className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</h3>
+            <Button variant="ghost" size="sm" onClick={() => go(to)} disabled={Boolean(creating)}>
+              Ändern
+            </Button>
+          </div>
+          {children}
+        </section>
+      );
+      body = (
+        <div className="flex flex-col gap-3">
+          <Section label="Laden" to="check">
+            <p className="font-semibold">{draft.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {[draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || 'ohne Adresse'}
+              {industryName ? ` · ${industryName}` : ''}
+            </p>
+          </Section>
+          <Section label="Öffnungszeiten" to="hours">
+            <dl className="grid grid-cols-[3rem_1fr] gap-x-3 gap-y-1 text-sm">
+              {WEEK_ORDER.map((d) => (
+                <div key={d} className="contents">
+                  <dt className="text-muted-foreground">{DAY_SHORT[d]}</dt>
+                  <dd className="font-mono">{formatDayHours(hours[d])}</dd>
+                </div>
+              ))}
+            </dl>
+          </Section>
+          <Section label={`${chosenServices.length} Leistungen`} to="services">
+            <ul className="flex flex-col gap-1 text-sm">
+              {chosenServices.map((s) => (
+                <li key={s.key} className="flex justify-between gap-3">
+                  <span>{s.name}</span>
+                  <span className="shrink-0 font-mono text-muted-foreground">
+                    {s.duration} Min. · {s.price ? `${s.priceFrom ? 'ab ' : ''}${s.price.toLocaleString('de-DE')} €` : '–'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+          <Section label="Team" to="team">
+            <p className="text-sm">{people.map((p) => (p.isOwner ? `${p.name} (du)` : p.name)).join(', ')}</p>
+          </Section>
+        </div>
+      );
+      primary = { label: creating || 'Laden eröffnen', disabled: Boolean(creating), onClick: finish };
+      break;
+    }
+  }
+
+  const groupIndex = GROUPS.findIndex((g) => g.steps.includes(step));
+
+  return (
+    <div ref={top} className="mx-auto flex max-w-2xl scroll-mt-20 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Laden einrichten</p>
+        <StepIndicator currentStep={groupIndex + 1} totalSteps={GROUPS.length} labels={GROUPS.map((g) => g.label)} />
+      </div>
+      <section className="flex flex-col gap-5 rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="frage">
+        <div className="flex flex-col gap-1">
+          <h1 id="frage" className="font-display text-3xl font-extrabold tracking-[-0.02em] sm:text-4xl">
+            {title}
+          </h1>
+          {intro && <p className="text-muted-foreground">{intro}</p>}
+        </div>
+        {body}
+        {problem && <Problem>{problem}</Problem>}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          {step !== 'find' ? (
+            <Button variant="ghost" onClick={back} disabled={Boolean(creating)}>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Zurück
+            </Button>
+          ) : (
+            <Link to="/shop-dashboard" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+              Später weitermachen
+            </Link>
+          )}
+          {primary && (
+            <Button variant="signal" size="lg" onClick={primary.onClick} disabled={primary.disabled}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : step === 'summary' ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
+              {primary.label}
+            </Button>
+          )}
+        </div>
+      </section>
+      <p className="text-center text-xs text-muted-foreground">Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist.</p>
+    </div>
+  );
+};
+
+/** Preisliste von der Webseite holen: Stand anzeigen, Adresse nachtragen, erneut versuchen */
+const WebsiteBox = ({
+  website,
+  state,
+  onRead,
+}: {
+  website: string;
+  state: { state: 'idle' | 'reading' | 'done' | 'failed'; text?: string };
+  onRead: (url: string) => void;
+}) => {
+  const [url, setUrl] = useState(website);
+  if (state.state === 'reading') {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl bg-foreground p-4 text-background" role="status">
+        <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" aria-hidden="true" />
+        <div>
+          <p className="font-semibold">Ich lese die Preisliste auf {host(website || url)} …</p>
+          <p className="text-sm text-background/75">Das dauert bis zu einer Minute. Unten kannst du schon Vorschläge ankreuzen.</p>
+        </div>
+      </div>
+    );
+  }
+  if (state.state === 'done') {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4" role="status">
+        <Sparkles className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <p className="text-sm">{state.text}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-foreground/40 bg-background p-4">
+      <div className="flex items-start gap-3">
+        <Globe className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <div>
+          <p className="font-semibold">Preisliste von deiner Webseite holen</p>
+          <p className="text-sm text-muted-foreground">
+            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, lese ich Leistungen, Dauer und Preise automatisch aus.'}
+          </p>
+        </div>
+      </div>
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (url.trim()) onRead(url.trim());
+        }}
+      >
+        <label htmlFor="preisliste-url" className="sr-only">
+          Adresse deiner Webseite
+        </label>
+        <Input id="preisliste-url" type="text" inputMode="url" placeholder="www.dein-laden.de" value={url} onChange={(e) => setUrl(e.target.value)} className="h-11 flex-1" />
+        <Button type="submit" variant="outline" disabled={!url.trim()}>
+          {state.state === 'failed' ? 'Noch einmal' : 'Auslesen'}
+        </Button>
+      </form>
+    </div>
+  );
+};
+
+export default ShopSetup;

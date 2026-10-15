@@ -36,6 +36,7 @@ const ShopDashboard = lazy(() => import("./pages/ShopDashboard.tsx"));
 const ShopDetails = lazy(() => import("./pages/ShopDetails.tsx"));
 const ShopMap = lazy(() => import("./pages/ShopMap.tsx"));
 const ShopProfile = lazy(() => import("./pages/ShopProfile.tsx"));
+const ShopSetup = lazy(() => import("./pages/ShopSetup.tsx"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement.tsx"));
 const StaffRegistration = lazy(() => import("./pages/StaffRegistration.tsx"));
 
@@ -86,6 +87,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/shop-map", element: <ShopMap />},
 	{ path: "/shopmap", element: <ShopMap />},
 	{ path: "/shop-profile", element: <UserGuard><ShopProfile /></UserGuard>},
+	{ path: "/shop-setup", element: <UserGuard><ShopSetup /></UserGuard>},
+	{ path: "/shopsetup", element: <UserGuard><ShopSetup /></UserGuard>},
+	{ path: "/laden-einrichten", element: <UserGuard><ShopSetup /></UserGuard>},
 	{ path: "/shopprofile", element: <UserGuard><ShopProfile /></UserGuard>},
 	{ path: "/staff-management", element: <UserGuard><StaffManagement /></UserGuard>},
 	{ path: "/staffmanagement", element: <UserGuard><StaffManagement /></UserGuard>},

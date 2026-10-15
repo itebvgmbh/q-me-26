@@ -126,6 +126,62 @@ Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeich
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
+## Schlüssel für „Laden einrichten“
+
+Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
+übernimmt er Adresse, Telefon, Webseite, Öffnungszeiten und Branche von Google und liest die Preisliste von
+der Webseite des Ladens. Beide stehen in `/etc/q-me.env`, nie im Repository.
+
+**Google Maps** (`GOOGLE_MAPS_API_KEY`): [Google Cloud Console](https://console.cloud.google.com/) →
+Projekt `qmedata-7c79e` → „APIs & Dienste“ → „Bibliothek“ → **Places API (New)** aktivieren (braucht ein
+Abrechnungskonto) → „Anmeldedaten“ → „Anmeldedaten erstellen“ → „API-Schlüssel“. Danach den Schlüssel
+einschränken:
+
+- Anwendungseinschränkung „IP-Adressen“: `195.201.26.108` **und** `2a01:4f8:1c18:b8d8::1` – der Server
+  erreicht Google über IPv6, mit nur der IPv4-Adresse lehnt Google jede Anfrage ab.
+- API-Einschränkung: nur „Places API (New)“.
+
+Nicht den Web-Schlüssel aus der App nehmen (`AIzaSyCp…`): Der ist öffentlich.
+Kosten: Suchvorschläge mit Sitzungs-Token sind frei, das Übernehmen eines Eintrags („Place Details
+Enterprise“) ist bis 1.000 im Monat frei, danach rund 2 Cent.
+
+**Anthropic** (`ANTHROPIC_API_KEY`): [console.anthropic.com](https://console.anthropic.com/) → „API Keys“ →
+„Create Key“, z. B. „q-me Laden einrichten“. Ausgelesen wird mit `claude-opus-5-5`, je Preisliste rund
+3–10 Cent. Günstiger (unter 1 Cent, etwas ungenauer): `QME_SETUP_MODEL=claude-haiku-5-5` in `/etc/q-me.env`.
+
+Eintragen: Block in PowerShell einfügen. Er fragt, welchen Schlüssel, liest ihn verdeckt ein und schickt ihn
+über die Standardeingabe an `deploy/set-secret.sh` – so steht er weder im Fenster noch in einer History.
+Für den zweiten Schlüssel den Block noch einmal ausführen.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $skript = ssh -o BatchMode=yes $server 'test -f /opt/q-me/deploy/set-secret.sh && echo da' 2>&1 | Out-String
+  if ($skript -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/set-secret.sh. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Welchen Schluessel eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen)'
+  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } else { Write-Host 'Abbruch: Bitte 1 oder 2 eingeben.' -ForegroundColor Red; return }
+  $geheim = Read-Host "$name einfuegen (Strg+V, wird nicht angezeigt), dann Enter" -AsSecureString
+  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
+  try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+  if ($wert -notmatch $muster) { $wert = $null; Write-Host "Abbruch: Das sieht nicht wie ein $name aus (unvollstaendig kopiert?). Nichts geaendert." -ForegroundColor Red; return }
+  Write-Host "1/2 $name auf den Server schreiben und Backend neu starten ..." -ForegroundColor Cyan
+  $wert | ssh -o BatchMode=yes $server ('bash /opt/q-me/deploy/set-secret.sh ' + $name)
+  $ergebnis = $LASTEXITCODE
+  $wert = $null
+  if ($ergebnis -ne 0) { Write-Host 'Abbruch: Schluessel konnte nicht gesetzt werden, Meldung oben.' -ForegroundColor Red; return }
+  Write-Host '2/2 Pruefen ...' -ForegroundColor Cyan
+  Start-Sleep -Seconds 4
+  $pruefung = ssh -o BatchMode=yes $server ('grep -c ^' + $name + '= /etc/q-me.env; systemctl is-active q-me') 2>&1 | Out-String
+  if ($pruefung -match '^\s*1\s+active') { Write-Host "Fertig: $name ist eingetragen, das Backend laeuft." -ForegroundColor Green } else { Write-Host 'Eingetragen, aber das Backend laeuft nicht richtig. Ausgabe vom Server:' -ForegroundColor Yellow; Write-Host $pruefung; ssh -o BatchMode=yes $server 'journalctl -u q-me -n 30 --no-pager' }
+}
+```
+
+Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^GOOGLE_MAPS_API_KEY= /etc/q-me.env`.
+Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stunde höchstens 300 Suchen,
+40 übernommene Einträge und 12 ausgelesene Webseiten.
+
 ## Verbindung prüfen
 
 Fragt `ssh` nach einem Passwort, findet es in diesem Fenster keinen passenden

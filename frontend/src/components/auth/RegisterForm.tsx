@@ -24,12 +24,12 @@ const COPY = {
   },
   shopOwner: {
     title: 'Betrieb anmelden',
-    intro: 'Leg dein Konto an. Danach richtest du Laden, Leistungen und Team ein.',
+    intro: 'Leg dein Konto an. Danach führe ich dich in ein paar Fragen durch Laden, Öffnungszeiten, Leistungen und Team.',
     submit: 'Konto für Betrieb anlegen',
     switchText: 'Du willst nur buchen?',
     switchLink: '/register-customer',
     switchLabel: 'Als Kunde registrieren',
-    home: '/shop-dashboard',
+    home: '/shop-setup',
   },
 } as const;
 

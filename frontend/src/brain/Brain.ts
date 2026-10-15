@@ -39,8 +39,15 @@ import {
   SetIntervalData,
   SetIntervalError,
   SetIntervalParams,
+  PlaceDetailsData,
+  PlaceDetailsRequest,
+  PlaceSearchData,
+  PlaceSearchRequest,
+  ShopSetupStatusData,
   SlotFreedData,
   SlotFreedRequest,
+  WebsiteServicesData,
+  WebsiteServicesRequest,
   StaffInvitationEmailRequest,
   StartSchedulerData,
   StopSchedulerData,
@@ -129,6 +136,60 @@ export class Brain<SecurityDataType = unknown> extends HttpClient<SecurityDataTy
   slot_freed = (data: SlotFreedRequest, params: RequestParams = {}) =>
     this.request<SlotFreedData, any>({
       path: `/routes/slot-freed`,
+      method: "POST",
+      body: data,
+      type: ContentType.Json,
+      ...params,
+    });
+
+  /**
+   * @description Laden einrichten: welche Abkürzungen (Google-Suche, Preisliste lesen) eingerichtet sind
+   *
+   * @request GET:/routes/shop-setup/status
+   */
+  shop_setup_status = (params: RequestParams = {}) =>
+    this.request<ShopSetupStatusData, any>({
+      path: `/routes/shop-setup/status`,
+      method: "GET",
+      ...params,
+    });
+
+  /**
+   * @description Laden einrichten: Vorschläge von Google beim Tippen des Ladennamens
+   *
+   * @request POST:/routes/shop-setup/places-search
+   */
+  shop_setup_places_search = (data: PlaceSearchRequest, params: RequestParams = {}) =>
+    this.request<PlaceSearchData, any>({
+      path: `/routes/shop-setup/places-search`,
+      method: "POST",
+      body: data,
+      type: ContentType.Json,
+      ...params,
+    });
+
+  /**
+   * @description Laden einrichten: gewählten Google-Eintrag als Entwurf für den Laden
+   *
+   * @request POST:/routes/shop-setup/place-details
+   */
+  shop_setup_place_details = (data: PlaceDetailsRequest, params: RequestParams = {}) =>
+    this.request<PlaceDetailsData, any>({
+      path: `/routes/shop-setup/place-details`,
+      method: "POST",
+      body: data,
+      type: ContentType.Json,
+      ...params,
+    });
+
+  /**
+   * @description Laden einrichten: Preisliste der Webseite als Vorschlag für die Leistungen
+   *
+   * @request POST:/routes/shop-setup/website-services
+   */
+  shop_setup_website_services = (data: WebsiteServicesRequest, params: RequestParams = {}) =>
+    this.request<WebsiteServicesData, any>({
+      path: `/routes/shop-setup/website-services`,
       method: "POST",
       body: data,
       type: ContentType.Json,

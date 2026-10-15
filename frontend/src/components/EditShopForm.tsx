@@ -9,9 +9,8 @@ import { Shop as ShopProfileType, updateShop } from '../utils/firestore';
 import { uploadImage } from '../utils/firestore/storage';
 import { INDUSTRIES } from '../utils/industries';
 import { Loader2, Upload, X } from 'lucide-react';
-import { BusinessHoursEditor } from './BusinessHoursEditor';
-import { BusinessHoursDay } from '../utils/firestore/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OpeningHoursEditor } from './OpeningHoursEditor';
+import { defaultHours } from '../utils/opening-hours';
 
 interface Props {
   shop: ShopProfileType;
@@ -28,6 +27,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     ownerName: shop?.ownerName || '',
     phone: shop?.phone || '',
     email: shop?.email || '',
+    website: shop?.website || '',
     description: shop?.description || '',
     businessHours: shop?.businessHours || '',
     businessHoursByDay: shop?.businessHoursByDay || [],
@@ -182,7 +182,6 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
               value={formData.street}
               onChange={(e) => handleInputChange('street', e.target.value)}
               placeholder="Beispielstraße 123"
-              required
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,7 +192,6 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
                 value={formData.postalCode}
                 onChange={(e) => handleInputChange('postalCode', e.target.value)}
                 placeholder="12345"
-                required
               />
             </div>
             <div>
@@ -203,7 +201,6 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
                 placeholder="Berlin"
-                required
               />
             </div>
           </div>
@@ -227,7 +224,6 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
           type="tel"
           value={formData.phone}
           onChange={(e) => handleInputChange('phone', e.target.value)}
-          required
         />
       </div>
 
@@ -243,32 +239,28 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-2">
-        <Tabs defaultValue="advanced" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="simple">Einfach</TabsTrigger>
-            <TabsTrigger value="advanced">Erweitert</TabsTrigger>
-          </TabsList>
-          <TabsContent value="simple" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessHours">Öffnungszeiten (einfach)</Label>
-              <Input
-                id="businessHours"
-                value={formData.businessHours}
-                onChange={(e) => handleInputChange('businessHours', e.target.value)}
-                placeholder="z.B. 9:00-18:00"
-              />
-              <p className="text-sm text-gray-500">
-                Kurzform für die Öffnungszeiten. Für einzelne Tage nimm die erweiterte Ansicht.
-              </p>
-            </div>
-          </TabsContent>
-          <TabsContent value="advanced">
-            <BusinessHoursEditor 
-              businessHours={formData.businessHoursByDay as BusinessHoursDay[]}
-              onChange={(hours) => setFormData(prev => ({ ...prev, businessHoursByDay: hours }))}
-            />
-          </TabsContent>
-        </Tabs>
+        <Label htmlFor="website">Webseite</Label>
+        <Input
+          id="website"
+          type="text"
+          inputMode="url"
+          value={formData.website}
+          onChange={(e) => handleInputChange('website', e.target.value)}
+          placeholder="www.dein-laden.de"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Öffnungszeiten</Label>
+        {!formData.businessHoursByDay?.length && (
+          <p className="text-sm text-muted-foreground">
+            Noch keine Öffnungszeiten je Tag hinterlegt{formData.businessHours ? ` (bisher: ${formData.businessHours} an allen Tagen)` : ''}. Sobald du hier etwas änderst, gelten diese Zeiten.
+          </p>
+        )}
+        <OpeningHoursEditor
+          value={formData.businessHoursByDay?.length ? formData.businessHoursByDay : defaultHours()}
+          onChange={(hours) => setFormData((prev) => ({ ...prev, businessHoursByDay: hours }))}
+        />
       </div>
 
       <div className="space-y-2">

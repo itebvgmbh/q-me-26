@@ -263,6 +263,79 @@ export interface SlotFreedRequest {
 
 export type SlotFreedData = Record<string, string>;
 
+/** Laden einrichten: welche Abkürzungen eingerichtet sind */
+export interface ShopSetupStatusData {
+  google: boolean;
+  ai: boolean;
+}
+
+export interface PlaceSearchRequest {
+  query: string;
+  session_token?: string | null;
+}
+
+export interface PlaceSuggestion {
+  place_id: string;
+  title: string;
+  subtitle: string;
+}
+
+export interface PlaceSearchData {
+  suggestions: PlaceSuggestion[];
+}
+
+export interface PlaceDetailsRequest {
+  place_id: string;
+  session_token?: string | null;
+}
+
+/** Entwurf aus einem Google-Eintrag, gleiche Feldnamen wie im Laden-Dokument */
+export interface PlaceDetailsData {
+  googlePlaceId: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  formattedAddress: string;
+  phone: string;
+  website: string;
+  googleMapsUri: string;
+  coordinates: { latitude: number; longitude: number } | null;
+  industry: string | null;
+  businessHoursByDay: {
+    dayOfWeek: number;
+    isOpen: boolean;
+    openTime: string;
+    closeTime: string;
+    breaks: { startTime: string; endTime: string }[];
+  }[];
+  hoursText: string[];
+  closedPermanently: boolean;
+}
+
+export interface WebsiteServicesRequest {
+  url: string;
+  industry?: string | null;
+}
+
+export interface SuggestedService {
+  name: string;
+  category: string;
+  /** Minuten */
+  duration: number;
+  /** Dauer stand nicht auf der Webseite, sondern ist geschätzt */
+  durationGuessed: boolean;
+  /** Euro; 0 = kein Preis gefunden */
+  price: number;
+  /** "ab"-Preis */
+  priceFrom: boolean;
+}
+
+export interface WebsiteServicesData {
+  services: SuggestedService[];
+  pages: string[];
+}
+
 /** UpdateUserIdRequest */
 export interface UpdateUserIdRequest {
   /** Appointment Id */
