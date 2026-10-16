@@ -4,7 +4,8 @@ Laden einrichten: Daten für den Einrichtungsassistenten holen, damit der Betrie
 - Google Places: Laden suchen, dann Name, Adresse, Telefon, Webseite, Öffnungszeiten und Branche übernehmen
   (GOOGLE_MAPS_API_KEY in /etc/q-me.env; Places API (New) muss im Google-Projekt freigeschaltet sein)
 - Webseite des Ladens: Preisliste lesen und mit Claude in Leistungen mit Dauer und Preis umwandeln
-  (ANTHROPIC_API_KEY in /etc/q-me.env, Modell abweichend über QME_SETUP_MODEL)
+  (ANTHROPIC_API_KEY in /etc/q-me.env, Modell abweichend über QME_SETUP_MODEL; gilt der Schlüssel für
+  mehrere Workspaces, zusätzlich ANTHROPIC_WORKSPACE_ID, sonst lehnt Claude jede Anfrage ab)
 
 Fehlt ein Schlüssel, meldet /shop-setup/status das, und der Assistent fragt die Angaben einfach ab.
 Gespeichert wird hier nichts – der Assistent schreibt den fertigen Laden selbst nach Firestore.
@@ -46,6 +47,19 @@ def _google_key() -> str:
 
 def _ai_configured() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+
+
+def anthropic_client():
+    """Claude-Client; schickt die Workspace-ID mit, wenn eine eingestellt ist.
+
+    Ein Schlüssel, der für mehrere Workspaces gilt, braucht sie bei jeder Anfrage (Header
+    anthropic-workspace-id). Ein Schlüssel für genau einen Workspace kommt ohne aus.
+    """
+    import anthropic
+
+    workspace = os.environ.get("ANTHROPIC_WORKSPACE_ID", "").strip()
+    headers = {"anthropic-workspace-id": workspace} if workspace else None
+    return anthropic.Anthropic(timeout=90.0, max_retries=1, default_headers=headers)
 
 
 # --- Schutz: nur Betriebe, und nicht beliebig oft (die Schlüssel kosten Geld) -------------------
@@ -418,7 +432,7 @@ def extract_services(text: str, industry: Optional[str], client=None) -> List[di
     import anthropic
 
     if client is None:
-        client = anthropic.Anthropic(timeout=90.0, max_retries=1)
+        client = anthropic_client()
     hint = f"Branche laut Betrieb: {industry}.\n\n" if industry else ""
     try:
         response = client.beta.messages.create(
@@ -434,6 +448,8 @@ def extract_services(text: str, industry: Optional[str], client=None) -> List[di
         raise HTTPException(status_code=503, detail="Die Auswertung ist gerade ausgelastet. Bitte gleich noch einmal.")
     except anthropic.APIStatusError as e:
         print(f"shop-setup: Claude-Fehler {e.status_code}: {e}")
+        if "anthropic-workspace-id" in str(e):
+            print("shop-setup: Der Schlüssel gilt für mehrere Workspaces – ANTHROPIC_WORKSPACE_ID in /etc/q-me.env setzen.")
         raise HTTPException(status_code=502, detail="Die Preisliste konnte gerade nicht ausgewertet werden.")
     except anthropic.APIConnectionError as e:
         print(f"shop-setup: Claude nicht erreichbar: {e}")

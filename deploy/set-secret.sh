@@ -7,9 +7,9 @@ set -euo pipefail
 
 NAME=${1:-}
 case "$NAME" in
-	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY) ;;
+	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY | ANTHROPIC_WORKSPACE_ID) ;;
 	*)
-		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY" >&2
+		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID" >&2
 		exit 2
 		;;
 esac

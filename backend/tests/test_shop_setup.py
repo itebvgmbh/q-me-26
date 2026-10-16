@@ -180,6 +180,22 @@ def test_claude_aufruf_und_antwort():
     assert '<webseite>' in call['messages'][0]['content']
 
 
+def test_workspace_id_wird_mitgeschickt():
+    saved = {k: os.environ.get(k) for k in ('ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID')}
+    try:
+        os.environ['ANTHROPIC_API_KEY'] = 'sk-ant-test'
+        os.environ['ANTHROPIC_WORKSPACE_ID'] = ' wrkspc_01Test '
+        assert setup.anthropic_client().default_headers.get('anthropic-workspace-id') == 'wrkspc_01Test'
+        os.environ['ANTHROPIC_WORKSPACE_ID'] = ''
+        assert 'anthropic-workspace-id' not in setup.anthropic_client().default_headers
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
 def test_claude_lehnt_ab_oder_bricht_ab_leere_liste():
     assert setup.extract_services('x' * 100, None, client=FakeClient('', 'refusal')) == []
     assert setup.extract_services('x' * 100, None, client=FakeClient('{"services": [', 'max_tokens')) == []
