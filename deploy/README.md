@@ -148,10 +148,13 @@ Enterprise“) ist bis 1.000 im Monat frei, danach rund 2 Cent.
 **Anthropic** (`ANTHROPIC_API_KEY`): [console.anthropic.com](https://console.anthropic.com/) → „API Keys“ →
 „Create Key“, z. B. „q-me Laden einrichten“. Ausgelesen wird mit `claude-opus-5-5`, je Preisliste rund
 3–10 Cent. Günstiger (unter 1 Cent, etwas ungenauer): `QME_SETUP_MODEL=claude-haiku-5-5` in `/etc/q-me.env`.
+Gilt der Schlüssel für mehrere Workspaces, lehnt Claude jede Anfrage ab („not scoped to a workspace“, steht
+im Log). Dann zusätzlich die Workspace-ID eintragen (Option 3 im Block, `wrkspc_…`, zu finden unter
+[Workspaces](https://platform.claude.com/settings/workspaces)) – sie ist kein Geheimnis.
 
 Eintragen: Block in PowerShell einfügen. Er fragt, welchen Schlüssel, liest ihn verdeckt ein und schickt ihn
 über die Standardeingabe an `deploy/set-secret.sh` – so steht er weder im Fenster noch in einer History.
-Für den zweiten Schlüssel den Block noch einmal ausführen.
+Für jeden weiteren Eintrag den Block noch einmal ausführen.
 
 ```powershell
 & {
@@ -160,8 +163,8 @@ Für den zweiten Schlüssel den Block noch einmal ausführen.
   if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
   $skript = ssh -o BatchMode=yes $server 'test -f /opt/q-me/deploy/set-secret.sh && echo da' 2>&1 | Out-String
   if ($skript -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/set-secret.sh. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
-  $wahl = Read-Host 'Welchen Schluessel eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen)'
-  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } else { Write-Host 'Abbruch: Bitte 1 oder 2 eingeben.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID (nur wenn der Schluessel fuer mehrere Workspaces gilt)'
+  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } else { Write-Host 'Abbruch: Bitte 1, 2 oder 3 eingeben.' -ForegroundColor Red; return }
   $geheim = Read-Host "$name einfuegen (Strg+V, wird nicht angezeigt), dann Enter" -AsSecureString
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
   try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }

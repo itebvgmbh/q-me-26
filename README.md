@@ -41,6 +41,7 @@ Optional, for the shop setup assistant (`/shop-setup`); without them it simply a
 ```bash
 GOOGLE_MAPS_API_KEY=...   # Places API (New): find the shop, take over address, hours, website
 ANTHROPIC_API_KEY=...     # read the price list from the shop's website (QME_SETUP_MODEL overrides the model)
+ANTHROPIC_WORKSPACE_ID=... # only if the key is valid for several workspaces (sent as anthropic-workspace-id)
 ```
 
 On the server both go into `/etc/q-me.env` – see "Schlüssel für „Laden einrichten“" in [deploy/README.md](deploy/README.md).
