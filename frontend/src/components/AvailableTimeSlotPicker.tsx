@@ -104,7 +104,7 @@ export const AvailableTimeSlotPicker = ({
         </SelectTrigger>
         <SelectContent>
           {error ? (
-            <div className="px-2 py-1 text-sm text-red-500">{error}</div>
+            <div className="px-2 py-1 text-sm text-destructive">{error}</div>
           ) : availableSlots.length > 0 ? (
             <SelectGroup>
               <SelectLabel>Verfügbare Zeiten</SelectLabel>
@@ -119,7 +119,7 @@ export const AvailableTimeSlotPicker = ({
               ))}
             </SelectGroup>
           ) : (
-            <div className="px-2 py-1 text-sm text-gray-500">Wähl zuerst Leistung, Person und Datum.</div>
+            <div className="px-2 py-1 text-sm text-muted-foreground">Wähl zuerst Leistung, Person und Datum.</div>
           )}
         </SelectContent>
       </Select>

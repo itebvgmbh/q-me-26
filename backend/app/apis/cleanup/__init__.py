@@ -5,9 +5,12 @@ from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
 
 # Define router
+from fastapi import Depends
+from app.auth.access import require_admin
+
 router = APIRouter()
 
-@router.post("/cleanup-past-suggestions")
+@router.post("/cleanup-past-suggestions", dependencies=[Depends(require_admin)])
 async def cleanup_past_suggestions() -> int:
     """Cleanup past timeslot suggestions that are no longer relevant"""
     return await cleanup_past_timeslot_suggestions()

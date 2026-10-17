@@ -7,7 +7,10 @@ Ohne Google, Claude und Firebase lauffähig, ohne pytest:
 import os
 import socket
 import sys
+import threading
+import time
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -136,6 +139,104 @@ def test_zeichensatz_aus_der_seite():
     html = '<meta charset="iso-8859-1"><p>Föhnen</p>'.encode('latin-1')
     assert 'Föhnen' in setup._decode(html, 'text/html')
     assert 'Föhnen' in setup._decode('<p>Föhnen</p>'.encode('utf-8'), 'text/html; charset=utf-8')
+
+
+# --- Webseite lesen: Ausfälle, Zeitlimit, Umlaute ------------------------------------------------
+
+class _Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def _html(self, body: str):
+        data = body.encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if self.path == '/':
+            self._html('<a href="/preise">Preise</a><a href="/kaputt-preise">Leistungen</a><p>Salon Start</p>')
+        elif self.path == '/preise':
+            self._html('<h2>Herren</h2><p>Haarschnitt 25 €</p>')
+        elif self.path == '/kaputt-preise':
+            # verspricht 5000 Bytes, liefert 10 und legt auf
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', '5000')
+            self.end_headers()
+            self.wfile.write(b'<p>abgebr')
+            self.wfile.flush()
+            self.connection.shutdown(socket.SHUT_RDWR)
+        elif self.path == '/langsam':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            try:
+                for _ in range(30):
+                    self.wfile.write(b'x')
+                    self.wfile.flush()
+                    time.sleep(0.5)
+            except OSError:
+                pass
+
+
+def with_local_server(fn):
+    """Testserver auf 127.0.0.1 – die Sperre für interne Adressen dafür kurz umgehen"""
+    server = ThreadingHTTPServer(('127.0.0.1', 0), _Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    original = setup.check_public_url
+    setup.check_public_url = lambda url, resolve=None: (url, '127.0.0.1')
+    try:
+        return fn(f'http://test.local:{server.server_address[1]}')
+    finally:
+        setup.check_public_url = original
+        server.shutdown()
+
+
+def test_kaputte_unterseite_kostet_nicht_den_ganzen_import():
+    pages, text = with_local_server(lambda base: setup.collect_website_text(base + '/'))
+    assert any(p.endswith('/preise') for p in pages), pages
+    assert not any('kaputt' in p for p in pages), pages
+    assert 'Haarschnitt 25 €' in text and 'Salon Start' in text, text
+
+
+def test_abgebrochene_seite_ist_ein_lesbarer_fehler():
+    def run(base):
+        try:
+            setup.fetch_page(base + '/kaputt-preise')
+            return 'kein Fehler'
+        except ValueError as e:
+            return str(e)
+    message = with_local_server(run)
+    assert 'nicht vollständig lesen' in message, message
+
+
+def test_troepfelnde_seite_bricht_nach_zeitlimit_ab():
+    saved = setup.PAGE_SECONDS
+    setup.PAGE_SECONDS = 2
+
+    def run(base):
+        start = time.monotonic()
+        try:
+            setup.fetch_page(base + '/langsam')
+            return 'kein Fehler', time.monotonic() - start
+        except ValueError as e:
+            return str(e), time.monotonic() - start
+    try:
+        message, seconds = with_local_server(run)
+    finally:
+        setup.PAGE_SECONDS = saved
+    assert 'zu langsam' in message, message
+    assert seconds < 5, seconds
+
+
+def test_umlaut_domain_und_zugangsdaten_in_der_adresse():
+    url, _ = setup.check_public_url('https://www.müller.de/preise', resolve=fake_dns('93.184.216.34'))
+    assert url == 'https://www.xn--mller-kva.de/preise', url
+    url, _ = setup.check_public_url('http://nutzer:geheim@salon.example/', resolve=fake_dns('93.184.216.34'))
+    assert url == 'http://salon.example/', url
 
 
 # --- Leistungen ------------------------------------------------------------------------------------

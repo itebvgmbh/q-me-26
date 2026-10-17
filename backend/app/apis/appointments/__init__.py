@@ -8,6 +8,11 @@ from app.apis.cache import invalidate_shop_date_cache
 from app.apis.appointment_helpers import update_appointment, create_appointment, cancel_appointment
 
 # Create the router
+from fastapi import Depends
+from app.auth.access import require_admin
+
+# Die App schreibt Termine selbst über Firestore; diese Endpunkte prüfen keinen Besitz und sind nur für den Betreiber.
+
 router = APIRouter()
 
 # Define models
@@ -41,7 +46,7 @@ class UpdateAppointmentRequest(BaseModel):
 class CancelAppointmentRequest(BaseModel):
     appointmentId: str
 
-@router.post("/create-appointment")
+@router.post("/create-appointment", dependencies=[Depends(require_admin)])
 async def create_appointment_endpoint(request: CreateAppointmentRequest, background_tasks: BackgroundTasks) -> Dict[str, Any]:
     """Create a new appointment with automatic cache invalidation"""
     try:
@@ -67,7 +72,7 @@ async def create_appointment_endpoint(request: CreateAppointmentRequest, backgro
         traceback.print_exc()
         return {"status": "error", "message": f"Error creating appointment: {str(e)}"}
 
-@router.post("/update-appointment")
+@router.post("/update-appointment", dependencies=[Depends(require_admin)])
 async def update_appointment_endpoint(request: UpdateAppointmentRequest, background_tasks: BackgroundTasks) -> Dict[str, str]:
     """Update an appointment with automatic cache invalidation"""
     try:
@@ -98,7 +103,7 @@ async def update_appointment_endpoint(request: UpdateAppointmentRequest, backgro
         traceback.print_exc()
         return {"status": "error", "message": f"Error updating appointment: {str(e)}"}
 
-@router.post("/cancel-appointment")
+@router.post("/cancel-appointment", dependencies=[Depends(require_admin)])
 async def cancel_appointment_endpoint(request: CancelAppointmentRequest, background_tasks: BackgroundTasks) -> Dict[str, str]:
     """Cancel an appointment with automatic cache invalidation"""
     try:

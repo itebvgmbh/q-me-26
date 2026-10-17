@@ -6,6 +6,9 @@ from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
 import traceback
 
+from app.auth import AuthorizedUser
+from app.auth.access import is_admin
+
 router = APIRouter()
 
 class NotificationItem(BaseModel):
@@ -24,11 +27,13 @@ class NotificationItem(BaseModel):
     isAccepted: bool
 
 @router.get("/user-notifications", response_model=List[NotificationItem])
-async def get_user_notifications(userId: str, _t: Optional[str] = None) -> List[NotificationItem]:
+async def get_user_notifications(userId: str, user: AuthorizedUser, _t: Optional[str] = None) -> List[NotificationItem]:
     """
-    Get all earlier slot notifications for a specific user.
+    Get all earlier slot notifications for a specific user – nur die eigenen (Betreiber: beliebige).
     The _t parameter is a cache busting mechanism and is ignored.
     """
+    if userId != user.sub and not is_admin(user):
+        raise HTTPException(status_code=403, detail="Nur die eigenen Benachrichtigungen.")
     try:
         db = get_firestore_db()
         

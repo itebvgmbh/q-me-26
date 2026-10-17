@@ -6,6 +6,7 @@ import time
 from typing import Dict, List, Optional
 
 from app.auth import AuthorizedUser
+from app.auth.access import is_admin, require_admin
 
 from app.apis.check_slots import check_earlier_slots_v2
 from app.apis.appointment_helpers import update_appointment
@@ -22,15 +23,6 @@ try:
     run_interval = max(60, int(os.environ.get("QME_SCHEDULER_INTERVAL", "300")))
 except ValueError:
     run_interval = 300
-
-
-def require_shop_owner(user: AuthorizedUser) -> None:
-    """Steuern dürfen nur Betriebe – vorher reichte jedes Konto, auch ein Kundenkonto."""
-    from app.apis.firebase_utils import get_firestore_db
-
-    profile = get_firestore_db().collection("users").document(user.sub).get()
-    if not profile.exists or (profile.to_dict() or {}).get("role") != "shopOwner":
-        raise HTTPException(status_code=403, detail="Only shop owners may control the scheduler")
 
 
 def start_scheduler_thread() -> bool:
@@ -75,14 +67,14 @@ def scheduler_task():
             print(f"Error in scheduler task: {e}")
             time.sleep(60)  # Wait a minute before trying again
 
-@router.post("/start-scheduler", dependencies=[Depends(require_shop_owner)])
+@router.post("/start-scheduler", dependencies=[Depends(require_admin)])
 async def start_scheduler() -> Dict[str, str]:
     """Start the scheduler to periodically check for earlier slots"""
     if not start_scheduler_thread():
         return {"status": "already_running", "message": "Scheduler is already running"}
     return {"status": "started", "message": "Scheduler started successfully"}
 
-@router.post("/stop-scheduler", dependencies=[Depends(require_shop_owner)])
+@router.post("/stop-scheduler", dependencies=[Depends(require_admin)])
 async def stop_scheduler() -> Dict[str, str]:
     """Stop the scheduler"""
     global scheduler_running
@@ -94,18 +86,19 @@ async def stop_scheduler() -> Dict[str, str]:
     return {"status": "stopped", "message": "Scheduler stopped successfully"}
 
 @router.get("/scheduler-status")
-async def get_scheduler_status() -> Dict[str, object]:
-    """Get the current status of the scheduler"""
+async def get_scheduler_status(user: AuthorizedUser) -> Dict[str, object]:
+    """Get the current status of the scheduler; can_control sagt, ob dieses Konto ihn steuern darf"""
     global scheduler_running, last_run_time, run_interval
     
     return {
+        "can_control": is_admin(user),
         "is_running": scheduler_running,
         "last_run": last_run_time.isoformat() if last_run_time else None,
         "interval_seconds": run_interval,
         "next_run": (last_run_time + timedelta(seconds=run_interval)).isoformat() if last_run_time else None
     }
 
-@router.post("/set-interval", dependencies=[Depends(require_shop_owner)])
+@router.post("/set-interval", dependencies=[Depends(require_admin)])
 async def set_interval(interval_seconds: int) -> Dict[str, object]:
     """Set the interval for running the scheduler task"""
     global run_interval
@@ -116,7 +109,7 @@ async def set_interval(interval_seconds: int) -> Dict[str, object]:
     run_interval = interval_seconds
     return {"status": "success", "message": f"Interval set to {interval_seconds} seconds"}
 
-@router.post("/run-now", dependencies=[Depends(require_shop_owner)])
+@router.post("/run-now", dependencies=[Depends(require_admin)])
 async def run_now() -> Dict[str, object]:
     """Run the earlier slots check immediately"""
     global last_run_time

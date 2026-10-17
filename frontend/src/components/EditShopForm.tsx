@@ -10,7 +10,7 @@ import { uploadImage } from '../utils/firestore/storage';
 import { INDUSTRIES } from '../utils/industries';
 import { Loader2, Upload, X } from 'lucide-react';
 import { OpeningHoursEditor } from './OpeningHoursEditor';
-import { defaultHours } from '../utils/opening-hours';
+import { defaultHours, hoursFromLegacy, hoursProblem, normalizeHours } from '../utils/opening-hours';
 
 interface Props {
   shop: ShopProfileType;
@@ -144,6 +144,14 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       console.error('No shop ID available');
       return;
     }
+    // Ende vor Beginn o. Ä. würde den Tag sonst stillschweigend schließen
+    if (formData.businessHoursByDay?.length) {
+      const problem = hoursProblem(normalizeHours(formData.businessHoursByDay));
+      if (problem) {
+        toast.error(problem);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 
@@ -163,7 +171,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
   return (
     <form id="edit-shop-form" onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Shop Name</Label>
+        <Label htmlFor="name">Name des Ladens</Label>
         <Input
           id="name"
           value={formData.name}
@@ -173,7 +181,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-4">
-        <Label htmlFor="street">Adressdaten</Label>
+        <p className="text-sm font-medium">Adresse</p>
         <div className="grid grid-cols-1 gap-4">
           <div>
             <Label htmlFor="street" className="text-xs">Straße und Hausnummer</Label>
@@ -258,7 +266,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
           </p>
         )}
         <OpeningHoursEditor
-          value={formData.businessHoursByDay?.length ? formData.businessHoursByDay : defaultHours()}
+          value={formData.businessHoursByDay?.length ? formData.businessHoursByDay : hoursFromLegacy(formData.businessHours) ?? defaultHours()}
           onChange={(hours) => setFormData((prev) => ({ ...prev, businessHoursByDay: hours }))}
         />
       </div>
@@ -280,20 +288,20 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
             ))}
           </SelectContent>
         </Select>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Hilft Kunden bei der Suche.
         </p>
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="logo">Shop Logo</Label>
+        <Label htmlFor="logo">Logo</Label>
         <div className="flex flex-col space-y-3">
           {/* Aktuelles Logo anzeigen */}
           {formData.logoUrl && (
-            <div className="relative w-24 h-24 rounded-md overflow-hidden border border-gray-200">
+            <div className="relative w-24 h-24 rounded-md overflow-hidden border border-border">
               <img 
                 src={formData.logoUrl} 
-                alt="Shop Logo" 
+                alt="Logo des Ladens" 
                 className="w-full h-full object-cover"
               />
               <button 
@@ -341,9 +349,9 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
               e.target.value = '';
             }}
           />
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Maximale Größe: 1MB. Empfohlene Größe: 200x200 Pixel.
-            {isUploading && <span className="block mt-1 text-blue-500">Wird hochgeladen …</span>}
+            {isUploading && <span className="block mt-1 text-foreground">Wird hochgeladen …</span>}
           </p>
         </div>
       </div>
@@ -363,7 +371,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
             handleInputChange('timeSlotBuffer', String(milliseconds));
           }}
         />
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Definiert den minimalen Zeitabstand zwischen jetzt und dem frühestmöglichen Buchungszeitpunkt.
           Verhindert, dass Kunden Termine für die unmittelbare Zukunft buchen können.
           Empfohlen: 30-60 Minuten.

@@ -104,6 +104,13 @@ export const updateShop = async (shopId: string, shopData: Partial<Omit<Shop, 'i
   }
 };
 
+/** Läden eines Inhabers; wirft bei Fehlern (getShopsByOwnerId liefert dann [] – "kein Laden" wäre falsch) */
+export const listShopsOfOwner = async (ownerId: string): Promise<Shop[]> => {
+  const db = getFirestore(firebaseApp);
+  const snapshot = await getDocs(query(collection(db, 'shops'), where('owner', '==', ownerId)));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Shop[];
+};
+
 // Get all shops for a specific owner
 export const getShopsByOwnerId = async (ownerId: string): Promise<Shop[]> => {
   try {

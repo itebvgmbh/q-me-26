@@ -32,6 +32,9 @@ from app.apis.models import AvailableTimeslotsRequest, CheckEarlierSlotsResponse
 from app.apis.available_timeslots import get_available_timeslots
 from app.apis.utils import convert_timestamp_to_datetime
 
+from fastapi import Depends
+from app.auth.access import require_admin
+
 router = APIRouter()
 
 
@@ -317,7 +320,7 @@ def trigger_check_in_background(shop_id: Optional[str] = None, staff_id: Optiona
     threading.Thread(target=work, daemon=True).start()
 
 
-@router.post("/check-earlier-slots-v2")
+@router.post("/check-earlier-slots-v2", dependencies=[Depends(require_admin)])
 async def check_earlier_slots_v2(background_tasks: BackgroundTasks) -> CheckEarlierSlotsResponse:
     """Alle Termine prüfen (Hintergrund-Takt und "Jetzt einmalig prüfen")."""
     return run_earlier_slot_check()

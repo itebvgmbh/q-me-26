@@ -223,6 +223,11 @@ def draft_from_place(place: dict) -> dict:
 
 MAX_BYTES = 2_000_000
 MAX_TEXT = 60_000  # Zeichen an Claude, reicht für mehrere Preisseiten
+PAGE_SECONDS = 15  # höchstens so lange je Seite – auch wenn sie Byte für Byte tröpfelt
+TOTAL_SECONDS = 40  # alle Seiten zusammen
+# Webseiten-Abrufe belegen je einen Thread; mehr als drei gleichzeitig bremsen sonst die Zeitberechnung aus
+_website_slots = threading.BoundedSemaphore(3)
+KNOWN_INDUSTRIES = {"barbershop", "physiotherapy", "automotive", "coaching", "nailstudio", "beautysalon", "massage"}
 PRICE_LINK = re.compile(r"preis|leistung|service|angebot|behandlung|tarif|price|menu|karte|kosten", re.I)
 
 
@@ -245,7 +250,13 @@ def check_public_url(url: str, resolve=socket.getaddrinfo) -> tuple:
     if port not in (None, 80, 443):
         raise ValueError("Diese Webadresse wird nicht gelesen.")
     try:
-        infos = resolve(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        # Umlaut-Domains (friseur-müller.de) als xn--…: so stehen sie im Zertifikat und im DNS
+        host = parsed.hostname.encode("idna").decode("ascii")
+    except UnicodeError:
+        raise ValueError("Das ist keine Webadresse.")
+    url = parsed._replace(netloc=host + (f":{port}" if port else "")).geturl()  # ohne Benutzer:Passwort@
+    try:
+        infos = resolve(host, port or (443 if parsed.scheme.lower() == "https" else 80), proto=socket.IPPROTO_TCP)
     except socket.gaierror:
         raise ValueError("Diese Webseite gibt es nicht (Adresse nicht gefunden).")
     ips = [ipaddress.ip_address(info[4][0]) for info in infos]
@@ -261,20 +272,24 @@ def _decode(body: bytes, content_type: str) -> str:
     return dammit.unicode_markup or body.decode("utf-8", errors="replace")
 
 
-def fetch_page(url: str) -> tuple:
-    """(endgültige URL, HTML) – Weiterleitungen einzeln geprüft, Größe begrenzt."""
+def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
+    """(endgültige URL, HTML) – Weiterleitungen einzeln geprüft, Größe und Zeit begrenzt."""
+    deadline = min(deadline or float("inf"), time.monotonic() + PAGE_SECONDS)
     current, ip = check_public_url(url)
     for _ in range(5):
         parsed = urlparse(current)
         host = parsed.hostname
-        timeout = urllib3.Timeout(connect=5, read=10)
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise ValueError("Die Webseite antwortet zu langsam.")
+        timeout = urllib3.Timeout(connect=min(5, left), read=min(10, left))
         if parsed.scheme == "https":
             pool = urllib3.HTTPSConnectionPool(ip, port=parsed.port or 443, server_hostname=host, assert_hostname=host,
                                                cert_reqs="CERT_REQUIRED", ca_certs=certifi.where(), timeout=timeout, retries=False)
         else:
             pool = urllib3.HTTPConnectionPool(ip, port=parsed.port or 80, timeout=timeout, retries=False)
         path = (parsed.path or "/") + (f"?{parsed.query}" if parsed.query else "")
-        headers = {"Host": parsed.netloc.split("@")[-1], "User-Agent": USER_AGENT, "Accept-Language": "de",
+        headers = {"Host": parsed.netloc, "User-Agent": USER_AGENT, "Accept-Language": "de",
                    "Accept": "text/html,*/*;q=0.5", "Accept-Encoding": "gzip, deflate"}
         try:
             resp = pool.urlopen("GET", path, headers=headers, redirect=False, preload_content=False)
@@ -290,10 +305,19 @@ def fetch_page(url: str) -> tuple:
             if "html" not in content_type:
                 raise ValueError("Das ist keine Webseite.")
             body = b""
-            for chunk in resp.stream(65536, decode_content=True):
-                body += chunk
-                if len(body) > MAX_BYTES:
-                    break
+            try:
+                while True:
+                    # read1 gibt zurück, was gerade da ist – so greift die Frist auch bei tröpfelnden Seiten
+                    chunk = resp.read1(65536, decode_content=True)
+                    if not chunk:
+                        break
+                    body += chunk
+                    if len(body) > MAX_BYTES:
+                        break
+                    if time.monotonic() > deadline:
+                        raise ValueError("Die Webseite antwortet zu langsam.")
+            except urllib3.exceptions.HTTPError as e:
+                raise ValueError(f"Die Webseite ließ sich nicht vollständig lesen ({type(e).__name__}).")
             return current, _decode(body, content_type)
         finally:
             resp.release_conn()
@@ -336,15 +360,18 @@ def price_links(html: str, base_url: str, limit: int = 4) -> List[str]:
 
 
 def collect_website_text(url: str) -> tuple:
-    """(gelesene Seiten, Text) – Startseite plus bis zu vier Preis-/Leistungsseiten."""
-    start_url, html = fetch_page(url)
+    """(gelesene Seiten, Text) – Startseite plus bis zu vier Preis-/Leistungsseiten, zusammen höchstens TOTAL_SECONDS."""
+    deadline = time.monotonic() + TOTAL_SECONDS
+    start_url, html = fetch_page(url, deadline)
     pages = [start_url]
     parts = [f"### Seite: {start_url}\n{page_text(html)}"]
     for link in price_links(html, start_url):
+        if time.monotonic() > deadline - 2:
+            break  # was bis hier gelesen ist, reicht
         try:
-            final, sub_html = fetch_page(link)
+            final, sub_html = fetch_page(link, deadline)
         except ValueError:
-            continue
+            continue  # eine kaputte oder langsame Unterseite kostet nicht den ganzen Import
         if final in pages:
             continue
         pages.append(final)
@@ -589,13 +616,19 @@ def shop_setup_website_services(body: WebsiteServicesRequest, user: AuthorizedUs
         raise HTTPException(status_code=503, detail="Das Auslesen der Preisliste ist nicht eingerichtet.")
     _require_owner(user)
     _rate_limit(user, "website")
+    industry = body.industry if body.industry in KNOWN_INDUSTRIES else None
+    if not _website_slots.acquire(timeout=2):
+        raise HTTPException(status_code=503, detail="Gerade lesen viele gleichzeitig. Bitte in einer Minute noch einmal.")
     try:
-        pages, text = collect_website_text(body.url)
-    except ValueError as e:
-        print(f"shop-setup: Webseite nicht lesbar ({body.url}): {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        try:
+            pages, text = collect_website_text(body.url)
+        except ValueError as e:
+            print(f"shop-setup: Webseite nicht lesbar ({body.url}): {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        _website_slots.release()
     if len(text) < 80:
         return WebsiteServicesResponse(services=[], pages=pages)
-    services = extract_services(text, body.industry)
+    services = extract_services(text, industry)
     print(f"shop-setup: {len(services)} Leistungen aus {len(pages)} Seiten ({len(text)} Zeichen)")
     return WebsiteServicesResponse(services=[SuggestedService(**s) for s in services], pages=pages)

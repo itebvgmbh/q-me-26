@@ -80,7 +80,9 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
 
 /** Leistungen ankreuzen und Dauer/Preis direkt anpassen */
 export const ServicePicker = ({ services, onChange, templateTitle }: Props) => {
-  const update = (key: string, patch: Partial<DraftService>) => onChange(services.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  // Wer selbst an- oder abhakt, entscheidet – die Webseite wählt das dann nicht mehr ab
+  const update = (key: string, patch: Partial<DraftService>) =>
+    onChange(services.map((s) => (s.key === key ? { ...s, ...patch, ...('selected' in patch ? { autoSelected: false } : {}) } : s)));
   const remove = (key: string) => onChange(services.filter((s) => s.key !== key));
   const groups: { title: string; items: DraftService[]; removable: boolean }[] = [
     { title: 'Von deiner Webseite', items: services.filter((s) => s.source === 'website'), removable: true },

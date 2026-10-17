@@ -34,7 +34,8 @@ node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz be
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
-node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent zweimal durchklicken (mit nachgebildetem Google/KI und ohne), prüft die Datenbank
+node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken (mit nachgebildetem Google/KI, ohne, nach Abbruch), prüft die Datenbank
+node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen
@@ -62,12 +63,14 @@ Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im 
 | `QME_URL` | `http://localhost:5173` | Adresse der App. Für echte Ladezeiten den Build messen: `npm run build`, `npm run preview`, dann `http://localhost:4173` |
 | `QME_SHOP_ID` | ITEBV GmbH | Laden für Durchläufe, Seiten, Ladezeit, WLAN |
 | `QME_BROWSER_ARGS` | leer | Zusätzliche Chromium-Argumente, z. B. hinter einem Firmen-Proxy |
+| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://q-me.spielmacherei.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
 
 Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) und brauchen deshalb den
 Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py` und
-`uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen)
+`uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
+`uv run python tests/test_access.py` (wer ist Betreiber der App)
 
 ## PowerShell-Blöcke testen
 

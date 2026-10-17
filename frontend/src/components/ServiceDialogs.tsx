@@ -72,7 +72,7 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
         <ServiceForm
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
-          submitLabel="Service erstellen"
+          submitLabel="Leistung anlegen"
         />
       </DialogContent>
     </Dialog>

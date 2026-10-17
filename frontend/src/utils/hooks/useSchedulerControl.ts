@@ -6,6 +6,8 @@ import brain from 'brain';
  * Interface for scheduler status response from the API
  */
 export interface SchedulerStatus {
+  /** Nur der Betreiber der App darf den Dienst steuern */
+  can_control?: boolean;
   is_running: boolean;
   last_run: string | null;
   interval_seconds: number;
@@ -202,11 +204,12 @@ export const useSchedulerControl = () => {
   useEffect(() => {
     loadStatus();
     loadHistory();
-    const statusIntervalId = setInterval(loadStatus, 5000); // Refresh status every 5 seconds
-    const historyIntervalId = setInterval(loadHistory, 30000); // Refresh history every 30 seconds
+    // window.setInterval: "setInterval" ist hier der State-Setter für das Intervall und überdeckte den Timer
+    const statusIntervalId = window.setInterval(loadStatus, 30000);
+    const historyIntervalId = window.setInterval(loadHistory, 60000);
     return () => {
-      clearInterval(statusIntervalId);
-      clearInterval(historyIntervalId);
+      window.clearInterval(statusIntervalId);
+      window.clearInterval(historyIntervalId);
     };
   }, []);
 

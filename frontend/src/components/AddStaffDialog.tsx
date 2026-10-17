@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { uploadImage } from '../utils/firestore/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +13,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useCurrentUser } from 'app';
 import { isEmailInUse } from '../utils/auth-helpers';
 import { Shop, Service, WorkingHours, createStaff, createStaffInvitation } from '../utils/firestore';
 import { getDayName, defaultWorkingHours } from '../utils/staff-utils';
+import { workingHoursFromOpening } from '../utils/opening-hours';
 
 /**
  * Props for AddStaffDialog component
@@ -34,16 +36,27 @@ export interface AddStaffDialogProps {
  * Provides interface for setting up a new staff profile with all details
  */
 export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogProps) => {
+  const { user: currentUser } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('');
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  // Vorbelegt mit allen Leistungen – sonst ist eine neue Person für nichts buchbar
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => services.map((s) => s.id));
   const [emailError, setEmailError] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
-  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(defaultWorkingHours);
+  const initialHours = () => (shop.businessHoursByDay?.length ? workingHoursFromOpening(shop.businessHoursByDay) : defaultWorkingHours);
+  const [workingHours, setWorkingHours] = useState<WorkingHours[]>(initialHours);
+
+  // Beim Öffnen frisch vorbelegen: Leistungen kommen oft erst nach dem ersten Rendern
+  useEffect(() => {
+    if (!open || name) return;
+    setSelectedServiceIds(services.map((s) => s.id));
+    setWorkingHours(initialHours());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   /**
    * Toggle service selection for the staff member
@@ -88,15 +101,19 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
     // Reset previous errors
     setEmailError(null);
     
-    if (!name || !email || !phone || !role) {
-      toast.error('Bitte füll alle Pflichtfelder aus.');
+    // Pflicht ist nur der Name; E-Mail nur, wenn die Person eingeladen werden soll
+    if (!name.trim()) {
+      toast.error('Bitte trag einen Namen ein.');
       return;
     }
+    const mail = email.trim();
+    // Trägt sich der Inhaber selbst ein, gehört die Person zu seinem Konto ("Mein Tag") – keine Einladung nötig
+    const isMe = Boolean(mail && currentUser?.email && mail.toLowerCase() === currentUser.email.toLowerCase());
 
     try {
       console.log('Checking if email is in use:', email);
       // Check if email is already in use
-      const emailInUse = await isEmailInUse(email);
+      const emailInUse = mail && !isMe ? await isEmailInUse(mail) : false;
       console.log('Email in use result:', emailInUse);
       
       if (emailInUse) {
@@ -124,27 +141,30 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
 
       // Create the staff member
       const newStaff = await createStaff({
-        name,
-        email,
-        phone,
-        role,
+        name: name.trim(),
+        email: mail,
+        phone: phone.trim(),
+        role: role.trim(),
         shopId: shop.id,
         workingHours,
         serviceIds: selectedServiceIds,
         isActive: true,
         profileImageUrl: newProfileImageUrl,
         status: 'available',
-        userId: '',
+        userId: isMe ? currentUser!.uid : '',
       });
 
-      // Automatically generate registration link
-      try {
-        const invitation = await createStaffInvitation(shop.id, email);
-        // Link is automatically generated and email sent
-        toast.success('Mitarbeiter erfolgreich angelegt und Registrierungslink generiert');
-      } catch (invitationError) {
-        console.error('Error creating staff invitation:', invitationError);
-        toast.error('Mitarbeiter angelegt, aber Fehler beim Erstellen des Registrierungslinks');
+      if (mail && !isMe) {
+        // Einladungslink für das eigene Konto der Person (unter "Bearbeiten" zum Kopieren)
+        try {
+          await createStaffInvitation(shop.id, mail, false);
+          toast.success(`${name.trim()} ist im Team. Den Einladungslink findest du unter „Bearbeiten“.`);
+        } catch (invitationError) {
+          console.error('Error creating staff invitation:', invitationError);
+          toast.error(`${name.trim()} ist im Team, aber der Einladungslink konnte nicht erstellt werden.`);
+        }
+      } else {
+        toast.success(isMe ? 'Du bist jetzt im Team und siehst deine Termine unter „Mein Tag“.' : `${name.trim()} ist im Team.`);
       }
 
       onStaffAdded();
@@ -154,11 +174,11 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
       setEmail('');
       setPhone('');
       setRole('');
-      setSelectedServiceIds([]);
-      setWorkingHours(defaultWorkingHours);
+      setSelectedServiceIds(services.map((s) => s.id));
+      setWorkingHours(initialHours());
     } catch (error) {
       console.error('Error creating staff:', error);
-      toast.error('Fehler beim Anlegen des Mitarbeiters');
+      toast.error('Anlegen hat nicht geklappt. Bitte noch einmal.');
     }
   };
 
@@ -171,12 +191,12 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
         <DialogHeader>
           <DialogTitle>Person anlegen</DialogTitle>
           <DialogDescription>
-            Für dich selbst oder jemanden ohne eigenes Konto. Einladen kannst du später.
+            Für dich selbst (mit deiner E-Mail) oder jemanden aus dem Team. Mit E-Mail bekommt die Person einen Einladungslink.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Name*</Label>
+            <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               value={name}
@@ -185,24 +205,24 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="email">Email*</Label>
+            <Label htmlFor="email">E-Mail (freiwillig, für die Einladung)</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
               placeholder="max@beispiel.de"
-              className={emailError ? "border-red-500" : ""}
+              aria-invalid={emailError ? true : undefined}
+              className={emailError ? "border-destructive" : ""}
             />
             {emailError && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2" role="alert">
-                <strong className="font-bold">Fehler: </strong>
-                <span className="block sm:inline">{emailError}</span>
-              </div>
+              <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {emailError}
+              </p>
             )}
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phone">Telefon*</Label>
+            <Label htmlFor="phone">Telefon (freiwillig)</Label>
             <Input
               id="phone"
               value={phone}
@@ -211,18 +231,18 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="role">Position*</Label>
+            <Label htmlFor="role">Aufgabe (freiwillig)</Label>
             <Input
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              placeholder="z.B. Friseur"
+              placeholder="z. B. Friseurin"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label>Services</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <Label>Leistungen</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
               {services.map((service) => (
                 <div
                   key={service.id}
@@ -244,7 +264,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
           <div className="grid gap-2">
             <Label>Arbeitszeiten</Label>
             {workingHours.map((hours, index) => (
-              <div key={index} className="flex items-center gap-4 p-2 border rounded">
+              <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-2">
                 <div className="w-24">
                   <span>{getDayName(hours.dayOfWeek)}</span>
                 </div>

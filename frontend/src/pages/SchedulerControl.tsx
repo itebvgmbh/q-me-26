@@ -1,25 +1,15 @@
-import { useUserGuardContext } from 'app';
-
-// Import custom hook for scheduler control functionality
 import { useSchedulerControl } from '../utils/hooks/useSchedulerControl';
-
-// Import extracted UI components
 import { SchedulerStatusCard } from '../components/SchedulerStatusCard';
 import { SchedulerControlCard } from '../components/SchedulerControlCard';
 import { SchedulerResultCard } from '../components/SchedulerResultCard';
 import { NotificationHistoryTable } from '../components/NotificationHistoryTable';
 
-
 /**
- * SchedulerControl component
- * 
- * Provides an interface for admins to control the scheduler that checks for earlier appointment slots
- * Uses extracted components for different parts of the UI to improve maintainability
+ * "Früher dran": Status des Hintergrunddienstes und Verlauf der Angebote.
+ * Steuern (Start/Stopp, Takt, sofort prüfen) darf nur der Betreiber der App (QME_ADMIN_EMAILS auf dem
+ * Server) – der Dienst gilt für alle Läden. Inhaber sehen den Verlauf ihrer eigenen Läden.
  */
 const SchedulerControl = () => {
-  const { user } = useUserGuardContext();
-  
-  // Use the custom hook to handle all scheduler functionality
   const {
     status,
     interval,
@@ -36,31 +26,34 @@ const SchedulerControl = () => {
     updateInterval,
     runNow,
     checkEarlierSlots,
-    formatDateTime
+    formatDateTime,
   } = useSchedulerControl();
 
-  // Show loading state if data is still being fetched
   if (loading && !status) {
     return (
-      <>
-        <div className="container mx-auto py-8">
-          <p>Lädt...</p>
-        </div>
-      </>
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-10 sm:px-6" aria-busy="true" aria-label="Wird geladen">
+        <div className="h-10 w-56 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-40 animate-pulse rounded-3xl bg-muted" />
+      </div>
     );
   }
 
-  return (
-    <>
-      <div className="container mx-auto py-8 space-y-8">
-        <h1 className="text-2xl font-bold">Scheduler-Kontrolle</h1>
-        <p className="text-sm text-slate-600">
-          Diese Seite ermöglicht die Kontrolle des Schedulers, der frühere Terminoptionen für Kunden prüft.
-        </p>
+  const minutes = Math.round((status?.interval_seconds ?? 300) / 60);
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Status Card */}
-          <SchedulerStatusCard 
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Früher dran</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Frühere Plätze anbieten</h1>
+        <p className="text-muted-foreground">
+          Wird ein Termin abgesagt oder verschoben, bietet q-me den frei gewordenen Platz der nächsten Person in der Reihe an.
+          Zusätzlich prüft ein Hintergrunddienst alle {minutes} Minuten.
+        </p>
+      </div>
+
+      {status?.can_control ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <SchedulerStatusCard
             status={status}
             loading={loading}
             actionLoading={actionLoading}
@@ -69,8 +62,6 @@ const SchedulerControl = () => {
             stopScheduler={stopScheduler}
             loadStatus={loadStatus}
           />
-
-          {/* Interval Settings Card */}
           <SchedulerControlCard
             interval={interval}
             actionLoading={actionLoading}
@@ -80,18 +71,19 @@ const SchedulerControl = () => {
             checkEarlierSlots={checkEarlierSlots}
           />
         </div>
+      ) : (
+        <section className="flex flex-col gap-1 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-label="Status">
+          <p className="font-semibold">{status?.is_running ? 'Der Hintergrunddienst läuft.' : 'Der Hintergrunddienst läuft gerade nicht.'}</p>
+          <p className="text-sm text-muted-foreground">
+            Letzte Prüfung: {formatDateTime(status?.last_run ?? null)}. Er gilt für alle Läden; steuern kann ihn nur der Betreiber der App.
+          </p>
+        </section>
+      )}
 
-        {/* Result Card */}
-        <SchedulerResultCard checkResult={checkResult} />
-        
-        {/* History Table */}
-        <NotificationHistoryTable
-          historyItems={historyItems}
-          historyLoading={historyLoading}
-          loadHistory={loadHistory}
-        />
-      </div>
-    </>
+      <SchedulerResultCard checkResult={checkResult} />
+
+      <NotificationHistoryTable historyItems={historyItems} historyLoading={historyLoading} loadHistory={loadHistory} />
+    </div>
   );
 };
 

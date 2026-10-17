@@ -9,7 +9,7 @@ interface Props {
 
 /** Wortmarke "q-me" mit Q-Marke im Wartemarken-Stil */
 export const Logo = ({ to = '/', className, inverted = false }: Props) => (
-  <Link to={to} className={cn('flex items-center gap-2.5 rounded-lg', className)} aria-label="q-me – zur Startseite">
+  <Link to={to} className={cn('flex min-h-11 items-center gap-2.5 rounded-lg', className)} aria-label="q-me – zur Startseite">
     <span
       className={cn(
         'rounded-md px-2 py-1 font-mono text-sm font-bold leading-none',

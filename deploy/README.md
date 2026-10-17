@@ -185,6 +185,19 @@ Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^GOOGLE_MAPS_API_KE
 Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stunde höchstens 300 Suchen,
 40 übernommene Einträge und 12 ausgelesene Webseiten.
 
+## Betreiber der App
+
+Den Hintergrunddienst für „Früher dran“ steuern (Start/Stopp, Takt, sofort prüfen) und den Verlauf **aller**
+Läden sehen darf nur der Betreiber. Inhaber sehen unter `/scheduler-control` nur den Verlauf ihrer eigenen
+Läden. Wer Betreiber ist, steht in `/etc/q-me.env` (keine Geheimsache, aber nur root kann es ändern):
+
+```bash
+QME_ADMIN_EMAILS=a@example.com,b@example.com   # E-Mail des Firebase-Kontos, mehrere mit Komma
+QME_ADMIN_UIDS=…                               # alternativ die Firebase-UID
+```
+
+Danach `systemctl restart q-me`. Ohne Eintrag kann niemand steuern; der Dienst startet trotzdem von selbst.
+
 ## Verbindung prüfen
 
 Fragt `ssh` nach einem Passwort, findet es in diesem Fenster keinen passenden

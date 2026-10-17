@@ -13,7 +13,7 @@ import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { CounterLane } from '../components/counter/CounterLane';
 import {
-  getShopsByOwnerId,
+  listShopsOfOwner,
   getShopById,
   getShopStaff,
   createAppointment,
@@ -57,6 +57,7 @@ const ShopDashboard = () => {
   const [now, setNow] = useState(new Date());
   const [showEditShop, setShowEditShop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentType, setAppointmentType] = useState<'booked' | 'queue'>('queue');
 
@@ -104,7 +105,7 @@ const ShopDashboard = () => {
         return;
       }
       try {
-        const userShops = await getShopsByOwnerId(user.uid);
+        const userShops = await listShopsOfOwner(user.uid);
         setShops(userShops);
         // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens
         const wanted = userShops.find((s) => s.id === searchParams.get('shopId')) ?? userShops[0];
@@ -112,7 +113,7 @@ const ShopDashboard = () => {
         else setIsLoading(false);
       } catch (error) {
         console.error('Error loading shops:', error);
-        toast.error('Deine Läden konnten nicht geladen werden.');
+        setLoadFailed(true); // nicht "kein Laden" anzeigen – das würde zum Anlegen eines zweiten verleiten
         setIsLoading(false);
       }
     })();
@@ -176,6 +177,18 @@ const ShopDashboard = () => {
           ))}
         </div>
         <div className="h-72 animate-pulse rounded-3xl bg-muted" />
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">Dein Laden lädt gerade nicht.</h1>
+        <p className="text-muted-foreground">Die Verbindung zur Datenbank hat nicht geklappt. Prüf dein Internet und lade die Seite neu.</p>
+        <Button variant="signal" onClick={() => window.location.reload()}>
+          Neu laden
+        </Button>
       </div>
     );
   }

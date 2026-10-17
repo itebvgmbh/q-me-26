@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { addMinutes } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { addMinutes, format, isToday, isTomorrow } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AvailableTimeSlotPicker } from './AvailableTimeSlotPicker';
-
-// App imports
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-// Types
+import { cn } from '@/lib/utils';
 import { Service, Staff, Customer, Appointment } from '../utils/firestore';
+import { findEarliestSlots } from '../utils/firestore/timeslots';
 
 interface CreateAppointmentFormProps {
   services: Service[];
@@ -25,6 +24,20 @@ interface CreateAppointmentFormProps {
   createAppointment: (appointmentData: any) => Promise<Appointment>;
 }
 
+type Slot = { start: Date; end: Date };
+
+const when = (d: Date) => {
+  const time = format(d, 'HH:mm');
+  if (isToday(d)) return `heute um ${time}`;
+  if (isTomorrow(d)) return `morgen um ${time}`;
+  return `${format(d, 'EEEE, d. MMMM', { locale: de })} um ${time}`;
+};
+
+/**
+ * Tresen: Nummer vergeben (nächster freier Platz, wie beim QR-Code) oder Termin mit fester Uhrzeit.
+ * Für die Nummer reichen Leistung und – wenn gewünscht – Person und Name; Uhrzeit, Dauer und Preis
+ * ergeben sich daraus. Vorher fragte auch die Nummer nach Datum, Uhrzeit, Dauer und Preis.
+ */
 export const CreateAppointmentForm = ({
   services,
   staff,
@@ -34,264 +47,277 @@ export const CreateAppointmentForm = ({
   onCancel,
   appointmentType,
   setAppointmentType,
-  createAppointment
+  createAppointment,
 }: CreateAppointmentFormProps) => {
-  const [newAppointmentData, setNewAppointmentData] = useState({
-    customerId: '',
-    customerName: '',
-    serviceId: '',
-    staffId: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
-    time: '10:00',
-    duration: 30,
-    price: 0
-  });
+  const active = useMemo(() => staff.filter((s) => s.isActive !== false), [staff]);
+  const [serviceId, setServiceId] = useState(services.length === 1 ? services[0].id : '');
+  const [staffId, setStaffId] = useState<string>('any');
+  const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Termin mit fester Uhrzeit
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [time, setTime] = useState('');
+  const [duration, setDuration] = useState(30);
+  const [price, setPrice] = useState(0);
+  // Nummer: frühester Platz je Person
+  const [slots, setSlots] = useState<Record<string, Slot | null> | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [refresh, setRefresh] = useState(0);
 
-  // Update appointment duration and price when service changes
+  const service = services.find((s) => s.id === serviceId);
+  const eligible = useMemo(
+    () => active.filter((s) => !serviceId || !Array.isArray(s.serviceIds) || s.serviceIds.length === 0 || s.serviceIds.includes(serviceId)),
+    [active, serviceId],
+  );
+
   useEffect(() => {
-    if (newAppointmentData.serviceId) {
-      const selectedService = services.find(s => s.id === newAppointmentData.serviceId);
-      if (selectedService) {
-        setNewAppointmentData(prev => ({
-          ...prev,
-          duration: selectedService.duration,
-          price: selectedService.price
-        }));
-      }
+    if (service) {
+      setDuration(service.duration);
+      setPrice(service.price);
     }
-  }, [newAppointmentData.serviceId, services]);
+    if (staffId !== 'any' && !eligible.some((s) => s.id === staffId)) setStaffId('any');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceId]);
 
-  const handleAppointmentInputChange = (field: string, value: any) => {
-    setNewAppointmentData(prev => ({
-      ...prev,
-      [field]: field === 'price' || field === 'duration' ? Number(value) : value
-    }));
-  };
+  useEffect(() => {
+    if (appointmentType !== 'queue' || !serviceId || eligible.length === 0) {
+      setSlots(null);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    findEarliestSlots(shopId, serviceId, eligible.map((s) => s.id))
+      .then((result) => !cancelled && setSlots(result))
+      .catch(() => !cancelled && setSlots({}))
+      .finally(() => !cancelled && setSearching(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [appointmentType, shopId, serviceId, eligible, refresh]);
 
-  const handleCreateAppointment = async () => {
+  // Nächster Platz: bei "egal wer" der früheste über alle
+  const pick = useMemo(() => {
+    if (!slots) return null;
+    const candidates = (staffId === 'any' ? eligible : eligible.filter((s) => s.id === staffId))
+      .map((s) => ({ person: s, slot: slots[s.id] }))
+      .filter((c): c is { person: Staff; slot: Slot } => Boolean(c.slot))
+      .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime());
+    return candidates[0] ?? null;
+  }, [slots, staffId, eligible]);
+
+  const save = async (data: Record<string, unknown>, label: string) => {
+    setSaving(true);
     try {
-      // Parse time and create datetime
-      const [hours, minutes] = newAppointmentData.time.split(':').map(Number);
-      const startTime = new Date(newAppointmentData.date);
-      startTime.setHours(hours, minutes, 0, 0);
-      
-      // Calculate end time based on duration
-      const endTime = addMinutes(startTime, newAppointmentData.duration);
-      
-      // Wenn es sich um einen Bestandskunden handelt (customerId vorhanden),
-      // wird createAppointment automatisch den displayName aus der users-Collection verwenden
-      
-      // Create the appointment
-      const appointmentData = {
-        shopId: shopId,
-        customerId: newAppointmentData.customerId || 'walk-in',
-        customerName: newAppointmentData.customerName,
-        serviceId: newAppointmentData.serviceId,
-        staffId: newAppointmentData.staffId,
-        startTime: startTime,
-        endTime: endTime,
-        price: newAppointmentData.price,
-        status: 'scheduled',
-        type: appointmentType
-      };
-      
-      const createdAppointment = await createAppointment(appointmentData);
-      
-      toast.success(`${appointmentType === 'booked' ? 'Termin' : 'Warteschlangen-Eintrag'} erfolgreich erstellt`);
-      onCreateAppointment(createdAppointment);
-      
-      // Reset form data
-      setNewAppointmentData({
-        customerId: '',
-        customerName: '',
-        serviceId: '',
-        staffId: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        time: '10:00',
-        duration: 30,
-        price: 0
-      });
+      const created = await createAppointment(data);
+      toast.success(label);
+      onCreateAppointment(created);
     } catch (error: any) {
       console.error('Error creating appointment:', error);
-      toast.error(`${appointmentType === 'booked' ? 'Termin' : 'Nummer'} nicht angelegt: ${error.message || 'unbekannter Fehler'}`);
+      toast.error(`${appointmentType === 'booked' ? 'Termin' : 'Nummer'} nicht angelegt: ${error?.message || 'unbekannter Fehler'}`);
+      setRefresh((n) => n + 1); // Platz vermutlich gerade weg – neu suchen
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Helper function for unique customers
-  const getUniqueCustomers = (customers: Customer[]) => {
-    const uniqueMap = new Map();
-    customers.forEach(customer => {
-      if (!uniqueMap.has(customer.id)) {
-        uniqueMap.set(customer.id, customer);
-      }
-    });
-    return Array.from(uniqueMap.values());
+  const submitQueue = () => {
+    if (!service || !pick) return;
+    save(
+      {
+        shopId,
+        customerId: 'walk-in',
+        customerName: customerName.trim() || 'Laufkundschaft',
+        serviceId,
+        staffId: pick.person.id,
+        startTime: pick.slot.start,
+        endTime: pick.slot.end,
+        price: service.price,
+        status: 'scheduled',
+        type: 'queue',
+      },
+      `Nummer vergeben: ${format(pick.slot.start, 'HH:mm')} bei ${pick.person.name}.`,
+    );
   };
 
+  const submitBooked = () => {
+    if (!serviceId || staffId === 'any' || !time) return toast.error('Wähl Leistung, Person und Uhrzeit.');
+    const [h, m] = time.split(':').map(Number);
+    const start = new Date(`${date}T00:00:00`);
+    start.setHours(h, m, 0, 0);
+    save(
+      {
+        shopId,
+        customerId: customerId || 'walk-in',
+        customerName: customerName.trim(),
+        serviceId,
+        staffId,
+        startTime: start,
+        endTime: addMinutes(start, duration),
+        price,
+        status: 'scheduled',
+        type: 'booked',
+      },
+      `Termin eingetragen: ${format(start, 'dd.MM.')} um ${time}.`,
+    );
+  };
+
+  const customerOptions = useMemo(() => {
+    const seen = new Map<string, Customer>();
+    customers.forEach((c) => !seen.has(c.id) && seen.set(c.id, c));
+    return [...seen.values()];
+  }, [customers]);
+
   return (
-    <div className="space-y-4 py-2">
-      <div className="space-y-2">
-        <Label htmlFor="appointmentType">Termintyp</Label>
-        <Select
-          value={appointmentType}
-          onValueChange={(value) => setAppointmentType(value as 'booked' | 'queue')}
-          required
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Termintyp auswählen" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="booked">Regulärer Termin</SelectItem>
-            <SelectItem value="queue">Warteschlangen-Eintrag</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="customerName">Kundenname</Label>
-        <Input
-          id="customerName"
-          value={newAppointmentData.customerName}
-          onChange={(e) => handleAppointmentInputChange('customerName', e.target.value)}
-          placeholder="Name des Kunden"
-          required
-        />
+    <div className="flex flex-col gap-4 py-2">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1" role="radiogroup" aria-label="Art">
+        {(['queue', 'booked'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="radio"
+            aria-checked={appointmentType === t}
+            onClick={() => setAppointmentType(t)}
+            className={cn(
+              'min-h-11 rounded-xl px-3 text-sm font-semibold transition-colors',
+              appointmentType === t ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t === 'queue' ? 'Nummer (nächster Platz)' : 'Feste Uhrzeit'}
+          </button>
+        ))}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="customerId">Kunde auswählen (optional)</Label>
-        <Select
-          value={newAppointmentData.customerId}
-          onValueChange={(value) => {
-            handleAppointmentInputChange('customerId', value);
-            const customer = customers.find(c => c.id === value);
-            if (customer) {
-              handleAppointmentInputChange('customerName', customer.name);
-            }
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Kunde auswählen" />
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="serviceId">Leistung</Label>
+        <Select value={serviceId} onValueChange={setServiceId}>
+          <SelectTrigger id="serviceId">
+            <SelectValue placeholder="Leistung wählen" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="walk-in">Kein Bestandskunde / Walk-In</SelectItem>
-            {getUniqueCustomers(customers).map((customer) => (
-              <SelectItem key={customer.id} value={customer.id}>
-                {customer.name} {customer.email ? `(${customer.email})` : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="serviceId">Service</Label>
-        <Select
-          value={newAppointmentData.serviceId}
-          onValueChange={(value) => handleAppointmentInputChange('serviceId', value)}
-          required
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Service auswählen" />
-          </SelectTrigger>
-          <SelectContent>
-            {services.map((service) => (
-              <SelectItem key={service.id} value={service.id}>
-                {service.name} ({service.duration} Min, {service.price.toFixed(2)} €)
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="staffId">Mitarbeiter</Label>
-        <Select
-          value={newAppointmentData.staffId}
-          onValueChange={(value) => handleAppointmentInputChange('staffId', value)}
-          required
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Mitarbeiter auswählen" />
-          </SelectTrigger>
-          <SelectContent>
-            {staff.filter(s => s.isActive).map((staffMember) => (
-              <SelectItem key={staffMember.id} value={staffMember.id}>
-                {staffMember.name}
+            {services.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name} · {s.duration} Min.
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="date">Datum</Label>
-          <Input
-            id="date"
-            type="date"
-            value={newAppointmentData.date}
-            onChange={(e) => handleAppointmentInputChange('date', e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="time">Uhrzeit</Label>
-          {newAppointmentData.serviceId && newAppointmentData.staffId ? (
-            <AvailableTimeSlotPicker 
-              shopId={shopId}
-              serviceId={newAppointmentData.serviceId}
-              staffId={newAppointmentData.staffId}
-              date={newAppointmentData.date}
-              value={newAppointmentData.time}
-              onChange={(time) => handleAppointmentInputChange('time', time)}
-            />
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="staffId">Bei wem?</Label>
+        <Select value={staffId} onValueChange={setStaffId}>
+          <SelectTrigger id="staffId">
+            <SelectValue placeholder="Person wählen" />
+          </SelectTrigger>
+          <SelectContent>
+            {appointmentType === 'queue' && <SelectItem value="any">Egal wer – wer zuerst frei ist</SelectItem>}
+            {eligible.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="customerName">{appointmentType === 'queue' ? 'Name zum Aufrufen (freiwillig)' : 'Name'}</Label>
+        <Input id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="z. B. Herr Krause" autoComplete="off" />
+      </div>
+
+      {appointmentType === 'queue' ? (
+        <div className="rounded-2xl border border-border bg-background p-4" role="status" aria-live="polite">
+          {!serviceId ? (
+            <p className="text-sm text-muted-foreground">Wähl eine Leistung, dann siehst du den nächsten freien Platz.</p>
+          ) : eligible.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Für diese Leistung ist niemand im Team eingetragen.</p>
+          ) : searching ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Suche den nächsten freien Platz …
+            </p>
+          ) : pick ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Dran</p>
+              <p className="font-display text-2xl font-bold">{when(pick.slot.start)}</p>
+              <p className="text-sm text-muted-foreground">bei {pick.person.name}</p>
+              {!isToday(pick.slot.start) && <p className="mt-2 text-sm">Heute ist nichts mehr frei.</p>}
+            </>
           ) : (
-            <Input
-              id="time"
-              type="time"
-              value={newAppointmentData.time}
-              onChange={(e) => handleAppointmentInputChange('time', e.target.value)}
-              required
-              disabled={!newAppointmentData.serviceId || !newAppointmentData.staffId}
-            />
-          )}
-          {(!newAppointmentData.serviceId || !newAppointmentData.staffId) && (
-            <p className="text-xs text-amber-600 mt-1">Wähl zuerst Leistung und Person.</p>
+            <p className="text-sm text-muted-foreground">In den nächsten 14 Tagen ist nichts frei.</p>
           )}
         </div>
-      </div>
+      ) : (
+        <>
+          {customerOptions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="customerId">Bestandskunde (freiwillig)</Label>
+              <Select
+                value={customerId}
+                onValueChange={(value) => {
+                  setCustomerId(value);
+                  const c = customerOptions.find((x) => x.id === value);
+                  if (c && !customerName.trim()) setCustomerName(c.name);
+                }}
+              >
+                <SelectTrigger id="customerId">
+                  <SelectValue placeholder="Kunde wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customerOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {c.email ? `(${c.email})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="date">Datum</Label>
+              <Input id="date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="time">Uhrzeit</Label>
+              {serviceId && staffId !== 'any' ? (
+                <AvailableTimeSlotPicker shopId={shopId} serviceId={serviceId} staffId={staffId} date={date} value={time} onChange={setTime} />
+              ) : (
+                <>
+                  <Input id="time" type="time" value={time} disabled />
+                  <p className="text-xs text-muted-foreground">Wähl zuerst Leistung und Person.</p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="duration">Dauer (Minuten)</Label>
+              <Input id="duration" type="number" min="5" step="5" value={duration} onChange={(e) => setDuration(Math.max(5, Number(e.target.value) || 0))} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="price">Preis (€)</Label>
+              <Input id="price" type="number" min="0" step="0.5" value={price} onChange={(e) => setPrice(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+          </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="duration">Dauer (Minuten)</Label>
-          <Input
-            id="duration"
-            type="number"
-            min="5"
-            step="5"
-            value={newAppointmentData.duration}
-            onChange={(e) => handleAppointmentInputChange('duration', e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="price">Preis (€)</Label>
-          <Input
-            id="price"
-            type="number"
-            step="0.01"
-            value={newAppointmentData.price}
-            onChange={(e) => handleAppointmentInputChange('price', e.target.value)}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="pt-4 flex justify-end space-x-2">
-        <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
-        <Button onClick={handleCreateAppointment}>
-          {appointmentType === 'booked' ? 'Termin erstellen' : 'In Warteschlange einfügen'}
+      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={onCancel} disabled={saving}>
+          Abbrechen
         </Button>
+        {appointmentType === 'queue' ? (
+          <Button variant="signal" onClick={submitQueue} disabled={saving || !pick}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            Nummer vergeben
+          </Button>
+        ) : (
+          <Button variant="signal" onClick={submitBooked} disabled={saving || !serviceId || staffId === 'any' || !time}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            Termin eintragen
+          </Button>
+        )}
       </div>
     </div>
   );

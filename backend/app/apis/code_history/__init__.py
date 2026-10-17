@@ -47,6 +47,9 @@ class FileNode(BaseModel):
     imports: Optional[List[Dict[str, str]]] = None
 
 # Initialize router
+from fastapi import Depends
+from app.auth.access import require_admin
+
 router = APIRouter()
 
 #-------------------------------------------------------------------------
@@ -480,7 +483,7 @@ def store_health_check_results(results):
     except Exception as e:
         print(f"Error storing health check history: {str(e)}")
 
-@router.get("/analyze", tags=["noauth"])
+@router.get("/analyze", tags=["noauth"], dependencies=[Depends(require_admin)])
 def analyze_code_health():
     codebase_structure = scan_codebase_structure()
     if not codebase_structure:
@@ -521,7 +524,7 @@ def analyze_code_health():
     store_health_check_results(response)
     return response
 
-@router.get("/health-history", tags=["noauth"])
+@router.get("/health-history", tags=["noauth"], dependencies=[Depends(require_admin)])
 def get_health_check_history():
     try:
         history = db.storage.json.get("code-health-history", default=[])
@@ -529,7 +532,7 @@ def get_health_check_history():
     except Exception as e:
         return {"error": f"Error retrieving health check history: {str(e)}"}
 
-@router.get("/firestore-analysis", tags=["noauth"])
+@router.get("/firestore-analysis", tags=["noauth"], dependencies=[Depends(require_admin)])
 def analyze_firestore_usage():
     codebase_structure = scan_codebase_structure()
     if not codebase_structure:

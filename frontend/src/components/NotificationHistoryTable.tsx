@@ -42,7 +42,7 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
         {historyLoading && <p>Lädt Verlauf...</p>}
         
         {!historyLoading && historyItems.length === 0 && (
-          <div className="py-8 text-center text-slate-500">
+          <div className="py-8 text-center text-muted-foreground">
             <p>Noch keine Benachrichtigungen vorhanden</p>
           </div>
         )}
@@ -51,7 +51,7 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+                <tr className="border-b border-border bg-muted">
                   <th className="p-2 text-left font-medium">Datum</th>
                   <th className="p-2 text-left font-medium">Kunde</th>
                   <th className="p-2 text-left font-medium">Salon</th>
@@ -72,7 +72,7 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
                   const earlierDate = new Date(item.earlierStartTime);
                   
                   return (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr key={item.id} className="border-b border-border hover:bg-muted">
                       <td className="p-2">{formatLocalDate(createdDate)}</td>
                       <td className="p-2">{item.userName || "Unbekannter Kunde"}</td>
                       <td className="p-2">{item.shopName || "Unbekannt"}</td>
@@ -94,7 +94,7 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
                           <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">Ausstehend</Badge>
                         )}
                       </td>
-                      <td className="p-2 text-xs text-slate-500">{item.appointmentId}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{item.appointmentId}</td>
                     </tr>
                   );
                 })}

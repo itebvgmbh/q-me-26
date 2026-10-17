@@ -247,13 +247,13 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="serviceId">Service</Label>
+              <Label htmlFor="serviceId">Leistung</Label>
               <Select
                 value={appointmentFormData.serviceId}
                 onValueChange={(value) => handleInputChange('serviceId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Service auswählen" />
+                  <SelectValue placeholder="Leistung wählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {services.map((service) => (
@@ -266,13 +266,13 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="staffId">Mitarbeiter</Label>
+              <Label htmlFor="staffId">Person</Label>
               <Select
                 value={appointmentFormData.staffId || ''}
                 onValueChange={(value) => handleInputChange('staffId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Mitarbeiter auswählen" />
+                  <SelectValue placeholder="Person wählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {staff.map((staffMember) => (
