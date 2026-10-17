@@ -15,12 +15,14 @@ import { ServicePicker } from '../components/setup/ServicePicker';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { INDUSTRIES, getIndustryById } from '../utils/industries';
 import { getUserProfile } from '../utils/user-profile-service';
+import { isEmailInUse } from '../utils/auth-helpers';
 import { DAY_SHORT, formatDayHours, hoursProblem, normalizeHours, WEEK_ORDER } from '../utils/opening-hours';
 import {
   applyPlace,
   assignmentOf,
   clearDraft,
   createFromDraft,
+  effectiveAssignment,
   emptyDraft,
   loadDraft,
   mergeWebsiteServices,
@@ -30,6 +32,7 @@ import {
   setupStatus,
   SetupResult,
   ShopDraft,
+  unassignedServices,
   websiteServices,
   withTemplates,
 } from '../utils/shop-setup';
@@ -100,7 +103,7 @@ const ShopSetup = () => {
   const [website, setWebsite] = useState<{ state: 'idle' | 'reading' | 'done' | 'failed'; text?: string }>({ state: 'idle' });
   const [creating, setCreating] = useState('');
   const [result, setResult] = useState<SetupResult | null>(null);
-  const createdShopId = useRef<string | null>(null);
+  const busy = useRef(false);
   const top = useRef<HTMLDivElement>(null);
 
   // Start: Profil prüfen, Entwurf fortsetzen oder neu beginnen
@@ -164,7 +167,10 @@ const ShopSetup = () => {
   const step = (draft?.step as Step) || 'find';
   useEffect(() => {
     if (!draft || step !== 'services') return;
-    if (!draft.services.some((s) => s.source === 'template')) patch({ services: withTemplates(draft.services, draft.industry) });
+    // Vorlagen zur aktuellen Branche: beim ersten Mal und nach einem Branchenwechsel
+    if (!draft.services.some((s) => s.source === 'template') || draft.templateIndustry !== draft.industry) {
+      patch({ services: withTemplates(draft.services, draft.industry), templateIndustry: draft.industry });
+    }
     if (status.ai && draft.website && draft.websiteRead !== draft.website && website.state !== 'reading') readWebsite(draft.website);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, status.ai]);
@@ -241,21 +247,28 @@ const ShopSetup = () => {
 
   // --- Schritte ------------------------------------------------------------------------------------
   const finish = async () => {
+    if (busy.current) return; // Doppelklick
+    busy.current = true;
     setProblem('');
+    let started = Boolean(draft.progress?.shopId);
     try {
-      const res = await createFromDraft(user.uid, draft, setCreating, (shop) => (createdShopId.current = shop.id));
+      const res = await createFromDraft(user.uid, draft, setCreating, (progress) => {
+        started = true;
+        setDraft((d) => (d ? { ...d, progress } : d)); // landet über saveDraft auch im Browser
+      });
       clearDraft(user.uid);
       setResult(res);
       window.scrollTo({ top: 0 });
     } catch (e) {
       console.error('Laden einrichten fehlgeschlagen:', e);
       setProblem(
-        createdShopId.current
-          ? 'Der Laden ist angelegt, aber nicht alles wurde gespeichert. Prüf am Tresen unter „Leistungen“ und „Team“, was fehlt.'
+        started
+          ? 'Ein Teil ist schon gespeichert, der Rest noch nicht. Prüf dein Internet und tipp auf „Weiter anlegen“ – es entsteht kein zweiter Laden.'
           : 'Das Speichern hat nicht geklappt. Prüf dein Internet und versuch es noch einmal.',
       );
     } finally {
       setCreating('');
+      busy.current = false;
     }
   };
 
@@ -358,13 +371,15 @@ const ShopSetup = () => {
               selected={draft.industry === i.id}
               title={i.name}
               meta={i.description}
-              onClick={() => next({ ...draft, industry: i.id, industryGuessed: false, services: draft.industry === i.id ? draft.services : draft.services.filter((s) => s.source !== 'template') })}
+              onClick={() => next({ ...draft, industry: i.id, industryGuessed: false, industryConfirmed: true })}
             />
           ))}
+          {/* Vorlagen tauscht der Schritt "Leistungen" bei einem Wechsel selbst aus; eigene Anpassungen bleiben */}
           <QueueOption
+            selected={draft.industryConfirmed && draft.industry === ''}
             title="Etwas anderes"
             meta="Du trägst deine Leistungen selbst ein"
-            onClick={() => next({ ...draft, industry: '', industryGuessed: false, services: draft.services.filter((s) => s.source !== 'template') })}
+            onClick={() => next({ ...draft, industry: '', industryGuessed: false, industryConfirmed: true })}
           />
         </div>
       );
@@ -467,14 +482,21 @@ const ShopSetup = () => {
       const others = draft.team.filter((t) => t.name.trim());
       primary = {
         label: draft.ownerWorks && others.length === 0 ? 'Nur ich, weiter' : 'Weiter',
-        onClick: () => {
+        onClick: async () => {
           if (draft.ownerWorks && !draft.ownerName.trim()) return setProblem('Wie sollen Kunden dich sehen? Trag deinen Vornamen ein.');
+          if (draft.team.some((t) => !t.name.trim() && t.email.trim())) return setProblem('Bei einer Person fehlt der Name.');
           if (peopleOf(draft).length === 0) return setProblem('Mindestens eine Person muss Termine annehmen – sonst gibt es keine freien Zeiten.');
           const bad = others.find((t) => t.email.trim() && !isEmail(t.email));
           if (bad) return setProblem(`Die E-Mail von ${bad.name} stimmt nicht.`);
           const emails = others.map((t) => t.email.trim().toLowerCase()).filter(Boolean);
           if (new Set(emails).size !== emails.length || (draft.ownerWorks && emails.includes(draft.email.trim().toLowerCase()))) {
             return setProblem('Jede E-Mail darf nur einmal vorkommen.');
+          }
+          // Hat jemand mit dieser E-Mail schon ein Konto oder ist eingeladen, scheitert der Einladungslink später
+          for (const t of others.filter((x) => x.email.trim() && !draft.progress?.staffKeys.includes(x.key))) {
+            if (await isEmailInUse(t.email.trim()).catch(() => false)) {
+              return setProblem(`${t.email.trim()} hat schon ein Konto oder ist eingeladen. Lass die E-Mail bei ${t.name} leer und lade später unter „Team“ ein.`);
+            }
           }
           next({ ...draft, team: draft.team.filter((t) => t.name.trim()) });
         },
@@ -488,6 +510,9 @@ const ShopSetup = () => {
         const a = assignmentOf(draft, personKey);
         const current = a.serviceKeys.length ? a.serviceKeys : chosenServices.map((s) => s.key);
         const serviceKeys = current.includes(serviceKey) ? current.filter((k) => k !== serviceKey) : [...current, serviceKey];
+        // leer hieße "alle" – also die letzte Leistung nicht abwählen lassen
+        if (serviceKeys.length === 0) return setProblem('Jede Person braucht mindestens eine Leistung.');
+        setProblem('');
         patch({ assignments: { ...draft.assignments, [personKey]: { ...a, serviceKeys } } });
       };
       body = (
@@ -525,6 +550,8 @@ const ShopSetup = () => {
                   return keys.length > 0 && !keys.some((k) => chosenServices.some((s) => s.key === k));
                 });
                 if (empty) return setProblem(`${empty.name} braucht mindestens eine Leistung.`);
+                const orphan = unassignedServices(draft);
+                if (orphan.length) return setProblem(`„${orphan[0].name}“ macht noch niemand – sonst kann man es nicht buchen.`);
                 next();
               },
             }
@@ -539,6 +566,8 @@ const ShopSetup = () => {
         const a = assignmentOf(draft, personKey);
         const current = a.days.length ? a.days : openDays;
         const days = current.includes(day) ? current.filter((x) => x !== day) : [...current, day];
+        if (days.length === 0) return setProblem('Jede Person braucht mindestens einen Arbeitstag.');
+        setProblem('');
         patch({ assignments: { ...draft.assignments, [personKey]: { ...a, days } } });
       };
       body = (
@@ -584,7 +613,9 @@ const ShopSetup = () => {
     }
     case 'summary': {
       title = 'Alles bereit?';
-      intro = 'Prüf kurz. Mit „Laden eröffnen“ wird alles angelegt.';
+      intro = draft.progress?.shopId
+        ? 'Ein Teil ist schon gespeichert. „Weiter anlegen“ ergänzt den Rest – ohne zweiten Laden.'
+        : 'Prüf kurz. Mit „Laden eröffnen“ wird alles angelegt.';
       const hours = normalizeHours(draft.hours);
       const Section = ({ label, to, children }: { label: string; to: Step; children: ReactNode }) => (
         <section className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-4">
@@ -629,11 +660,26 @@ const ShopSetup = () => {
             </ul>
           </Section>
           <Section label="Team" to="team">
-            <p className="text-sm">{people.map((p) => (p.isOwner ? `${p.name} (du)` : p.name)).join(', ')}</p>
+            <ul className="flex flex-col gap-1 text-sm">
+              {people.map((p) => {
+                const a = effectiveAssignment(draft, p.key);
+                const openDays = WEEK_ORDER.filter((d) => hours[d].isOpen);
+                const detail = [
+                  a.serviceKeys.length < chosenServices.length ? `${a.serviceKeys.length} von ${chosenServices.length} Leistungen` : '',
+                  a.days.length < openDays.length ? WEEK_ORDER.filter((d) => a.days.includes(d)).map((d) => DAY_SHORT[d]).join(' ') : '',
+                ].filter(Boolean).join(' · ');
+                return (
+                  <li key={p.key} className="flex justify-between gap-3">
+                    <span>{p.isOwner ? `${p.name} (du)` : p.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{detail || 'alles, wenn offen ist'}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </Section>
         </div>
       );
-      primary = { label: creating || 'Laden eröffnen', disabled: Boolean(creating), onClick: finish };
+      primary = { label: creating || (draft.progress?.shopId ? 'Weiter anlegen' : 'Laden eröffnen'), disabled: Boolean(creating), onClick: finish };
       break;
     }
   }
@@ -662,7 +708,7 @@ const ShopSetup = () => {
               Zurück
             </Button>
           ) : (
-            <Link to="/shop-dashboard" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+            <Link to="/shop-dashboard" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
               Später weitermachen
             </Link>
           )}

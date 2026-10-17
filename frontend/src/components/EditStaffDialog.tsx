@@ -144,8 +144,9 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
     // Reset previous errors
     setEmailError(null);
     
-    if (!name || !email || !phone || !role) {
-      toast.error('Bitte füll alle Pflichtfelder aus.');
+    // Pflicht ist nur der Name: Der Assistent legt Personen ohne Telefon an, E-Mail ist freiwillig
+    if (!name.trim()) {
+      toast.error('Bitte trag einen Namen ein.');
       return;
     }
 
@@ -163,7 +164,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       }
 
       // Check if email changed and is already in use
-      if (email !== staff.email) {
+      if (email.trim() && email !== staff.email) {
         console.log('Email changed, checking if in use:', email);
         const emailInUse = await isEmailInUse(email);
         console.log('Email in use result for edit:', emailInUse);
@@ -183,20 +184,20 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       
       await updateStaff(staff.id, {
         profileImageUrl: newProfileImageUrl,
-        name,
-        email,
-        phone,
-        role,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        role: role.trim(),
         serviceIds: selectedServiceIds,
         workingHours,
       });
 
-      toast.success('Mitarbeiter erfolgreich aktualisiert');
+      toast.success('Gespeichert.');
       onStaffUpdated();
       setOpen(false);
     } catch (error) {
       console.error('Error updating staff:', error);
-      toast.error('Fehler beim Aktualisieren des Mitarbeiters');
+      toast.error('Speichern hat nicht geklappt. Bitte noch einmal.');
     }
   };
 
@@ -207,14 +208,14 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Mitarbeiter bearbeiten</DialogTitle>
+          <DialogTitle>{staff.name} bearbeiten</DialogTitle>
           <DialogDescription>
-            Leistungen, Arbeitszeiten und Kontakt. Ohne Konto kannst du hier einen Registrierungslink erzeugen.
+            Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, erstellst du hier einen Einladungslink.
           </DialogDescription>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-wrap space-x-1 rounded-md bg-muted p-1 mb-4">
+          <div className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-muted p-1" role="tablist">
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'profile' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('profile')}
@@ -225,7 +226,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'services' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('services')}
             >
-              Services
+              Leistungen
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'working-hours' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
@@ -287,24 +288,24 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">E-Mail (freiwillig, für die Einladung)</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                   placeholder="max@beispiel.de"
-                  className={emailError ? "border-red-500" : ""}
+                  aria-invalid={emailError ? true : undefined}
+                  className={emailError ? "border-destructive" : ""}
                 />
                 {emailError && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                    <strong className="font-bold">Fehler: </strong>
-                    <span className="block sm:inline">{emailError}</span>
-                  </div>
+                  <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {emailError}
+                  </p>
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">Telefon</Label>
+                <Label htmlFor="phone">Telefon (freiwillig)</Label>
                 <Input
                   id="phone"
                   value={phone}
@@ -313,127 +314,73 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="role">Position</Label>
+                <Label htmlFor="role">Aufgabe (freiwillig)</Label>
                 <Input
                   id="role"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="z.B. Friseur"
+                  placeholder="z. B. Friseurin"
                 />
               </div>
 
               <div className="space-y-4">
                 <div className="border-t pt-4">
-                  <Label>Registrierungslink</Label>
-                  <p className="text-sm text-muted-foreground mb-2">Erzeug einen Link, mit dem die Person ihr Konto anlegt.</p>
+                  <Label>Einladungslink</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {staff.userId
+                      ? 'Die Person hat schon ein Konto.'
+                      : 'Mit diesem Link legt die Person ihr Konto an und sieht danach ihren eigenen Tag. Schick ihn per Nachricht oder E-Mail.'}
+                  </p>
                   {registrationLink ? (
                     <div className="space-y-2">
-                      {emailSent && (
-                        <div className="p-2 mb-2 bg-green-50 border border-green-200 rounded text-green-600">
-                          <p className="text-sm">
-                            <span className="font-medium">✓ E-Mail gesendet</span> {emailSentTime && `am ${emailSentTime}`}
-                          </p>
-                        </div>
-                      )}
                       <div className="p-2 bg-muted rounded break-all">
                         <a href={registrationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
                           {registrationLink}
                         </a>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => {
-                            navigator.clipboard.writeText(registrationLink);
-                            toast.success('Link in die Zwischenablage kopiert');
-                          }}
-                        >
-                          Link kopieren
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          onClick={async () => {
-                            try {
-                              // Create a new invitation first so we have a valid ID
-                              const invitation = await createStaffInvitation(shop.id, email);
-                              
-                              // Use brain client with valid invitation ID
-                              const response = await brain.send_staff_invitation({
-                                invitation_id: invitation.id,
-                                shop_id: shop.id,
-                                email: email,
-                                invitation_link: registrationLink
-                              });
-                              
-                              // Debug output
-                              console.log('E-Mail Response Status:', response.status);
-                              
-                              if (response.ok) {
-                                console.log('E-Mail erfolgreich versendet');
-                                // Save success state
-                                setEmailSent(true);
-                                // Save current time
-                                const now = new Date();
-                                const formattedTime = now.toLocaleString('de-DE', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                });
-                                setEmailSentTime(formattedTime);
-                                
-                                // Toast with extended display time
-                                toast.success('Registrierungslink per E-Mail versendet', {
-                                  duration: 4000,
-                                  position: 'top-center'
-                                });
-                              } else {
-                                const errorText = await response.text();
-                                console.error('Error sending invitation email:', errorText);
-                                toast.error('Fehler beim Versenden der Einladungs-E-Mail', {
-                                  duration: 4000,
-                                  position: 'top-center'
-                                });
-                              }
-                            } catch (error) {
-                              console.error('Error sending invitation email:', error);
-                              toast.error('Fehler beim Versenden der Einladungs-E-Mail');
-                            }
-                          }}
-                        >
-                          Per E-Mail senden
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          navigator.clipboard.writeText(registrationLink).then(
+                            () => toast.success('Link kopiert.'),
+                            () => toast.error('Kopieren ging nicht. Markier den Link und kopier ihn von Hand.'),
+                          );
+                        }}
+                      >
+                        Link kopieren
+                      </Button>
                       <Button
                         variant="outline"
                         className="w-full"
                         onClick={() => setRegistrationLink('')}
                       >
-                        Neuen Link generieren
+                        Neuen Link erstellen
                       </Button>
                     </div>
                   ) : (
                     <Button
                       variant="outline"
                       className="w-full"
+                      disabled={!email.trim() || Boolean(staff.userId)}
                       onClick={async () => {
                         try {
                           // Create invitation but don't send email automatically
                           const invitation = await createStaffInvitation(shop.id, email, false);
                           const link = `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}`;
                           setRegistrationLink(link);
-                          toast.success('Registrierungslink generiert');
+                          toast.success('Einladungslink erstellt.');
                         } catch (error) {
                           console.error('Error creating staff invitation:', error);
-                          toast.error('Fehler beim Erstellen des Registrierungslinks');
+                          toast.error('Der Link konnte nicht erstellt werden.');
                         }
                       }}
                     >
-                      Registrierungslink generieren
+                      Einladungslink erstellen
                     </Button>
+                  )}
+                  {!registrationLink && !email.trim() && !staff.userId && (
+                    <p className="mt-2 text-xs text-muted-foreground">Trag zuerst eine E-Mail ein – darüber findet die Einladung die Person.</p>
                   )}
                 </div>
               </div>
@@ -446,8 +393,8 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
           <TabsContent value="services" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Services</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label>Leistungen</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
                   {services.map((service) => (
                     <div
                       key={service.id}
@@ -476,7 +423,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
               <div className="grid gap-2">
                 <Label>Arbeitszeiten</Label>
                 {workingHours.map((hours, index) => (
-                  <div key={index} className="flex items-center gap-4 p-2 border rounded">
+                  <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-2">
                     <div className="w-24">
                       <span>{getDayName(hours.dayOfWeek)}</span>
                     </div>

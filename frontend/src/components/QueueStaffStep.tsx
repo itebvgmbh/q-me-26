@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isToday } from 'date-fns';
 import { Staff } from '../utils/firestore/types';
 import { TimeSlot } from '../utils/types';
 import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
@@ -59,9 +60,18 @@ export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({
         ? `Nächster Platz ${slotLabel(fastest.slot.start)} bei ${fastest.person.name}`
         : 'In den nächsten 2 Wochen nichts frei');
 
+  // Heute nichts mehr frei (Laden zu oder ausgebucht): deutlich sagen statt kommentarlos "Montag 09:00"
+  const notToday = !searching && earliestByStaff && (!fastest || !isToday(fastest.slot.start));
+
   return (
     <QueueStepShell title="Bei wem?" description="Am schnellsten geht’s mit der nächsten freien Person." onBack={onBack} backLabel="Andere Leistung wählen">
       <p className="sr-only" role="status">{searching ? 'Suche freie Zeiten …' : ''}</p>
+      {notToday && (
+        <p className="rounded-2xl border border-border bg-background px-4 py-3 text-sm" role="note">
+          <span className="font-semibold">Heute ist nichts mehr frei.</span>{' '}
+          {fastest ? 'Du kannst trotzdem eine Nummer für den nächsten freien Platz ziehen.' : 'Versuch es später noch einmal oder ruf im Laden an.'}
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <QueueOption
           selected={useAnyStaff}

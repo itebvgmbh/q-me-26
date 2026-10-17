@@ -90,17 +90,17 @@ export const InviteStaffDialog = ({ shop, onStaffInvited }: InviteStaffDialogPro
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">E-Mail</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
               placeholder="max@beispiel.de"
-              className={emailError ? "border-red-500" : ""}
+              className={emailError ? "border-destructive/30" : ""}
             />
             {emailError && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2" role="alert">
+              <div className="bg-destructive/5 border border-destructive/30 text-destructive px-4 py-3 rounded relative mt-2" role="alert">
                 <strong className="font-bold">Fehler: </strong>
                 <span className="block sm:inline">{emailError}</span>
               </div>

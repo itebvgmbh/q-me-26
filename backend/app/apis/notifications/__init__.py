@@ -5,6 +5,10 @@ import databutton as db
 from firebase_admin import firestore
 from app.apis.firebase_utils import get_firestore_db
 
+from fastapi import Depends
+from app.auth import AuthorizedUser
+from app.auth.access import require_admin, require_shop_of_owner
+
 router = APIRouter()
 
 class EmailNotificationRequest(BaseModel):
@@ -20,7 +24,7 @@ class StaffInvitationEmailRequest(BaseModel):
     email: EmailStr
     invitation_link: str
 
-@router.post("/send-email")
+@router.post("/send-email", dependencies=[Depends(require_admin)])
 def send_email(request: EmailNotificationRequest) -> Dict[str, str]:
     """
     Send an email using the Databutton notify email service
@@ -40,10 +44,11 @@ def send_email(request: EmailNotificationRequest) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}") from e
 
 @router.post("/send-staff-invitation")
-async def send_staff_invitation(request: StaffInvitationEmailRequest) -> Dict[str, str]:
+async def send_staff_invitation(request: StaffInvitationEmailRequest, user: AuthorizedUser) -> Dict[str, str]:
     """
     Send a staff invitation email with a registration link
     """
+    require_shop_of_owner(user, request.shop_id)
     try:
         # Get shop information
         db_client = get_firestore_db()

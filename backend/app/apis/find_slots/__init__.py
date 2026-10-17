@@ -11,12 +11,15 @@ from app.apis.available_timeslots import get_available_timeslots
 from app.apis.utils import convert_timestamp_to_datetime
 
 # Define router
+from fastapi import Depends
+from app.auth.access import require_admin
+
 router = APIRouter()
 
 class AppointmentIdsRequest(BaseModel):
     appointment_ids: List[str]
 
-@router.post("/find-new-slots")
+@router.post("/find-new-slots", dependencies=[Depends(require_admin)])
 async def find_new_slots(request: AppointmentIdsRequest) -> dict:
     """Find new available earlier slots for appointments"""
     await find_new_slots_for_appointments(request.appointment_ids)

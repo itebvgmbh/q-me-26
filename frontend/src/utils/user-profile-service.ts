@@ -2,7 +2,7 @@ import { doc, getDoc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
-import { getShopsByOwnerId, getStaffByUserId } from './firestore';
+import { listShopsOfOwner, getStaffByUserId } from './firestore';
 
 export interface UpdateProfileData {
   displayName: string;
@@ -91,8 +91,14 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
   console.log('Profile found, redirecting based on role:', profile.role);
   switch (profile.role) {
     case 'shopOwner':
-      // Noch kein Laden: gleich in den Einrichtungsassistenten
-      return (await getShopsByOwnerId(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
+      // Noch kein Laden: gleich in den Einrichtungsassistenten. Im Zweifel (Fehler beim Laden) an den
+      // Tresen – sonst landet ein bestehender Betrieb im Assistenten und legt womöglich einen zweiten Laden an.
+      try {
+        return (await listShopsOfOwner(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
+      } catch (error) {
+        console.error('Läden konnten nicht geladen werden:', error);
+        return '/shop-dashboard';
+      }
     case 'employee':
       const staff = await getStaffByUserId(userId);
       return staff ? '/employee-dashboard' : '/';

@@ -7,6 +7,9 @@ uvicorn[standard]==0.29.0
 openai
 beautifulsoup4
 anthropic
+# shop_setup liest Webseiten direkt (feste IP je Abruf); 2.6+ begrenzt auch entpackte Größe
+urllib3>=2.6
+certifi
 requests
 firebase-admin
 

@@ -197,7 +197,7 @@ export const CreateAppointmentDialog = ({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customerEmail">Email</Label>
+                    <Label htmlFor="customerEmail">E-Mail</Label>
                     <Input
                       id="customerEmail"
                       type="email"
@@ -239,7 +239,7 @@ export const CreateAppointmentDialog = ({
             </div>
 
             <div>
-              <Label htmlFor="service">Service</Label>
+              <Label htmlFor="service">Leistung</Label>
               <Select
                 value={serviceId}
                 onValueChange={(id) => {
@@ -252,7 +252,7 @@ export const CreateAppointmentDialog = ({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Service auswählen" />
+                  <SelectValue placeholder="Leistung wählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {services.map((service) => (

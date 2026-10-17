@@ -25,6 +25,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
     const q = query.trim();
     if (q.length < 3) {
       setSuggestions([]);
+      setSearching(false);
       return;
     }
     const controller = new AbortController();

@@ -32,6 +32,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   ],
   shopOwner: [
     { to: '/shop-dashboard', label: 'Tresen' },
+    { to: '/employee-dashboard', label: 'Mein Tag' },
     { to: '/staff-management', label: 'Team' },
     { to: '/service-management', label: 'Leistungen' },
     { to: '/shop-profile', label: 'Mein Laden' },

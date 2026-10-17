@@ -39,7 +39,7 @@ export const SchedulerStatusCard = ({
           {status?.is_running ? (
             <Badge className="bg-green-600">Aktiv</Badge>
           ) : (
-            <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Inaktiv</Badge>
+            <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/30">Inaktiv</Badge>
           )}
         </div>
         <div className="flex justify-between items-center">

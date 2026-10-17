@@ -50,12 +50,12 @@ export const SchedulerControlCard = ({
               Speichern
             </Button>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Empfohlene Werte: 1800 (30 Min.), 3600 (1 Std.), 7200 (2 Std.)
           </p>
         </div>
 
-        <div className="pt-4 border-t border-slate-100 space-y-3">
+        <div className="pt-4 border-t border-border space-y-3">
           <Button
             variant="outline"
             className="w-full"

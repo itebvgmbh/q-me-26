@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from firebase_admin import firestore
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
+from app.auth import AuthorizedUser
+from app.auth.access import is_admin, owned_shop_ids
 
 router = APIRouter()
 
@@ -27,21 +29,33 @@ class NotificationHistoryItem(BaseModel):
     appointmentDuration: Optional[int] = None  # in minutes
 
 @router.get("/notification-history", operation_id="get_notification_history_full2222222")
-async def get_notification_history_full2222222(limit: int = 100) -> List[NotificationHistoryItem]:
+async def get_notification_history_full2222222(user: AuthorizedUser, limit: int = 100) -> List[NotificationHistoryItem]:
     """
-    Get history of all earlier slot notifications, acceptances, and reschedulings.
+    Verlauf der "Früher dran"-Angebote: der Betreiber sieht alle Läden, ein Inhaber nur seine eigenen.
+    Vorher bekam jedes angemeldete Konto (auch Kunden) die Angebote aller Läden samt Kunden-E-Mails.
     """
     try:
         db = get_firestore_db()
-        
-        # Get notifications
-        notifications_query = db.collection('earlier_slot_notifications')
-        notifications_query = notifications_query.order_by('createdAt', direction=firestore.Query.DESCENDING)
-        notifications_query = notifications_query.limit(limit)
-        
+        limit = max(1, min(limit, 200))
+
+        if is_admin(user):
+            notifications_query = db.collection('earlier_slot_notifications')
+            notifications_query = notifications_query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+            docs = list(notifications_query.limit(limit).stream())
+        else:
+            shop_ids = owned_shop_ids(user.sub)
+            if not shop_ids:
+                raise HTTPException(status_code=403, detail="Nur für Betriebe.")
+            docs = []
+            # "in" erlaubt höchstens 30 Werte; ohne order_by braucht die Abfrage keinen eigenen Index
+            for i in range(0, len(shop_ids), 30):
+                docs += list(db.collection('earlier_slot_notifications').where('shopId', 'in', shop_ids[i:i + 30]).stream())
+            created = lambda d: getattr((d.to_dict() or {}).get('createdAt'), 'timestamp', lambda: 0)()
+            docs = sorted(docs, key=created, reverse=True)[:limit]
+
         history_items = []
-        
-        for doc in notifications_query.stream():
+
+        for doc in docs:
             notification = doc.to_dict()
             notification['id'] = doc.id
             
@@ -232,6 +246,8 @@ async def get_notification_history_full2222222(limit: int = 100) -> List[Notific
         
         return history_items
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error getting notification history: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting notification history: {str(e)}") from e

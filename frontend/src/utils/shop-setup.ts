@@ -1,8 +1,8 @@
 import { APP_BASE_PATH } from 'app';
 import brain from 'brain';
 import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteServicesData } from '../brain/data-contracts';
-import { createService, createShop, createStaff, createStaffInvitation } from './firestore';
-import type { BusinessHoursDay, Shop } from './firestore/types';
+import { createService, createShop, createStaff, createStaffInvitation, updateShop } from './firestore';
+import type { BusinessHoursDay } from './firestore/types';
 import { defaultHours, normalizeHours, workingHoursFromOpening } from './opening-hours';
 import { templatesFor } from './service-templates';
 
@@ -21,6 +21,18 @@ export interface DraftService {
   selected: boolean;
   source: 'website' | 'template' | 'own';
   durationGuessed?: boolean;
+  /** Vorlage wurde vorausgewählt und seitdem nicht angefasst – darf die Webseite wieder abwählen */
+  autoSelected?: boolean;
+}
+
+/** Was beim Anlegen schon geschrieben ist – nach einem Abbruch geht es dort weiter (kein zweiter Laden) */
+export interface SetupProgress {
+  shopId?: string;
+  /** Leistungs-Key → angelegte ID */
+  serviceIds: Record<string, string>;
+  /** Personen-Keys, die schon angelegt sind */
+  staffKeys: string[];
+  invitations: { name: string; email: string; link: string }[];
 }
 
 export interface DraftPerson {
@@ -56,6 +68,10 @@ export interface ShopDraft {
   industry: string;
   /** Branche kam von Google und wurde noch nicht bestätigt */
   industryGuessed: boolean;
+  /** Frage nach der Branche beantwortet (auch mit "Etwas anderes") */
+  industryConfirmed: boolean;
+  /** Branche, zu der die Vorlagen in services gehören */
+  templateIndustry: string | null;
   hours: BusinessHoursDay[];
   hoursFromGoogle: boolean;
   services: DraftService[];
@@ -68,6 +84,7 @@ export interface ShopDraft {
   assignments: Record<string, Assignment>;
   everyoneDoesAll: boolean | null;
   sameHours: boolean | null;
+  progress?: SetupProgress;
 }
 
 export const emptyDraft = (email = '', ownerName = ''): ShopDraft => ({
@@ -84,6 +101,8 @@ export const emptyDraft = (email = '', ownerName = ''): ShopDraft => ({
   coordinates: null,
   industry: '',
   industryGuessed: false,
+  industryConfirmed: false,
+  templateIndustry: null,
   hours: defaultHours(),
   hoursFromGoogle: false,
   services: [],
@@ -190,21 +209,28 @@ export const mergeWebsiteServices = (services: DraftService[], found: SuggestedS
     .filter((s) => !taken.has(s.name.toLowerCase()))
     .map((s) => ({ key: newKey('w'), name: s.name, category: s.category, duration: s.duration, price: s.price, priceFrom: s.priceFrom, durationGuessed: s.durationGuessed, selected: true, source: 'website' }));
   const websiteNames = new Set(fromWebsite.map((s) => s.name.toLowerCase()));
-  // Vorlagen bleiben zur Auswahl, sind aber nicht mehr vorausgewählt, wenn die Webseite etwas geliefert hat
+  // Vorlagen bleiben zur Auswahl; nur die unberührt vorausgewählten wählt die Webseite wieder ab –
+  // was man während des Lesens selbst angekreuzt hat, bleibt angekreuzt
   const rest = services
     .filter((s) => !(s.source === 'template' && websiteNames.has(s.name.toLowerCase())))
-    .map((s) => (s.source === 'template' && fromWebsite.length ? { ...s, selected: false } : s));
+    .map((s) => (s.source === 'template' && s.autoSelected && fromWebsite.length ? { ...s, selected: false, autoSelected: false } : s));
   return [...services.filter((s) => s.source === 'website'), ...fromWebsite, ...rest.filter((s) => s.source !== 'website')];
 };
 
-/** Vorlagen der Branche ergänzen (bestehende Auswahl bleibt) */
+/**
+ * Vorlagen der Branche bereitlegen: selbst angekreuzte Vorlagen (auch einer früheren Branche) bleiben,
+ * unberührte Vorlagen werden durch die der aktuellen Branche ersetzt.
+ */
 export const withTemplates = (services: DraftService[], industry: string): DraftService[] => {
-  const kept = services.filter((s) => s.source !== 'template' || s.selected);
+  const kept = services.filter((s) => s.source !== 'template' || (s.selected && !s.autoSelected));
   const names = new Set(kept.map((s) => s.name.toLowerCase()));
   const hasOwn = kept.some((s) => s.source === 'website');
   const templates: DraftService[] = templatesFor(industry)
     .filter((t) => !names.has(t.name.toLowerCase()))
-    .map((t) => ({ key: newKey('t'), name: t.name, category: t.category, duration: t.duration, price: t.price, selected: Boolean(t.common) && !hasOwn, source: 'template' }));
+    .map((t) => {
+      const selected = Boolean(t.common) && !hasOwn;
+      return { key: newKey('t'), name: t.name, category: t.category, duration: t.duration, price: t.price, selected, autoSelected: selected, source: 'template' };
+    });
   return [...kept, ...templates];
 };
 
@@ -216,25 +242,58 @@ export const peopleOf = (draft: ShopDraft): DraftPerson[] => [
 
 export const assignmentOf = (draft: ShopDraft, key: string): Assignment => draft.assignments[key] ?? { serviceKeys: [], days: [] };
 
+const openDaysOf = (draft: ShopDraft) => normalizeHours(draft.hours).filter((h) => h.isOpen).map((h) => h.dayOfWeek);
+
+/**
+ * Was eine Person tatsächlich bekommt. Verteilung und Arbeitstage gelten nur, solange es mehrere Personen
+ * (bzw. Leistungen) gibt – wer danach Leute entfernt, behält sonst unbemerkt eine alte Teilauswahl.
+ */
+export const effectiveAssignment = (draft: ShopDraft, key: string): { serviceKeys: string[]; days: number[] } => {
+  const people = peopleOf(draft);
+  const chosen = draft.services.filter((s) => s.selected && s.name.trim()).map((s) => s.key);
+  const openDays = openDaysOf(draft);
+  const own = assignmentOf(draft, key);
+  const distribute = people.length > 1 && chosen.length > 1 && draft.everyoneDoesAll === false;
+  const picked = own.serviceKeys.filter((k) => chosen.includes(k));
+  const byDays = people.length > 1 && draft.sameHours === false;
+  const days = own.days.filter((d) => openDays.includes(d));
+  return {
+    serviceKeys: distribute && picked.length ? picked : chosen,
+    days: byDays && days.length ? days : openDays,
+  };
+};
+
+/** Leistungen, die nach der Verteilung niemand macht (wären nicht buchbar) */
+export const unassignedServices = (draft: ShopDraft): DraftService[] => {
+  const keys = new Set(peopleOf(draft).flatMap((p) => effectiveAssignment(draft, p.key).serviceKeys));
+  return draft.services.filter((s) => s.selected && s.name.trim() && !keys.has(s.key));
+};
+
 // --- Anlegen ----------------------------------------------------------------------------------------
 
 export interface SetupResult {
-  shop: Shop;
-  invitations: { name: string; email: string; link: string }[];
+  shop: { id: string; name: string };
+  invitations: SetupProgress['invitations'];
 }
 
-/** Schreibt Laden, Leistungen, Team (und Einladungen) – in dieser Reihenfolge, weil alles auf den Laden zeigt */
+export const emptyProgress = (): SetupProgress => ({ serviceIds: {}, staffKeys: [], invitations: [] });
+
+/**
+ * Schreibt Laden, Leistungen, Team (und Einladungen) – in dieser Reihenfolge, weil alles auf den Laden zeigt.
+ * Nach jedem Schritt meldet onSaved den Stand; der landet im Entwurf. Scheitert etwas (Netz weg, Seite neu
+ * geladen), macht der nächste Aufruf dort weiter, statt einen zweiten Laden anzulegen.
+ */
 export const createFromDraft = async (
   uid: string,
   draft: ShopDraft,
   onProgress: (text: string) => void,
-  onShopCreated?: (shop: Shop) => void,
+  onSaved: (progress: SetupProgress) => void,
 ): Promise<SetupResult> => {
-  const ownerName = draft.ownerName;
+  const progress: SetupProgress = { ...emptyProgress(), ...draft.progress };
+  const save = () => onSaved({ ...progress, serviceIds: { ...progress.serviceIds }, staffKeys: [...progress.staffKeys], invitations: [...progress.invitations] });
   const hours = normalizeHours(draft.hours);
-  onProgress('Laden anlegen …');
   const address = [draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  const shop = await createShop(uid, {
+  const shopData = {
     name: draft.name.trim(),
     street: draft.street.trim(),
     postalCode: draft.postalCode.trim(),
@@ -244,58 +303,67 @@ export const createFromDraft = async (
     email: draft.email.trim(),
     website: draft.website.trim() || undefined,
     industry: draft.industry || undefined,
-    ownerName: ownerName.trim() || undefined,
+    ownerName: draft.ownerName.trim() || undefined,
     businessHoursByDay: hours,
     coordinates: draft.coordinates ?? undefined,
     googlePlaceId: draft.googlePlaceId || undefined,
-  });
-  onShopCreated?.(shop);
+  };
+
+  onProgress('Laden anlegen …');
+  if (progress.shopId) {
+    await updateShop(progress.shopId, shopData); // schon angelegt: nur auf den letzten Stand bringen
+  } else {
+    progress.shopId = (await createShop(uid, shopData)).id;
+    save();
+  }
+  const shopId = progress.shopId;
 
   onProgress('Leistungen eintragen …');
   const chosen = draft.services.filter((s) => s.selected && s.name.trim());
-  const created = await Promise.all(
-    chosen.map((s) =>
-      createService({
-        shopId: shop.id,
-        name: s.name.trim(),
-        category: s.category || '',
-        description: s.priceFrom ? `Preis ab ${s.price.toLocaleString('de-DE')} €, je nach Aufwand` : '',
-        duration: s.duration,
-        setupTime: 0,
-        price: s.price,
-      }),
-    ),
-  );
-  const idOf = new Map(chosen.map((s, i) => [s.key, created[i].id]));
+  for (const s of chosen) {
+    if (progress.serviceIds[s.key]) continue;
+    const created = await createService({
+      shopId,
+      name: s.name.trim(),
+      category: s.category || '',
+      description: s.priceFrom ? `Preis ab ${s.price.toLocaleString('de-DE')} €, je nach Aufwand` : '',
+      duration: s.duration,
+      setupTime: 0,
+      price: s.price,
+    });
+    progress.serviceIds[s.key] = created.id;
+    save();
+  }
 
   onProgress('Team eintragen …');
-  const people = peopleOf(draft);
-  const invitations: SetupResult['invitations'] = [];
-  for (const p of people) {
-    const { serviceKeys, days } = assignmentOf(draft, p.key);
-    const picked = serviceKeys.map((k) => idOf.get(k)).filter((id): id is string => Boolean(id));
-    const serviceIds = draft.everyoneDoesAll === false && picked.length ? picked : created.map((s) => s.id);
+  for (const p of peopleOf(draft)) {
+    if (progress.staffKeys.includes(p.key)) continue;
+    const { serviceKeys, days } = effectiveAssignment(draft, p.key);
     const email = p.email.trim();
     await createStaff({
-      shopId: shop.id,
+      shopId,
       userId: p.isOwner ? uid : '',
       name: p.name.trim(),
       email,
       phone: '',
       role: p.isOwner ? 'Inhaber' : 'Team',
-      serviceIds,
+      serviceIds: serviceKeys.map((k) => progress.serviceIds[k]).filter(Boolean),
       isActive: true,
-      workingHours: workingHoursFromOpening(hours, draft.sameHours === false && days.length ? days : undefined),
+      workingHours: workingHoursFromOpening(hours, days),
       status: 'available',
     });
+    progress.staffKeys.push(p.key);
+    save();
     if (!p.isOwner && email) {
       try {
-        const invitation = await createStaffInvitation(shop.id, email, false);
-        invitations.push({ name: p.name.trim(), email, link: `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}` });
+        const invitation = await createStaffInvitation(shopId, email, false);
+        progress.invitations.push({ name: p.name.trim(), email, link: `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}` });
       } catch (error) {
         console.error('Einladung fehlgeschlagen:', error);
       }
     }
+    save();
   }
-  return { shop, invitations };
+  return { shop: { id: shopId, name: shopData.name }, invitations: progress.invitations };
 };
+

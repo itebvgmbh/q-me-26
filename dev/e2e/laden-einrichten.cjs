@@ -162,6 +162,28 @@ run(async () => {
   await heading('ist startklar.');
   await step('fertig');
 
+  // --- C) Abbruch beim Anlegen: Laden steht schon, Rest fehlt → "Weiter anlegen" ohne zweiten Laden ----
+  n = 0;
+  await page.evaluate(async (fx) => {
+    const setup = await import('/src/utils/shop-setup.ts');
+    const { createShop } = await import('/src/utils/firestore/shops.ts');
+    const shop = await createShop(fx.uid, { name: 'Wiederaufnahme (Test)', phone: '', email: fx.email });
+    const draft = {
+      ...setup.emptyDraft(fx.email, 'Alex'),
+      step: 'summary', source: 'manual', name: 'Wiederaufnahme (Test)', industryConfirmed: true, templateIndustry: '', ownerWorks: true,
+      services: [{ key: 's1', name: 'Schnitt C', category: '', duration: 30, price: 20, selected: true, source: 'own' }],
+      progress: { shopId: shop.id, serviceIds: {}, staffKeys: [], invitations: [] },
+    };
+    localStorage.setItem(`qme-laden-einrichten-${fx.uid}`, JSON.stringify(draft));
+  }, fx);
+  await page.goto(`${BASE}/shop-setup`, { waitUntil: 'domcontentloaded' });
+  await heading('Alles bereit?');
+  const c = { hinweis: await page.getByText('Ein Teil ist schon gespeichert').count() };
+  mode = 'wiederaufnahme';
+  await step('zusammenfassung');
+  await click('Weiter anlegen');
+  await heading('ist startklar.');
+
   // --- Datenbank prüfen, Regel prüfen, aufräumen ---------------------------------------------------
   const db = await page.evaluate(async (fx) => {
     const src = await (await fetch('/src/utils/firestore-client.ts')).text();
@@ -170,7 +192,7 @@ run(async () => {
     const rules = await import('/src/utils/booking-rules.ts');
     const byField = async (coll, field, value) => (await fs.getDocs(fs.query(fs.collection(firestore, coll), fs.where(field, '==', value)))).docs;
     const shops = (await byField('shops', 'owner', fx.uid)).filter((d) => d.id !== fx.shopId);
-    const out = { shops: {} };
+    const out = { shops: {}, wiederaufnahme: shops.filter((d) => d.data().name === 'Wiederaufnahme (Test)').length };
     for (const s of shops) {
       const services = await byField('services', 'shopId', s.id);
       const staff = await byField('staff', 'shopId', s.id);
@@ -227,6 +249,8 @@ run(async () => {
     { name: 'B: Montag Mittagspause gespeichert', pass: B?.data.businessHoursByDay?.[1]?.breaks?.length === 1 && B?.data.businessHoursByDay?.[6]?.isOpen === false },
     { name: 'B: nur Inhaber im Team', pass: B?.staff.length === 1 && B?.staff[0].userId === fx.uid && B?.staff[0].name === 'Sam' },
     { name: 'B: Google/KI nicht aufgerufen', pass: !backendCalls.slice(backendCalls.lastIndexOf('shop-setup/status')).some((c) => c !== 'shop-setup/status') },
+    { name: 'C: nach Abbruch "Weiter anlegen" angeboten', pass: c.hinweis === 1 },
+    { name: 'C: kein zweiter Laden, Rest ergänzt', pass: db.wiederaufnahme === 1 && db.shops['Wiederaufnahme (Test)']?.services.length === 1 && db.shops['Wiederaufnahme (Test)']?.staff.length === 1, detail: `${db.wiederaufnahme} Läden` },
     { name: 'Entwurf nach dem Anlegen gelöscht', pass: db.draftLeft === null },
     { name: 'Aufgeräumt', pass: db.left === 0, detail: db.notDeleted ? `${db.notDeleted} Dokumente nicht löschbar` : '' },
     { name: 'Kein waagrechtes Überlaufen (Handy)', pass: overflow.length === 0, detail: overflow.join(', ') },

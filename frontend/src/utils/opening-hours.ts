@@ -22,6 +22,14 @@ export const HOUR_PRESETS: { label: string; hours: () => BusinessHoursDay[] }[] 
 
 export const defaultHours = (): BusinessHoursDay[] => HOUR_PRESETS[1].hours();
 
+/** Altes Format "9:00-18:00" (gilt jeden Tag) als Tage – zum Anzeigen im Editor; null, wenn unlesbar */
+export const hoursFromLegacy = (legacy?: string | null): BusinessHoursDay[] | null => {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/.exec(legacy || '');
+  if (!m) return null;
+  const pad = (h: string, min: string) => `${h.padStart(2, '0')}:${min}`;
+  return [0, 1, 2, 3, 4, 5, 6].map((d) => day(d, true, pad(m[1], m[2]), pad(m[3], m[4])));
+};
+
 /** Immer alle sieben Tage, sortiert nach dayOfWeek – fehlende Tage gelten als geschlossen */
 export const normalizeHours = (hours: BusinessHoursDay[] | undefined | null): BusinessHoursDay[] =>
   [0, 1, 2, 3, 4, 5, 6].map((d) => {

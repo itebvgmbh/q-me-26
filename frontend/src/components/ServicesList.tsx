@@ -24,8 +24,8 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceU
     <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-card px-5">
       {services.map((service) => (
         <li key={service.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
-          <div className="min-w-0 flex-1">
-            <p className="font-display text-lg font-bold">{service.name}</p>
+          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+            <p className="break-words font-display text-lg font-bold">{service.name}</p>
             {(service.category || service.description) && (
               <p className="text-sm text-muted-foreground">{[service.category, service.description].filter(Boolean).join(' · ')}</p>
             )}
