@@ -25,6 +25,7 @@ const Impressum = lazy(() => import("./pages/Impressum.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Logout = lazy(() => import("./pages/Logout.tsx"));
 const MyBookings = lazy(() => import("./pages/MyBookings.tsx"));
+const Nummer = lazy(() => import("./pages/Nummer.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
 const PublicJoinQueue = lazy(() => import("./pages/PublicJoinQueue.tsx"));
 const Register = lazy(() => import("./pages/Register.tsx"));
@@ -66,6 +67,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/logout", element: <UserGuard><Logout /></UserGuard>},
 	{ path: "/my-bookings", element: <UserGuard><MyBookings /></UserGuard>},
 	{ path: "/mybookings", element: <UserGuard><MyBookings /></UserGuard>},
+	{ path: "/nummer/:id", element: <Nummer />},
 	{ path: "/profile", element: <UserGuard><Profile /></UserGuard>},
 	{ path: "/public-join-queue", element: <PublicJoinQueue />},
 	{ path: "/publicjoinqueue", element: <PublicJoinQueue />},

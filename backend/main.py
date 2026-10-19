@@ -119,6 +119,12 @@ def create_app() -> FastAPI:
             start_scheduler_thread()
             print("Scheduler autostarted")
 
+            # "Gleich dran", "Du bist dran" und Termin-Erinnerungen (app/libs/notify_worker.py)
+            from app.libs.notify_worker import start_notify_worker
+
+            start_notify_worker()
+            print("Notify worker autostarted")
+
     return app
 
 

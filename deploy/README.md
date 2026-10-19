@@ -194,6 +194,19 @@ Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^GOOGLE_MAPS_API_KE
 Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stunde höchstens 300 Suchen,
 40 übernommene Einträge und 12 ausgelesene Webseiten.
 
+## Benachrichtigungen („Gleich dran“, Erinnerungen)
+
+Ein eigener Hintergrunddienst im Backend (`app/libs/notify_worker.py`) schickt Kunden eine Nachricht, kurz
+bevor sie dran sind, und wenn der Tresen sie aufruft. Gebuchte Termine bekommen 2 Stunden vorher eine
+Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schlüssel da ist.
+
+- **Web-Push:** Die Schlüssel (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) erzeugt `update.sh` beim ersten Lauf
+  selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
+  der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
+- **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
+  `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar).
+- Kunden schalten das auf ihrer Nummernseite `/nummer/<id>` ein; dorthin führt jetzt das Nummer-Ziehen.
+
 ## Betreiber der App
 
 Den Hintergrunddienst für „Früher dran“ steuern (Start/Stopp, Takt, sofort prüfen) und den Verlauf **aller**
