@@ -126,7 +126,7 @@ Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeich
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
-## Schlüssel für „Laden einrichten“
+## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
 übernimmt er Adresse, Telefon, Webseite, Öffnungszeiten und Branche von Google und liest die Preisliste von
@@ -152,6 +152,15 @@ Gilt der Schlüssel für mehrere Workspaces, lehnt Claude jede Anfrage ab („no
 im Log). Dann zusätzlich die Workspace-ID eintragen (Option 3 im Block, `wrkspc_…`, zu finden unter
 [Workspaces](https://platform.claude.com/settings/workspaces)) – sie ist kein Geheimnis.
 
+**Resend** (`RESEND_API_KEY`, E-Mails wie Team-Einladungen und Erinnerungen): [resend.com](https://resend.com/) →
+„Domains“ → `dranzeit.de` hinzufügen und die angezeigten DNS-Einträge (SPF, DKIM) beim Domain-Anbieter
+eintragen, bis Resend „Verified“ zeigt. Dann „API Keys“ → „Create API Key“ mit Berechtigung „Sending access“
+nur für `dranzeit.de`. Absender ist `Dranzeit <hallo@dranzeit.de>`; abweichend mit `MAIL_FROM=…` in
+`/etc/q-me.env` (kein Geheimnis). Ohne Schlüssel verschickt das Backend nichts und schreibt nur ins Log.
+
+**Stripe** (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Abo-Abrechnung der Läden): Einrichtung im Abschnitt
+„Abo-Abrechnung“ weiter unten.
+
 Eintragen: Block in PowerShell einfügen. Er fragt, welchen Schlüssel, liest ihn verdeckt ein und schickt ihn
 über die Standardeingabe an `deploy/set-secret.sh` – so steht er weder im Fenster noch in einer History.
 Für jeden weiteren Eintrag den Block noch einmal ausführen.
@@ -163,8 +172,8 @@ Für jeden weiteren Eintrag den Block noch einmal ausführen.
   if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
   $skript = ssh -o BatchMode=yes $server 'test -f /opt/q-me/deploy/set-secret.sh && echo da' 2>&1 | Out-String
   if ($skript -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/set-secret.sh. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
-  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID (nur wenn der Schluessel fuer mehrere Workspaces gilt)'
-  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } else { Write-Host 'Abbruch: Bitte 1, 2 oder 3 eingeben.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID, 4 = Resend (E-Mails), 5 = Stripe-Geheimschluessel, 6 = Stripe-Webhook-Geheimnis'
+  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } elseif ($wahl -eq '4') { $name = 'RESEND_API_KEY'; $muster = '^re_[0-9A-Za-z_]{20,}$' } elseif ($wahl -eq '5') { $name = 'STRIPE_SECRET_KEY'; $muster = '^(sk|rk)_(test|live)_[0-9A-Za-z]{20,}$' } elseif ($wahl -eq '6') { $name = 'STRIPE_WEBHOOK_SECRET'; $muster = '^whsec_[0-9A-Za-z]{20,}$' } else { Write-Host 'Abbruch: Bitte eine Zahl von 1 bis 6 eingeben.' -ForegroundColor Red; return }
   $geheim = Read-Host "$name einfuegen (Strg+V, wird nicht angezeigt), dann Enter" -AsSecureString
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
   try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }

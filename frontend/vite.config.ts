@@ -44,7 +44,7 @@ const defaultExtensionConfigs: Record<string, Record<string, unknown>> = {
 			emailAndPassword: true,
 			magicLink: false,
 		},
-		siteName: "Q-ME",
+		siteName: "Dranzeit",
 		signInSuccessUrl: "/",
 		firebaseConfig: {
 			apiKey: "AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE",

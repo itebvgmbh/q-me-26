@@ -51,7 +51,7 @@ const RoleSelection = () => {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Fast fertig.</h1>
-        <p className="text-muted-foreground">Sag uns noch, wie du q-me nutzt. Das lässt sich später nicht selbst ändern.</p>
+        <p className="text-muted-foreground">Sag uns noch, wie du Dranzeit nutzt. Das lässt sich später nicht selbst ändern.</p>
       </div>
       {error && <FormError>{error}</FormError>}
       <div className="grid gap-4 sm:grid-cols-2">

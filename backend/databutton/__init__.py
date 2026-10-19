@@ -57,11 +57,10 @@ class Secrets:
 
 class Notify:
     def email(self, to: str, subject: str, content_html: str = "", content_text: str = "") -> None:
-        print(f"========== MOCK EMAIL ==========")
-        print(f"TO: {to}")
-        print(f"SUBJECT: {subject}")
-        print(f"CONTENT:\n{content_text}")
-        print(f"================================")
+        # Verschickt über Resend, sobald RESEND_API_KEY gesetzt ist (app/libs/mail.py), sonst nur Log
+        from app.libs.mail import send_mail
+
+        send_mail(to=to, subject=subject, html_body=content_html or f"<pre>{content_text}</pre>", text_body=content_text)
 
 # Instantiate the mocks so they can be accessed as attributes
 storage = Storage()
