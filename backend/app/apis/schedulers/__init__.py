@@ -36,6 +36,26 @@ def start_scheduler_thread() -> bool:
     scheduler_thread.start()
     return True
 
+_last_cleanup_day = None
+
+
+def _daily_privacy_cleanup() -> None:
+    """Einmal am Tag: Namen und Kontaktdaten alter Wartenummern ohne Konto entfernen (app/libs/privacy.py)."""
+    global _last_cleanup_day
+    today = datetime.now().date()
+    if _last_cleanup_day == today:
+        return
+    _last_cleanup_day = today
+    try:
+        from app.apis.firebase_utils import get_firestore_db
+        from app.libs.privacy import anonymize_old_appointments
+
+        changed = anonymize_old_appointments(get_firestore_db())
+        print(f"Datenschutz: {changed} alte Termine anonymisiert")
+    except Exception as e:  # nie den Scheduler deswegen anhalten
+        print(f"Datenschutz-Aufräumen fehlgeschlagen: {e}")
+
+
 # Define models (if needed)
 
 def scheduler_task():
@@ -60,6 +80,7 @@ def scheduler_task():
             
             print(f"Earlier slots check completed: {check_result}")
             last_run_time = datetime.now()
+            _daily_privacy_cleanup()
             
             # Wait for the next interval
             time.sleep(run_interval)

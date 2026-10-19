@@ -46,7 +46,7 @@ const SchedulerControl = () => {
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Früher dran</p>
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Frühere Plätze anbieten</h1>
         <p className="text-muted-foreground">
-          Wird ein Termin abgesagt oder verschoben, bietet q-me den frei gewordenen Platz der nächsten Person in der Reihe an.
+          Wird ein Termin abgesagt oder verschoben, bietet Dranzeit den frei gewordenen Platz der nächsten Person in der Reihe an.
           Zusätzlich prüft ein Hintergrunddienst alle {minutes} Minuten.
         </p>
       </div>

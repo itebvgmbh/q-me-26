@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"DM Sans"', "system-ui", "-apple-system", '"Segoe UI"', "sans-serif"],
-        display: ['"Bricolage Grotesque"', '"DM Sans"', "system-ui", "sans-serif"],
+        sans: ['"DM Sans Variable"', '"DM Sans"', "system-ui", "-apple-system", '"Segoe UI"', "sans-serif"],
+        display: ['"Bricolage Grotesque Variable"', '"Bricolage Grotesque"', '"DM Sans Variable"', "system-ui", "sans-serif"],
         mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       borderRadius: {

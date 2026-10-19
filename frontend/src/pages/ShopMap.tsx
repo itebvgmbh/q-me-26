@@ -13,15 +13,14 @@ import { Search, MapPin, Navigation2 } from 'lucide-react';
 import { geocodeAddress, calculateDistance, enrichShopsWithCoordinates } from '../utils/geocoding';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { INDUSTRIES } from '../utils/industries';
 
-// Leaflet icon fix für Webpack/React
+// Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
 // Komponente zur Zentrierung der Karte auf den Benutzerstandort
 interface LocateMeProps {
