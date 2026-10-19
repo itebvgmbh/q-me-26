@@ -164,7 +164,7 @@ class FakeQuery:
 
 class FakeDb:
     def __init__(self):
-        self.store = {'appointments': {}, 'earlier_slot_notifications': {}}
+        self.store = {'appointments': {}, 'earlier_slot_notifications': {}, 'shops': {}}
 
     def collection(self, name):
         return FakeQuery(self.store, name)
@@ -226,6 +226,23 @@ def test_pruefung_mit_datenbank_zeitzone_angebot_frist_und_kaskade():
     cs.run_earlier_slot_check(now=t('12:38'))
     assert [v['status'] for v in notes.values() if v['appointmentId'] == 'B'] == ['expired']
 
+
+
+def test_gratis_laden_bekommt_kein_frueher_dran():
+    db = FakeDb()
+    db.store['shops']['itebv'] = {'trialEndsAt': datetime(2026, 1, 1, tzinfo=timezone.utc)}  # Test vorbei, kein Abo
+    base = {'shopId': 'itebv', 'staffId': 'stefan', 'serviceId': 'schnitt', 'status': 'scheduled', 'checkEarlierOptions': True}
+    db.store['appointments']['A'] = {**base, 'customerId': 'g', 'startTime': utc(t('13:15')), 'endTime': utc(t('13:46'))}
+
+    def fake_slots(request, background_tasks):
+        return AvailableTimeslotsResponse(timeslots=[TimeSlot(start_time=t('12:30'), end_time=t('13:01'), is_available=True)])
+
+    cs.get_firestore_db = lambda: db
+    cs.get_available_timeslots = fake_slots
+    cs.threading.Timer = lambda *a, **k: type('T', (), {'start': lambda self: None, 'daemon': True})()
+    result = cs.run_earlier_slot_check(now=t('12:10'))
+    assert result.appointments_checked == 0, result
+    assert db.store['earlier_slot_notifications'] == {}
 
 if __name__ == '__main__':
     tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith('test_') and callable(fn)]

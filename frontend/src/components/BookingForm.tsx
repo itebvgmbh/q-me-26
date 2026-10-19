@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { CustomerCalendar } from './CustomerCalendar';
 import { Staff, Service, Shop } from '../utils/firestore';
 import { CalendarTimeSlot } from '../utils/types';
+import { hasFeature } from '../utils/plans';
 
 interface BookingFormProps {
   shops: Shop[];
@@ -180,6 +181,7 @@ export function BookingForm({
               {service.name} · {person.name} · {shop.name}
             </p>
           </div>
+          {hasFeature(shop, 'frueherDran') && (
           <label className="flex items-start gap-3 text-sm">
             <Checkbox
               checked={checkEarlierOptions}
@@ -191,6 +193,7 @@ export function BookingForm({
               <span className="text-background/75">Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.</span>
             </span>
           </label>
+          )}
           {isLoggedIn ? (
             <Button variant="signal" size="lg" onClick={onBookAppointment} disabled={submitting}>
               {submitting ? 'Wird gebucht …' : 'Termin verbindlich buchen'}

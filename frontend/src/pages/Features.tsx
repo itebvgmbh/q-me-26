@@ -55,7 +55,7 @@ export default function Features() {
               <Link to="/register-shop-owner">Betrieb anmelden</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to="/login">Anmelden</Link>
+              <Link to="/preise">Preise ansehen</Link>
             </Button>
           </div>
         </div>

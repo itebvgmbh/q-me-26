@@ -13,7 +13,8 @@ import { Ticket } from '../components/brand/Ticket';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
 import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
-import type { Appointment } from '../utils/firestore';
+import type { Appointment, Shop } from '../utils/firestore';
+import { hasFeature } from '../utils/plans';
 import {
   enablePush,
   getPushConfig,
@@ -42,6 +43,7 @@ export default function Nummer() {
   const [appt, setAppt] = useState<Live | null>(null);
   const [missing, setMissing] = useState(false);
   const [names, setNames] = useState<{ shop?: string; service?: string; staff?: string }>({});
+  const [shopData, setShopData] = useState<Shop | null>(null);
   const [lane, setLane] = useState<Appointment[]>([]);
   const [now, setNow] = useState(() => Date.now());
 
@@ -73,6 +75,7 @@ export default function Nummer() {
       ]);
       if (!alive) return;
       setNames({ shop: shop?.name, service: service?.name, staff: staffSnap?.exists() ? (staffSnap.data().name as string) : undefined });
+      setShopData(shop);
       rememberTicket({ id: appt.id, shopId: appt.shopId, start: safelyConvertToDate(appt.startTime).toISOString() });
     })();
     return () => {
@@ -179,7 +182,9 @@ export default function Nummer() {
       {appt.status === 'completed' && <p className="text-lg font-semibold">Erledigt. Danke für deinen Besuch!</p>}
       {appt.status === 'cancelled' && <p className="text-lg font-semibold">Diese Nummer ist abgesagt.</p>}
 
-      {appt.status === 'scheduled' && <NotifyCard appt={appt} userEmail={user?.email ?? ''} />}
+      {appt.status === 'scheduled' && shopData && hasFeature(shopData, 'benachrichtigung') && (
+        <NotifyCard appt={appt} userEmail={user?.email ?? ''} />
+      )}
 
       {appt.status === 'scheduled' && (
         <p className="text-sm text-muted-foreground" aria-live="polite">

@@ -16,6 +16,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.apis.firebase_utils import get_firestore_db
 from app.libs.mail import mail_configured
 from app.libs.notify_worker import wake
+from app.libs.plans import has_feature
 from app.libs.webpush import public_key, push_configured
 
 router = APIRouter()
@@ -35,6 +36,13 @@ def _throttle(request: Request) -> None:
     if len(q) >= _RATE_MAX:
         raise HTTPException(status_code=429, detail="Zu viele Anfragen. Versuch es gleich noch einmal.")
     q.append(now)
+
+
+def _require_notifications(shop_id: str | None) -> None:
+    """Benachrichtigungen gehören zu den Bezahltarifen (app/libs/plans.py)."""
+    shop = get_firestore_db().collection("shops").document(shop_id).get() if shop_id else None
+    if not shop or not shop.exists or not has_feature(shop.to_dict() or {}, "benachrichtigung"):
+        raise HTTPException(status_code=403, detail="Dieser Laden bietet keine Benachrichtigungen an.")
 
 
 def _open_appointment(appointment_id: str) -> dict:
@@ -80,6 +88,7 @@ def subscribe(body: SubscribeRequest, request: Request) -> dict:
     if not body.endpoint.startswith("https://"):
         raise HTTPException(status_code=400, detail="Ungültige Push-Adresse.")
     appt = _open_appointment(body.appointment_id)
+    _require_notifications(appt.get("shopId"))
     db = get_firestore_db()
     existing = list(db.collection("push_subscriptions").where("appointmentId", "==", body.appointment_id).limit(MAX_SUBSCRIPTIONS_PER_APPOINTMENT + 1).stream())
     doc_id = hashlib.sha256(f"{body.appointment_id}|{body.endpoint}".encode()).hexdigest()[:40]
@@ -123,7 +132,9 @@ def notify_email(body: NotifyEmailRequest, request: Request) -> dict:
     _throttle(request)
     if body.email and not mail_configured():
         raise HTTPException(status_code=503, detail="E-Mails sind gerade nicht eingerichtet.")
-    _open_appointment(body.appointment_id)
+    appt = _open_appointment(body.appointment_id)
+    if body.email:
+        _require_notifications(appt.get("shopId"))
     get_firestore_db().collection("appointments").document(body.appointment_id).update({"notifyEmail": str(body.email) if body.email else None})
     if body.email:
         wake()

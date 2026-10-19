@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addD
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Shop } from './types';
+import { newShopPlanFields } from '../plans';
 
 export const getShopById = async (shopId: string): Promise<Shop | null> => {
   try {
@@ -57,6 +58,8 @@ export const createShop = async (ownerId: string, shopData: Omit<Shop, 'id' | 'o
     const now = Timestamp.now();
     const newShop = {
       ...shopData,
+      // 30 Tage alles testen, danach Gratis oder ein Abo (utils/plans.ts)
+      ...newShopPlanFields(),
       owner: ownerId,
       createdAt: now,
       updatedAt: now

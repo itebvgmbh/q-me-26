@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
+from app.libs.plans import has_feature
 from app.libs.queue_notify import message_for, needs_reminder, plan_queue_notifications
 from app.libs.webpush import SubscriptionGone, push_configured, send_push
 
@@ -118,6 +119,8 @@ def run_once(db, now: datetime | None = None) -> dict:
         if not channels and not email:
             continue  # ohne Kanal nichts merken: wer sich später anmeldet, bekommt die Nachricht noch
         shop = _shop(db, shops, appt.get("shopId"))
+        if not has_feature(shop, "benachrichtigung", now):
+            continue  # gehört zu den Bezahltarifen (app/libs/plans.py)
         title, body = message_for(p.kind, shop.get("name", ""), ahead=p.ahead)
         _deliver(db, appt, channels, email, title, body, tag=f"{p.kind}-{appt['id']}")
         field = "notifiedCalledAt" if p.kind == "called" else "notifiedSoonAt"
@@ -125,10 +128,11 @@ def run_once(db, now: datetime | None = None) -> dict:
         sent += 1
 
     for appt in reminders:
-        email = _customer_email(db, appt) if can_mail else ""
-        channels = subs.get(appt["id"], [])
+        shop = _shop(db, shops, appt.get("shopId"))
+        allowed = has_feature(shop, "erinnerung", now)
+        email = _customer_email(db, appt) if can_mail and allowed else ""
+        channels = subs.get(appt["id"], []) if allowed else []
         if channels or email:
-            shop = _shop(db, shops, appt.get("shopId"))
             start_label = appt["startTime"].astimezone(BERLIN).strftime("%H:%M")
             title, body = message_for("reminder", shop.get("name", ""), start_label=start_label)
             _deliver(db, appt, channels, email, title, body, tag=f"reminder-{appt['id']}")

@@ -15,6 +15,9 @@ const RedirectKeepQuery = ({ to }: { to: string }) => {
 
 
 const App = lazy(() => import("./pages/App.tsx"));
+const Agb = lazy(() => import("./pages/Agb.tsx"));
+const Preise = lazy(() => import("./pages/Preise.tsx"));
+const Tarif = lazy(() => import("./pages/Tarif.tsx"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
 const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
@@ -59,6 +62,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/features", element: <Features />},
 	{ path: "/impressum", element: <Impressum />},
 	{ path: "/datenschutz", element: <Datenschutz />},
+	{ path: "/agb", element: <Agb />},
+	{ path: "/preise", element: <Preise />},
+	{ path: "/tarif", element: <UserGuard><Tarif /></UserGuard>},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},

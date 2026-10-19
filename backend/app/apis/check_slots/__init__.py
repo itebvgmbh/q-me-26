@@ -31,6 +31,7 @@ from app.apis.firebase_utils import get_firestore_db
 from app.apis.models import AvailableTimeslotsRequest, CheckEarlierSlotsResponse
 from app.apis.available_timeslots import get_available_timeslots
 from app.apis.utils import convert_timestamp_to_datetime
+from app.libs.plans import has_feature
 
 from fastapi import Depends
 from app.auth.access import require_admin
@@ -196,6 +197,15 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     def in_scope(data: dict) -> bool:
         return (not shop_id or data.get('shopId') == shop_id) and (not staff_id or data.get('staffId') == staff_id)
 
+    # "Früher dran" gehört zu den Bezahltarifen (app/libs/plans.py); gelöschte Läden bleiben unberührt
+    shop_allows: Dict[str, bool] = {}
+
+    def allows_earlier(shop_id_: str) -> bool:
+        if shop_id_ not in shop_allows:
+            shop_doc = db.collection('shops').document(shop_id_).get()
+            shop_allows[shop_id_] = not shop_doc.exists or has_feature(shop_doc.to_dict() or {}, 'frueherDran')
+        return shop_allows[shop_id_]
+
     # Kandidaten
     candidates: List[Candidate] = []
     appt_data: Dict[str, dict] = {}
@@ -209,6 +219,8 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
             continue
         if not all(data.get(k) for k in ('shopId', 'staffId', 'serviceId', 'customerId')):
             continue  # ohne Kundenkonto kann niemand das Angebot sehen
+        if not allows_earlier(data['shopId']):
+            continue
         created = convert_timestamp_to_datetime(data.get('createdAt')) or start
         candidates.append(Candidate(doc.id, data['staffId'], data['serviceId'], start, created))
         appt_data[doc.id] = data

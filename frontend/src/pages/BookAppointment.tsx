@@ -10,6 +10,8 @@ import { useShopStaff } from '../utils/hooks/useShopStaff';
 import { useAppointmentBooking } from '../utils/hooks/useAppointmentBooking';
 import { useBookingForm } from '../utils/hooks/useBookingForm';
 import { useBookingValidation } from '../utils/hooks/useBookingValidation';
+import { Link } from 'react-router-dom';
+import { hasFeature } from '../utils/plans';
 
 const BookAppointment = () => {
   const navigate = useNavigate();
@@ -31,6 +33,10 @@ const BookAppointment = () => {
     checkEarlierOptions,
     setCheckEarlierOptions,
   } = useBookingForm(shops);
+
+  // Online-Termine gibt es ab dem Solo-Tarif (utils/plans.ts); sonst nur Nummer ziehen
+  const shopData = shops.find((s) => s.id === selectedShop);
+  const termineAllowed = !shopData || hasFeature(shopData, 'termine');
 
   const { staff: allStaff } = useShopStaff(selectedShop);
   const { services } = useShopServices(selectedShop);
@@ -112,6 +118,18 @@ const BookAppointment = () => {
         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Shops werden geladen">
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
+        </div>
+      ) : !termineAllowed ? (
+        <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6">
+          <p className="font-semibold">{shopData?.name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/public-join-queue?shopId=${selectedShop}`} className="inline-flex min-h-11 items-center rounded-xl bg-foreground px-5 font-semibold text-background">
+              Nummer ziehen
+            </Link>
+            <button type="button" className="min-h-11 rounded-xl border border-border px-5 font-semibold" onClick={() => setSelectedShop('')}>
+              Anderen Laden wählen
+            </button>
+          </div>
         </div>
       ) : (
         <BookingForm

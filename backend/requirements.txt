@@ -22,3 +22,5 @@ pyjwt[crypto]
 pywebpush
 # Zeitzonen auch unter Windows (auf dem Server liefert sie das System)
 tzdata
+# Abo-Abrechnung der Läden (app/libs/stripe_billing.py)
+stripe
