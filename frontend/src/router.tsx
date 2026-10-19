@@ -19,6 +19,8 @@ export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
 };
 
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+// Vollbild für den Fernseher im Laden: ohne Navigation und Fußzeile
+const Bildschirm = lazy(() => import("./pages/Bildschirm"));
 const SomethingWentWrongPage = lazy(
   () => import("./pages/SomethingWentWrongPage"),
 );
@@ -40,6 +42,14 @@ export const router = createBrowserRouter(
         </AppProvider>
       ),
       children: userRoutes
+    },
+    {
+      path: "/bildschirm/:shopId",
+      element: (
+        <SuspenseWrapper>
+          <Bildschirm />
+        </SuspenseWrapper>
+      ),
     },
     {
       path: "*",

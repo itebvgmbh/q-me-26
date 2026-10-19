@@ -272,6 +272,11 @@ const ShopDashboard = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => window.open(`/bildschirm/${shop.id}`, '_blank', 'noopener')}>
+                Wartezimmer-Bildschirm öffnen
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/auswertung')}>Auswertung</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/plakat')}>QR-Plakat drucken</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setShowEditShop(true)}>Laden bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/staff-management')}>Team</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/service-management')}>Leistungen</DropdownMenuItem>

@@ -6,7 +6,7 @@ export const SiteFooter = () => {
   const { user } = useCurrentUser();
 
   return (
-    <footer className="border-t border-border">
+    <footer className="border-t border-border print:hidden">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Logo />
         <nav aria-label="Fußzeile" className="flex flex-wrap gap-x-6 text-sm text-muted-foreground [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center">
@@ -14,6 +14,7 @@ export const SiteFooter = () => {
           <Link to="/public-join-queue" className="hover:text-foreground">In die Schlange</Link>
           <Link to="/features" className="hover:text-foreground">Für Betriebe</Link>
           <Link to="/preise" className="hover:text-foreground">Preise</Link>
+          <a href="/friseur-ohne-termin" className="hover:text-foreground">Friseur ohne Termin</a>
           {user ? (
             <Link to="/my-bookings" className="hover:text-foreground">Meine Termine</Link>
           ) : (

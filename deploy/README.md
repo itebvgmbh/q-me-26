@@ -249,6 +249,45 @@ gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. 
 Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorher `STRIPE_WEBHOOK_SECRET` und
 `STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
 
+## Umzug auf dranzeit.de
+
+Vorher von Hand (in dieser Reihenfolge):
+
+1. **Domains kaufen:** `dranzeit.de` und `www.dranzeit.de` (dazu am besten `.com`, `.app`, `.at`, `.ch`, `.eu`).
+2. **DNS** beim Domain-Anbieter: A-Record `dranzeit.de` und `www.dranzeit.de` → `195.201.26.108`,
+   AAAA-Record beider Namen → `2a01:4f8:1c18:b8d8::1`. Warten, bis der Block unten „DNS stimmt“ meldet.
+3. **Firebase Console** → Authentication → Settings → Autorisierte Domains: `dranzeit.de` und
+   `www.dranzeit.de` eintragen (sonst scheitert die Google-Anmeldung).
+4. **Resend** → Domains → `dranzeit.de` hinzufügen, die SPF/DKIM-Einträge beim Domain-Anbieter eintragen.
+
+Dann den Block einfügen. Er prüft DNS, setzt den Dranzeit-Block in der gemeinsamen Caddyfile (alte Adresse
+leitet weiter, Stadtseiten und Sitemap gehen ans Backend), stellt `PUBLIC_URL` um, richtet bei vorhandenem
+Stripe-Schlüssel den Webhook auf die neue Adresse um und prüft, dass `https://dranzeit.de` antwortet.
+Ohne Umzug, nur Stadtseiten auf der alten Adresse: `python3 /opt/q-me/deploy/caddy-domain.py q-me.spielmacherei.de`.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  foreach ($name in @('dranzeit.de', 'www.dranzeit.de')) { $ip = (Resolve-DnsName $name -Type A -ErrorAction SilentlyContinue | Where-Object { $_.Type -eq 'A' } | Select-Object -First 1).IPAddress; if ($ip -ne '195.201.26.108') { Write-Host "Abbruch: $name zeigt noch nicht auf den Server (gefunden: $ip). DNS-Eintrag pruefen und spaeter noch einmal." -ForegroundColor Red; return } }
+  Write-Host 'DNS stimmt. 1/4 Caddy umstellen ...' -ForegroundColor Cyan
+  $caddy = ssh -o BatchMode=yes $server 'python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de' 2>&1 | Out-String
+  Write-Host $caddy
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Caddy wurde nicht umgestellt, Meldung oben. Die anderen Seiten laufen unveraendert.' -ForegroundColor Red; return }
+  Write-Host '2/4 Adresse fuer Links in E-Mails setzen ...' -ForegroundColor Cyan
+  ssh -o BatchMode=yes $server 'sed -i /^PUBLIC_URL=/d /etc/q-me.env && echo PUBLIC_URL=https://dranzeit.de >> /etc/q-me.env && systemctl restart q-me'
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: PUBLIC_URL konnte nicht gesetzt werden.' -ForegroundColor Red; return }
+  Write-Host '3/4 Stripe-Webhook umziehen (falls eingerichtet) ...' -ForegroundColor Cyan
+  $stripe = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_SECRET_KEY= /etc/q-me.env' 2>&1 | Out-String
+  if ($stripe -match '^\s*1') { $ausgabe = ssh -o BatchMode=yes $server 'cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de && systemctl restart q-me' 2>&1 | Out-String; Write-Host $ausgabe; if ($ausgabe -notmatch 'Fertig') { Write-Host 'Achtung: Stripe-Webhook nicht umgezogen, Meldung oben. Der Rest ist umgestellt.' -ForegroundColor Yellow } } else { Write-Host '    Stripe noch nicht eingerichtet, uebersprungen.' }
+  Write-Host '4/4 Pruefen (das Zertifikat kann beim ersten Aufruf ein paar Sekunden dauern) ...' -ForegroundColor Cyan
+  $ok = $false
+  for ($i = 0; $i -lt 10 -and -not $ok; $i++) { try { $antwort = Invoke-WebRequest -Uri 'https://dranzeit.de/' -UseBasicParsing -TimeoutSec 10; $ok = ($antwort.StatusCode -eq 200) } catch { Start-Sleep -Seconds 3 } }
+  if ($ok) { Write-Host 'Fertig: https://dranzeit.de laeuft, die alte Adresse leitet weiter.' -ForegroundColor Green } else { Write-Host 'https://dranzeit.de antwortet noch nicht. In einer Minute im Browser pruefen; Caddy-Log: journalctl -u caddy -n 50' -ForegroundColor Yellow }
+}
+```
+
 ## Betreiber der App
 
 Den Hintergrunddienst für „Früher dran“ steuern (Start/Stopp, Takt, sofort prüfen) und den Verlauf **aller**

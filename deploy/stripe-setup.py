@@ -106,7 +106,12 @@ def main() -> None:
         ensure_price(c, products["laden"], lookup_key("laden", interval, founder=True), amount, interval, f"Dranzeit Laden Gründerpreis ({interval})")
 
     url = f"{base}/routes/stripe/webhook"
-    endpoints = [e for e in c.v1.webhook_endpoints.list(params={"limit": 100}).auto_paging_iter() if e.url == url]
+    all_endpoints = list(c.v1.webhook_endpoints.list(params={"limit": 100}).auto_paging_iter())
+    for e in all_endpoints:  # nach einem Umzug: alten Webhook der vorigen Adresse entfernen
+        if e.description == "Dranzeit Abos" and e.url != url:
+            c.v1.webhook_endpoints.delete(e.id)
+            print(f"Alten Webhook entfernt: {e.url}")
+    endpoints = [e for e in all_endpoints if e.url == url]
     have_secret = bool(os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip())
     if endpoints and have_secret:
         c.v1.webhook_endpoints.update(endpoints[0].id, params={"enabled_events": EVENTS})

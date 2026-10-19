@@ -133,6 +133,10 @@ export interface Appointment {
   updatedAt: Timestamp;
   isAnonymous?: boolean;
   referenceCode?: string;
+  /** Aufgerufen am Tresen (Status "in-progress"), für die Auswertung */
+  calledAt?: Timestamp;
+  /** Fertig (Status "completed") */
+  completedAt?: Timestamp;
 }
 
 export interface QueueEntry {
