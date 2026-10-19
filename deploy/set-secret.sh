@@ -2,14 +2,14 @@
 # Einen Schlüssel in /etc/q-me.env setzen und das Backend neu starten. Als root ausführen.
 # Der Wert kommt über die Standardeingabe – so steht er weder in einer Befehlszeile noch in einer History:
 #   ... | bash /opt/q-me/deploy/set-secret.sh GOOGLE_MAPS_API_KEY
-# Den passenden PowerShell-Block (fragt verdeckt ab) gibt es in deploy/README.md, "Schlüssel für Laden einrichten".
+# Den passenden PowerShell-Block (fragt verdeckt ab) gibt es in deploy/README.md, "Schlüssel eintragen".
 set -euo pipefail
 
 NAME=${1:-}
 case "$NAME" in
-	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY | ANTHROPIC_WORKSPACE_ID) ;;
+	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY | ANTHROPIC_WORKSPACE_ID | RESEND_API_KEY | STRIPE_SECRET_KEY | STRIPE_WEBHOOK_SECRET) ;;
 	*)
-		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID" >&2
+		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID, RESEND_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET" >&2
 		exit 2
 		;;
 esac

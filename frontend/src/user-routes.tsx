@@ -18,8 +18,10 @@ const App = lazy(() => import("./pages/App.tsx"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
 const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
+const Datenschutz = lazy(() => import("./pages/Datenschutz.tsx"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazy(() => import("./pages/Features.tsx"));
+const Impressum = lazy(() => import("./pages/Impressum.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Logout = lazy(() => import("./pages/Logout.tsx"));
 const MyBookings = lazy(() => import("./pages/MyBookings.tsx"));
@@ -54,6 +56,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/employeedashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/features", element: <Features />},
+	{ path: "/impressum", element: <Impressum />},
+	{ path: "/datenschutz", element: <Datenschutz />},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},

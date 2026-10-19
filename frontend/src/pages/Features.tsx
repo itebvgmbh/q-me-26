@@ -47,7 +47,7 @@ export default function Features() {
             Volles Wartezimmer? Muss nicht sein.
           </h1>
           <p className="max-w-xl text-lg text-muted-foreground">
-            q-me ordnet Laufkundschaft und feste Termine in eine Reihenfolge. Deine Kunden warten draußen statt im Laden – und
+            Dranzeit ordnet Laufkundschaft und feste Termine in eine Reihenfolge. Deine Kunden warten draußen statt im Laden – und
             kommen zurück, wenn sie dran sind.
           </p>
           <div className="flex flex-wrap gap-2">
