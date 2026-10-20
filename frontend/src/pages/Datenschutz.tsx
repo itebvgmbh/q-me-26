@@ -25,14 +25,20 @@ export default function Datenschutz() {
         <ul>
           <li>
             <strong>Nummer ziehen ohne Konto:</strong> gewählter Laden, Leistung, Person und Uhrzeit, dazu der Name und,
-            wenn du sie angibst, Telefonnummer oder E-Mail-Adresse. Damit der Laden dich aufrufen und dir Bescheid geben
-            kann (Art. 6 Abs. 1 lit. b DSGVO).
+            wenn du sie angibst, Telefonnummer oder E-Mail-Adresse. Damit der Laden dich aufrufen und, wenn nötig,
+            anrufen kann und wir dir Bescheid geben können (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
           <li>
-            <strong>Konto:</strong> E-Mail-Adresse, Name, auf Wunsch Telefonnummer, und deine Termine. Du meldest dich mit
+            <strong>Konto:</strong> E-Mail-Adresse, Name, auf Wunsch Telefonnummer, und deine Termine. Name und
+            Telefonnummer sieht der Laden bei deinen Terminen. Du meldest dich mit
             E-Mail-Adresse und Passwort an; das Passwort prüft Google Firebase, wir sehen es nicht. Hat ein Laden dich als
             Kunde angelegt und du verbindest dein Konto über seinen Link, gehören die Termine, die der Laden für dich
             einträgt, zu deinem Konto (Art. 6 Abs. 1 lit. b DSGVO).
+          </li>
+          <li>
+            <strong>Vom Laden angelegt:</strong> Trägt ein Laden dich in seine Kundenliste ein, speichern wir den Namen,
+            die E-Mail-Adresse und, wenn angegeben, die Telefonnummer, die der Laden einträgt, und die Termine, die er für
+            dich vereinbart (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
           <li>
             <strong>Früher dran:</strong> Wenn du es einschaltest, prüfen wir, ob ein früherer Platz frei wird, und
@@ -62,8 +68,22 @@ export default function Datenschutz() {
       <section>
         <h2>Wie lange wir Daten speichern</h2>
         <ul>
-          <li>Namen und Kontaktdaten bei Nummern ohne Konto entfernen wir 90 Tage nach dem Termin.</li>
-          <li>Kontodaten speichern wir, bis du dein Konto löschst oder uns um Löschung bittest.</li>
+          <li>
+            Namen und Kontaktdaten bei Nummern und Terminen ohne Konto entfernen wir 90 Tage nach dem Termin, auch bei
+            Kunden, die ein Laden angelegt hat. Bei Terminen mit Konto entfernen wir nach 90 Tagen Telefonnummer und
+            E-Mail-Adresse am Termin, dein Name bleibt in deinen Terminen. Uhrzeit, Leistung und Person bleiben für die
+            Auswertung des Ladens.
+          </li>
+          <li>
+            Kunden, die ein Laden angelegt hat, löschen wir 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach
+            dem Anlegen, solange kein Konto verbunden ist. Der Laden kann sie jederzeit selbst löschen.
+          </li>
+          <li>Die Adresse für Benachrichtigungen im Browser löschen wir nach 3 Tagen.</li>
+          <li>
+            Kontodaten speichern wir, bis du dein Konto löschst (unter „Mein Profil“) oder uns um Löschung bittest. Dann
+            sagen wir kommende Termine ab und entfernen deinen Namen aus früheren. Konten von Läden und Teams löschen wir
+            auf Anfrage.
+          </li>
           <li>Server-Protokolle löschen wir nach spätestens 14 Tagen.</li>
           <li>Rechnungsdaten der Läden bewahren wir so lange auf, wie das Steuer- und Handelsrecht es verlangt.</li>
         </ul>

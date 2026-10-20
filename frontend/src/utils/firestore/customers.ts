@@ -92,6 +92,13 @@ export const getCustomersByShopId = async (shopId: string): Promise<Customer[]> 
   }
 };
 
+/** Alle Einträge eines Ladens, auch doppelte – für die Kundenliste, aus der man löschen kann */
+export const getCustomerEntries = async (shopId: string): Promise<Customer[]> => {
+  const db = getFirestore(firebaseApp);
+  const snapshot = await getDocs(query(collection(db, 'customers'), where('shopId', '==', shopId)));
+  return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as Customer).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+};
+
 /**
  * Sucht nach einem Kunden anhand von Email und ShopId
  * @param email Email des Kunden

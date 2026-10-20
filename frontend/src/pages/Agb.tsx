@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Agb() {
   return (
-    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="19.10.2026">
+    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="20.10.2026">
       <section>
         <h2>1. Geltungsbereich</h2>
         <p>
@@ -114,8 +114,10 @@ export default function Agb() {
             Verletzungen des Schutzes seiner Daten unverzüglich.
           </li>
           <li>
-            <strong>Löschung:</strong> Namen und Kontaktdaten bei Nummern ohne Konto entfernen wir 90 Tage nach dem Termin.
-            Nach Vertragsende löschen wir die Daten des Ladens innerhalb von 30 Tagen, soweit keine Aufbewahrungspflicht besteht.
+            <strong>Löschung:</strong> Namen und Kontaktdaten bei Nummern und Terminen ohne Konto entfernen wir 90 Tage nach
+            dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir 12 Monate nach ihrem letzten Termin; der
+            Kunde kann sie jederzeit selbst löschen. Nach Vertragsende löschen wir die Daten des Ladens innerhalb von 30 Tagen,
+            soweit keine Aufbewahrungspflicht besteht.
           </li>
           <li>
             <strong>Nachweise:</strong> Auf Anfrage weisen wir die Einhaltung dieser Pflichten nach.

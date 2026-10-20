@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Check, Megaphone } from 'lucide-react';
+import { Check, Megaphone, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,13 @@ export const customerLabel = (a: Appointment) => {
   const name = a.customerName && a.customerName !== 'Unbekannter Kunde' ? a.customerName : 'Gast';
   return a.isAnonymous && a.referenceCode ? `${name} · Nr. ${a.referenceCode}` : name;
 };
+
+/** Handynummer vom Nummer-Ziehen oder aus dem Profil, damit der Laden anrufen kann (nach 90 Tagen gelöscht) */
+const PhoneLink = ({ phone }: { phone: string }) => (
+  <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2">
+    <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {phone}
+  </a>
+);
 
 interface Props {
   title: string;
@@ -68,6 +75,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
               {serviceName(current)} · {safelyConvertToDate(current.startTime) > now ? 'geplant' : 'seit'}{' '}
               <span className="font-mono">{format(safelyConvertToDate(current.startTime), 'HH:mm')}</span>
             </p>
+            {current.customerPhone && <PhoneLink phone={current.customerPhone} />}
           </>
         ) : (
           <p className="text-muted-foreground">
@@ -101,6 +109,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
                   <span className="block truncate text-xs text-muted-foreground">
                     {serviceName(a)} · {a.type === 'queue' ? 'Nummer' : 'Termin'}
                   </span>
+                  {a.customerPhone && <PhoneLink phone={a.customerPhone} />}
                 </span>
                 {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">Nächste</span>}
               </li>
