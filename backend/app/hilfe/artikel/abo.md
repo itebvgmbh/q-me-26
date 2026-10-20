@@ -28,7 +28,7 @@ Bei laufendem Abo steht unter „Mein Tarif“ der Knopf **„Abo verwalten, Rec
 - Rechnungsadresse und Umsatzsteuer-ID ändern
 - deine Rechnungen ansehen
 
-Jede Rechnung bekommst du außerdem per E-Mail.
+Jede Rechnung bekommst du außerdem per E-Mail. Unter „Mein Tarif“ → **„Rechnungen“** lädst du jede Rechnung auch selbst herunter: als PDF und als **E-Rechnung** (XRechnung), die dein Buchhaltungsprogramm oder dein Steuerbüro direkt einliest.
 
 ## Kündigen
 
