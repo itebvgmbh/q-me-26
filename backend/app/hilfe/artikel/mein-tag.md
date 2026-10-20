@@ -42,7 +42,7 @@ Von selbst löscht Dranzeit Kunden ohne verbundenes Konto, wenn 12 Monate kein T
 
 Halt einen Termin fest und zieh ihn an die neue Stelle: am Computer mit der Maus, auf Handy oder Tablet nach kurzem Gedrückthalten. Ein gestrichelter Rahmen zeigt die neue Uhrzeit. Lass los, wenn sie stimmt. Sind 3 oder mehr Tage zu sehen, ziehst du ihn auch auf einen anderen Tag.
 
-Ist die neue Zeit belegt, bleibt der Termin, wo er war, zum Beispiel mit „Nicht verschoben: Da ist schon ein Termin (10:00–10:30).“ Hat der Kunde eine Nummernseite oder ein Konto, sieht er dort die neue Uhrzeit. Eine Nachricht bekommt er nicht.
+Ist die neue Zeit belegt, bleibt der Termin, wo er war, zum Beispiel mit „Nicht verschoben: Da ist schon ein Termin (10:00–10:30).“ Hat der Kunde eine Nummernseite oder ein Konto, sieht er dort die neue Uhrzeit und bekommt die Nachricht „Neue Uhrzeit“, per Push oder E-Mail. Auch wenn du einen Termin absagst, bekommt er Bescheid. Mehr dazu: [Welche Nachrichten deine Kunden bekommen](/hilfe/benachrichtigungen).
 
 ## Status und Konflikte
 

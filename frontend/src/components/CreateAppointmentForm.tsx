@@ -65,6 +65,8 @@ export const CreateAppointmentForm = ({
   const [slots, setSlots] = useState<Record<string, Slot | null> | null>(null);
   const [searching, setSearching] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  // Vergebene Nummer: bleibt stehen, bis der Kunde sie kennt (er hat keine Nummernseite)
+  const [issued, setIssued] = useState<{ appointment: Appointment; person: string } | null>(null);
 
   const service = services.find((s) => s.id === serviceId);
   const eligible = useMemo(
@@ -107,12 +109,13 @@ export const CreateAppointmentForm = ({
     return candidates[0] ?? null;
   }, [slots, staffId, eligible]);
 
-  const save = async (data: Record<string, unknown>, label: string) => {
+  const save = async (data: Record<string, unknown>, label: (created: Appointment) => string, keepOpen?: (created: Appointment) => void) => {
     setSaving(true);
     try {
       const created = await createAppointment(data);
-      toast.success(label);
-      onCreateAppointment(created);
+      toast.success(label(created));
+      if (keepOpen) keepOpen(created);
+      else onCreateAppointment(created);
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       toast.error(`${appointmentType === 'booked' ? 'Termin' : 'Nummer'} nicht angelegt: ${error?.message || 'unbekannter Fehler'}`);
@@ -137,7 +140,8 @@ export const CreateAppointmentForm = ({
         status: 'scheduled',
         type: 'queue',
       },
-      `Nummer vergeben: ${format(pick.slot.start, 'HH:mm')} bei ${pick.person.name}.`,
+      (created) => `Nummer ${created.referenceCode ? `${created.referenceCode} ` : ''}vergeben: ${format(pick.slot.start, 'HH:mm')} bei ${pick.person.name}.`,
+      (created) => setIssued({ appointment: created, person: pick.person.name }),
     );
   };
 
@@ -159,7 +163,7 @@ export const CreateAppointmentForm = ({
         status: 'scheduled',
         type: 'booked',
       },
-      `Termin eingetragen: ${format(start, 'dd.MM.')} um ${time}.`,
+      () => `Termin eingetragen: ${format(start, 'dd.MM.')} um ${time}.`,
     );
   };
 
@@ -169,6 +173,38 @@ export const CreateAppointmentForm = ({
     customers.forEach((c) => !seen.has(appointmentCustomerId(c)) && seen.set(appointmentCustomerId(c), c));
     return [...seen.values()];
   }, [customers]);
+
+  if (issued) {
+    const start = issued.appointment.startTime instanceof Date ? issued.appointment.startTime : issued.appointment.startTime.toDate();
+    return (
+      <div className="flex flex-col gap-4 py-2" role="status" aria-live="polite">
+        <div className="flex flex-col items-center gap-1 rounded-3xl bg-signal p-6 text-center text-signal-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em]">Nummer</p>
+          <p className="font-mono text-6xl font-bold leading-none tracking-[-0.04em]">{issued.appointment.referenceCode ?? '—'}</p>
+          <p className="mt-2 font-display text-xl font-bold">{when(start)}</p>
+          <p className="text-sm">bei {issued.person}</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Sag dem Kunden seine Nummer und die Uhrzeit, am besten auf einen Zettel. Am Tresen und auf dem Wartezimmer-Bildschirm steht er unter dieser Nummer.
+        </p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIssued(null);
+              setCustomerName('');
+              setRefresh((n) => n + 1);
+            }}
+          >
+            Noch eine Nummer
+          </Button>
+          <Button variant="signal" onClick={() => onCreateAppointment(issued.appointment)}>
+            Fertig
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 py-2">

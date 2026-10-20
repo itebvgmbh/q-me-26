@@ -1,5 +1,6 @@
 import { collection, doc, DocumentData, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import { firestore as db } from './firestore-client';
+import { occupiedWindow, projectLane } from './queue-lane';
 
 /**
  * Eine Regel für alle Termine: Was hier nicht frei ist, darf weder angezeigt noch gespeichert werden.
@@ -11,7 +12,11 @@ import { firestore as db } from './firestore-client';
  *     (businessHoursByDay[].breaks, z. B. mittags geschlossen) – gelten für alle Personen
  *  2. Arbeitszeiten der Person (ohne Arbeitszeiten ist nichts buchbar)
  *  3. Wiederkehrende Pausen (recurring-breaks) und einzelne Pausen (breaks) der Person
- *  4. Andere Termine der Person (abgesagte zählen nicht)
+ *  4. Andere Termine der Person (abgesagte zählen nicht): Wartende mit ihrer geplanten Zeit, wer dran ist ab
+ *     Aufruf, wer fertig ist nur bis "Fertig" – wer früher fertig ist, gibt den Rest seiner Zeit frei (queue-lane.ts)
+ *  5. Nur bei der Platzsuche für Nummern (projectAt): die Prognose der heutigen Schlange – hängt der Laden
+ *     hinterher, bekommt eine neue Nummer eine Zeit nach den Wartenden statt einer, die schon überholt ist.
+ *     Beim Speichern zählt die Prognose nicht, sonst scheiterte ein eben gefundener Platz an einer Minute Uhrzeit.
  * Alle Uhrzeiten sind Ortszeit des Ladens (Browserzeit).
  */
 
@@ -135,7 +140,12 @@ export const loadStaffRange = async (
 };
 
 /** Rechnet aus den geladenen Daten, was an einem Tag buchbar ist – ohne Netz */
-export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointmentId?: string): StaffDayContext => {
+export const buildDayContext = (
+  data: StaffRangeData,
+  day: Date,
+  excludeAppointmentId?: string,
+  options: { projectAt?: number } = {},
+): StaffDayContext => {
   const midnight = new Date(day);
   midnight.setHours(0, 0, 0, 0);
   const dayStart = midnight.getTime();
@@ -182,14 +192,24 @@ export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointm
       if (s === null || e === null || e <= s || e <= dayStart || s >= dayEnd) return;
       blocked.push({ start: s, end: e, reason: `Pause von ${hhmm(s)} bis ${hhmm(e)}.` });
     });
-    data.appointments.forEach(({ id, data: a }) => {
-      if (id === excludeAppointmentId) return;
-      if (a.status === 'cancelled') return;
-      const s = toMs(a.startTime);
-      const e = toMs(a.endTime);
-      if (s === null || e === null || e <= dayStart || s >= dayEnd) return;
-      blocked.push({ start: s, end: e, reason: `Da ist schon ein Termin (${hhmm(s)}–${hhmm(e)}).` });
+    const others = data.appointments.filter(({ id }) => id !== excludeAppointmentId);
+    others.forEach(({ id, data: a }) => {
+      const w = occupiedWindow({ ...a, id });
+      if (!w || w.end <= dayStart || w.start >= dayEnd) return;
+      blocked.push({ ...w, reason: `Da ist schon ein Termin (${hhmm(w.start)}–${hhmm(w.end)}).` });
     });
+    const now = options.projectAt;
+    if (now !== undefined && now >= dayStart && now < dayEnd) {
+      const lane = others
+        .filter(({ data: a }) => {
+          const s = toMs(a.startTime);
+          return s !== null && s >= dayStart && s < dayEnd;
+        })
+        .map(({ id, data: a }) => ({ ...a, id }));
+      projectLane(lane, now).forEach((w) => {
+        blocked.push({ ...w, reason: `Die Schlange ist bis ca. ${hhmm(w.end)} belegt.` });
+      });
+    }
   }
 
   if (window.end <= window.start) {

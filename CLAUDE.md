@@ -19,5 +19,6 @@ Server: `root@195.201.26.108`, Code in `/opt/q-me`, Einzelheiten in `deploy/READ
 
 - Testskripte liegen in `dev/` (Anleitung: `dev/README.md`): Testladen anlegen/löschen (`dev/fixtures.py`), Regel- und Oberflächentests mit Playwright (`dev/e2e/`), Datenblick (`dev/daten.py`), Attrappen für PowerShell-Blöcke (`dev/powershell/`).
 - Achtung: Es gibt nur ein Firebase-Projekt – Tests laufen gegen die echte Datenbank. Schreibende Tests nur im Testladen aus `dev/fixtures.py`.
-- Backend: `backend/tests/test_earlier_slots.py` (ohne Firebase lauffähig).
-- Nach Änderungen an Buchung/Warteschlange mindestens `regeln.cjs`, `fruehester-platz.cjs` und `seiten.cjs` laufen lassen.
+- Backend: `backend/tests/test_earlier_slots.py` und `test_queue_notify.py` (ohne Firebase lauffähig).
+- Nach Änderungen an Buchung/Warteschlange mindestens `regeln.cjs`, `fruehester-platz.cjs`, `schlange-tresen.cjs` und `seiten.cjs` laufen lassen.
+- Die Regel der Schlange (wer wartet, Reihenfolge, Verzug, belegte Zeit) steht in `frontend/src/utils/queue-lane.ts` und gleich im Backend in `backend/app/libs/queue_notify.py` – immer beide ändern, Test ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.

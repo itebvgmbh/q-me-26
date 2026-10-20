@@ -57,9 +57,11 @@ export const getAvailableTimeslotsDirect = async (
 };
 
 /**
- * Frühester freier Platz je Person ab jetzt, höchstens maxDays Tage voraus.
+ * Frühester freier Platz je Person ab jetzt, höchstens maxDays Tage voraus (Nummer ziehen und vergeben).
  * Lädt Leistung, Laden und die Daten aller Personen gleichzeitig (eine Rundreise) und rechnet die
  * Tage dann im Speicher durch – vorher waren es pro Tag drei Rundreisen nacheinander.
+ * Heute zählt dabei der Stand am Tresen (Prognose aus queue-lane.ts): Hängt die Person hinterher,
+ * kommt die neue Nummer hinter die Wartenden statt auf eine Zeit, die schon überholt ist.
  * Personen ohne freien Platz im Zeitraum bekommen null.
  */
 export const findEarliestSlots = async (
@@ -83,7 +85,8 @@ export const findEarliestSlots = async (
     result[staffId] = null;
     for (let offset = 0; offset < maxDays && !result[staffId]; offset++) {
       const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
-      const first = slotsForDay(buildDayContext(ranges[i], day), day, totalMinutes).find((slot) => slot.start.getTime() > now);
+      const ctx = buildDayContext(ranges[i], day, undefined, { projectAt: now });
+      const first = slotsForDay(ctx, day, totalMinutes).find((slot) => slot.start.getTime() > now);
       if (first) result[staffId] = first;
     }
   });

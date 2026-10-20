@@ -106,7 +106,8 @@ run(async () => {
         await dialog.locator('#customerName').fill(name);
         if (i === 0) await photo(dialog, 'nummer-vergeben');
         await dialog.getByRole('button', { name: 'Nummer vergeben' }).click();
-        await owner.getByText(/Nummer vergeben: \d\d:\d\d/).first().waitFor({ timeout: 15000 });
+        await owner.getByText(/Nummer \d+ vergeben: \d\d:\d\d/).first().waitFor({ timeout: 15000 });
+        await dialog.getByRole('button', { name: 'Fertig' }).click();
         await owner.waitForTimeout(800);
       }
       return 'nummer-vergeben';
