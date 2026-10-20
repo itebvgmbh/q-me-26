@@ -32,6 +32,7 @@ from app.apis.firebase_utils import get_firestore_db
 from app.apis.models import CheckEarlierSlotsResponse
 from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.utils import convert_timestamp_to_datetime
+from app.libs import notify_worker
 from app.libs.plans import has_feature
 
 from fastapi import Depends
@@ -293,6 +294,7 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
             'expiresAt': hold_until,
             'isRead': False,
             'status': 'offered',
+            'offerNotice': 'pending',  # Push/E-Mail an den Kunden (app/libs/notify_worker.py)
         })
     for appointment_id, (start, end) in plan.create:
         data = appt_data[appointment_id]
@@ -313,10 +315,13 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
             'status': 'offered',
             'isRead': False,
             'isAccepted': False,
+            'offerNotice': 'pending',  # Push/E-Mail an den Kunden (app/libs/notify_worker.py)
         })
         print(f"Offer for appointment {appointment_id}: {start:%d.%m. %H:%M} (exclusive until {hold_until:%H:%M})")
 
     if plan.create or plan.move:
+        # Kunden sofort Bescheid geben – vorher sah man ein Angebot nur, wenn man "Meine Termine" öffnete
+        notify_worker.wake()
         # Zum Fristende erneut prüfen, damit der Platz ohne Wartezeit an die nächste Person geht
         timer = threading.Timer(OFFER_HOLD_MINUTES * 60 + 5, trigger_check_in_background, args=(shop_id, staff_id))
         timer.daemon = True
@@ -359,8 +364,10 @@ class SlotFreedRequest(BaseModel):
 @router.post("/slot-freed")
 async def slot_freed(body: SlotFreedRequest) -> Dict[str, str]:
     """
-    Ein Platz ist frei geworden (Absage, Verschiebung) oder jemand will früher dran sein:
-    sofort prüfen statt bis zu 5 Minuten auf den nächsten Takt zu warten.
+    Ein Platz ist frei geworden (Absage, Verschiebung, früher fertig) oder jemand will früher dran sein:
+    sofort prüfen statt bis zu 5 Minuten auf den nächsten Takt zu warten. Weckt auch den
+    Benachrichtigungsdienst – hat der Laden abgesagt oder verschoben, bekommt der Kunde gleich Bescheid.
     """
     trigger_check_in_background(body.shop_id, body.staff_id)
+    notify_worker.wake()
     return {"status": "queued"}

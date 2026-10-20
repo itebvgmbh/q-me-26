@@ -1,13 +1,17 @@
-"""Hintergrunddienst für Benachrichtigungen: "Gleich bist du dran", "Du bist dran" und Termin-Erinnerungen,
-nebenbei die Start-Mails an neue Läden (app/libs/onboarding_mail.py).
+"""Hintergrunddienst für Benachrichtigungen: "Gleich bist du dran", "Du bist dran", Termin-Erinnerungen,
+Absage/Verschiebung durch den Laden und "Früher dran"-Angebote, nebenbei die Start-Mails an neue Läden
+(app/libs/onboarding_mail.py).
 
 Läuft als eigener Thread (gestartet in main.py, wie "Früher dran"). Alle 30 Sekunden liest er die heutigen
 Termine und schickt fällige Nachrichten. Ruft der Tresen eine Nummer auf, weckt ihn ein Firestore-Listener
-sofort – sonst käme "Du bist dran" bis zu 30 Sekunden zu spät.
+sofort – sonst käme "Du bist dran" bis zu 30 Sekunden zu spät. Absagen und Verschiebungen (über /slot-freed)
+und neue Angebote (check_slots) wecken ihn ebenfalls; deren Merker prüft er beim Wecken und alle
+EXTRA_EVERY Durchläufe, nicht jedes Mal (spart Lesevorgänge).
 
 Kanäle je Termin: Web-Push (Sammlung push_subscriptions) und E-Mail (Feld notifyEmail am Termin, bei
-Erinnerungen auch die E-Mail des Kundenkontos). Was gesendet wurde, steht am Termin
-(notifiedSoonAt, notifiedCalledAt, reminderSentAt), damit nichts doppelt kommt.
+Erinnerungen, Absagen, Verschiebungen und Angeboten auch die E-Mail des Kundenkontos). Was gesendet wurde,
+steht am Termin bzw. Angebot (notifiedSoonAt, notifiedCalledAt, reminderSentAt; customerNotice und
+offerNotice werden geleert), damit nichts doppelt kommt.
 """
 
 import os
@@ -19,11 +23,13 @@ from app.libs import onboarding_mail
 from app.libs.appointment_window import AppointmentWindow
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.plans import has_feature
-from app.libs.queue_notify import message_for, needs_reminder, plan_queue_notifications
+from app.libs.queue_notify import message_for, needs_reminder, notice_kind, plan_queue_notifications, recalled_to_reset
 from app.libs.webpush import SubscriptionGone, push_configured, send_push
 
 BERLIN = ZoneInfo("Europe/Berlin")
 SWEEP_SECONDS = 30
+# Absagen/Verschiebungen und Angebote ohne Wecken spätestens nach so vielen Durchläufen (5 Minuten)
+EXTRA_EVERY = 10
 SUBSCRIPTION_MAX_AGE_DAYS = 3
 
 _wakeup = threading.Event()
@@ -55,9 +61,11 @@ def _loop() -> None:
     _window.enable(db)
     last_cleanup = None
     last_onboarding = None
+    sweep = 0
+    woken = True
     while True:
         try:
-            run_once(db)
+            run_once(db, extras=woken or sweep % EXTRA_EVERY == 0)
             today = datetime.now(BERLIN).date()
             if last_cleanup != today:
                 last_cleanup = today
@@ -75,12 +83,13 @@ def _loop() -> None:
                     print(f"Start-Mails: {count} verschickt")
             except Exception as e:
                 print(f"Start-Mails: Fehler im Durchlauf: {e}")
-        _wakeup.wait(SWEEP_SECONDS)
+        sweep += 1
+        woken = _wakeup.wait(SWEEP_SECONDS)
         _wakeup.clear()
 
 
 def _start_watch(db) -> None:
-    """Jede Änderung an aufgerufenen Nummern weckt den Dienst sofort."""
+    """Jede Änderung an aufgerufenen Nummern weckt den Dienst sofort – auch wenn eine zurück auf "Wartet" geht."""
     global _watch
     try:
         _watch = db.collection("appointments").where("status", "==", "in-progress").on_snapshot(lambda *_: _wakeup.set())
@@ -100,7 +109,8 @@ def _day_range(now: datetime) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
-def run_once(db, now: datetime | None = None) -> dict:
+def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
+    """Ein Durchlauf. extras: auch Absagen/Verschiebungen des Ladens und "Früher dran"-Angebote prüfen."""
     now = now or datetime.now(timezone.utc)
     can_push, can_mail = push_configured(), mail_configured()
     if not can_push and not can_mail:
@@ -109,7 +119,14 @@ def run_once(db, now: datetime | None = None) -> dict:
     start, end = _day_range(now)
     todays = _appointments(db, start, end)
     active = [a for a in todays if a.get("status") in ("scheduled", "in-progress")]
-    planned = plan_queue_notifications(active, now)
+    # Zurück auf "Wartet": beim nächsten Aufruf soll "Du bist dran" wieder kommen
+    reset = set(recalled_to_reset(active))
+    for appt in active:
+        if appt["id"] in reset:
+            _mark(db, appt["id"], {"notifiedCalledAt": None})
+            appt["notifiedCalledAt"] = None
+    # Fertige zählen mit: Erst wenn bei einer Person aufgerufen wurde, rechnet die Schlange mit Verzug
+    planned = plan_queue_notifications([a for a in todays if a.get("status") != "cancelled"], now)
     by_id = {a["id"]: a for a in active}
 
     reminders = [a for a in active if needs_reminder(a, now)]
@@ -151,11 +168,112 @@ def run_once(db, now: datetime | None = None) -> dict:
             sent += 1
         _mark(db, appt["id"], {"reminderSentAt": now})
 
-    return {"geplant": len(planned), "erinnerungen": len(reminders), "gesendet": sent}
+    result = {"geplant": len(planned), "erinnerungen": len(reminders), "gesendet": sent}
+    if extras:
+        result["mitteilungen"] = _send_notices(db, now, start, shops, can_push, can_mail)
+        result["angebote"] = _send_offers(db, now, shops, can_push, can_mail)
+    return result
 
 
-def _deliver(db, appt: dict, channels: list, email: str, title: str, body: str, tag: str) -> None:
-    url = f"/nummer/{appt['id']}"
+def _local(value: datetime | None) -> datetime | None:
+    return value.astimezone(BERLIN) if value else None
+
+
+def _send_notices(db, now: datetime, today_start: datetime, shops: dict, can_push: bool, can_mail: bool) -> int:
+    """Laden hat abgesagt oder verschoben (Merker customerNotice, gesetzt von updateAppointment im Frontend)."""
+    pending = [_as_dict(d) for d in db.collection("appointments").where("customerNotice", "in", ["cancelled", "moved"]).stream()]
+    if not pending:
+        return 0
+    subs = _subscriptions_for(db, [a["id"] for a in pending]) if can_push else {}
+    sent = 0
+    for appt in pending:
+        kind = notice_kind(appt, now, today_start)
+        shop = _shop(db, shops, appt.get("shopId"))
+        delivered = False
+        if kind and has_feature(shop, "benachrichtigung", now):
+            channels = subs.get(appt["id"], [])
+            email = _customer_email(db, appt) if can_mail else ""
+            if channels or email:
+                title, body = message_for(
+                    kind,
+                    shop.get("name", ""),
+                    now=_local(now),
+                    start=_local(appt["startTime"]),
+                    previous=_local(appt.get("customerNoticePreviousStart")),
+                    queue=appt.get("type") == "queue",
+                    staff=_staff_name(db, appt.get("staffId")) if kind == "moved" else "",
+                )
+                _deliver(db, appt, channels, email, title, body, tag=f"notice-{appt['id']}")
+                delivered = True
+                sent += 1
+        # Auch ohne Kanal oder Tarif leeren – sonst käme die Nachricht Tage später, wenn sich jemand anmeldet
+        update = {"customerNotice": None, "customerNoticePreviousStart": None}
+        if delivered:
+            update["customerNoticeSentAt"] = now
+        db.collection("appointments").document(appt["id"]).update(update)
+    return sent
+
+
+def _send_offers(db, now: datetime, shops: dict, can_push: bool, can_mail: bool) -> int:
+    """"Früher dran": neues oder verbessertes Angebot (Merker offerNotice, gesetzt in app/apis/check_slots)."""
+    offers = [_as_dict(d) for d in db.collection("earlier_slot_notifications").where("offerNotice", "==", "pending").stream()]
+    if not offers:
+        return 0
+    appts: dict[str, dict | None] = {}
+    for offer in offers:
+        appt_id = offer.get("appointmentId")
+        if appt_id and appt_id not in appts:
+            doc = db.collection("appointments").document(appt_id).get()
+            appts[appt_id] = _as_dict(doc) if doc.exists else None
+    subs = _subscriptions_for(db, [i for i, a in appts.items() if a]) if can_push else {}
+    sent = 0
+    local_now = _local(now)
+    for offer in offers:
+        appt = appts.get(offer.get("appointmentId"))
+        start = _local_offer_time(offer.get("earlierStartTime"))
+        shop = _shop(db, shops, offer.get("shopId"))
+        still_open = offer.get("status") == "offered" and not offer.get("isAccepted") and start is not None and start > local_now
+        if appt and still_open and appt.get("status") == "scheduled" and has_feature(shop, "frueherDran", now):
+            channels = subs.get(appt["id"], [])
+            email = _customer_email(db, appt) if can_mail else ""
+            if channels or email:
+                title, body = message_for(
+                    "offer",
+                    shop.get("name", ""),
+                    now=local_now,
+                    start=start,
+                    original=_local(appt.get("startTime")),
+                    hold_until=_local(offer.get("expiresAt")),
+                )
+                _deliver(db, appt, channels, email, title, body, tag=f"offer-{appt['id']}", url="/my-bookings", button_text="Angebot ansehen")
+                sent += 1
+        db.collection("earlier_slot_notifications").document(offer["id"]).update({"offerNotice": None, "offerNotifiedAt": now})
+    return sent
+
+
+def _local_offer_time(value) -> datetime | None:
+    """earlierStartTime steht als Ortszeit ohne Zeitzone im Angebot (siehe check_slots)."""
+    if not value:
+        return None
+    if not isinstance(value, datetime):
+        try:
+            value = datetime.fromisoformat(str(value))
+        except ValueError:
+            return None
+    return value.astimezone(BERLIN) if value.tzinfo else value.replace(tzinfo=BERLIN)
+
+
+def _staff_name(db, staff_id: str | None) -> str:
+    if not staff_id:
+        return ""
+    doc = db.collection("staff").document(staff_id).get()
+    return ((doc.to_dict() or {}).get("name") or "").strip() if doc.exists else ""
+
+
+def _deliver(
+    db, appt: dict, channels: list, email: str, title: str, body: str, tag: str, url: str | None = None, button_text: str = "Nummer ansehen"
+) -> None:
+    url = url or f"/nummer/{appt['id']}"
     for sub in channels:
         try:
             send_push(sub["subscription"], title, body, url, tag)
@@ -168,7 +286,7 @@ def _deliver(db, appt: dict, channels: list, email: str, title: str, body: str, 
             send_mail(
                 to=email,
                 subject=title,
-                html_body=branded_html(esc(title), [esc(body)], button_text="Nummer ansehen", button_url=public_url() + url),
+                html_body=branded_html(esc(title), [esc(body)], button_text=button_text, button_url=public_url() + url),
                 text_body=f"{body}\n\n{public_url()}{url}\n",
             )
         except Exception as e:

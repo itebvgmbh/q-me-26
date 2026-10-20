@@ -21,7 +21,7 @@ Ein Link für eine Person aus deinem Team. Damit legt sie ihr eigenes Konto an u
 
 ### Früher dran
 
-Kunden mit Konto können ankreuzen, dass sie einen früheren Platz angeboten bekommen, wenn einer frei wird. Ihr Platz bleibt sicher, bis sie zusagen. Ab dem Tarif Solo. [Früher dran](/hilfe/frueher-dran)
+Kunden mit Konto können beim Buchen oder später unter „Meine Termine“ einschalten, dass sie einen früheren Platz angeboten bekommen, wenn einer frei wird. Ihr Platz bleibt sicher, bis sie zusagen. Ab dem Tarif Solo. [Früher dran](/hilfe/frueher-dran)
 
 ### Gleich dran
 

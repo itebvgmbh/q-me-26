@@ -2,10 +2,10 @@ import { User } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { TimeSlot } from './types';
-import { 
-  createAppointment, 
-  createCustomer, 
-  isCustomerInQueue 
+import {
+  createAppointment,
+  isCustomerInQueue,
+  linkOwnCustomerEntry
 } from './firestore';
 import { saveAnonymousBookingCode } from './localStorageUtils';
 
@@ -130,13 +130,6 @@ export const QueueBookingService = {
       };
     }
     
-    // Create customer record if this is their first interaction
-    await createCustomer({
-      shopId: selectedShop,
-      name: user.displayName || user.email?.split('@')[0] || 'Unbekannt',
-      email: user.email || '',
-    });
-
     // Create queue appointment with customer data
     const appointment = await createAppointment({
       shopId: selectedShop,
@@ -156,6 +149,9 @@ export const QueueBookingService = {
       // Only add if option is enabled
       ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
     });
+
+    // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+    void linkOwnCustomerEntry(selectedShop);
 
     return {
       success: true,

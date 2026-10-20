@@ -7,8 +7,8 @@ import { APP_BASE_PATH } from 'app';
 import { BrandMark } from '../components/brand/Logo';
 import { ShopLogo } from '../components/brand/ShopLogo';
 import { firestore } from '../utils/firestore-client';
-import { safelyConvertToDate } from '../utils/datetime';
 import { hasFeature } from '../utils/plans';
+import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane';
 import type { Appointment, Shop, Staff } from '../utils/firestore';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -72,12 +72,11 @@ export default function Bildschirm() {
     const nowMs = now.getTime();
     return staff
       .map((person) => {
+        // Wer wartet, bleibt stehen, bis er aufgerufen oder abgesagt wird (utils/queue-lane.ts)
         const mine = appts.filter((a) => a.staffId === person.id);
         const current = mine.filter((a) => a.status === 'in-progress');
-        const next = mine
-          .filter((a) => a.status === 'scheduled' && safelyConvertToDate(a.endTime).getTime() > nowMs)
-          .sort((a, b) => safelyConvertToDate(a.startTime).getTime() - safelyConvertToDate(b.startTime).getTime());
-        return { person, current, next };
+        const next = waitingInOrder(mine);
+        return { person, current, next, projection: projectLane(mine, nowMs) };
       })
       .filter((lane) => lane.current.length > 0 || lane.next.length > 0 || staff.length <= 4);
   }, [staff, appts, now]);
@@ -109,7 +108,7 @@ export default function Bildschirm() {
           {lanes.length === 0 && (
             <div className="flex items-center justify-center rounded-[2vw] bg-background/[0.06] font-display text-[3vw] font-bold">Gerade wartet niemand.</div>
           )}
-          {lanes.map(({ person, current, next }) => (
+          {lanes.map(({ person, current, next, projection }) => (
             <article key={person.id} className="flex min-w-0 flex-col gap-[1vw] rounded-[2vw] bg-background/[0.06] p-[1.6vw]">
               <h2 className="truncate font-display text-[2vw] font-bold">{person.name}</h2>
               <div className="flex flex-col gap-[0.4vw] rounded-[1.4vw] bg-signal p-[1.4vw] text-signal-foreground">
@@ -123,7 +122,7 @@ export default function Bildschirm() {
                 {next.slice(0, 4).map((a) => (
                   <div key={a.id} className="flex items-baseline justify-between gap-2 font-mono">
                     <span className="text-[3vw] font-bold leading-none">{label(a)}</span>
-                    <span className="text-[1.5vw] text-background/70">ca. {format(safelyConvertToDate(a.startTime), 'HH:mm')}</span>
+                    <span className="text-[1.5vw] text-background/70">ca. {format(expectedStart(a, projection), 'HH:mm')}</span>
                   </div>
                 ))}
                 {next.length === 0 && <span className="text-[1.6vw] text-background/60">frei</span>}

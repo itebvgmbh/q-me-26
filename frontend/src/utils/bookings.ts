@@ -24,8 +24,9 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
     dayStart.setHours(0, 0, 0, 0);
     if (dayStart.getTime() !== new Date().setHours(0, 0, 0, 0)) return 0;
 
-    // Wer heute bei derselben Person vorher dran ist und noch nicht fertig ist.
-    // Vorher zählten auch alle alten, nie abgeschlossenen Termine mit ("Platz 60").
+    // Wer heute bei derselben Person vorher dran ist und noch nicht fertig ist – auch wenn dessen
+    // geplante Zeit vorbei ist (utils/queue-lane.ts). Vorher zählten auch alle alten, nie
+    // abgeschlossenen Termine anderer Tage mit ("Platz 60"); der Tag ist deshalb begrenzt.
     const q = query(
       appointmentsRef,
       where('staffId', '==', appointment.staffId),
@@ -33,12 +34,10 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
       where('startTime', '<', appointment.startTime)
     );
     
-    const now = Date.now();
     const snapshot = await getDocs(q);
     const earlierAppointments = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }) as Appointment)
-      .filter(apt => apt.status !== 'completed' && apt.status !== 'cancelled')
-      .filter(apt => !apt.endTime || safelyConvertToDate(apt.endTime).getTime() > now);
+      .filter(apt => apt.id !== appointment.id && (apt.status === 'scheduled' || apt.status === 'in-progress'));
     
     return earlierAppointments.length + 1; // +1 to count from 1 instead of 0
   } catch (error) {

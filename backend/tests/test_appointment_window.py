@@ -5,6 +5,7 @@ Ohne Firebase lauffähig:
 
     cd backend && .venv/bin/python tests/test_appointment_window.py
 """
+import operator
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -36,42 +37,45 @@ class FakeWatch:
         self.callback([FakeSnap(k, v) for k, v in docs.items()], [], read_time or datetime.now(timezone.utc))
 
 
+OPS = {"==": operator.eq, ">=": operator.ge, "<": operator.lt, "in": lambda a, b: a in b}
+
+
 class FakeQuery:
-    def __init__(self, db, filters=()):
-        self.db, self.filters = db, list(filters)
+    def __init__(self, db, coll, filters=()):
+        self.db, self.coll, self.filters = db, coll, list(filters)
 
     def where(self, field, op, value):
-        return FakeQuery(self.db, self.filters + [(field, op, value)])
+        return FakeQuery(self.db, self.coll, self.filters + [(field, op, value)])
 
     def on_snapshot(self, callback):
         self.db.watches.append((self.filters, FakeWatch(callback)))
         return self.db.watches[-1][1]
 
     def stream(self):
-        self.db.queries += 1
-        start = next(v for f, op, v in self.filters if op == ">=")
-        end = next(v for f, op, v in self.filters if op == "<")
-        for doc_id, data in self.db.appointments.items():
-            if start <= data["startTime"] < end:
+        if self.coll == "appointments" and any(f == "startTime" for f, _, _ in self.filters):
+            self.db.queries += 1  # die heutigen Termine gelesen
+        for doc_id, data in list(self.db.store.setdefault(self.coll, {}).items()):
+            if all(data.get(f) is not None and OPS[op](data[f], v) for f, op, v in self.filters):
                 yield FakeSnap(doc_id, data)
 
     def document(self, doc_id):
-        db = self.db
+        db, coll = self.db, self.coll
 
         class Ref:
             def update(self, fields):
-                db.appointments[doc_id].update(fields)
+                db.store[coll][doc_id].update(fields)
 
         return Ref()
 
 
 class FakeDb:
     def __init__(self, appointments=None):
-        self.appointments, self.watches, self.queries = appointments or {}, [], 0
+        self.store = {"appointments": appointments or {}}
+        self.appointments = self.store["appointments"]
+        self.watches, self.queries = [], 0
 
     def collection(self, name):
-        assert name == "appointments"
-        return FakeQuery(self)
+        return FakeQuery(self, name)
 
 
 def appt(hhmm: str, day: datetime = START, **extra) -> dict:

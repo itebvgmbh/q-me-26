@@ -33,6 +33,7 @@ node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnun
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
+node dev/e2e/schlange-tresen.cjs            # Schlange bei Verzug: Überfällige bleiben, ca.-Zeiten wandern, Rückfrage beim Aufruf, früher fertig, Kundennachricht
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
 node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken (mit nachgebildetem Google/KI, ohne, nach Abbruch), prüft die Datenbank
 node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperren im Gratis-Tarif
@@ -42,6 +43,7 @@ node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, 
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
+node dev/e2e/frueher-dran-schalter.cjs      # Meine Termine: „Früher dran“ selbst ein-/ausschalten bei einem vom Laden eingetragenen Termin, Angebot kommt und geht, Gratis-Tarif, Rechte (braucht das Backend ab diesem Stand)
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
 # 4. Testladen wieder löschen
@@ -100,11 +102,15 @@ Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) 
 Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
-`uv run python tests/test_customer_activation.py` (Kunden-Link /activate),
-`uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration) und
+`uv run python tests/test_customer_activation.py` (Kunden-Link /activate, Kunden-Eintrag beim Buchen mit Konto),
+`uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration),
+`uv run python tests/test_frueher_dran.py` (Schalter „Früher dran“ unter Meine Termine) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
 `uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
-(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber)
+(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber) und `uv run python tests/test_queue_notify.py`
+(Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten).
+
+Regel der Schlange im Frontend (`frontend/src/utils/queue-lane.ts`) ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.
 
 E-Rechnungen gegen die offiziellen Prüfregeln (XML-Schema, EN 16931, XRechnung der KoSIT), ohne Java:
 `cd backend; uv pip install --python .venv saxonche`, dann `uv run python ../dev/e-rechnung-pruefen.py`

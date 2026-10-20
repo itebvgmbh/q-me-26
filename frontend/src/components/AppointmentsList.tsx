@@ -53,7 +53,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
     if (!selectedAppointment) return;
 
     try {
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status });
+      // Sagt der Laden ab, bekommt der Kunde Bescheid (Push/E-Mail, siehe updateAppointment)
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status }, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       toast.success(`Status: ${STATUS_LABEL[status]}`);
       setShowStatusDialog(false);
@@ -89,7 +90,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
         updatedData.price = parseFloat(updatedData.price as unknown as string);
       }
       
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData);
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       toast.success('Termin gespeichert.');
       setShowEditDialog(false);

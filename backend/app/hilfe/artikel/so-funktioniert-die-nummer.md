@@ -33,11 +33,11 @@ Nein. Alles läuft im Browser deines Handys, für eine Nummer brauchst du kein K
 
 ### Wie entsteht die „ca.“-Uhrzeit?
 
-Jede Leistung hat eine geplante Dauer. Dranzeit plant alle, die vor dir bei derselben Person dran sind, und gibt dir den nächsten freien Platz danach. Dauert es vor dir länger, bist du später dran. Die Uhrzeit auf deiner Nummer wird dann nicht nachgerechnet. Sei deshalb lieber ein paar Minuten früher zurück.
+Jede Leistung hat eine geplante Dauer. Dranzeit plant alle, die vor dir bei derselben Person dran sind, und gibt dir den nächsten freien Platz danach. Dauert es vor dir länger, rechnet Dranzeit nach: Deine Nummernseite zeigt dann eine spätere Uhrzeit und wie viel später es wird. Früher als die Uhrzeit, die du beim Ziehen bekommen hast, wird es nie angezeigt. Sei trotzdem lieber ein paar Minuten früher zurück.
 
 ### Wie bekomme ich Bescheid, wenn ich dran bin?
 
-Tipp auf deiner Nummernseite im Kasten **„Bescheid bekommen“** auf **„Benachrichtigung einschalten“** und erlaube die Nachrichten. Dann kommt „Gleich bist du dran“, kurz bevor es so weit ist, und „Du bist dran“, wenn der Laden dich aufruft. Statt Push geht auch eine E-Mail: Adresse eintragen und **„Speichern“** tippen. Siehst du den Kasten nicht, bietet dein Laden keine Nachrichten an. Schau dann ab und zu auf die Seite.
+Tipp auf deiner Nummernseite im Kasten **„Bescheid bekommen“** auf **„Benachrichtigung einschalten“** und erlaube die Nachrichten. Dann kommt „Gleich bist du dran“, kurz bevor es so weit ist, und „Du bist dran“, wenn der Laden dich aufruft. Sagt der Laden deine Nummer ab oder verschiebt deinen Termin, bekommst du ebenfalls Bescheid. Statt Push geht auch eine E-Mail: Adresse eintragen und **„Speichern“** tippen. Siehst du den Kasten nicht, bietet dein Laden keine Nachrichten an. Schau dann ab und zu auf die Seite.
 
 ### Klappt das auch auf dem iPhone?
 
@@ -45,7 +45,7 @@ Ja, nimm dort am besten die E-Mail. Apple erlaubt Nachrichten aus dem Browser nu
 
 ### Was, wenn ich zu spät komme?
 
-Deine Nummer verfällt nicht von selbst. Der Laden ruft in der Zwischenzeit aber die Nächsten auf. Sag am Tresen Bescheid, sobald du da bist. Wann du drankommst, entscheidet dann der Laden.
+Deine Nummer verfällt nicht von selbst. Ruft der Laden dich auf und du bist nicht da, kann er sie absagen und die Nächsten aufrufen. Hast du Benachrichtigungen eingeschaltet, bekommst du dann Bescheid. Sag am Tresen Bescheid, sobald du da bist. Wann du drankommst, entscheidet dann der Laden.
 
 ### Kann ich meine Nummer zurückgeben?
 
@@ -59,4 +59,4 @@ Mit Konto bleibt dein Name in deinen Terminen, Handynummer und E-Mail-Adresse am
 
 ### Was ist „Früher dran“?
 
-Wird ein früherer Platz frei, bietet Dranzeit ihn dir an. Dafür brauchst du ein Konto und setzt beim Nummer-Ziehen oder Buchen den Haken bei **„Früher dran, wenn etwas frei wird“**, sofern der Laden das anbietet. Das Angebot erscheint unter „Meine Termine“, schau dort ab und zu nach. Bis wann es für dich reserviert ist, steht dabei. Mit **„Früheren Platz nehmen“** gehört er dir, bis dahin bleibt dein bisheriger Platz sicher.
+Wird ein früherer Platz frei, bietet Dranzeit ihn dir an. Dafür brauchst du ein Konto und setzt beim Nummer-Ziehen oder Buchen den Haken bei **„Früher dran, wenn etwas frei wird“**, sofern der Laden das anbietet. Vergessen oder hat der Laden den Termin für dich eingetragen? Unter „Meine Termine“ steht bei jedem kommenden Termin der Schalter **„Früher dran, wenn etwas frei wird“**, damit schaltest du es ein oder aus. Du bekommst dann die Nachricht „Früher dran?“ per E-Mail an dein Konto oder als Push, wenn du Benachrichtigungen eingeschaltet hast. Das Angebot steht unter „Meine Termine“, dort steht auch, bis wann es für dich reserviert ist. Mit **„Früheren Platz nehmen“** gehört er dir, bis dahin bleibt dein bisheriger Platz sicher.
