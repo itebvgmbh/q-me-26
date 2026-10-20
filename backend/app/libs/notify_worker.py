@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.libs import onboarding_mail
+from app.libs.appointment_window import AppointmentWindow
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.plans import has_feature
 from app.libs.queue_notify import message_for, needs_reminder, plan_queue_notifications
@@ -28,6 +29,9 @@ SUBSCRIPTION_MAX_AGE_DAYS = 3
 _wakeup = threading.Event()
 _thread: threading.Thread | None = None
 _watch = None
+# Die Termine von heute und den ersten Stunden von morgen (Erinnerungen nach 21 Uhr) hält ein Listener im
+# Speicher (app/libs/appointment_window.py), statt sie alle 30 Sekunden neu zu lesen
+_window = AppointmentWindow(timedelta(hours=28))
 
 
 def public_url() -> str:
@@ -48,6 +52,7 @@ def _loop() -> None:
 
     db = get_firestore_db()
     _start_watch(db)
+    _window.enable(db)
     last_cleanup = None
     last_onboarding = None
     while True:
@@ -102,10 +107,7 @@ def run_once(db, now: datetime | None = None) -> dict:
         return {"skipped": "kein Kanal eingerichtet"}
 
     start, end = _day_range(now)
-    todays = [
-        _as_dict(d)
-        for d in db.collection("appointments").where("startTime", ">=", start).where("startTime", "<", end).stream()
-    ]
+    todays = _appointments(db, start, end)
     active = [a for a in todays if a.get("status") in ("scheduled", "in-progress")]
     planned = plan_queue_notifications(active, now)
     by_id = {a["id"]: a for a in active}
@@ -113,10 +115,7 @@ def run_once(db, now: datetime | None = None) -> dict:
     reminders = [a for a in active if needs_reminder(a, now)]
     # Erinnerungen für morgen früh liegen nicht im heutigen Tag
     if now.astimezone(BERLIN).hour >= 21:
-        tomorrow = [
-            _as_dict(d)
-            for d in db.collection("appointments").where("startTime", ">=", end).where("startTime", "<", end + timedelta(hours=4)).stream()
-        ]
+        tomorrow = _appointments(db, end, end + timedelta(hours=4))
         reminders += [a for a in tomorrow if needs_reminder(a, now)]
         by_id.update({a["id"]: a for a in tomorrow})
 
@@ -137,7 +136,7 @@ def run_once(db, now: datetime | None = None) -> dict:
         title, body = message_for(p.kind, shop.get("name", ""), ahead=p.ahead)
         _deliver(db, appt, channels, email, title, body, tag=f"{p.kind}-{appt['id']}")
         field = "notifiedCalledAt" if p.kind == "called" else "notifiedSoonAt"
-        db.collection("appointments").document(appt["id"]).update({field: now})
+        _mark(db, appt["id"], {field: now})
         sent += 1
 
     for appt in reminders:
@@ -150,7 +149,7 @@ def run_once(db, now: datetime | None = None) -> dict:
             title, body = message_for("reminder", shop.get("name", ""), start_label=start_label)
             _deliver(db, appt, channels, email, title, body, tag=f"reminder-{appt['id']}")
             sent += 1
-        db.collection("appointments").document(appt["id"]).update({"reminderSentAt": now})
+        _mark(db, appt["id"], {"reminderSentAt": now})
 
     return {"geplant": len(planned), "erinnerungen": len(reminders), "gesendet": sent}
 
@@ -204,6 +203,20 @@ def _customer_email(db, appt: dict) -> str:
         return email
     doc = db.collection("users").document(customer_id).get()
     return ((doc.to_dict() or {}).get("email") or "").strip() if doc.exists else ""
+
+
+def _appointments(db, start: datetime, end: datetime) -> list[dict]:
+    """Termine mit Beginn in [start, end): vom Listener, wenn er so weit ist, sonst gelesen."""
+    cached = _window.between(start, end)
+    if cached is not None:
+        return cached
+    return [_as_dict(d) for d in db.collection("appointments").where("startTime", ">=", start).where("startTime", "<", end).stream()]
+
+
+def _mark(db, appointment_id: str, fields: dict) -> None:
+    """Merker am Termin setzen (z. B. notifiedSoonAt); der nächste Durchlauf wartet, bis der Listener ihn kennt."""
+    db.collection("appointments").document(appointment_id).update(fields)
+    _window.wrote()
 
 
 def cleanup_subscriptions(db, now: datetime | None = None) -> int:
