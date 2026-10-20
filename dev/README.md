@@ -33,6 +33,7 @@ node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnun
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
+node dev/e2e/schlange-tresen.cjs            # Schlange bei Verzug: Überfällige bleiben, ca.-Zeiten wandern, Rückfrage beim Aufruf, früher fertig, Kundennachricht
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
 node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken (mit nachgebildetem Google/KI, ohne, nach Abbruch), prüft die Datenbank
 node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperren im Gratis-Tarif
@@ -104,7 +105,10 @@ Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/te
 `uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
 `uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
-(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber)
+(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber) und `uv run python tests/test_queue_notify.py`
+(Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten).
+
+Regel der Schlange im Frontend (`frontend/src/utils/queue-lane.ts`) ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.
 
 E-Rechnungen gegen die offiziellen Prüfregeln (XML-Schema, EN 16931, XRechnung der KoSIT), ohne Java:
 `cd backend; uv pip install --python .venv saxonche`, dann `uv run python ../dev/e-rechnung-pruefen.py`

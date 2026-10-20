@@ -25,6 +25,24 @@ from app.apis.appointment_helpers import update_appointment
 router = APIRouter()
 
 
+def occupied_window(appt: dict, start: datetime, end: datetime):
+    """Welche Zeit ein Termin tatsächlich belegt (naive Ortszeit), None = nichts – wie occupiedWindow in
+    frontend/src/utils/queue-lane.ts: Wer dran ist, ab Aufruf so lange wie geplant; wer fertig ist, nur bis
+    "Fertig". Wer früher fertig ist, gibt den Rest frei – "Früher dran" kann ihn dann anbieten."""
+    status = appt.get('status')
+    called = convert_timestamp_to_datetime(appt.get('lastCalledAt') or appt.get('calledAt'))
+    if status == 'in-progress':
+        begin = called or start
+        return begin, begin + (end - start)
+    if status == 'completed':
+        done = convert_timestamp_to_datetime(appt.get('completedAt'))
+        if done is None:
+            return start, end  # Altbestand ohne Zeitpunkt
+        begin = min(start, called or start)
+        return (begin, done) if done > begin else None
+    return start, end
+
+
 def shop_breaks_for_day(shop: Optional[dict], day_of_week: int) -> list:
     """Pausen des Ladens an einem Wochentag (businessHoursByDay[].breaks, z. B. mittags zu).
 
@@ -619,6 +637,12 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
             if not start_time or not end_time:
                 print(f"Skipping appointment {appt.get('id')} due to invalid timestamps")
                 continue
+
+            # Tatsächlich belegte Zeit: früher fertig gibt den Rest frei
+            window = occupied_window(appt, start_time, end_time)
+            if window is None:
+                continue
+            start_time, end_time = window
 
             # Check if appointment overlaps with our day
             day_overlap = False

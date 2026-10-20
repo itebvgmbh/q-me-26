@@ -135,10 +135,20 @@ export interface Appointment {
   updatedAt: Timestamp;
   isAnonymous?: boolean;
   referenceCode?: string;
-  /** Aufgerufen am Tresen (Status "in-progress"), für die Auswertung */
+  /** Aufgerufen am Tresen (Status "in-progress"), für die Auswertung – nur der erste Aufruf */
   calledAt?: Timestamp;
+  /** Letzter Aufruf (auch nach "zurück auf Wartet"), für die Prognose der Schlange */
+  lastCalledAt?: Timestamp;
   /** Fertig (Status "completed") */
   completedAt?: Timestamp;
+  /** "Du bist dran" ist raus (setzt der Benachrichtigungsdienst) */
+  notifiedCalledAt?: Timestamp | null;
+  /** Nicht gekommen (vom Tresen abgesagt) */
+  noShow?: boolean;
+  /** Offene Nachricht an den Kunden: Laden hat abgesagt oder verschoben (schickt der Benachrichtigungsdienst) */
+  customerNotice?: 'cancelled' | 'moved' | null;
+  customerNoticePreviousStart?: Timestamp | null;
+  customerNoticeAt?: Timestamp;
 }
 
 export interface QueueEntry {

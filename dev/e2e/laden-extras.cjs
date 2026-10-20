@@ -3,7 +3,7 @@
 //  - Bildschirm zeigt "Als Nächstes" und nach dem Aufruf "Jetzt dran"; der Aufruf setzt calledAt
 //  - Auswertung zeigt Kennzahlen, Plakat einen QR-Code
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Löscht seine Nummern wieder.
-const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { BASE, berlin, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const signIn = async (page, fx) => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -63,6 +63,9 @@ run(async () => {
   const rows = [];
   const page = await newPage(browser, { viewport: { width: 1280, height: 900 } });
   const errors = collectErrors(page);
+  // "Jetzt" muss in den Öffnungszeiten des Testladens liegen (Mo–Fr 09–17), sonst lehnt das Anlegen ab
+  const clock = berlin(`${fx.tuesday}T10:00:00`);
+  await page.clock.setFixedTime(clock);
   await signIn(page, fx);
   try {
     const ticket = await createWalkIn(page, fx);
@@ -70,6 +73,7 @@ run(async () => {
 
     const tv = await newPage(browser, { viewport: { width: 1920, height: 1080 } });
     const tvErrors = collectErrors(tv);
+    await tv.clock.setFixedTime(clock);
     await tv.goto(`${BASE}/bildschirm/${fx.shopId}`, { waitUntil: 'domcontentloaded' });
     await tv.getByText('Nummer ziehen ohne App').waitFor({ timeout: 30000 });
     await tv.waitForTimeout(2000);

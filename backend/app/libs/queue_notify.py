@@ -1,13 +1,24 @@
 """Wer bekommt jetzt welche Nachricht? Reine Logik ohne Datenbank, getestet in tests/test_queue_notify.py.
 
-Eine Schlange ist alles, was heute bei derselben Person im selben Laden ansteht (wie am Tresen,
-components/counter/CounterLane.tsx): wartend = Status "scheduled" mit Ende in der Zukunft, nach Startzeit.
+Eine Schlange ist alles, was heute bei derselben Person im selben Laden ansteht – dieselbe Regel wie am Tresen
+(frontend/src/utils/queue-lane.ts, Änderungen an beiden Stellen):
+- wartend = Status "scheduled", bis aufgerufen oder abgesagt – auch wenn die geplante Zeit vorbei ist,
+- Reihenfolge nach geplanter Startzeit,
+- Prognose: Wer dran ist, ist nach seiner geplanten Dauer ab Aufruf fertig, frühestens jetzt; die Wartenden
+  folgen nacheinander, jeder frühestens zu seiner geplanten Zeit. Gerechnet wird nur, wenn bei der Person heute
+  schon aufgerufen wurde, sonst gelten die geplanten Zeiten.
+Vorher fiel ein Wartender aus der Schlange, sobald seine geplante Zeit vorbei war – hing der Laden hinterher,
+kam "Gleich bist du dran" nicht mehr.
 
 Nachrichten:
 - "called": Der Tresen hat die Nummer aufgerufen (Status "in-progress").
-- "soon":   Nur noch wenige vor dir oder die Startzeit ist nah – Zeit, sich auf den Weg zu machen.
+- "soon":   Nur noch wenige vor dir oder die voraussichtliche Startzeit ist nah – Zeit, sich auf den Weg zu machen.
 - "reminder": Erinnerung an einen gebuchten Termin, einige Zeit vorher.
-Jede Nachricht geht pro Termin nur einmal raus (Merker notifiedCalledAt / notifiedSoonAt / reminderSentAt).
+- "cancelled" / "moved": Der Laden hat abgesagt oder verschoben (Merker customerNotice am Termin).
+- "offer":  "Früher dran" – ein früherer Platz ist frei (app/apis/check_slots).
+Jede Nachricht geht pro Termin nur einmal raus (Merker notifiedCalledAt / notifiedSoonAt / reminderSentAt,
+customerNotice wird nach dem Senden geleert). Wer zurück auf "Wartet" gesetzt wird, verliert notifiedCalledAt –
+beim nächsten Aufruf kommt "Du bist dran" noch einmal.
 """
 
 from dataclasses import dataclass
@@ -15,7 +26,7 @@ from datetime import datetime, timedelta
 
 # Bei so vielen (oder weniger) Wartenden vor dir kommt "gleich dran"
 SOON_AHEAD = 1
-# ... oder wenn die geplante Startzeit so nah ist
+# ... oder wenn die voraussichtliche Startzeit so nah ist
 SOON_MINUTES = 10
 # Nie früher als so lange vor der Startzeit (ein Termin am Nachmittag ist morgens nicht "gleich")
 SOON_MAX_MINUTES = 45
@@ -36,6 +47,41 @@ def _lane(appt: dict) -> tuple:
     return (appt.get("shopId") or "", appt.get("staffId") or "")
 
 
+def _duration(a: dict) -> timedelta:
+    start, end = a.get("startTime"), a.get("endTime")
+    return end - start if start and end and end > start else timedelta(0)
+
+
+def _called_time(a: dict):
+    return a.get("lastCalledAt") or a.get("calledAt") or a.get("startTime")
+
+
+def waiting_in_order(items: list[dict]) -> list[dict]:
+    return sorted((a for a in items if a.get("status") == "scheduled" and a.get("startTime")), key=lambda a: (a["startTime"], a.get("id", "")))
+
+
+def project_lane(items: list[dict], now: datetime) -> dict[str, tuple[datetime, datetime]]:
+    """Voraussichtlicher Beginn und Ende je Kunde, der dran ist oder wartet (wie projectLane im Frontend)."""
+    running = any(a.get("status") in ("in-progress", "completed") for a in items)
+    result: dict[str, tuple[datetime, datetime]] = {}
+    cursor = None
+    for a in items:
+        if a.get("status") != "in-progress" or not a.get("startTime"):
+            continue
+        begin = _called_time(a)
+        end = max(begin + _duration(a), now)
+        result[a["id"]] = (begin, end)
+        cursor = end if cursor is None else max(cursor, end)
+    for a in waiting_in_order(items):
+        start = a["startTime"]
+        if running:
+            start = max([start, now] + ([cursor] if cursor else []))
+        end = start + _duration(a)
+        result[a["id"]] = (start, end)
+        cursor = end if cursor is None else max(cursor, end)
+    return result
+
+
 def plan_queue_notifications(appts: list[dict], now: datetime) -> list[Planned]:
     """appts: heutige Termine mit id, shopId, staffId, status, startTime, endTime (aware datetimes)."""
     lanes: dict[tuple, list[dict]] = {}
@@ -44,24 +90,26 @@ def plan_queue_notifications(appts: list[dict], now: datetime) -> list[Planned]:
 
     planned: list[Planned] = []
     for items in lanes.values():
-        in_progress = [a for a in items if a.get("status") == "in-progress"]
-        for a in in_progress:
-            if not a.get("notifiedCalledAt"):
+        for a in items:
+            if a.get("status") == "in-progress" and not a.get("notifiedCalledAt"):
                 planned.append(Planned(a["id"], "called"))
 
-        waiting = sorted(
-            (a for a in items if a.get("status") == "scheduled" and a.get("endTime") and a["endTime"] > now),
-            key=lambda a: a["startTime"],
-        )
-        for index, a in enumerate(waiting):
+        projection = project_lane(items, now)
+        for index, a in enumerate(waiting_in_order(items)):
             if a.get("notifiedSoonAt"):
                 continue
-            until_start = a["startTime"] - now
+            until_start = projection[a["id"]][0] - now
             if until_start > timedelta(minutes=SOON_MAX_MINUTES):
                 continue
             if index < SOON_AHEAD or until_start <= timedelta(minutes=SOON_MINUTES):
                 planned.append(Planned(a["id"], "soon", ahead=index))
     return planned
+
+
+def recalled_to_reset(appts: list[dict]) -> list[str]:
+    """Zurück auf "Wartet" gesetzt, aber "Du bist dran" noch gemerkt: Merker weg, damit der nächste Aufruf meldet.
+    Das Frontend löscht ihn schon beim Zurücksetzen; das hier fängt andere Wege ab."""
+    return [a["id"] for a in appts if a.get("status") == "scheduled" and a.get("notifiedCalledAt")]
 
 
 def needs_reminder(appt: dict, now: datetime) -> bool:
@@ -77,8 +125,37 @@ def needs_reminder(appt: dict, now: datetime) -> bool:
     return True
 
 
-def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = "") -> tuple[str, str]:
-    """Titel und Text der Nachricht, du-Form wie in der App."""
+def notice_kind(appt: dict, now: datetime, today_start: datetime) -> str | None:
+    """Offene Nachricht "cancelled"/"moved", wenn sie noch Sinn hat (nicht für vergangene Tage, nicht für eine
+    Verschiebung, die wieder auf die alte Zeit zurückging)."""
+    kind = appt.get("customerNotice")
+    if kind not in ("cancelled", "moved"):
+        return None
+    start = appt.get("startTime")
+    if not start or start < today_start:
+        return None
+    if kind == "moved":
+        if appt.get("status") != "scheduled":
+            return None
+        previous = appt.get("customerNoticePreviousStart")
+        if previous and previous == start:
+            return None
+    return kind
+
+
+def _day(start: datetime, now: datetime) -> str:
+    days = (start.date() - now.date()).days
+    if days == 0:
+        return "heute"
+    if days == 1:
+        return "morgen"
+    weekday = ("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")[start.weekday()]
+    return f"am {weekday} {start.day}.{start.month}."
+
+
+def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = "", **extra) -> tuple[str, str]:
+    """Titel und Text der Nachricht, du-Form wie in der App.
+    Für "cancelled", "moved" und "offer" kommen start (und previous / original) als Ortszeit (Europe/Berlin) und now."""
     shop = shop_name or "Dein Laden"
     if kind == "called":
         return "Du bist dran", f"{shop} ruft dich auf. Komm jetzt rein."
@@ -88,4 +165,22 @@ def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = ""
         return "Gleich bist du dran", f"{shop}: Nur noch {ahead} vor dir. Mach dich auf den Weg."
     if kind == "reminder":
         return "Erinnerung an deinen Termin", f"{shop}, heute um {start_label}. Kannst du nicht? Dann sag bitte ab."
+    now = extra.get("now")
+    if kind == "cancelled":
+        start = extra["start"]
+        what = "deine Nummer" if extra.get("queue") else "deinen Termin"
+        return "Abgesagt", f"{shop} hat {what} {_day(start, now)} um {start:%H:%M} abgesagt."
+    if kind == "moved":
+        start, previous = extra["start"], extra.get("previous")
+        staff = f" bei {extra['staff']}" if extra.get("staff") else ""
+        was = ""
+        if previous:
+            was = f" (vorher {previous:%H:%M})" if previous.date() == start.date() else f" (vorher {_day(previous, now)} um {previous:%H:%M})"
+        return "Neue Uhrzeit", f"{shop} hat deinen Termin verschoben: jetzt {_day(start, now)} um {start:%H:%M}{staff}{was}."
+    if kind == "offer":
+        start, original = extra["start"], extra.get("original")
+        was = f" (statt {original:%H:%M})" if original and original.date() == start.date() else ""
+        hold = extra.get("hold_until")
+        until = f" Bis {hold:%H:%M} nur für dich" if hold else " Nur kurz für dich reserviert"
+        return "Früher dran?", f"{shop}: {_day(start, now).capitalize()} um {start:%H:%M} ist ein Platz frei{was}.{until} – unter „Meine Termine“ annehmen."
     raise ValueError(kind)

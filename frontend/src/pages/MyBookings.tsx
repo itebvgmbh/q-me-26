@@ -19,8 +19,9 @@ import { Ticket } from '../components/brand/Ticket';
 
 const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
 
+// Offen bleibt, was dran ist oder heute noch wartet – auch wenn der Laden hinterherhängt und die Zeit vorbei ist
 const isUpcoming = (a: AppointmentWithDetails) =>
-  (a.status === 'scheduled' || a.status === 'in-progress') && safelyConvertToDate(a.endTime) > new Date();
+  a.status === 'in-progress' || (a.status === 'scheduled' && (safelyConvertToDate(a.endTime) > new Date() || isToday(safelyConvertToDate(a.startTime))));
 
 /** Meine Termine: nächster Termin als Wartemarke, danach Kommendes und Vergangenes */
 const MyBookings = () => {
