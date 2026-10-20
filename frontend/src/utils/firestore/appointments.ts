@@ -1,9 +1,14 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, DocumentData, updateDoc, deleteField } from 'firebase/firestore';
-import { assertBookable } from '../booking-rules';
+import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, runTransaction, deleteField } from 'firebase/firestore';
+import { assertBookable, SlotConflictError } from '../booking-rules';
 import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Appointment } from './types';
+import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef } from './schedule';
+
+// Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
+// braucht die letzte mehrere Anläufe
+const TRANSACTION_OPTIONS = { maxAttempts: 12 };
 
 export const getAppointmentsInRange = async (shopId: string, startDate: Date, endDate: Date, staffId?: string): Promise<Appointment[]> => {
   console.log('Getting appointments for shop:', shopId, 'between:', startDate, 'and:', endDate);
@@ -237,6 +242,7 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
     
     // Jeder neue Termin muss die Regeln erfüllen: Öffnungszeiten, Arbeitszeiten, Pausen, andere Termine.
     // Vorher wurde hier nur auf Überschneidung mit Terminen geprüft – Pausen und Zeiten fehlten.
+    // Gleichzeitige Buchungen fängt erst die Transaktion unten ab (Belegung je Person und Tag).
     const newStart = toDateValue(data.startTime);
     const newEnd = toDateValue(data.endTime);
     if (!newStart || !newEnd) {
@@ -256,11 +262,12 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
     }
     
     // Nummer für den Aufruf: jede Nummer aus der Schlange (auch vom Tresen) und jede Buchung ohne Konto,
-    // am selben Tag im selben Laden nur einmal (Wartezimmer-Bildschirm, Nummernseite)
-    if (processedData.isAnonymous || processedData.type === 'queue') {
-      processedData.referenceCode = await uniqueReferenceCode(processedData.shopId, toDateValue(processedData.startTime) ?? new Date());
-    }
-    
+    // am selben Tag im selben Laden nur einmal (Wartezimmer-Bildschirm, Nummernseite). Vergeben wird sie
+    // in der Transaktion über shop_days; die Termine des Tages zählen für Nummern von vor dieser Umstellung.
+    const needsCode = Boolean(processedData.isAnonymous || processedData.type === 'queue');
+    const codeDay = toDateValue(processedData.startTime) ?? new Date();
+    const earlierCodes = needsCode ? await referenceCodesOfDay(processedData.shopId, codeDay) : [];
+
     // Verbessere die Namenshandhabung für Kunden - IMMER den Namen aus der user-Collection holen, wenn customerId vorhanden ist
     if (processedData.customerId && processedData.customerId !== 'walk-in') {
       try {
@@ -302,17 +309,33 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
       }
     }
     
-    const appointmentData = {
+    const baseData = {
       id: appointmentRef.id,
       ...processedData,
       // Standardwert für type, falls nicht angegeben
       type: processedData.type || 'booked',
       // Sicherstellen, dass customerName nie undefined ist
       customerName: processedData.customerName || 'Unbekannter Kunde',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
     };
-    await setDoc(appointmentRef, appointmentData);
+    // Platz belegen, Nummer ziehen und Termin speichern in einem Schritt: Wer zeitgleich denselben Platz
+    // will, läuft neu an und bekommt SlotConflictError ("Der Platz ist gerade weggegangen").
+    const occupy = placementOf(baseData);
+    const appointmentData = await runTransaction(db, async (tx) => {
+      const placement = occupy ? await readPlacement(tx, db, appointmentRef.id, { shopId: baseData.shopId, occupy }) : null;
+      const numbersRef = needsCode ? shopDayRef(db, baseData.shopId, codeDay) : null;
+      const numbers = numbersRef ? await tx.get(numbersRef) : null;
+      if (placement?.conflict) throw new SlotConflictError(placement.conflict);
+      const codes: string[] = (numbers?.data()?.codes as string[]) || [];
+      const referenceCode = needsCode ? pickReferenceCode(new Set([...earlierCodes, ...codes])) : undefined;
+      const now = Timestamp.now();
+      const created = { ...baseData, ...(referenceCode ? { referenceCode } : {}), createdAt: now, updatedAt: now };
+      tx.set(appointmentRef, created);
+      placement?.write();
+      if (numbersRef && referenceCode) {
+        tx.set(numbersRef, { shopId: baseData.shopId, day: dayKey(codeDay), codes: [...codes, referenceCode], updatedAt: now });
+      }
+      return created;
+    }, TRANSACTION_OPTIONS);
     // Neuer Termin mit "früher benachrichtigen": gleich nach einem früheren Platz suchen
     if (appointmentData.checkEarlierOptions) requestEarlierSlotCheck(appointmentData.shopId, appointmentData.staffId);
     
@@ -368,26 +391,14 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
   }
 };
 
-// Zufällige Nummer, die an diesem Tag im Laden noch frei ist: erst 10–99, wird es eng, dreistellig
-async function uniqueReferenceCode(shopId: string, day: Date): Promise<string> {
-  const pick = (min: number, max: number) => String(Math.floor(Math.random() * (max - min + 1)) + min);
-  let used = new Set<string>();
-  try {
-    const dayStart = new Date(day);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const todays = await getAppointmentsInRange(shopId, dayStart, dayEnd);
-    used = new Set(todays.map((a) => a.referenceCode).filter((c): c is string => Boolean(c)));
-  } catch {
-    /* ohne Abfrage bleibt es zufällig */
-  }
-  const [min, max] = used.size < 60 ? [10, 99] : [100, 999];
-  for (let i = 0; i < 50; i++) {
-    const code = pick(min, max);
-    if (!used.has(code)) return code;
-  }
-  return pick(100, 999);
+// Nummern, die an diesem Tag im Laden schon an Termine vergeben sind (auch abgesagte)
+async function referenceCodesOfDay(shopId: string, day: Date): Promise<string[]> {
+  const dayStart = new Date(day);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  const todays = await getAppointmentsInRange(shopId, dayStart, dayEnd);
+  return todays.map((a) => a.referenceCode).filter((c): c is string => Boolean(c));
 }
 
 export const cancelAppointment = async (appointmentId: string): Promise<Appointment> => {
@@ -395,14 +406,17 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
   try {
     const db = getFirestore(firebaseApp);
     const appointmentRef = doc(db, 'appointments', appointmentId);
-    
-    const now = Timestamp.now();
-    const updateData = {
-      status: 'cancelled',
-      updatedAt: now
-    };
 
-    await setDoc(appointmentRef, updateData, { merge: true });
+    // Absagen gibt den Platz in der Belegung frei – in derselben Transaktion
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(appointmentRef);
+      if (!snap.exists()) throw new Error('Appointment not found');
+      const current = snap.data() as Appointment;
+      const release = placementOf(current);
+      const placement = release ? await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release }) : null;
+      tx.set(appointmentRef, { status: 'cancelled', updatedAt: Timestamp.now() }, { merge: true });
+      placement?.write();
+    }, TRANSACTION_OPTIONS);
     console.log('Appointment cancelled successfully');
 
     // Fetch the updated document
@@ -458,7 +472,10 @@ export const updateAppointment = async (
     const before = [toDateValue(originalAppointment.startTime)?.getTime(), toDateValue(originalAppointment.endTime)?.getTime(), originalAppointment.staffId];
     const after = [toDateValue(merged.startTime)?.getTime(), toDateValue(merged.endTime)?.getTime(), merged.staffId];
     const timeOrStaffChanged = before.some((value, i) => value !== after[i]);
-    if (timeOrStaffChanged && merged.status !== 'cancelled') {
+    // Abgesagten Termin wieder aufnehmen belegt seinen Platz neu – dieselben Regeln
+    const reactivated = originalAppointment.status === 'cancelled' && merged.status !== 'cancelled';
+    const cancelling = originalAppointment.status !== 'cancelled' && merged.status === 'cancelled';
+    if ((timeOrStaffChanged || reactivated) && merged.status !== 'cancelled') {
       const start = toDateValue(merged.startTime);
       const end = toDateValue(merged.endTime);
       if (!start || !end) throw new Error('Ungültige Zeitangabe für den Termin.');
@@ -490,7 +507,26 @@ export const updateAppointment = async (
       if (notice) Object.assign(updateData, notice, { customerNoticeAt: now });
     }
 
-    await setDoc(appointmentRef, updateData, { merge: true });
+    // Belegte Zeit ändert sich (Verschieben, Absagen, Wiederaufnehmen, aber auch Aufrufen und Fertig – wer
+    // früher fertig ist, gibt den Rest frei): alten Platz in der Belegung freigeben, neuen eintragen – in einer
+    // Transaktion. Geprüft wird nur, was wie eine Buchung ist; Aufrufen und Fertig passieren im Laden.
+    const bookingChange = (timeOrStaffChanged || reactivated) && merged.status !== 'cancelled';
+    const placementChanges = cancelling || !samePlacement(placementOf(originalAppointment), placementOf({ ...merged, ...updateData } as Appointment));
+    if (bookingChange || placementChanges) {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(appointmentRef);
+        if (!snap.exists()) throw new Error('Appointment not found for update');
+        const current = snap.data() as Appointment;
+        const release = placementOf(current);
+        const occupy = placementOf({ ...current, ...updateData } as Appointment);
+        const placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy, check: bookingChange });
+        if (bookingChange && occupy && placement.conflict) throw new SlotConflictError(placement.conflict);
+        tx.set(appointmentRef, updateData, { merge: true });
+        placement.write();
+      }, TRANSACTION_OPTIONS);
+    } else {
+      await setDoc(appointmentRef, updateData, { merge: true });
+    }
     console.log('Appointment updated successfully');
 
     // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten.

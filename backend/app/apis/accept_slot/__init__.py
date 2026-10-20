@@ -1,17 +1,40 @@
-from typing import Dict, List
+"""
+"Früher dran" annehmen: Termin auf den angebotenen früheren Platz verschieben.
+
+Ein Platz darf nur einmal vergeben werden (Lasttest 20.10.2026, dev/e2e/lasttest.cjs):
+  - Verschoben wird in einer Transaktion mit der Belegung je Person und Tag (app/libs/schedule.py).
+    Bucht der Tresen im selben Moment denselben Platz, kommt nur einer durch.
+  - Die Annahme läuft unter derselben Sperre wie die Angebotsprüfung (check_slots._check_lock). Vorher
+    konnte eine Prüfung mit veraltetem Stand ein Angebot löschen, das gerade angenommen wurde.
+  - Nur Termine mit Status "scheduled": Ein abgesagter Termin wird nicht wieder aufgenommen
+    (vorher setzte die Annahme den Status immer auf "scheduled").
+  - Dasselbe Angebot zweimal (zwei Geräte): Die zweite Annahme meldet Erfolg und ändert nichts.
+  - Der Endpunkt ist synchron (def) und läuft im Threadpool; als async def mit blockierenden
+    Firestore-Aufrufen hielt er den einzigen uvicorn-Prozess an.
+"""
 from datetime import datetime
-from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query
-from app.auth import AuthorizedUser
+from typing import Dict, Optional
+
+from fastapi import APIRouter, BackgroundTasks
 from google.cloud import firestore
 
-from app.apis.appointment_helpers import update_appointment
-from app.apis.firebase_utils import get_firestore_db
-from app.apis.utils import convert_timestamp_to_datetime
-from app.apis.check_slots import trigger_check_in_background
+from app.auth import AuthorizedUser
 from app.apis.cache import invalidate_shop_date_cache
+from app.apis.check_slots import _check_lock, trigger_check_in_background
+from app.apis.firebase_utils import get_firestore_db
+from app.libs.schedule import BERLIN, Placement, aware, day_key, placement_of, read_placement
 
-# Create the router
 router = APIRouter()
+
+ALREADY_ACCEPTED = "Schon angenommen – dein Termin ist bereits auf dem früheren Platz."
+
+
+class _Refused(Exception):
+    """Annahme geht nicht; message ist für den Kunden."""
+
+    def __init__(self, message: str, code: Optional[str] = None, drop_offer: bool = False):
+        super().__init__(message)
+        self.message, self.code, self.drop_offer = message, code, drop_offer
 
 
 def _slot_still_free(shop_id, staff_id, service_id, start) -> bool:
@@ -41,373 +64,172 @@ def _slot_still_free(shop_id, staff_id, service_id, start) -> bool:
         print(f"Could not re-check earlier slot, refusing to move appointment: {e}")
         return False
 
-async def accept_earlier_slot_impl(notification_id: str, background_tasks: BackgroundTasks = None, user_id: str = None) -> Dict[str, str]:
-    """Implementation of accepting an earlier slot.
-    
-    Args:
-        notification_id: The ID of the notification to accept
-        background_tasks: Optional background tasks for async operations
-        user_id: The ID of the authenticated user, used for authorization
-        
-    Returns:
-        Dict with status information
-    """
-    """
-    Accept an earlier slot notification and update the appointment.
-    Also deletes all other pending earlier slot suggestions for the same staff member
-    and triggers the process to find new available slots.
-    """
-    # Log start of operation with timestamp for better traceability
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"[{current_time}] ACCEPT EARLIER SLOT: Starting for notification {notification_id} by user {user_id}")
+
+def _offer_time(value) -> Optional[datetime]:
+    """Angebote speichern deutsche Ortszeit ohne Zeitzone ("2026-10-21T08:00:00")."""
+    if isinstance(value, datetime):
+        return aware(value)
+    if isinstance(value, str):
+        try:
+            return aware(datetime.fromisoformat(value.replace("Z", "+00:00")))
+        except ValueError:
+            return None
+    return None
+
+
+def _same_time(a: Optional[datetime], b: Optional[datetime]) -> bool:
+    return isinstance(a, datetime) and isinstance(b, datetime) and aware(a) == aware(b)
+
+
+def accept_earlier_slot_impl(notification_id: str, user_id: Optional[str] = None) -> Dict[str, str]:
+    """Angebot annehmen. Antwort {"status": "success"|"error", "message": ...} (message auf Deutsch)."""
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] ACCEPT EARLIER SLOT: {notification_id} by {user_id}")
+    db = get_firestore_db()
     try:
-        db = get_firestore_db()
-
-        # Get the notification
-        notification_ref = db.collection('earlier_slot_notifications').document(notification_id)
-        notification_doc = notification_ref.get()
-
-        if not notification_doc.exists:
-            print(f"Notification {notification_id} not found")
-            return {"status": "error", "message": f"Notification {notification_id} not found"}
-
-        notification = notification_doc.to_dict()
-        notification['id'] = notification_id
-
-        # Verfallene Angebote gehören schon der nächsten Person in der Reihe
-        if notification.get('status') == 'expired':
-            return {"status": "error", "message": "Das Angebot ist abgelaufen."}
-
-        # Get the appointment
-        appointment_id = notification.get('appointmentId')
-        appointment_ref = db.collection('appointments').document(appointment_id)
-        appointment_doc = appointment_ref.get()
-
-        if not appointment_doc.exists:
-            print(f"Appointment {appointment_id} not found")
-            return {"status": "error", "message": f"Appointment {appointment_id} not found"}
-
-        # Get the current appointment data to properly handle the update
-        current_appointment = appointment_doc.to_dict()
-        
-        # Check if notification has unknown_user ID and update it if necessary
-        notification_user_id = notification.get('userId')
-        if notification_user_id == 'unknown_user' and user_id:
-            print(f"Notification {notification_id} has unknown_user ID, updating to {user_id}")
-            try:
-                # Update the notification with the correct user ID
-                notification_ref.update({
-                    'userId': user_id
-                })
-                print(f"Updated notification {notification_id} with correct user ID: {user_id}")
-                # Update our local copy of the notification
-                notification['userId'] = user_id
-            except Exception as update_err:
-                print(f"Error updating notification user ID: {update_err}")
-                # Continue with normal flow, this is just a correction
-        
-        # Enhanced authorization check with better logging
-        customer_id = current_appointment.get('customerId') or current_appointment.get('userId')
-        
-        # Try to get user ID from user object if it exists
-        if not customer_id and 'user' in current_appointment and isinstance(current_appointment['user'], dict):
-            customer_id = current_appointment['user'].get('id')
-        
-        # Add more detailed logging for troubleshooting
-        print(f"Authorization check - Customer ID from appointment: {customer_id}")
-        print(f"Authorization check - Authenticated user ID: {user_id}")
-        
-        # More robust authorization check with specific error messages
-        if user_id and customer_id and user_id != customer_id:
-            print(f"AUTHORIZATION FAILED: User {user_id} not authorized to modify appointment for customer {customer_id}")
-            return {"status": "error", "message": "You are not authorized to modify this appointment", "code": "unauthorized"}
-        
-        if not user_id:
-            print("WARNING: No authenticated user ID provided")
-        
-        if not customer_id:
-            print("WARNING: No customer ID found in appointment")
-        
-        # Store IDs for later reference and cache invalidation
-        appointment_id = appointment_doc.id
-        shop_id = current_appointment.get('shopId')
-        staff_id = current_appointment.get('staffId')
-        
-        # Get shop_id and staff_id from notification, with fallback to the current appointment
-        if not shop_id:
-            shop_id = notification.get('shopId', current_appointment.get('shopId'))
-        if not staff_id:
-            staff_id = notification.get('staffId', current_appointment.get('staffId'))
-        
-        # Ensure staff_id is a string for consistent comparison
-        if staff_id is not None:
-            staff_id = str(staff_id)
-        
-        # Get the earlier times from the notification
-        earlier_start = notification.get('earlierStartTime')
-        earlier_end = notification.get('earlierEndTime')
-        
-        # Convert start/end times to datetime objects for consistency
-        # Google Cloud Firestore can directly handle Python datetime objects
-        try:
-            # Convert string ISO timestamps to datetime objects if needed
-            def ensure_datetime(time_value):
-                if isinstance(time_value, str):
-                    try:
-                        # Try to parse ISO format (2025-03-28T10:33:00)
-                        return datetime.fromisoformat(time_value.replace('Z', '+00:00'))
-                    except ValueError as e:
-                        print(f"Error converting timestamp string: {e}")
-                        return datetime.now()  # Fallback
-                elif hasattr(time_value, 'toDate'):
-                    # Handle Firebase Timestamp objects
-                    return time_value.toDate()
-                elif isinstance(time_value, datetime):
-                    return time_value
-                else:
-                    print(f"Unknown timestamp type: {type(time_value)}, value: {time_value}")
-                    return datetime.now()  # Fallback
-            
-            import zoneinfo
-            local_tz = zoneinfo.ZoneInfo('Europe/Berlin')
-            
-            # Convert to Python datetime objects
-            earlier_start_datetime = ensure_datetime(earlier_start)
-            earlier_end_datetime = ensure_datetime(earlier_end)
-            
-            # Ensure they are timezone aware before giving them to Firestore
-            # Firestore assumes naive datetimes are UTC, but these are local times
-            if earlier_start_datetime.tzinfo is None:
-                earlier_start_datetime = earlier_start_datetime.replace(tzinfo=local_tz)
-            if earlier_end_datetime.tzinfo is None:
-                earlier_end_datetime = earlier_end_datetime.replace(tzinfo=local_tz)
-                
-            # Debug: Log the type and value of timestamps
-            print(f"Original startTime type: {type(earlier_start)}, value: {earlier_start}")
-            print(f"Converted startTime type: {type(earlier_start_datetime)}, value: {earlier_start_datetime}")
-            print(f"Original endTime type: {type(earlier_end)}, value: {earlier_end}")
-            print(f"Converted endTime type: {type(earlier_end_datetime)}, value: {earlier_end_datetime}")
-            
-            # Debug: Log the current appointment timestamps
-            current_start = current_appointment.get('startTime')
-            print(f"Current appointment startTime type: {type(current_start)}, value: {current_start}")
-            
-            # Build the update with mandatory SERVER_TIMESTAMP for updatedAt
-            appointment_update = {
-                'startTime': earlier_start_datetime,
-                'endTime': earlier_end_datetime,
-                'updatedAt': firestore.SERVER_TIMESTAMP,
-                'status': 'scheduled',  # Always ensure the status is scheduled
-                'staffId': staff_id     # Ensure consistent staffId format
-            }
-        except Exception as e:
-            print(f"Warning: Error processing timestamp conversion: {e}")
-            # Fallback to original values if conversion fails
-            appointment_update = {
-                'startTime': earlier_start,
-                'endTime': earlier_end,
-                'updatedAt': firestore.SERVER_TIMESTAMP,
-                'status': 'scheduled',
-                'staffId': staff_id
-            }
-        
-        # Ist der Platz noch frei? Zwischen Angebot (bis zu 5 Minuten alt) und Annahme kann
-        # jemand anderes gebucht oder eine Pause eingetragen worden sein.
-        if not _slot_still_free(shop_id, staff_id, current_appointment.get('serviceId'), appointment_update.get('startTime')):
-            notification_ref.delete()
-            return {"status": "error", "message": "Der frühere Platz ist inzwischen vergeben."}
-
-        print(f"Updating appointment {appointment_id} with new times using central update function")
-        # Extract the original date string for both original and new dates for accurate cache invalidation
-        original_start_date = None
-        if 'startTime' in current_appointment:
-            try:
-                orig_start = current_appointment.get('startTime')
-                if hasattr(orig_start, 'toDate'):
-                    orig_start = orig_start.toDate()
-                if isinstance(orig_start, datetime):
-                    original_start_date = orig_start.date().isoformat()
-                elif isinstance(orig_start, str) and 'T' in orig_start:
-                    original_start_date = orig_start.split('T')[0]
-                print(f"Original appointment date extracted: {original_start_date}")
-            except Exception as e:
-                print(f"Could not extract original date: {e}")
-        
-        # Get the new date for cache invalidation as well
-        new_start_date = None
-        try:
-            if isinstance(earlier_start_datetime, datetime):
-                new_start_date = earlier_start_datetime.date().isoformat()
-                print(f"New appointment date extracted: {new_start_date}")
-        except Exception as e:
-            print(f"Could not extract new date: {e}")
-            
-        # Use the centralized appointment update function with enhanced error handling
-        # Pass both date strings to ensure proper cache invalidation for both dates
-        try:
-            update_result = await update_appointment(appointment_id, appointment_update, background_tasks, 
-                                   original_date=original_start_date, new_date=new_start_date)
-            
-            # Check if update was successful
-            if update_result.get('status') != 'success':
-                print(f"Appointment update failed: {update_result}")
-                return update_result
-                
-            print(f"Successfully updated appointment {appointment_id} using central update function")
-            
-            # Force an additional explicit cache invalidation for both dates to ensure consistency
-            try:
-                if shop_id and original_start_date:
-                    print(f"Explicit cache invalidation for original date: {original_start_date}")
-                    invalidate_shop_date_cache(shop_id, original_start_date, staff_id)
-                
-                if shop_id and new_start_date and new_start_date != original_start_date:
-                    print(f"Explicit cache invalidation for new date: {new_start_date}")
-                    invalidate_shop_date_cache(shop_id, new_start_date, staff_id)
-            except Exception as cache_error:
-                print(f"Warning: Additional cache invalidation failed but appointment was updated: {cache_error}")
-                # Continue execution, as this is just an extra precaution
-            
-        except Exception as e:
-            print(f"Error updating appointment: {e}")
-            return {"status": "error", "message": f"Error updating appointment: {str(e)}"}
-        
-        # Log before and after times for debugging
-        if current_appointment and 'startTime' in current_appointment:
-            original_start = current_appointment.get('startTime')
-            if hasattr(original_start, 'toDate'):
-                original_start = original_start.toDate()
-            new_start = earlier_start
-            if hasattr(new_start, 'toDate'):
-                new_start = new_start.toDate()
-            print(f"Changed appointment time from {original_start} to {new_start}")
-            
-        # Mark the notification as accepted
-        notification_ref.update({
-            'isAccepted': True,
-            'isRead': True
-        })
-
-        # Get staff ID from the notification to identify all other pending notifications
-        staff_id = staff_id or notification.get('staffId')
-        if not staff_id:
-            print(f"Warning: Staff ID not found in notification {notification_id}")
-            return {"status": "success", "message": "Earlier slot accepted successfully, but staff ID not found"}
-        
-        # Safely convert the time fields to datetime for comparison
-        def safely_convert_timestamp(timestamp_value):
-            if timestamp_value is None:
-                return datetime.now()  # Default fallback
-                
-            if isinstance(timestamp_value, datetime):
-                return timestamp_value
-                
-            try:
-                return convert_timestamp_to_datetime(timestamp_value)
-            except Exception as e:
-                print(f"Error converting timestamp: {e}")
-                if isinstance(timestamp_value, str):
-                    try:
-                        return datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
-                    except ValueError:
-                        pass
-                return datetime.now()  # Fallback
-        
-        # Store time range of the accepted slot
-        accepted_start_time = safely_convert_timestamp(earlier_start)
-        accepted_end_time = safely_convert_timestamp(earlier_end)
-        
-        print(f"Accepted earlier slot time range: {accepted_start_time} to {accepted_end_time}")
-        print(f"Looking for overlapping notifications for staff member {staff_id}")
-        
-        # Find all other pending notifications for the same staff member
-        staff_notifications_query = db.collection('earlier_slot_notifications')
-        staff_notifications_query = staff_notifications_query.where('staffId', '==', staff_id)
-        staff_notifications_query = staff_notifications_query.where('isAccepted', '==', False)
-        
-        notification_ids_to_delete = []
-        appointment_ids_to_check = []
-        
-        # Collect notifications to delete and their appointment IDs
-        for doc in staff_notifications_query.stream():
-            other_notification = doc.to_dict()
-            other_notification['id'] = doc.id
-            
-            # Skip the notification that was just accepted
-            if other_notification['id'] == notification_id:
-                continue
-                
-            print(f"Checking notification {other_notification['id']} for overlap")
-            
-            # Safely convert timestamps for comparison
-            other_start_time = safely_convert_timestamp(other_notification.get('earlierStartTime'))
-            other_end_time = safely_convert_timestamp(other_notification.get('earlierEndTime'))
-            
-            print(f"  Other slot time range: {other_start_time} to {other_end_time}")
-            
-            # Check if there's an overlap between the accepted slot and this notification
-            overlaps = (other_start_time < accepted_end_time and other_end_time > accepted_start_time)
-            
-            # Delete any pending notifications for the same staff member to avoid potential conflicts
-            # This prevents double-booking situations
-            if overlaps:
-                print(f"  Notification {doc.id} overlaps with accepted slot, deleting")
-                notification_ids_to_delete.append(doc.id)
-                
-                # Add appointment ID to the list of appointments to check for new slots
-                appt_id = other_notification.get('appointmentId')
-                if appt_id and appt_id not in appointment_ids_to_check:
-                    appointment_ids_to_check.append(appt_id)
-                    
-                # Delete the notification
-                doc.reference.delete()
-            else:
-                print(f"  Notification {doc.id} does not overlap with accepted slot, keeping")
-        
-        # Cache invalidation is now handled automatically by the updateAppointment function
-        # No need for manual invalidation here, which makes the code simpler and more consistent
-        
-        # Der alte Platz ist jetzt frei: sofort neu verteilen (Kaskade – die nächste Person in der Reihe
-        # bekommt ihn angeboten). Dieselbe Prüfung wie im Hintergrund-Takt, siehe check_slots.
-        trigger_check_in_background(shop_id, staff_id)
-        
-        # Log completion of operation with timestamp
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print(f"[{current_time}] ACCEPT EARLIER SLOT: Completed for notification {notification_id}")
-        print(f"  - Appointment {appointment_id} updated")
-        print(f"  - {len(notification_ids_to_delete)} overlapping notifications deleted")
-        print(f"  - {len(appointment_ids_to_check)} appointments scheduled for new slot check")
-        
-        return {
-            "status": "success", 
-            "message": "Earlier slot accepted successfully",
-            "deleted_notifications": str(len(notification_ids_to_delete)),
-            "appointments_to_check": str(len(appointment_ids_to_check))
-        }
-
+        # Nie gleichzeitig mit einer Angebotsprüfung oder einer anderen Annahme
+        with _check_lock:
+            result = _accept(db, notification_id, user_id)
+    except _Refused as refused:
+        print(f"Earlier slot {notification_id} refused: {refused.message}")
+        return {"status": "error", "message": refused.message, **({"code": refused.code} if refused.code else {})}
     except Exception as e:
-        print(f"Error accepting earlier slot: {str(e)}")
-        return {"status": "error", "message": f"Error accepting earlier slot: {str(e)}"}
+        print(f"Error accepting earlier slot {notification_id}: {e}")
+        return {"status": "error", "message": "Das hat nicht geklappt. Versuch es gleich noch einmal."}
+
+    moved = result.pop("_moved", None)
+    if moved:
+        shop_id, staff_id, days = moved
+        for day in days:
+            try:
+                invalidate_shop_date_cache(shop_id, day)
+            except Exception as e:
+                print(f"Cache invalidation after accept failed (appointment is moved): {e}")
+        # Der alte Platz ist jetzt frei: sofort neu verteilen (Kaskade), siehe check_slots
+        trigger_check_in_background(shop_id, staff_id)
+    return result
+
+
+def _accept(db, notification_id: str, user_id: Optional[str]) -> Dict:
+    notification_ref = db.collection("earlier_slot_notifications").document(notification_id)
+    notification_doc = notification_ref.get()
+    if not notification_doc.exists:
+        raise _Refused("Dieses Angebot gibt es nicht mehr.")
+    notification = notification_doc.to_dict() or {}
+
+    appointment_id = notification.get("appointmentId")
+    appointment_ref = db.collection("appointments").document(appointment_id) if appointment_id else None
+    appointment_doc = appointment_ref.get() if appointment_ref else None
+    if not appointment_doc or not appointment_doc.exists:
+        raise _Refused("Den Termin zu diesem Angebot gibt es nicht mehr.")
+    appointment = appointment_doc.to_dict() or {}
+
+    # Nur der Kunde selbst
+    customer_id = appointment.get("customerId") or appointment.get("userId")
+    if not user_id or customer_id != user_id:
+        print(f"AUTHORIZATION FAILED: user {user_id} for appointment of customer {customer_id}")
+        raise _Refused("Das ist nicht dein Termin.", code="unauthorized")
+
+    earlier_start = _offer_time(notification.get("earlierStartTime"))
+    earlier_end = _offer_time(notification.get("earlierEndTime"))
+    if not earlier_start or not earlier_end or earlier_end <= earlier_start:
+        raise _Refused("Dieses Angebot ist ungültig.")
+
+    # Schon angenommen (zweites Gerät, doppelter Tipp): Erfolg melden, nichts ändern
+    if notification.get("isAccepted"):
+        if _same_time(appointment.get("startTime"), earlier_start):
+            return {"status": "success", "message": ALREADY_ACCEPTED}
+        raise _Refused("Dieses Angebot ist schon erledigt.")
+    if notification.get("status") == "expired":
+        raise _Refused("Das Angebot ist abgelaufen.")
+    if appointment.get("status") != "scheduled":
+        raise _Refused("Dein Termin ist nicht mehr offen (abgesagt oder schon dran).", code="not_scheduled")
+    if earlier_start <= datetime.now(BERLIN):
+        raise _Refused("Der frühere Platz ist schon vorbei.", drop_offer=True)
+
+    shop_id = appointment.get("shopId") or notification.get("shopId")
+    staff_id = str(appointment.get("staffId") or notification.get("staffId") or "")
+    if not shop_id or not staff_id:
+        raise _Refused("Zu diesem Termin fehlt die Person.")
+
+    # Pausen, Arbeits- und Öffnungszeiten und ältere Termine (ohne Eintrag in der Belegung): dieselbe
+    # Berechnung wie beim Angebot. Gleichzeitige Buchungen fängt erst die Transaktion unten ab.
+    if not _slot_still_free(shop_id, staff_id, appointment.get("serviceId"), earlier_start):
+        _drop_offer(notification_ref)
+        raise _Refused("Der frühere Platz ist inzwischen vergeben.", code="taken")
+
+    occupy = Placement(staff_id, earlier_start, earlier_end)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def move(tx) -> str:
+        appt_snap = appointment_ref.get(transaction=tx)
+        note_snap = notification_ref.get(transaction=tx)
+        if not note_snap.exists:
+            raise _Refused("Dieses Angebot gibt es nicht mehr.")
+        if not appt_snap.exists:
+            raise _Refused("Den Termin zu diesem Angebot gibt es nicht mehr.")
+        current = appt_snap.to_dict() or {}
+        if (note_snap.to_dict() or {}).get("isAccepted"):
+            if _same_time(current.get("startTime"), earlier_start):
+                return "already"
+            raise _Refused("Dieses Angebot ist schon erledigt.")
+        if current.get("status") != "scheduled":
+            raise _Refused("Dein Termin ist nicht mehr offen (abgesagt oder schon dran).", code="not_scheduled")
+        change = read_placement(tx, db, appointment_id, shop_id, occupy=occupy, release=placement_of(current))
+        if change.conflict:
+            raise _Refused("Der frühere Platz ist inzwischen vergeben.", code="taken", drop_offer=True)
+        tx.update(appointment_ref, {
+            "startTime": earlier_start,
+            "endTime": earlier_end,
+            "staffId": staff_id,
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        })
+        tx.update(notification_ref, {"isAccepted": True, "isRead": True, "acceptedAt": firestore.SERVER_TIMESTAMP})
+        change.write()
+        return "moved"
+
+    try:
+        outcome = move(transaction)
+    except _Refused as refused:
+        if refused.drop_offer:
+            _drop_offer(notification_ref)
+        raise
+    if outcome == "already":
+        return {"status": "success", "message": ALREADY_ACCEPTED}
+
+    old_start = appointment.get("startTime")
+    print(f"Appointment {appointment_id} moved from {old_start} to {earlier_start} (offer {notification_id})")
+    _drop_overlapping_offers(db, notification_id, staff_id, earlier_start, earlier_end)
+
+    days = {day_key(earlier_start)}
+    if isinstance(old_start, datetime):
+        days.add(day_key(old_start))
+    return {"status": "success", "message": "Du hast den früheren Platz.", "_moved": (shop_id, staff_id, sorted(days))}
+
+
+def _drop_offer(notification_ref) -> None:
+    """Platz ist weg: Angebot entfernen (wie die Prüfung es mit Angeboten tut, deren Platz weg ist)."""
+    try:
+        notification_ref.delete()
+    except Exception as e:
+        print(f"Could not delete offer {notification_ref.id}: {e}")
+
+
+def _drop_overlapping_offers(db, notification_id: str, staff_id: str, start: datetime, end: datetime) -> None:
+    """Andere offene Angebote für denselben Platz sind jetzt tot; die Prüfung danach verteilt neu."""
+    query = db.collection("earlier_slot_notifications").where("staffId", "==", staff_id).where("isAccepted", "==", False)
+    for doc in query.stream():
+        if doc.id == notification_id:
+            continue
+        other = doc.to_dict() or {}
+        other_start = _offer_time(other.get("earlierStartTime"))
+        other_end = _offer_time(other.get("earlierEndTime"))
+        if other_start and other_end and other_start < end and start < other_end:
+            print(f"  Offer {doc.id} overlaps the accepted slot, deleting")
+            doc.reference.delete()
+
 
 @router.post("/accept-earlier-slot/{notification_id}")
-async def accept_earlier_slot(
-    notification_id: str, 
-    background_tasks: BackgroundTasks,
-    user: AuthorizedUser
-) -> Dict[str, str]:
-    """Accept an earlier slot notification and update the appointment."""
-    try:
-        # Log authentication information for troubleshooting
-        print(f"Processing accept-earlier-slot request with notification_id={notification_id} and user_id={user.sub}")
-        
-        # Call the implementation function with the authenticated user's ID
-        result = await accept_earlier_slot_impl(notification_id, background_tasks, user.sub)
-        
-        # Log result for debugging
-        print(f"accept_earlier_slot_impl returned: {result}")
-        return result
-        
-    except Exception as e:
-        print(f"Uncaught error in accept_earlier_slot endpoint: {e}")
-        # Ensure we always return a proper JSON response
-        return {"status": "error", "message": f"Error accepting earlier slot: {str(e)}"}
+def accept_earlier_slot(notification_id: str, user: AuthorizedUser) -> Dict[str, str]:
+    """Accept an earlier slot notification and move the appointment."""
+    return accept_earlier_slot_impl(notification_id, user.sub)
