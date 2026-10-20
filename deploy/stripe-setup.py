@@ -123,7 +123,17 @@ def main() -> None:
         set_env("STRIPE_WEBHOOK_SECRET", endpoint.secret)
         print(f"Webhook angelegt: {url} (Geheimnis in {ENV_FILE} eingetragen)")
 
-    if not os.environ.get("STRIPE_PORTAL_CONFIG", "").strip():
+    existing_portal = os.environ.get("STRIPE_PORTAL_CONFIG", "").strip()
+    if existing_portal:  # nach einem Umzug: Links im Kundenportal auf die neue Adresse
+        c.v1.billing_portal.configurations.update(
+            existing_portal,
+            params={
+                "business_profile": {"privacy_policy_url": f"{base}/datenschutz", "terms_of_service_url": f"{base}/agb"},
+                "default_return_url": f"{base}/tarif",
+            },
+        )
+        print(f"Kundenportal zeigt auf {base}")
+    if not existing_portal:
         config = c.v1.billing_portal.configurations.create(
             params={
                 "business_profile": {
