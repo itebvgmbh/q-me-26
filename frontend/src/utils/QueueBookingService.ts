@@ -9,6 +9,7 @@ import {
   linkOwnCustomerEntry
 } from './firestore';
 import { findNextSlots } from './firestore/timeslots';
+import { dayKey } from './firestore/schedule';
 import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
 
@@ -24,11 +25,13 @@ type RetryOptions = { serviceId: string; staffIds: string[] };
  * gleich die nächsten freien Plätze suchen – bei derselben Person, bei „Egal wer“ bei allen in staffIds – und
  * neu buchen, statt den Kunden noch mal bestätigen zu lassen. Die Transaktion in createAppointment nimmt davon
  * den ersten, der dann noch frei ist; doppelt vergeben wird ein Platz dabei nie (Belegung, schedule.ts).
+ * Nur am Tag des angezeigten Platzes: Ist der voll, entscheidet der Kunde selbst über einen anderen Tag.
  */
 async function createQueueAppointment(
   data: Parameters<typeof createAppointment>[0],
   retry: RetryOptions
 ): Promise<Appointment> {
+  const day = dayKey(data.startTime.toDate());
   let lastError: unknown;
   try {
     return await createAppointment(data);
@@ -37,7 +40,8 @@ async function createQueueAppointment(
     lastError = error;
   }
   for (let round = 0; round < RETRY_ROUNDS; round++) {
-    const next = await findNextSlots(data.shopId, retry.serviceId, retry.staffIds, RETRY_CANDIDATES);
+    const next = (await findNextSlots(data.shopId, retry.serviceId, retry.staffIds, RETRY_CANDIDATES))
+      .filter(({ slot }) => dayKey(slot.start) === day);
     if (next.length === 0) break;
     const [first, ...rest] = next;
     try {

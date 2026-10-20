@@ -9,7 +9,9 @@
 // Szenarien:
 //   abfragen   freie Zeiten: viele Anfragen gleichzeitig, mit und ohne Zwischenspeicher, mit und ohne Verlauf
 //   ansturm    QME_ANSTURM Leute (Standard 10) ziehen im selben Moment eine Nummer bei derselben Person;
-//              alle werden eingereiht, wer zu spät war, gleich auf den nächsten freien Platz (QueueBookingService)
+//              alle werden eingereiht, wer zu spät war, gleich auf den nächsten freien Platz (QueueBookingService).
+//              Die Seiten laufen dafür übermorgen um 06:50 (verstellte Uhr): Neu gebucht wird nur am selben Tag,
+//              und abends passen heute keine 10 Nummern mehr hinein.
 //   kaskade    "Früher dran": 4 Absagen, Kunden nehmen jedes Angebot sofort an, bis nichts mehr nachrückt;
 //              dabei: fremdes Angebot annehmen, dasselbe Angebot zweimal gleichzeitig
 //   wettlauf   Annahme und Buchung am Tresen für denselben Platz gleichzeitig (6 Runden, QME_WETTLAUF)
@@ -505,6 +507,7 @@ async function lauf(only) {
   if (want('ansturm')) {
     console.log('== ansturm');
     const n = Number(process.env.QME_ANSTURM || 10);
+    const rushDay = addDays(ymd(new Date()), 2);
     const browser = await launch();
     const p = pulse('ansturm');
     const t0 = Date.now();
@@ -513,6 +516,7 @@ async function lauf(only) {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
       try {
+        await page.clock.setFixedTime(at(rushDay, 6 * 60 + 50));
         await page.goto(`${LIVE}/public-join-queue?shopId=${state.shopId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await page.getByRole('button', { name: /Schnitt/ }).first().click({ timeout: 60000 });
         await page.getByRole('button', { name: /^Dora/ }).click({ timeout: 60000 });
@@ -537,9 +541,8 @@ async function lauf(only) {
     }));
     await browser.close();
     const pm = await p.stop();
-    const today = ymd(new Date());
-    const doraToday = await dayOf('dora', [at(today, 0), at(addDays(today, 1), 0)]);
-    const rush = doraToday.filter((a) => /^Ansturm/.test(a.customerName || '') && a.status !== 'cancelled');
+    const doraRushDay = await dayOf('dora', [at(rushDay, 0), at(addDays(rushDay, 1), 0)]);
+    const rush = doraRushDay.filter((a) => /^Ansturm/.test(a.customerName || '') && a.status !== 'cancelled');
     const dup = overlaps(rush);
     const codes = rush.map((a) => a.referenceCode).filter(Boolean);
     const dupCodes = codes.filter((c, i) => codes.indexOf(c) !== i);
