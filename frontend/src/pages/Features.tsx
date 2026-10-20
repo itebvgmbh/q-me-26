@@ -33,7 +33,7 @@ const FEATURES = [
   {
     icon: Store,
     title: "Gefunden werden",
-    text: "Dein Laden erscheint in der Shop-Suche und auf der Karte – mit Leistungen, Preisen und Öffnungszeiten.",
+    text: "Dein Laden erscheint auf der Karte und in der Suche – mit Leistungen, Preisen und Öffnungszeiten.",
   },
 ];
 
@@ -42,7 +42,7 @@ export default function Features() {
     <div className="flex flex-col">
       <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_1fr] md:py-20">
         <div className="flex flex-col gap-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Für Betriebe</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Für Läden</p>
           <h1 className="font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] sm:text-6xl">
             Volles Wartezimmer? Muss nicht sein.
           </h1>
@@ -52,7 +52,7 @@ export default function Features() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="signal" size="lg" asChild>
-              <Link to="/register-shop-owner">Betrieb anmelden</Link>
+              <Link to="/register-shop-owner">Laden anmelden</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link to="/preise">Preise ansehen</Link>
@@ -104,6 +104,16 @@ export default function Features() {
             </li>
           ))}
         </ol>
+        <p className="text-muted-foreground">
+          Jeder Schritt erklärt:{' '}
+          <a href="/hilfe/in-10-minuten-startklar" className="font-semibold text-foreground underline underline-offset-4">
+            In 10 Minuten startklar
+          </a>
+          {' '}· Fragen vorab?{' '}
+          <a href="/hilfe/fragen-fuer-laeden" className="font-semibold text-foreground underline underline-offset-4">
+            Häufige Fragen von Läden
+          </a>
+        </p>
       </section>
 
       <section className="bg-signal">
@@ -113,7 +123,7 @@ export default function Features() {
             <p className="mt-1">Einrichten dauert ein paar Minuten.</p>
           </div>
           <Button size="lg" asChild>
-            <Link to="/register-shop-owner">Betrieb anmelden</Link>
+            <Link to="/register-shop-owner">Laden anmelden</Link>
           </Button>
         </div>
       </section>

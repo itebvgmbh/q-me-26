@@ -121,7 +121,7 @@ STYLE = """
 @media (prefers-color-scheme:dark){:root{--bg:#121211;--card:#1c1c1a;--ink:#f2f1eb;--muted:#a8a79e;--line:#34332e}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:960px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left))}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:8px 24px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:8px 24px}.top nav{display:flex;gap:16px}.top nav a{color:inherit}
 .brand{font-weight:800;font-size:22px;letter-spacing:-.03em;text-decoration:none;color:inherit;display:flex;gap:8px;align-items:center}
 .brand i{width:26px;height:26px;border-radius:7px;background:var(--signal);display:inline-block}
 h1{font-size:clamp(34px,6vw,56px);line-height:1;letter-spacing:-.04em;margin:0 0 12px;text-wrap:balance}
@@ -140,7 +140,7 @@ footer{color:var(--muted);font-size:14px;padding-block:24px;display:flex;gap:16p
 """
 
 
-def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | None = None) -> str:
+def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | None = None, extra_style: str = "") -> str:
     ld = f'<script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False).replace("</", "<\\/")}</script>' if json_ld else ""
     url = public_url() + canonical_path
     return (
@@ -150,10 +150,11 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
         f"<meta property=\"og:url\" content=\"{_e(url)}\"><meta property=\"og:site_name\" content=\"Dranzeit\">"
-        f"<style>{STYLE}</style>{ld}</head><body><div class=\"wrap\">"
-        "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a><a href=\"/features\">Für Läden</a></div>"
+        f"<style>{STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
+        "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
+        "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
         f"{body}"
-        "<footer><a href=\"/\">Startseite</a><a href=\"/friseur-ohne-termin\">Alle Städte</a>"
+        "<footer><a href=\"/\">Startseite</a><a href=\"/friseur-ohne-termin\">Alle Städte</a><a href=\"/hilfe\">Hilfe</a>"
         "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a></footer></div></body></html>"
     )
 
@@ -270,6 +271,10 @@ def sitemap() -> Response:
     shops = load_shops()
     paths += [f"{BASE_PATH}/{slug}" for slug in cities(shops)]
     paths += [f"/shop-details?shopId={s['id']}" for s in shops]
+
+    from app import hilfe
+
+    paths += hilfe.sitemap_paths()
     urls = "".join(f"<url><loc>{html.escape(base + p)}</loc><lastmod>{today}</lastmod></url>" for p in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})

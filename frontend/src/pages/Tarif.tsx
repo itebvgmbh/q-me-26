@@ -8,6 +8,7 @@ import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { InvoiceList } from '../components/pricing/InvoiceList';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
+import { HilfeLink } from '../components/HilfeLink';
 import { firestore } from '../utils/firestore-client';
 import { getShopsByOwnerId, getStaffByShopId, type Shop } from '../utils/firestore';
 import { safelyConvertToDate } from '../utils/datetime';
@@ -168,7 +169,7 @@ export default function Tarif() {
                 run('founder', async () => {
                   const result = await claimFounder(shop.id);
                   setFoundersLeft(result.left);
-                  toast.success('Du bist Gründer. 3 Monate kostenlos, danach Laden für 19 €.');
+                  toast.success('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.');
                 })
               }
               disabled={busy !== ''}
@@ -203,6 +204,11 @@ export default function Tarif() {
         <p className="text-sm text-muted-foreground">
           Bezahlt wird über Stripe per SEPA-Lastschrift oder Karte. Läuft deine Testphase noch, beginnt die Abrechnung erst danach.
           Mit „Weiter zur Bezahlung“ akzeptierst du die <Link to="/agb" className="underline underline-offset-2">AGB</Link>.
+        </p>
+        <p className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <HilfeLink hilfe="tarife">Welcher Tarif passt zu mir?</HilfeLink>
+          <HilfeLink hilfe="gratis-tarif">Was zählt zu den 100 Kunden?</HilfeLink>
+          <HilfeLink hilfe="abo">Abo wechseln und kündigen</HilfeLink>
         </p>
       </section>
     </div>

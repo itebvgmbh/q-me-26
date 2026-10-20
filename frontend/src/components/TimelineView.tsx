@@ -207,7 +207,7 @@ const DayView: React.FC<DayViewProps> = ({
       // Cache für diesen Shop und Datum invalidieren
       invalidateCache(employee.shopId, selectedAppointment.startTime.toDate());
       
-      toast.success('Status erfolgreich aktualisiert');
+      toast.success('Status geändert.');
       setShowStatusDialog(false);
     } catch (error) {
       console.error('Error updating appointment status:', error);

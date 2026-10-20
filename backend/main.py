@@ -84,11 +84,14 @@ def create_app() -> FastAPI:
     app = FastAPI()
     app.include_router(import_api_routers())
 
-    # Stadtseiten und sitemap.xml (app/seo.py): unter eigenem Pfad (Caddy leitet ihn weiter) und unter /routes/seo
-    from app import seo
+    # Stadtseiten, sitemap.xml (app/seo.py) und Hilfe (app/hilfe): unter eigenem Pfad (Caddy leitet ihn weiter)
+    # und unter /routes/seo
+    from app import hilfe, seo
 
     app.include_router(seo.router)
     app.include_router(seo.router, prefix="/routes/seo")
+    app.include_router(hilfe.router)
+    app.include_router(hilfe.router, prefix="/routes/seo")
 
     for route in app.routes:
         if hasattr(route, "methods"):

@@ -73,7 +73,7 @@ const StaffManagement = () => {
         </div>
         {selectedShop && staffLimitReached ? (
           <p className="max-w-xs text-sm text-muted-foreground">
-            Im Tarif {currentPlan.plan.name} sind {currentPlan.plan.maxStaff === 1 ? 'eine Person' : `${currentPlan.plan.maxStaff} Personen`} dabei.{' '}
+            Im Tarif {currentPlan.plan.name} {currentPlan.plan.maxStaff === 1 ? 'ist eine Person' : `sind ${currentPlan.plan.maxStaff} Personen`} dabei.{' '}
             <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
               Tarif wechseln
             </Link>
@@ -116,7 +116,7 @@ const StaffManagement = () => {
       ) : staff.length === 0 ? (
         <div className="rounded-3xl border border-border bg-card p-6">
           <p className="font-display text-xl font-bold">Noch niemand im Team.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Leg dich selbst als erste Person an, wenn du allein arbeitest. Mitarbeiter kannst du auch per E-Mail einladen.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Leg dich selbst als erste Person an, wenn du allein arbeitest. Weitere Personen legst du genauso an und schickst ihnen danach ihren Einladungslink.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

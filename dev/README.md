@@ -40,6 +40,7 @@ node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
+node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen

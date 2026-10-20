@@ -55,7 +55,7 @@ export const AvailableTimeSlotPicker = ({
 
         if (data.timeslots.length === 0) {
           // Wenn keine Slots verfügbar sind, zeige eine Nachricht und füge Standard-Zeitoptionen hinzu
-          setError('Keine Termine verfügbar an diesem Tag. Möglicherweise ist der Shop geschlossen.');
+          setError('An diesem Tag ist nichts mehr frei. Vielleicht hat der Laden geschlossen.');
           
           // Generiere alle Zeitoptionen für den Tag (deaktiviert)
           const allHours = Array.from({ length: 24 }, (_, hour) => {
@@ -75,8 +75,8 @@ export const AvailableTimeSlotPicker = ({
         }
       } catch (error) {
         console.error('Error loading available time slots:', error);
-        setError('Fehler beim Laden der verfügbaren Zeitslots');
-        toast.error('Fehler beim Laden der verfügbaren Zeitslots');
+        setError('Die freien Zeiten konnten nicht geladen werden.');
+        toast.error('Die freien Zeiten konnten nicht geladen werden.');
       } finally {
         setLoading(false);
       }

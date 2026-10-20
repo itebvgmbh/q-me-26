@@ -1,0 +1,60 @@
+---
+titel: So funktioniert deine Nummer
+kurz: Nummer ziehen, rausgehen, rechtzeitig zurück sein: alles, was du als Kunde wissen musst. Ohne App und ohne Konto.
+thema: kunden
+reihenfolge: 1
+stichworte: kunde, nummer ziehen, warten, qr-code, scannen, app, konto, benachrichtigung, iphone, zu spät, zurückgeben, absagen, daten, früher dran
+faq: ja
+---
+Du scannst den QR-Code im Laden, wählst, was gemacht werden soll, und ziehst eine Nummer. Dein Handy zeigt dir, wann du ungefähr dran bist. Bis dahin kannst du gehen, wohin du willst.
+
+## Nummer ziehen
+
+1. Scann den QR-Code an der Tür oder am Tresen mit der Kamera deines Handys.
+2. Wähl unter **„Was soll gemacht werden?“** deine Leistung.
+3. Wähl unter **„Bei wem?“** eine Person oder **„Egal wer – Hauptsache schnell“**. Bei jeder Person steht ihr nächster freier Platz.
+4. Prüf die Uhrzeit, gib deinen Vornamen ein und tipp auf **„Nummer ziehen“**. Deine Handynummer ist freiwillig.
+
+![Nach dem Scannen wählst du, was du machen lassen willst.](/img/hilfe/kunde-leistung.jpg)
+
+Kein QR-Code zur Hand? Tipp auf dranzeit.de im Menü auf **„Nummer ziehen“** und wähl deinen Laden.
+
+## Während du wartest
+
+Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran um ca.“** mit der Uhrzeit. Sie aktualisiert sich von selbst. Ruft der Laden dich auf, steht dort **„Du bist dran. Komm rein.“** Seite geschlossen? Auf der Startseite von Dranzeit findest du sie am selben Tag wieder, auf demselben Handy.
+
+![Deine Nummer: wie viele vor dir sind und wann du ungefähr dran bist.](/img/hilfe/kunde-nummer.jpg)
+
+## Häufige Fragen
+
+### Brauche ich eine App oder ein Konto?
+
+Nein. Alles läuft im Browser deines Handys, für eine Nummer brauchst du kein Konto. Mit Konto siehst du deine Nummern und Termine unter „Meine Termine“, kannst „Früher dran“ nutzen und feste Termine online buchen, wenn der Laden das anbietet. Hast du schon eine Nummer, tipp auf **„Konto anlegen und Nummer behalten“**.
+
+### Wie entsteht die „ca.“-Uhrzeit?
+
+Jede Leistung hat eine geplante Dauer. Dranzeit plant alle, die vor dir bei derselben Person dran sind, und gibt dir den nächsten freien Platz danach. Dauert es vor dir länger, bist du später dran. Die Uhrzeit auf deiner Nummer wird dann nicht nachgerechnet. Sei deshalb lieber ein paar Minuten früher zurück.
+
+### Wie bekomme ich Bescheid, wenn ich dran bin?
+
+Tipp auf deiner Nummernseite im Kasten **„Bescheid bekommen“** auf **„Benachrichtigung einschalten“** und erlaube die Nachrichten. Dann kommt „Gleich bist du dran“, kurz bevor es so weit ist, und „Du bist dran“, wenn der Laden dich aufruft. Statt Push geht auch eine E-Mail: Adresse eintragen und **„Speichern“** tippen. Siehst du den Kasten nicht, bietet dein Laden keine Nachrichten an. Schau dann ab und zu auf die Seite.
+
+### Klappt das auch auf dem iPhone?
+
+Ja, nimm dort am besten die E-Mail. Apple erlaubt Nachrichten aus dem Browser nur für Apps auf dem Home-Bildschirm. Darum zeigt dir Dranzeit auf dem iPhone gleich das E-Mail-Feld.
+
+### Was, wenn ich zu spät komme?
+
+Deine Nummer verfällt nicht von selbst. Der Laden ruft in der Zwischenzeit aber die Nächsten auf. Sag am Tresen Bescheid, sobald du da bist. Wann du drankommst, entscheidet dann der Laden.
+
+### Kann ich meine Nummer zurückgeben?
+
+Ja. Tipp auf deiner Nummernseite auf **„Nummer zurückgeben“** und bestätige mit **„Ja, zurückgeben“**. Dein Platz wird damit frei. Mit Konto geht das auch unter „Meine Termine“ mit **„Termin absagen“**.
+
+### Was passiert mit meinen Daten?
+
+Ohne Konto speichert Dranzeit Leistung, Person, Uhrzeit und deinen Vornamen, dazu Handynummer, E-Mail-Adresse oder Push-Anmeldung, wenn du sie angibst. Namen und Kontaktdaten werden 90 Tage nach dem Termin entfernt. Werbe-Cookies gibt es nicht. Mehr dazu in der [Datenschutzerklärung](/datenschutz).
+
+### Was ist „Früher dran“?
+
+Wird ein früherer Platz frei, bietet Dranzeit ihn dir an. Dafür brauchst du ein Konto und setzt beim Nummer-Ziehen oder Buchen den Haken bei **„Früher dran, wenn etwas frei wird“**, sofern der Laden das anbietet. Das Angebot erscheint unter „Meine Termine“, schau dort ab und zu nach. Bis wann es für dich reserviert ist, steht dabei. Mit **„Früheren Platz nehmen“** gehört er dir, bis dahin bleibt dein bisheriger Platz sicher.

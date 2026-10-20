@@ -131,7 +131,7 @@ export const CreateAppointmentDialog = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Termin anlegen</DialogTitle>
+          <DialogTitle>Termin eintragen</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 p-4">
           <div className="space-y-4">
@@ -288,7 +288,7 @@ export const CreateAppointmentDialog = ({
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Speichern...' : 'Termin anlegen'}
+              {isSubmitting ? 'Wird eingetragen …' : 'Termin eintragen'}
             </Button>
           </div>
         </form>
