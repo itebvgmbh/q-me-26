@@ -2,7 +2,7 @@
 // nach dev/out/. Eigene Seiten als Argumente: node dev/e2e/seiten.cjs /login /shop-map
 const { BASE, SHOP_ID, launch, collectErrors, shot, report, run } = require('./lib.cjs');
 
-const DEFAULT_PAGES = ['/', '/shop-map', `/shop-details?shopId=${SHOP_ID}`, `/public-join-queue?shopId=${SHOP_ID}`, `/book-appointment?shopId=${SHOP_ID}&fromMarketplace=true`, '/features', '/impressum', '/datenschutz', '/agb', '/preise', `/bildschirm/${SHOP_ID}`, '/login', '/register-options', '/my-bookings', '/gibts-nicht'];
+const DEFAULT_PAGES = ['/', '/shop-map', `/shop-details?shopId=${SHOP_ID}`, `/public-join-queue?shopId=${SHOP_ID}`, `/book-appointment?shopId=${SHOP_ID}&fromMarketplace=true`, '/features', '/impressum', '/datenschutz', '/agb', '/preise', `/bildschirm/${SHOP_ID}`, '/login', '/register-options', '/my-bookings', '/email-bestaetigen', '/gibts-nicht'];
 
 run(async () => {
   const pages = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_PAGES;
