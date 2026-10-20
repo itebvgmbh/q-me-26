@@ -211,6 +211,35 @@ Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schl
   vorher, nicht bei laufendem Abo). Je Laden einmal, geprüft alle 15 Minuten, Testadressen (`@example.com`)
   ausgenommen. Antworten gehen an `hilfe@dranzeit.de` – dieses Postfach (oder eine Weiterleitung) muss es geben.
 
+## Ein Platz nur einmal (Belegung je Person und Tag)
+
+Seit 20.10.2026 schreibt jede Buchung, Nummer, Verschiebung, Absage und „Früher dran“-Annahme in derselben
+Firestore-Transaktion zwei Hilfsdokumente fort (Erklärung: `frontend/src/utils/firestore/schedule.ts`):
+
+- `schedules/{staffId}_{YYYY-MM-DD}` – belegte Zeiten der Person an dem Tag (nur Termin-IDs und Uhrzeiten)
+- `shop_days/{shopId}_{YYYY-MM-DD}` – an dem Tag vergebene Nummern des Ladens
+
+Nichts einzurichten: Die Firestore-Regeln (Firebase Console) lassen beide Sammlungen schon zu – auch Nummer ziehen
+ohne Konto schreibt dort, geprüft am 20.10.2026. Werden die Regeln einmal verschärft, müssen beide für jeden
+schreibbar bleiben, der buchen darf (also auch ohne Anmeldung), sonst schlägt jede Buchung fehl. Ein Vorschlag:
+
+```
+match /schedules/{id} {
+  allow read: if true;
+  allow create, update: if request.resource.data.keys().hasOnly(['shopId', 'staffId', 'day', 'slots', 'updatedAt'])
+    && id == request.resource.data.staffId + '_' + request.resource.data.day;
+}
+match /shop_days/{id} {
+  allow read: if true;
+  allow create, update: if request.resource.data.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
+    && id == request.resource.data.shopId + '_' + request.resource.data.day;
+}
+```
+
+Dokumente vergangener Tage löscht das Backend einmal am Tag (zusammen mit dem Datenschutz-Aufräumen). Termine von
+vor der Umstellung stehen nicht in der Belegung; die prüft die App wie bisher vor dem Speichern. Browserfenster,
+die schon vor dem Update offen waren, buchen bis zum Neuladen noch ohne Sperre.
+
 ## Hilfe-Bereich (/hilfe)
 
 Anleitungen, häufige Fragen und Begriffe für Läden und Kunden. Die Artikel sind Markdown-Dateien in

@@ -31,6 +31,7 @@ python dev/fixtures.py anlegen
 # 3. Tests
 node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben (24 Prüfungen)
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
+node dev/e2e/gleichzeitig.cjs               # 10 Geräte buchen im selben Moment: ein Platz nur einmal, jede Nummer nur einmal, Verschieben, Absage
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
@@ -100,6 +101,7 @@ Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) 
 Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
+`uv run python tests/test_accept_slot.py` ("Früher dran" annehmen: Belegung, abgesagte Termine, zweimal annehmen),
 `uv run python tests/test_customer_activation.py` (Kunden-Link /activate),
 `uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und

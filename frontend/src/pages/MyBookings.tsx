@@ -69,7 +69,7 @@ const MyBookings = () => {
       return true;
     } catch (error) {
       console.error('Error accepting earlier slot:', error);
-      toast.error('Der Platz ist leider schon weg.');
+      toast.error((error as Error)?.name === 'EarlierSlotRefused' ? (error as Error).message : 'Der Platz ist leider schon weg.');
       await fetchNotifications();
       return false;
     }

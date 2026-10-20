@@ -128,7 +128,7 @@ def loeschen():
 
     extra = []
     # auch, was Tests im Testladen zusätzlich anlegen (Leistungen, Personen, Kunden aus "Kunde anlegen")
-    for collection in ('appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers'):
+    for collection in ('appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days'):
         extra += find(collection, 'shopId', fx['shopId'])
     # Läden, die Tests mit dem Testkonto angelegt haben, samt allem, was daran hängt
     for shop in find('shops', 'owner', fx['uid']):
@@ -136,7 +136,7 @@ def loeschen():
         if shop_id == fx['shopId']:
             continue
         extra.append(shop)
-        for collection in ('services', 'staff', 'staff-invitations', 'recurring-breaks', 'breaks', 'appointments', 'customers'):
+        for collection in ('services', 'staff', 'staff-invitations', 'recurring-breaks', 'breaks', 'appointments', 'customers', 'schedules', 'shop_days'):
             extra += find(collection, 'shopId', shop_id)
     for doc in sorted(set(fx['docs'] + extra)):
         call('DELETE', f'{FS}/{doc}', token=token)

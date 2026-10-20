@@ -54,6 +54,9 @@ def _daily_privacy_cleanup() -> None:
         print(f"Datenschutz: {changed} alte Termine anonymisiert")
         deleted = delete_stale_customers(get_firestore_db())
         print(f"Datenschutz: {deleted} Kunden-Einträge ohne Termin seit 12 Monaten gelöscht")
+        from app.libs.schedule import delete_past_days
+
+        print(f"Belegung: {delete_past_days(get_firestore_db())} Dokumente vergangener Tage gelöscht")
     except Exception as e:  # nie den Scheduler deswegen anhalten
         print(f"Datenschutz-Aufräumen fehlgeschlagen: {e}")
 

@@ -291,7 +291,7 @@ async function loeschen() {
   for (const c of state.customers) customers.push(await signIn(c.email, c.pw).catch(() => null));
   let removed = 0;
   if (state.shopId) {
-    for (const collection of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'push_subscriptions']) {
+    for (const collection of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'push_subscriptions', 'schedules', 'shop_days']) {
       for (;;) {
         let docs = [];
         try {
@@ -412,17 +412,44 @@ async function lauf(only) {
     }
     return null;
   };
-  /** Buchung am Tresen wie createAppointment: erst prüfen, dann schreiben – ohne Sperre dazwischen */
+  /**
+   * Buchung am Tresen wie createAppointment (frontend/src/utils/firestore/appointments.ts + schedule.ts):
+   * erst die Termine prüfen, dann in einem Schritt Termin anlegen und die Belegung der Person
+   * (schedules/{staffId}_{Tag}) fortschreiben – nur, wenn sich die Belegung seit dem Lesen nicht geändert
+   * hat (wie die Transaktion der App). Sonst neu lesen; steht der Platz dann drin, ist er vergeben.
+   */
   const counterBook = async (staffKey, start, minutes) => {
     const end = new Date(start.getTime() + minutes * 60000);
     const taken = (await dayOf(staffKey)).some((a) => a.status !== 'cancelled' && a.startTime < end && start < a.endTime);
     if (taken) return { booked: false };
     const id = newId();
-    await commit([setW('appointments', id, {
-      id, shopId: state.shopId, staffId: S[staffKey], serviceId: minutes === 15 ? state.services.kurz : state.services.schnitt, startTime: start, endTime: end,
-      status: 'scheduled', type: 'queue', customerName: 'Tresen', isAnonymous: true, createdAt: new Date(), updatedAt: new Date(),
-    })], owner.idToken);
-    return { booked: true, id };
+    const scheduleId = `${S[staffKey]}_${ymd(start)}`;
+    for (let attempt = 1; attempt <= 12; attempt++) {
+      const got = await http('GET', `${FS}/schedules/${scheduleId}`, { token: owner.idToken });
+      if (!got.ok && got.status !== 404) throw new Error(`Belegung lesen: ${got.status} ${JSON.stringify(got.data).slice(0, 200)}`);
+      const slots = got.ok ? (decFields(got.data.fields).slots || {}) : {};
+      for (const [other, entry] of Object.entries(slots)) {
+        if (!(entry.start < end && start < entry.end)) continue;
+        const r = await http('GET', `${FS}/appointments/${other}`, { token: owner.idToken });
+        const a = r.ok ? docOf(r.data) : null;
+        if (a && a.status !== 'cancelled' && a.staffId === S[staffKey] && a.startTime < end && start < a.endTime) return { booked: false, attempts: attempt };
+        delete slots[other]; // abgesagt, gelöscht oder verschoben
+      }
+      slots[id] = { start, end };
+      const now = new Date();
+      const res = await http('POST', `${FS}:commit`, { token: owner.idToken, body: { writes: [
+        { ...setW('appointments', id, {
+          id, shopId: state.shopId, staffId: S[staffKey], serviceId: minutes === 15 ? state.services.kurz : state.services.schnitt, startTime: start, endTime: end,
+          status: 'scheduled', type: 'queue', customerName: 'Tresen', isAnonymous: true, createdAt: now, updatedAt: now,
+        }), currentDocument: { exists: false } },
+        { ...setW('schedules', scheduleId, { shopId: state.shopId, staffId: S[staffKey], day: ymd(start), slots, updatedAt: now }),
+          currentDocument: got.ok ? { updateTime: got.data.updateTime } : { exists: false } },
+      ] } });
+      if (res.ok) return { booked: true, id, attempts: attempt };
+      if (![400, 409].includes(res.status)) throw new Error(`Tresen buchen: ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
+      await sleep(100 + Math.random() * 300); // Belegung hat sich geändert: neu lesen
+    }
+    throw new Error('Tresen buchen: Belegung ändert sich ständig');
   };
 
   const base = pulse('Ruhe');
