@@ -7,12 +7,13 @@ nachgebauter Datenbank. Ohne Firebase-Zugang und ohne pytest lauffähig:
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app.apis.check_slots as cs  # noqa: E402
 from app.apis.check_slots import Candidate, Offer, plan_offers  # noqa: E402
-from app.apis.models import AvailableTimeslotsResponse, TimeSlot  # noqa: E402
+from app.apis.models import TimeSlot  # noqa: E402
 
 DAY = datetime(2026, 10, 14)
 
@@ -184,13 +185,14 @@ def test_pruefung_mit_datenbank_zeitzone_angebot_frist_und_kaskade():
     appts['anonym'] = {**base, 'customerId': None, 'startTime': utc(t('13:45')), 'endTime': utc(t('14:16'))}
     free = {'12:30'}
 
-    def fake_slots(request, background_tasks):
-        if request.date.date() != DAY.date():
-            return AvailableTimeslotsResponse(timeslots=[])
-        return AvailableTimeslotsResponse(timeslots=[TimeSlot(start_time=t(h), end_time=t(h) + timedelta(minutes=31), is_available=True) for h in sorted(free)])
+    def fake_slots(inputs, service_id, day):
+        if day.date() != DAY.date():
+            return []
+        return [TimeSlot(start_time=t(h), end_time=t(h) + timedelta(minutes=31), is_available=True) for h in sorted(free)]
 
     cs.get_firestore_db = lambda: db
-    cs.get_available_timeslots = fake_slots
+    cs.load_timeslot_inputs = lambda *a: SimpleNamespace(appointments=[])
+    cs.timeslots_for_day = fake_slots
     cs.threading.Timer = lambda *a, **k: type('T', (), {'start': lambda self: None, 'daemon': True})()
 
     # 12:10: 12:30 ist frei -> nur A (nächster in der Reihe) bekommt das Angebot
@@ -255,11 +257,12 @@ def test_gratis_laden_bekommt_kein_frueher_dran():
     base = {'shopId': 'itebv', 'staffId': 'stefan', 'serviceId': 'schnitt', 'status': 'scheduled', 'checkEarlierOptions': True}
     db.store['appointments']['A'] = {**base, 'customerId': 'g', 'startTime': utc(t('13:15')), 'endTime': utc(t('13:46'))}
 
-    def fake_slots(request, background_tasks):
-        return AvailableTimeslotsResponse(timeslots=[TimeSlot(start_time=t('12:30'), end_time=t('13:01'), is_available=True)])
+    def fake_slots(inputs, service_id, day):
+        return [TimeSlot(start_time=t('12:30'), end_time=t('13:01'), is_available=True)]
 
     cs.get_firestore_db = lambda: db
-    cs.get_available_timeslots = fake_slots
+    cs.load_timeslot_inputs = lambda *a: SimpleNamespace(appointments=[])
+    cs.timeslots_for_day = fake_slots
     cs.threading.Timer = lambda *a, **k: type('T', (), {'start': lambda self: None, 'daemon': True})()
     result = cs.run_earlier_slot_check(now=t('12:10'))
     assert result.appointments_checked == 0, result
