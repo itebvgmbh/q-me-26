@@ -21,9 +21,11 @@
 //   Laden täglich 07–22 Uhr. Alex, Bea, Cem arbeiten nur am Wochentag von morgen, 08–16 Uhr, alle ausgebucht
 //   (Alex und Bea 30-Minuten-Termine, Cem gemischt 30/15). 3 von 4 Terminen wollen "früher dran" und gehören
 //   einem von 6 Kundenkonten. Dora arbeitet täglich 07–22 Uhr (für den Ansturm heute).
-//   Alex hat zusätzlich einen Verlauf alter Termine – jede Platzberechnung liest den mit.
+//   Alex hat zusätzlich einen Verlauf alter Termine. Seit PR #23 liest eine Platzberechnung nur die Termine ihres
+//   Tages; "abfragen" prüft das (Alex soll so schnell sein wie Bea, vorher ~0,27 ms je altem Termin).
 //
-// Lese-Budget: ein Lauf mit Verlauf 200 kostet grob 15 000 Firestore-Lesevorgänge (Gratis-Kontingent: 50 000/Tag).
+// Lese-Budget: ein Lauf kostet grob 8 000 Firestore-Lesevorgänge, vor PR #23 mit Verlauf 200 grob 15 000
+// (Gratis-Kontingent: 50 000/Tag).
 // Ergebnisse: Konsole und dev/out/lasttest-<Zeit>.json. Zugangsdaten: dev/.local/lasttest.json (nicht im Git).
 const fs = require('fs');
 const path = require('path');
@@ -257,7 +259,7 @@ async function anlegen(history) {
     (candidate ? customerWrites[k] : ownerWrites).push(setW('appointments', id, fields));
     state.plan.push({ id, staff, start: start.toISOString(), end: end.toISOString(), duration, candidate, customer: candidate ? k : null });
   });
-  // Verlauf: alte, erledigte Termine bei Alex (jede Platzberechnung für Alex liest sie alle mit)
+  // Verlauf: alte, erledigte Termine bei Alex (las vor PR #23 jede Platzberechnung für Alex mit)
   for (let i = 0; i < history; i++) {
     const day = addDays(today, -1 - Math.floor(i / 16));
     const minute = 8 * 60 + (i % 16) * 30;
