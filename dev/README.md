@@ -41,6 +41,8 @@ node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperr
 node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung, QR-Plakat, Tagesnummern
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
+node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
+node dev/e2e/laden-gesperrt.cjs             # Testladen kurz gesperrt: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)

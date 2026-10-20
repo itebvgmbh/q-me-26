@@ -9,10 +9,13 @@ import { offeredServices } from './firestore/services';
 export const fetchMarketplaceShops = async (): Promise<Shop[]> => {
   const db = getFirestore(firebaseApp);
   const querySnapshot = await getDocsFromServer(collection(db, 'shops'));
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Shop[];
+  // Vom Betreiber gesperrte Läden tauchen nirgends auf
+  return querySnapshot.docs
+    .filter((d) => !d.data().suspended)
+    .map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Shop[];
 };
 
 export const getAllShopsForMarketplace = async (): Promise<Shop[]> => {

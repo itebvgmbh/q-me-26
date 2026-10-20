@@ -34,11 +34,15 @@ const ShopDetails = () => {
     );
   }
 
-  if (!shop) {
+  if (!shop || shop.suspended) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">Laden nicht gefunden.</h1>
-        <p className="text-muted-foreground">Vielleicht ist der Link alt. Such den Laden einfach neu.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">
+          {shop ? 'Dieser Laden ist gerade nicht erreichbar.' : 'Laden nicht gefunden.'}
+        </h1>
+        <p className="text-muted-foreground">
+          {shop ? 'Online geht im Moment weder Nummer ziehen noch Termin buchen.' : 'Vielleicht ist der Link alt. Such den Laden einfach neu.'}
+        </p>
         <Button asChild>
           <Link to="/shop-map">Läden finden</Link>
         </Button>

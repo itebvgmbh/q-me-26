@@ -18,6 +18,7 @@ const App = lazy(() => import("./pages/App.tsx"));
 const Activate = lazy(() => import("./pages/Activate.tsx"));
 const Agb = lazy(() => import("./pages/Agb.tsx"));
 const Auswertung = lazy(() => import("./pages/Auswertung.tsx"));
+const Betreiber = lazy(() => import("./pages/Betreiber.tsx"));
 const Preise = lazy(() => import("./pages/Preise.tsx"));
 const Tarif = lazy(() => import("./pages/Tarif.tsx"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
@@ -75,6 +76,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/preise", element: <Preise />},
 	{ path: "/tarif", element: <UserGuard><Tarif /></UserGuard>},
 	{ path: "/auswertung", element: <UserGuard><Auswertung /></UserGuard>},
+	// Nur für den Betreiber der App; das Backend prüft jeden Aufruf (backend/app/apis/betreiber)
+	{ path: "/betreiber", element: <UserGuard><Betreiber /></UserGuard>},
 	{ path: "/plakat", element: <UserGuard><Plakat /></UserGuard>},
 	{ path: "/friseur-ohne-termin/*", element: <StadtWeiterleitung />},
 	{ path: "/friseur-ohne-termin", element: <StadtWeiterleitung />},

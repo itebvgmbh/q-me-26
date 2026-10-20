@@ -2,11 +2,20 @@ import { Link } from 'react-router-dom';
 import type { Shop } from '../../utils/firestore';
 import { effectivePlan } from '../../utils/plans';
 import { useMonthlyUsage } from '../../utils/plan-usage';
+import { HILFE_MAIL } from '../HilfeLink';
 
 /** Hinweis am Tresen: Testphase, Gratis-Kontingent oder offene Zahlung. Bei laufendem Abo nichts. */
 export const PlanBanner = ({ shop }: { shop: Shop }) => {
   const current = effectivePlan(shop);
   const usage = useMonthlyUsage(shop.id, shop);
+
+  if (shop.suspended) {
+    return (
+      <div role="alert" className="rounded-2xl bg-destructive px-4 py-3 text-sm font-semibold text-destructive-foreground">
+        Dein Laden ist gesperrt: Kunden finden ihn nicht und können nichts buchen. Bitte meld dich bei {HILFE_MAIL}.
+      </div>
+    );
+  }
 
   let text = '';
   let urgent = false;
@@ -14,6 +23,10 @@ export const PlanBanner = ({ shop }: { shop: Shop }) => {
     if (shop.billing?.status !== 'past_due') return null;
     text = 'Die letzte Zahlung für dein Abo ist offen. Bitte prüf deine Zahlungsart.';
     urgent = true;
+  } else if (current.source === 'freischaltung') {
+    const daysLeft = current.grantUntil ? Math.ceil((current.grantUntil.getTime() - Date.now()) / 86_400_000) : 0;
+    if (daysLeft > 7) return null;
+    text = `Deine Freischaltung für ${current.plan.name} endet in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'}.`;
   } else if (current.source === 'test') {
     if (current.trialDaysLeft > 7 && !shop.founder) return null;
     text = shop.founder

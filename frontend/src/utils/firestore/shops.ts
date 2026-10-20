@@ -138,10 +138,13 @@ export const getShops = async (): Promise<Shop[]> => {
     const db = getFirestore(firebaseApp);
     const shopsRef = collection(db, 'shops');
     const querySnapshot = await getDocs(shopsRef);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Shop[];
+    // Für die Buchung: vom Betreiber gesperrte Läden nicht anbieten
+    return querySnapshot.docs
+      .filter((d) => !d.data().suspended)
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Shop[];
   } catch (error) {
     console.error('Error getting shops:', error);
     throw error;

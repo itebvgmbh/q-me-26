@@ -153,6 +153,8 @@ export const buildDayContext = (
   const dayOfWeek = midnight.getDay();
   const at = (minutes: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate(), Math.floor(minutes / 60), minutes % 60).getTime();
 
+  // Vom Betreiber gesperrt (Betreiber-Bereich): nichts buchbar, auch nicht vom Tresen
+  if (data.shop?.suspended) return { open: null, closedReason: 'Dieser Laden nimmt gerade keine Buchungen an.', blocked: [] };
   const shopWin = shopWindowForDay(data.shop, dayOfWeek);
   if (shopWin === 'closed') return { open: null, closedReason: `Der Laden hat ${WEEKDAYS[dayOfWeek]} geschlossen.`, blocked: [] };
 

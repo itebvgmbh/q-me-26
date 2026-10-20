@@ -18,11 +18,22 @@ def _env_set(name: str) -> set:
     return {x.strip().lower() for x in os.environ.get(name, "").split(",") if x.strip()}
 
 
+def admin_lists() -> tuple:
+    """(E-Mails, UIDs) der Betreiber, klein geschrieben"""
+    return _env_set("QME_ADMIN_EMAILS"), _env_set("QME_ADMIN_UIDS")
+
+
+def is_admin_account(uid: str, email: str = "") -> bool:
+    """Ist dieses Konto Betreiber? Für Konten, die nicht angemeldet sind (Sperren, Löschen)"""
+    emails, uids = admin_lists()
+    email = (email or "").strip().lower()
+    return (bool(email) and email in emails) or (uid or "").lower() in uids
+
+
 def is_admin(user) -> bool:
     if user is None:
         return False
-    email = (getattr(user, "email", None) or "").strip().lower()
-    return (bool(email) and email in _env_set("QME_ADMIN_EMAILS")) or (user.sub or "").lower() in _env_set("QME_ADMIN_UIDS")
+    return is_admin_account(user.sub or "", getattr(user, "email", None) or "")
 
 
 def require_admin(user: AuthorizedUser) -> None:
