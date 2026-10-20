@@ -201,7 +201,8 @@ const DayView: React.FC<DayViewProps> = ({
     if (!selectedAppointment) return;
 
     try {
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status });
+      // Sagt der Laden ab, bekommt der Kunde Bescheid (Push/E-Mail, siehe updateAppointment)
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status }, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       
       // Cache für diesen Shop und Datum invalidieren
@@ -706,10 +707,12 @@ export const TimelineView = ({
           }
           
           // Updaten des Termins mit den neuen Zeiten
-          updateAppointment(draggedAppointment.id, {
-            startTime: Timestamp.fromDate(dragPreview.startTime),
-            endTime: Timestamp.fromDate(dragPreview.endTime),
-          })
+          // Verschoben: der Kunde bekommt die neue Zeit per Push/E-Mail
+          updateAppointment(
+            draggedAppointment.id,
+            { startTime: Timestamp.fromDate(dragPreview.startTime), endTime: Timestamp.fromDate(dragPreview.endTime) },
+            { notifyCustomer: true },
+          )
             .then((updatedAppointment) => {
               onAppointmentUpdate(updatedAppointment);
               
