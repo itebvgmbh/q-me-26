@@ -13,7 +13,7 @@ Für deinen Laden brauchst du ein Konto mit E-Mail-Adresse und Passwort. Deine K
 2. Gib deine E-Mail-Adresse und ein Passwort mit mindestens 6 Zeichen ein.
 3. Tipp auf **„Konto für deinen Laden anlegen“**. Danach startet der Einrichtungsassistent.
 
-Wer bei dir arbeitet, registriert sich nicht selbst, sondern bekommt von dir einen Einladungslink. Mehr dazu: [Team einladen](/hilfe/team-einladen).
+Wer bei dir arbeitet, registriert sich nicht selbst, sondern bekommt von dir eine Einladung per Link oder E-Mail. Hat die Person schon ein Konto bei Dranzeit, nimmt sie die Einladung damit an. Mehr dazu: [Team einladen](/hilfe/team-einladen).
 
 > **Achtung:** Ob ein Konto zu einem Laden oder zu einem Kunden gehört, legst du beim Registrieren fest. Das kannst du später nicht selbst ändern. Hast du dich aus Versehen als Kunde registriert, schreib uns an [hilfe@dranzeit.de](mailto:hilfe@dranzeit.de).
 

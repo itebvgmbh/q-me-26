@@ -1,7 +1,7 @@
-import { APP_BASE_PATH } from 'app';
 import brain from 'brain';
 import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteServicesData } from '../brain/data-contracts';
-import { createService, createShop, createStaff, createStaffInvitation, updateShop } from './firestore';
+import { createService, createShop, createStaff, updateShop } from './firestore';
+import { createStaffInvite } from './staff-invitation';
 import type { BusinessHoursDay } from './firestore/types';
 import { defaultHours, normalizeHours, workingHoursFromOpening } from './opening-hours';
 import { templatesFor } from './service-templates';
@@ -340,7 +340,7 @@ export const createFromDraft = async (
     if (progress.staffKeys.includes(p.key)) continue;
     const { serviceKeys, days } = effectiveAssignment(draft, p.key);
     const email = p.email.trim();
-    await createStaff({
+    const staff = await createStaff({
       shopId,
       userId: p.isOwner ? uid : '',
       name: p.name.trim(),
@@ -356,10 +356,13 @@ export const createFromDraft = async (
     save();
     if (!p.isOwner && email) {
       try {
-        const invitation = await createStaffInvitation(shopId, email, false);
-        progress.invitations.push({ name: p.name.trim(), email, link: `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}` });
+        // Link vom Backend (am Eintrag, nur als Hash gespeichert); E-Mail verschickt erst der Inhaber
+        const invitation = await createStaffInvite(staff.id);
+        progress.invitations.push({ name: p.name.trim(), email, link: invitation.link });
       } catch (error) {
+        // Ohne Link trotzdem aufführen: Die Fertig-Seite sagt dann, wo es ihn gibt
         console.error('Einladung fehlgeschlagen:', error);
+        progress.invitations.push({ name: p.name.trim(), email, link: '' });
       }
     }
     save();

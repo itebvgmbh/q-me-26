@@ -7,7 +7,7 @@ stichworte: mein tag, zeitleiste, kalender, woche, tage, verschieben, ziehen, ko
 ---
 „Mein Tag“ ist die Ansicht für jede Person im Team. Sie zeigt nur die eigenen Nummern und Termine, Stunde für Stunde. Der Tresen zeigt den ganzen Laden, „Mein Tag“ nur dich.
 
-Du findest „Mein Tag“ oben im Menü. Arbeitest du als Inhaber selbst mit, trag dich unter **Team** mit deiner E-Mail ein, sonst steht dort „Du nimmst noch keine Termine an.“ Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
+Du findest „Mein Tag“ oben im Menü. Arbeitest du als Inhaber selbst mit, trag dich unter **Team** mit deiner E-Mail ein, sonst steht dort „Du nimmst noch keine Termine an.“ Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen). Wer in mehreren Läden im Team ist, wählt oben den Laden.
 
 ## Zeitraum wählen
 

@@ -76,19 +76,6 @@ export interface Service {
   updatedAt: Timestamp;
 }
 
-export interface StaffInvitation {
-  id: string;
-  shopId: string;
-  email: string;
-  token: string;
-  status: 'pending' | 'used';
-  expiresAt: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  emailSent?: boolean;
-  emailSentAt?: Timestamp;
-}
-
 export interface Staff {
   id: string;
   shopId: string;
@@ -103,6 +90,13 @@ export interface Staff {
   status: 'available' | 'busy' | 'break' | 'off';
   currentCustomer?: string;
   profileImageUrl?: string;
+  // Einladung (setzt nur das Backend, app/apis/staff_invitation): Hash des Tokens, nie das Token selbst
+  inviteTokenHash?: string;
+  inviteCreatedAt?: Timestamp;
+  inviteExpires?: Timestamp;
+  inviteEmailSentAt?: Timestamp;
+  inviteEmailTo?: string;
+  inviteAcceptedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
