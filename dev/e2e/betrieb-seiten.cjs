@@ -8,20 +8,9 @@
 //  - "Früher dran": Steuerung nur für den Betreiber; Verlauf nur eigene Läden (Backend)
 // Braucht: Entwicklungsserver (für das echte Backend: QME_BACKEND=https://dranzeit.de) und Testdaten.
 // Schreibt nur im Testladen (eine Nummer); python dev/fixtures.py loeschen räumt sie weg.
-const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { BASE, launch, newPage, shot, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
 
 const ENGLISH = /\b(Submit|Cancel|Loading|Save|Delete|Edit|Close|Services|Shop Name|Shop Logo|Email|Choose)\b/;
-
-const signIn = async (page, fx) => {
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2500);
-  await page.evaluate(async (fx) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    await signInWithEmailAndPassword(firebaseAuth, fx.email, fx.pw);
-  }, fx);
-};
 
 /** Felder/Knöpfe, die über den rechten Rand des offenen Dialogs ragen */
 const dialogOverflow = (page) =>

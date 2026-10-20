@@ -37,10 +37,8 @@ export const DashboardDialogs = ({
         shopId={employee.shopId}
         open={showCreateCustomerDialog}
         onOpenChange={setShowCreateCustomerDialog}
-        onCustomerCreated={() => {
-          console.log('Customer created');
-          setShowCreateCustomerDialog(false);
-        }}
+        // Dialog bleibt offen: Er zeigt danach den Link für die Person
+        onCustomerCreated={() => {}}
       />
     </>
   );

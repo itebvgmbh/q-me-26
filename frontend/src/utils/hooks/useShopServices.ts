@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Service, getServicesByShopId } from '../firestore';
+import { Service, getServicesByShopId, offeredServices } from '../firestore';
 import { toast } from 'sonner';
 
 /**
@@ -20,7 +20,7 @@ export const useShopServices = (shopId: string | null) => {
       setLoading(true);
       try {
         const servicesData = await getServicesByShopId(shopId);
-        setServices(servicesData);
+        setServices(offeredServices(servicesData));
         setError(null);
       } catch (error) {
         console.error('Error loading services:', error);

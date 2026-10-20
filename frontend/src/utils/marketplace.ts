@@ -2,6 +2,7 @@ import { collection, getDocs, getDocsFromServer, query, where, getDoc, doc, orde
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Shop, Service } from './firestore/types';
+import { offeredServices } from './firestore/services';
 
 // Holen Sie alle aktiven Shops für den Marktplatz
 /** Alle Shops vom Server; wirft bei fehlender Verbindung (statt still eine leere Liste zu liefern) */
@@ -42,10 +43,10 @@ export const getServicesForShops = async (shopIds: string[]): Promise<{ [shopId:
         const snapshot = await getDocs(q);
         
         // Sortiere Ergebnisse clientseitig um Indexprobleme zu vermeiden
-        const services = snapshot.docs.map(doc => ({
+        const services = offeredServices(snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Service[];
+        })) as Service[]);
         
         // Sortiere nach Namen
         services.sort((a, b) => a.name.localeCompare(b.name));

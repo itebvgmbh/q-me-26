@@ -11,6 +11,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /**
  * Props for the AddServiceDialog component
@@ -142,5 +152,69 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
   );
 };
 
+/**
+ * Löschen mit Rückfrage. Gelöscht wird nicht wirklich, sondern ausgeblendet (archiveService):
+ * Bestehende Termine behalten ihre Leistung, und die Leistung lässt sich zurückholen.
+ */
+export const DeleteServiceDialog: React.FC<{ service: Service; onServiceUpdated: (success: boolean) => void }> = ({ service, onServiceUpdated }) => {
+  const [open, setOpen] = useState(false);
+  const [upcoming, setUpcoming] = useState<number | null>(null);
+
+  const openDialog = () => {
+    setUpcoming(null);
+    setOpen(true);
+    countUpcomingAppointmentsWithService(service.shopId, service.id)
+      .then(setUpcoming)
+      .catch(() => setUpcoming(null));
+  };
+
+  const handleDelete = async () => {
+    try {
+      await archiveService(service.id);
+      toast.success(`„${service.name}“ ist gelöscht.`, {
+        action: { label: 'Rückgängig', onClick: () => restoreService(service.id).then(() => onServiceUpdated(true)) },
+      });
+      onServiceUpdated(true);
+    } catch (error) {
+      console.error('Error archiving service:', error);
+      toast.error('Löschen hat nicht geklappt.');
+    }
+  };
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={openDialog}>
+        Löschen
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">„{service.name}“ löschen?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-2">
+                <p>Kunden können die Leistung dann nicht mehr buchen, und sie verschwindet bei den Personen im Team.</p>
+                <p>
+                  {upcoming === null
+                    ? 'Termine, die schon gebucht sind, bleiben.'
+                    : upcoming === 0
+                      ? 'Es ist kein kommender Termin damit gebucht.'
+                      : `${upcoming === 1 ? 'Ein kommender Termin ist' : `${upcoming} kommende Termine sind`} damit gebucht. ${upcoming === 1 ? 'Er bleibt' : 'Sie bleiben'} bestehen.`}
+                </p>
+                <p>Unter „Gelöschte Leistungen“ kannst du sie jederzeit zurückholen.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
 // Import and re-export functions from firestore to keep imports consistent
-import { createService, updateService } from '../utils/firestore';
+import { archiveService, countUpcomingAppointmentsWithService, createService, restoreService, updateService } from '../utils/firestore';

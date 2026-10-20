@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Staff, Shop, Service, getStaffByShopId, getShopsByOwnerId, getServicesByShopId } from '../utils/firestore';
+import { Staff, Shop, Service, getStaffByShopId, getShopsByOwnerId, getServicesByShopId, offeredServices } from '../utils/firestore';
 import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
@@ -22,7 +22,7 @@ const StaffManagement = () => {
     try {
       const [staffList, servicesList] = await Promise.all([getStaffByShopId(shopId), getServicesByShopId(shopId)]);
       setStaff(staffList.filter((s) => s.isActive !== false));
-      setServices(servicesList);
+      setServices(offeredServices(servicesList));
     } catch (error) {
       console.error('Error loading staff:', error);
       toast.error('Das Team konnte nicht geladen werden.');

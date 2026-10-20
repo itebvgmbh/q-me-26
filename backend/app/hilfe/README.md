@@ -52,6 +52,7 @@ Die Hilfe und die App verwenden dieselben Wörter. `begriffe.md` erklärt sie f�
 | Person, Team | Mitarbeiter, Angestellte, Staff | wer Kunden bedient, du eingeschlossen |
 | Leistung | Service, Dienstleistung | was du anbietest, mit Dauer und Preis |
 | Vor- und Nachbereitung | Rüstzeit, Puffer | Minuten, die zu jeder Leistung dazukommen |
+| Vorlaufzeit | Zeitpuffer | so weit im Voraus muss online gebucht werden |
 | Kunde | Gast, Klient | wer eine Nummer oder einen Termin hat |
 | aufrufen | rufen, dran nehmen | am Tresen „Nächste Nummer aufrufen“ |
 

@@ -3,6 +3,39 @@ import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Customer } from './types';
 
+/** So lange gilt der Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate) */
+const ACTIVATION_DAYS = 30;
+
+/** Neuer Link: 128 Bit Zufall, nicht zu erraten. Prüfen und Verbinden: backend/app/apis/customer_activation */
+const newActivation = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return {
+    activationToken: Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''),
+    activationExpires: Timestamp.fromDate(new Date(Date.now() + ACTIVATION_DAYS * 24 * 60 * 60 * 1000)),
+  };
+};
+
+/** Link zum Verbinden des Kontos, z. B. https://dranzeit.de/activate?token=… */
+export const activationLink = (customer: Customer, base: string) => `${base}/activate?token=${encodeURIComponent(customer.activationToken || '')}`;
+
+/** Noch nicht verbunden und Link abgelaufen (oder nie erzeugt): Dann braucht es einen neuen */
+export const activationExpired = (customer: Customer) =>
+  !customer.userId && (!customer.activationToken || !customer.activationExpires || customer.activationExpires.toMillis() < Date.now());
+
+/** Neuen Link für eine noch nicht verbundene Person erzeugen (der alte gilt dann nicht mehr) */
+export const renewActivation = async (customer: Customer): Promise<Customer> => {
+  const db = getFirestore(firebaseApp);
+  const update = { ...newActivation(), updatedAt: Timestamp.now() };
+  await setDoc(doc(db, 'customers', customer.id), update, { merge: true });
+  return { ...customer, ...update };
+};
+
+/**
+ * customerId für einen Termin dieser Person. Hat sie ihr Konto verbunden, gehört der Termin dem Konto –
+ * dann steht er unter "Meine Termine", und "Früher dran" kann sie erreichen. Sonst die ID des Eintrags.
+ */
+export const appointmentCustomerId = (customer: Customer) => customer.userId || customer.id;
+
 // Filter customers to ensure unique entries by ID and email
 export const getUniqueCustomers = (customers: Customer[]): Customer[] => {
   // First, create a map to deduplicate by ID
@@ -121,16 +154,12 @@ export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | '
     // Wenn kein Kunde gefunden wurde, erstelle einen neuen
     const db = getFirestore(firebaseApp);
     const customerRef = doc(collection(db, 'customers'));
-    
+
     const now = Timestamp.now();
-    const activationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    const activationExpires = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-    
     const customerData = {
       id: customerRef.id,
       ...data,
-      activationToken,
-      activationExpires,
+      ...newActivation(),
       isActive: false,
       createdAt: now,
       updatedAt: now,

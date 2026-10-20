@@ -32,7 +32,8 @@ export interface Shop {
     latitude: number;
     longitude: number;
   }; // Gespeicherte Koordinaten für Kartenansicht
-  timeSlotBuffer?: number; // Puffer in Millisekunden für die Zeitslot-Suche (Standard: 60000 = 1 Minute)  
+  /** Vorlaufzeit für Online-Termine in Millisekunden (utils/booking-rules.ts onlineLeadMinutes); ältere Läden: Text */
+  timeSlotBuffer?: number;  
   /** Tarif (utils/plans.ts); das bezahlte Abo steht in billing und wird nur vom Backend geschrieben */
   plan?: 'gratis' | 'solo' | 'laden' | 'team';
   trialEndsAt?: Timestamp;
@@ -68,6 +69,9 @@ export interface Service {
   setupTime?: number; // in minutes - Rüstzeit
   price: number;
   category?: string;
+  /** Gelöscht: nicht mehr buchbar, bleibt aber für bestehende Termine erhalten (utils/firestore/services.ts) */
+  archived?: boolean;
+  archivedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

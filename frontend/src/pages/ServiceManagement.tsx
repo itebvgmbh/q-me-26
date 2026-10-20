@@ -1,24 +1,16 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from 'app';
-import { getShopByOwner, Shop } from '../utils/firestore';
+import { useOwnedShops } from '../utils/hooks/useOwnedShops';
 import { useServiceManagement } from '../utils/hooks/useServiceManagement';
 import { AddServiceDialog } from '../components/ServiceDialogs';
 import { ServicesList } from '../components/ServicesList';
+import { ShopSwitcher } from '../components/ShopSwitcher';
 
-/** Leistungen des Ladens anlegen und bearbeiten */
+/** Leistungen des Ladens anlegen, bearbeiten und löschen; bei mehreren Läden mit Ladenauswahl */
 const ServiceManagement = () => {
   const { user } = useCurrentUser();
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [shopLoading, setShopLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    getShopByOwner(user.uid)
-      .then(setShop)
-      .catch((error) => console.error('Error loading shop:', error))
-      .finally(() => setShopLoading(false));
-  }, [user]);
+  const { shops, shop, selectShop, failed } = useOwnedShops(user?.uid);
+  const shopLoading = shops === null;
 
   const { services, loading: servicesLoading, loadServices } = useServiceManagement(shop);
 
@@ -37,11 +29,17 @@ const ServiceManagement = () => {
         {shop && <AddServiceDialog shop={shop} onServiceAdded={refresh} />}
       </div>
 
+      {shops && <ShopSwitcher shops={shops} shopId={shop?.id} onChange={selectShop} />}
+
       {shopLoading || servicesLoading ? (
         <div className="flex flex-col gap-3" aria-busy="true" aria-label="Leistungen werden geladen">
           <div className="h-20 animate-pulse rounded-3xl bg-muted" />
           <div className="h-20 animate-pulse rounded-3xl bg-muted" />
         </div>
+      ) : failed ? (
+        <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">
+          Deine Läden konnten nicht geladen werden. Bitte lade die Seite neu.
+        </p>
       ) : !shop ? (
         <p className="rounded-3xl border border-border bg-card p-6 text-muted-foreground">
           Richte zuerst deinen Laden ein.{' '}

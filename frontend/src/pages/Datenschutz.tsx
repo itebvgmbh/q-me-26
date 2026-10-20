@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="19.10.2026">
+    <LegalPage title="Datenschutz" updated="20.10.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -29,8 +29,10 @@ export default function Datenschutz() {
             kann (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
           <li>
-            <strong>Konto:</strong> E-Mail-Adresse, Name, auf Wunsch Telefonnummer, und deine Termine. Bei Anmeldung mit
-            Google erhalten wir von Google Name und E-Mail-Adresse (Art. 6 Abs. 1 lit. b DSGVO).
+            <strong>Konto:</strong> E-Mail-Adresse, Name, auf Wunsch Telefonnummer, und deine Termine. Du meldest dich mit
+            E-Mail-Adresse und Passwort an; das Passwort prüft Google Firebase, wir sehen es nicht. Hat ein Laden dich als
+            Kunde angelegt und du verbindest dein Konto über seinen Link, gehören die Termine, die der Laden für dich
+            einträgt, zu deinem Konto (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
           <li>
             <strong>Früher dran:</strong> Wenn du es einschaltest, prüfen wir, ob ein früherer Platz frei wird, und

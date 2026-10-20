@@ -39,7 +39,11 @@ const BookAppointment = () => {
   const termineAllowed = !shopData || hasFeature(shopData, 'termine');
 
   const { staff: allStaff } = useShopStaff(selectedShop);
-  const { services } = useShopServices(selectedShop);
+  const { services, loading: servicesLoading } = useShopServices(selectedShop);
+  // Alter Link auf eine gelöschte Leistung: nicht damit buchen lassen
+  useEffect(() => {
+    if (!servicesLoading && selectedService && services.length > 0 && !services.some((s) => s.id === selectedService)) setSelectedService('');
+  }, [servicesLoading, services, selectedService, setSelectedService]);
   // Nur wer die Leistung anbietet; sind keine Leistungen zugeordnet, alle zeigen
   const eligible = allStaff.filter((s) => s.serviceIds?.includes(selectedService));
   const staff = selectedService && eligible.length > 0 ? eligible : allStaff;

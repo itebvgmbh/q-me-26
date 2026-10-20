@@ -91,6 +91,10 @@ Deine Ansicht im Laden: Pro Person siehst du, wer dran ist und wer als Nächstes
 
 Minuten, die Dranzeit zur Dauer einer Leistung dazurechnet, zum Beispiel zum Aufräumen. Du stellst sie bei jeder Leistung ein. [Leistungen anlegen](/hilfe/leistungen)
 
+### Vorlaufzeit
+
+So viele Minuten im Voraus muss ein Kunde online buchen. Nummer ziehen und Termine, die du selbst einträgst, betrifft sie nicht. Du stellst sie unter „Mein Laden“ → „Bearbeiten“ ein. [Laden bearbeiten](/hilfe/laden-bearbeiten)
+
 ### Wartezimmer-Bildschirm
 
 Eine Ansicht für den Fernseher im Laden: Wer gerade dran ist, wer als Nächstes kommt, und ein QR-Code zum Nummer ziehen. Du öffnest ihn am Tresen unter „…“ → „Wartezimmer-Bildschirm öffnen“, ab dem Tarif Laden. [Wartezimmer-Bildschirm](/hilfe/bildschirm)

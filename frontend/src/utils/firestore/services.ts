@@ -106,3 +106,37 @@ export const updateService = async (serviceId: string, updates: Partial<Omit<Ser
     throw error;
   }
 };
+
+/**
+ * Leistung löschen heißt: ausblenden. Termine verweisen mit serviceId auf die Leistung (Name, Dauer, Preis
+ * in Tresen, Auswertung, Meine Termine) – würde das Dokument verschwinden, stünde dort nur noch "Leistung".
+ * Ausgeblendete Leistungen bietet keine Auswahl mehr an; die Zuordnung bei Personen (staff.serviceIds) bleibt
+ * stehen, damit beim Wiederherstellen alles wie vorher ist.
+ */
+export const isOffered = (service: Pick<Service, 'archived'>) => !service.archived;
+
+/** Nur die Leistungen, die man buchen und zuordnen kann */
+export const offeredServices = <T extends Pick<Service, 'archived'>>(services: T[]): T[] => services.filter(isOffered);
+
+export const archiveService = async (serviceId: string): Promise<void> => {
+  const db = getFirestore(firebaseApp);
+  const now = Timestamp.now();
+  await setDoc(doc(db, 'services', serviceId), { archived: true, archivedAt: now, updatedAt: now }, { merge: true });
+};
+
+export const restoreService = async (serviceId: string): Promise<void> => {
+  const db = getFirestore(firebaseApp);
+  await setDoc(doc(db, 'services', serviceId), { archived: false, updatedAt: Timestamp.now() }, { merge: true });
+};
+
+/** Wie viele kommende, nicht abgesagte Termine diese Leistung haben (für die Rückfrage beim Löschen) */
+export const countUpcomingAppointmentsWithService = async (shopId: string, serviceId: string): Promise<number> => {
+  const db = getFirestore(firebaseApp);
+  const snapshot = await getDocs(query(collection(db, 'appointments'), where('shopId', '==', shopId), where('serviceId', '==', serviceId)));
+  const now = Date.now();
+  return snapshot.docs.filter((d) => {
+    const data = d.data();
+    const end = data.endTime?.toMillis?.() ?? data.startTime?.toMillis?.() ?? 0;
+    return end > now && data.status !== 'cancelled' && data.status !== 'completed';
+  }).length;
+};
