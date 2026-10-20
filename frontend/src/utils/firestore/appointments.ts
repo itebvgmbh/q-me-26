@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, DocumentData, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, DocumentData, updateDoc, deleteField } from 'firebase/firestore';
 import { assertBookable } from '../booking-rules';
 import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
@@ -420,7 +420,27 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
   }
 };
 
-export const updateAppointment = async (appointmentId: string, appointmentData: Partial<Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Appointment> => {
+/**
+ * Nachricht an den Kunden vormerken, wenn der Laden absagt oder die Zeit ändert. Der Benachrichtigungsdienst
+ * (backend/app/libs/notify_worker.py) schickt sie per Push/E-Mail und löscht den Merker. Vergangene Tage nicht.
+ */
+const customerNoticeFor = (before: Appointment, after: Appointment): Record<string, unknown> | null => {
+  const start = toDateValue(before.startTime);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (!start || start < today || before.status === 'cancelled' || before.status === 'completed') return null;
+  if (after.status === 'cancelled') return { customerNotice: 'cancelled' };
+  const moved = toDateValue(after.startTime)?.getTime() !== start.getTime();
+  // Merker von vorher behalten: zweimal verschieben ist eine Nachricht mit der neuesten Zeit
+  return moved ? { customerNotice: 'moved', customerNoticePreviousStart: before.customerNoticePreviousStart ?? before.startTime } : null;
+};
+
+export const updateAppointment = async (
+  appointmentId: string,
+  appointmentData: Partial<Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>>,
+  /** notifyCustomer: Der Laden ändert – bei Absage oder neuer Zeit bekommt der Kunde Bescheid */
+  options: { notifyCustomer?: boolean } = {},
+): Promise<Appointment> => {
   console.log('Updating appointment...', { appointmentId, appointmentData });
   try {
     const db = getFirestore(firebaseApp);
@@ -451,19 +471,36 @@ export const updateAppointment = async (appointmentId: string, appointmentData: 
       updatedAt: now
     };
     // Zeitpunkte für die Auswertung (Wartezeit = Nummer ziehen bis Aufruf), nur beim ersten Wechsel
-    if (appointmentData.status === 'in-progress' && originalAppointment.status !== 'in-progress' && !originalAppointment.calledAt) {
+    const called = appointmentData.status === 'in-progress' && originalAppointment.status !== 'in-progress';
+    if (called && !originalAppointment.calledAt) {
       updateData.calledAt = now;
     }
+    // Letzter Aufruf: ab hier rechnet die Schlange, wie lange er noch dran ist (utils/queue-lane.ts)
+    if (called) updateData.lastCalledAt = now;
     if (appointmentData.status === 'completed' && originalAppointment.status !== 'completed') {
       updateData.completedAt = now;
       if (!originalAppointment.calledAt && !updateData.calledAt) updateData.calledAt = now;
+    }
+    // Zurück auf "Wartet": beim nächsten Aufruf kommt "Du bist dran" noch einmal
+    if (appointmentData.status === 'scheduled' && originalAppointment.status === 'in-progress') {
+      updateData.notifiedCalledAt = deleteField();
+    }
+    if (options.notifyCustomer) {
+      const notice = customerNoticeFor(originalAppointment, merged);
+      if (notice) Object.assign(updateData, notice, { customerNoticeAt: now });
     }
 
     await setDoc(appointmentRef, updateData, { merge: true });
     console.log('Appointment updated successfully');
 
-    // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten
-    if (freesOrWantsSlot(originalAppointment, merged)) {
+    // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten.
+    // Auch wer früher fertig ist oder früher aufgerufen wird, gibt Zeit frei (utils/queue-lane.ts).
+    const finishesEarly =
+      (called && Date.now() < (toDateValue(originalAppointment.startTime)?.getTime() ?? 0)) ||
+      (appointmentData.status === 'completed' &&
+        originalAppointment.status !== 'completed' &&
+        Date.now() < (toDateValue(originalAppointment.endTime)?.getTime() ?? 0));
+    if (freesOrWantsSlot(originalAppointment, merged) || finishesEarly) {
       requestEarlierSlotCheck(originalAppointment.shopId, originalAppointment.staffId);
       if (merged.staffId && merged.staffId !== originalAppointment.staffId) requestEarlierSlotCheck(merged.shopId, merged.staffId);
     }

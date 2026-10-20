@@ -29,7 +29,6 @@ import {
   Customer,
 } from '../utils/firestore';
 import { getUserProfile } from '../utils/user-profile-service';
-import { safelyConvertToDate } from '../utils/datetime';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -63,7 +62,7 @@ const ShopDashboard = () => {
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentType, setAppointmentType] = useState<'booked' | 'queue'>('queue');
 
-  // Uhr für "wartet noch" – alle 30 Sekunden
+  // Uhr für Aufruf und Verzug am Tresen – alle 30 Sekunden
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
@@ -146,13 +145,14 @@ const ShopDashboard = () => {
   const stats = useMemo(() => {
     const priceOf = (a: Appointment) => a.price ?? services.find((s) => s.id === a.serviceId)?.price ?? 0;
     const active = appointments.filter((a) => a.status !== 'cancelled');
+    // Wer wartet, wartet, bis er aufgerufen oder abgesagt wird – auch wenn seine geplante Zeit vorbei ist
     return {
-      waiting: active.filter((a) => a.status === 'scheduled' && (!live || safelyConvertToDate(a.endTime) > now)).length,
+      waiting: active.filter((a) => a.status === 'scheduled').length,
       running: active.filter((a) => a.status === 'in-progress').length,
       done: active.filter((a) => a.status === 'completed').length,
       revenue: active.filter((a) => a.status === 'completed').reduce((sum, a) => sum + Number(priceOf(a) || 0), 0),
     };
-  }, [appointments, services, now, live]);
+  }, [appointments, services]);
 
   // Spuren: je aktive Person, dazu Termine ohne (bekannte) Person
   const lanes = useMemo(() => {

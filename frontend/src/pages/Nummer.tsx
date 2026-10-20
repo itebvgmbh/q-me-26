@@ -16,6 +16,7 @@ import { safelyConvertToDate } from '../utils/datetime';
 import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
 import type { Appointment, Shop } from '../utils/firestore';
 import { hasFeature } from '../utils/plans';
+import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
 import {
   enablePush,
   getPushConfig,
@@ -109,15 +110,13 @@ export default function Nummer() {
   }, []);
 
   const start = appt ? safelyConvertToDate(appt.startTime) : null;
-  const ahead = useMemo(() => {
-    if (!appt || !start) return 0;
-    return lane.filter(
-      (a) =>
-        a.id !== appt.id &&
-        (a.status === 'scheduled' || a.status === 'in-progress') &&
-        safelyConvertToDate(a.endTime).getTime() > now &&
-        safelyConvertToDate(a.startTime).getTime() < start.getTime(),
-    ).length;
+  // Vor dir: wer bei derselben Person dran ist oder vorher wartet – auch wenn dessen Zeit schon vorbei ist.
+  // Dazu die nachgerechnete "ca."-Zeit, wenn der Laden hinterherhängt (utils/queue-lane.ts).
+  const { ahead, expected, delay } = useMemo(() => {
+    if (!appt || !start) return { ahead: 0, expected: start, delay: 0 };
+    const items = lane.some((a) => a.id === appt.id) ? lane.map((a) => (a.id === appt.id ? appt : a)) : [...lane, appt];
+    const projection = projectLane(items, now);
+    return { ahead: aheadOf(appt, items), expected: expectedStart(appt, projection), delay: delayMinutes(appt, projection) };
   }, [lane, appt, start, now]);
 
   useEffect(() => {
@@ -174,11 +173,19 @@ export default function Nummer() {
           appt.status === 'scheduled'
             ? [
                 isToday(start) && isQueue ? { label: 'Vor dir', value: String(ahead) } : { label: 'Wann', value: dayLabel(start) },
-                { label: isQueue ? 'Dran um ca.' : 'Um', value: format(start, 'HH:mm') },
+                { label: isQueue ? 'Dran um ca.' : 'Um', value: format(isQueue && isToday(start) && expected ? expected : start, 'HH:mm') },
               ]
             : []
         }
       />
+
+      {appt.status === 'scheduled' && isToday(start) && delay >= SHOW_DELAY_MINUTES && (
+        <p className="text-sm font-semibold" aria-live="polite">
+          {isQueue
+            ? `Heute dauert es etwas länger: ursprünglich ${format(start, 'HH:mm')}, jetzt etwa ${delay} Minuten später.`
+            : `Der Laden hängt gerade etwa ${delay} Minuten hinterher. Rechne mit etwas Wartezeit.`}
+        </p>
+      )}
 
       {appt.status === 'completed' && <p className="text-lg font-semibold">Fertig. Danke für deinen Besuch!</p>}
       {appt.status === 'cancelled' && <p className="text-lg font-semibold">{isQueue ? 'Diese Nummer ist abgesagt.' : 'Dieser Termin ist abgesagt.'}</p>}
