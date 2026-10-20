@@ -4,6 +4,7 @@
 //  2. 10 buchen verschiedene Plätze                     → alle klappen, 10 verschiedene Nummern
 //  3. 2 Termine werden auf denselben Platz verschoben   → nur einer
 //  4. Absage gibt den Platz frei                        → danach geht er wieder
+//  5. Aufgerufen und fertig vor der geplanten Zeit      → Platz wieder frei
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Bucht Donnerstag/Freitag der
 // Testwoche und sagt am Ende alles wieder ab.
 const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
@@ -79,6 +80,17 @@ run(async () => {
   }, { base, winner, start: at(thu, 9, 0), end: at(thu, 9, 30) });
   if (free.ok) created.push(free.id);
   rows.push({ name: 'Absage gibt den Platz frei', pass: !!winner && free.ok, detail: free.ok ? '' : free.message });
+
+  // 5. Aufgerufen und fertig, bevor die geplante Zeit beginnt: Der Platz ist wieder frei (queue-lane.ts)
+  const [early] = await together(1, async (appts, a) => {
+    const x = await appts.createAppointment({ ...a.base, customerName: 'Früher fertig', startTime: new Date(a.start), endTime: new Date(a.end) });
+    await appts.updateAppointment(x.id, { status: 'in-progress' });
+    await appts.updateAppointment(x.id, { status: 'completed' });
+    const y = await appts.createAppointment({ ...a.base, customerName: 'Danach', startTime: new Date(a.start), endTime: new Date(a.end) });
+    return { id: `${x.id},${y.id}` };
+  }, { base, start: at(thu, 15, 0), end: at(thu, 15, 30) });
+  if (early.ok) created.push(...early.id.split(','));
+  rows.push({ name: 'Früher fertig gibt den Platz frei', pass: early.ok, detail: early.ok ? '' : early.message });
 
   // Aufräumen: alles absagen, was dieser Test gebucht hat
   const [cleanup] = await together(1, async (appts, a) => { for (const id of a.ids) await appts.cancelAppointment(id); }, { ids: [...new Set(created)] });

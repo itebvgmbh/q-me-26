@@ -214,6 +214,26 @@ def test_veralteter_eintrag_abgesagter_termin_blockiert_nicht():
     assert set(slots(db)) == {'A'}, slots(db)
 
 
+def test_frueher_fertig_gibt_den_rest_frei():
+    # T war für 10:00–10:30 geplant, wurde 09:40 aufgerufen und war 09:58 fertig: belegt nur 09:40–09:58
+    db, _ = setup()
+    db.store['appointments']['T'] = {'shopId': 'laden', 'staffId': 'robin', 'status': 'completed', 'startTime': at('10:00'), 'endTime': at('10:30'),
+                                     'calledAt': at('09:40'), 'completedAt': at('09:58')}
+    db.store['schedules'] = {f'robin_{TOMORROW.isoformat()}': {'slots': {'T': {'start': at('10:00'), 'end': at('10:30')}}}}
+    result = acc.accept_earlier_slot_impl('n1', 'kim')
+    assert result['status'] == 'success', result
+    assert set(slots(db)) == {'A', 'T'} and slots(db)['T'] == {'start': at('09:40'), 'end': at('09:58')}, slots(db)
+
+
+def test_wer_dran_ist_belegt_ab_aufruf():
+    db, _ = setup()
+    db.store['appointments']['T'] = {'shopId': 'laden', 'staffId': 'robin', 'status': 'in-progress', 'startTime': at('09:30'), 'endTime': at('10:00'),
+                                     'calledAt': at('09:45')}
+    db.store['schedules'] = {f'robin_{TOMORROW.isoformat()}': {'slots': {'T': {'start': at('09:30'), 'end': at('10:15')}}}}
+    result = acc.accept_earlier_slot_impl('n1', 'kim')
+    assert result['status'] == 'error' and result.get('code') == 'taken', result
+
+
 def test_fremder_kunde_darf_nicht_annehmen():
     db, _ = setup()
     result = acc.accept_earlier_slot_impl('n1', 'jemand')

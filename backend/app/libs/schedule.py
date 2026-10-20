@@ -44,13 +44,31 @@ class Placement:
 
 
 def placement_of(appointment: Optional[dict]) -> Optional[Placement]:
-    """Platz eines Termins oder None, wenn er keinen belegt (abgesagt, ohne Person, ohne Zeiten)."""
+    """Zeit, die ein Termin belegt, oder None (abgesagt, ohne Person, ohne Zeiten, vor der Zeit fertig).
+
+    Dieselbe Regel wie occupiedWindow (frontend/src/utils/queue-lane.ts) und occupied_window
+    (app/apis/available_timeslots): Wer dran ist, ab Aufruf so lange wie geplant; wer fertig ist, nur bis "Fertig".
+    """
     if not appointment or appointment.get("status") == "cancelled" or not appointment.get("staffId"):
         return None
     start, end = appointment.get("startTime"), appointment.get("endTime")
     if not isinstance(start, datetime) or not isinstance(end, datetime) or aware(end) <= aware(start):
         return None
-    return Placement(str(appointment["staffId"]), aware(start), aware(end))
+    start, end = aware(start), aware(end)
+    staff_id = str(appointment["staffId"])
+    called = appointment.get("lastCalledAt") or appointment.get("calledAt")
+    called = aware(called) if isinstance(called, datetime) else None
+    status = appointment.get("status")
+    if status == "in-progress":
+        begin = called or start
+        return Placement(staff_id, begin, begin + (end - start))
+    if status == "completed":
+        done = appointment.get("completedAt")
+        if not isinstance(done, datetime):
+            return Placement(staff_id, start, end)  # Altbestand ohne Zeitpunkt
+        begin = min(start, called or start)
+        return Placement(staff_id, begin, aware(done)) if aware(done) > begin else None
+    return Placement(staff_id, start, end)
 
 
 @dataclass

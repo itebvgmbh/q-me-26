@@ -4,7 +4,7 @@ import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Appointment } from './types';
-import { dayKey, pickReferenceCode, placementOf, readPlacement, shopDayRef } from './schedule';
+import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef } from './schedule';
 
 // Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
 // braucht die letzte mehrere Anläufe
@@ -507,16 +507,20 @@ export const updateAppointment = async (
       if (notice) Object.assign(updateData, notice, { customerNoticeAt: now });
     }
 
-    if (timeOrStaffChanged || reactivated || cancelling) {
-      // Platz wechselt: alten in der Belegung freigeben, neuen prüfen und belegen – in einer Transaktion
+    // Belegte Zeit ändert sich (Verschieben, Absagen, Wiederaufnehmen, aber auch Aufrufen und Fertig – wer
+    // früher fertig ist, gibt den Rest frei): alten Platz in der Belegung freigeben, neuen eintragen – in einer
+    // Transaktion. Geprüft wird nur, was wie eine Buchung ist; Aufrufen und Fertig passieren im Laden.
+    const bookingChange = (timeOrStaffChanged || reactivated) && merged.status !== 'cancelled';
+    const placementChanges = cancelling || !samePlacement(placementOf(originalAppointment), placementOf({ ...merged, ...updateData } as Appointment));
+    if (bookingChange || placementChanges) {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(appointmentRef);
         if (!snap.exists()) throw new Error('Appointment not found for update');
         const current = snap.data() as Appointment;
         const release = placementOf(current);
-        const occupy = placementOf({ ...current, ...appointmentData } as Appointment);
-        const placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy });
-        if (occupy && placement.conflict) throw new SlotConflictError(placement.conflict);
+        const occupy = placementOf({ ...current, ...updateData } as Appointment);
+        const placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy, check: bookingChange });
+        if (bookingChange && occupy && placement.conflict) throw new SlotConflictError(placement.conflict);
         tx.set(appointmentRef, updateData, { merge: true });
         placement.write();
       }, TRANSACTION_OPTIONS);

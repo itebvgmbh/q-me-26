@@ -1,4 +1,5 @@
 import { doc, DocumentReference, DocumentSnapshot, Firestore, Timestamp, Transaction } from 'firebase/firestore';
+import { occupiedWindow } from '../queue-lane';
 
 /**
  * Belegung je Person und Tag – damit ein Platz nur einmal vergeben wird.
@@ -9,8 +10,9 @@ import { doc, DocumentReference, DocumentSnapshot, Firestore, Timestamp, Transac
  * Dokument schedules/{staffId}_{YYYY-MM-DD} und schreibt es fort. Zwei gleichzeitige Buchungen
  * ändern dasselbe Dokument – Firestore lässt nur eine durch, die andere läuft neu und sieht den Platz belegt.
  *
- * Inhalt: slots = { [Termin-ID]: { start, end } } für alle nicht abgesagten Termine der Person an dem Tag
- * (Tag nach deutscher Zeit, gleich im Backend: app/libs/schedule.py). Die Einträge sind nur Sperre und
+ * Inhalt: slots = { [Termin-ID]: { start, end } } mit der Zeit, die jeder Termin der Person an dem Tag belegt
+ * (dieselbe Regel wie die Platzsuche: occupiedWindow in queue-lane.ts – wer früher fertig ist, gibt den Rest frei;
+ * Tag nach deutscher Zeit, gleich im Backend: app/libs/schedule.py). Die Einträge sind nur Sperre und
  * Hinweis – die Wahrheit bleibt der Termin: Überschneidet sich ein Eintrag, wird der Termin selbst in der
  * Transaktion gelesen. Ist er abgesagt, gelöscht oder woanders hin verschoben (z. B. über einen Weg, der
  * das Dokument nicht kennt), fliegt der Eintrag raus. Termine von vor dieser Umstellung stehen nicht darin;
@@ -37,13 +39,18 @@ const toDate = (value: any): Date | null => {
   return null;
 };
 
-/** Platz eines Termins (Person, Beginn, Ende) oder null, wenn er keinen belegt (abgesagt, ohne Person) */
-export const placementOf = (appointment: { staffId?: string | null; startTime?: unknown; endTime?: unknown; status?: string } | undefined): Placement | null => {
-  if (!appointment || appointment.status === 'cancelled' || !appointment.staffId) return null;
-  const start = toDate(appointment.startTime);
-  const end = toDate(appointment.endTime);
-  return start && end && end > start ? { staffId: appointment.staffId, start, end } : null;
+type Belegt = { staffId?: string | null; startTime?: unknown; endTime?: unknown; status?: string; calledAt?: unknown; lastCalledAt?: unknown; completedAt?: unknown };
+
+/** Platz, den ein Termin belegt (Person, Beginn, Ende), oder null (abgesagt, ohne Person, vor der Zeit fertig) */
+export const placementOf = (appointment: Belegt | undefined): Placement | null => {
+  if (!appointment?.staffId) return null;
+  const w = occupiedWindow({ id: '', ...appointment });
+  return w ? { staffId: appointment.staffId, start: new Date(w.start), end: new Date(w.end) } : null;
 };
+
+/** Gleicher Platz? (null = keiner) */
+export const samePlacement = (a: Placement | null, b: Placement | null): boolean =>
+  a === b || (!!a && !!b && a.staffId === b.staffId && a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime());
 
 /** Tage, die ein Platz berührt (meist einer; über Mitternacht zwei) */
 const daysOf = (p: Placement): string[] => [...new Set([dayKey(p.start), dayKey(new Date(p.end.getTime() - 1))])];
@@ -69,14 +76,15 @@ export interface PlacementChange {
 /**
  * Liest in der Transaktion die Belegung für den alten (release) und neuen Platz (occupy) eines Termins
  * und prüft den neuen. Alle Lesevorgänge passieren hier, geschrieben wird erst mit write().
+ * check: false trägt nur um, ohne zu prüfen (Aufrufen, Fertig – das passiert im Laden, nicht am Kalender).
  */
 export async function readPlacement(
   tx: Transaction,
   db: Firestore,
   appointmentId: string,
-  change: { shopId: string; occupy?: Placement | null; release?: Placement | null },
+  change: { shopId: string; occupy?: Placement | null; release?: Placement | null; check?: boolean },
 ): Promise<PlacementChange> {
-  const { occupy, release, shopId } = change;
+  const { occupy, release, shopId, check = true } = change;
   const docs = new Map<string, Omit<DayDoc, 'snap'>>();
   for (const p of [occupy, release]) {
     if (!p) continue;
@@ -91,7 +99,7 @@ export async function readPlacement(
   // Einträge, die den neuen Platz überschneiden: am Termin selbst prüfen
   const occupyDays = occupy ? new Set(daysOf(occupy)) : new Set<string>();
   const suspects = new Set<string>();
-  if (occupy) {
+  if (occupy && check) {
     const s = occupy.start.getTime();
     const e = occupy.end.getTime();
     for (const d of days) {
