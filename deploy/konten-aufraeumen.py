@@ -557,11 +557,15 @@ def verify(fs, plan: dict, auth_exists) -> list:
 
 
 def firebase():
+    import contextlib
+    import io
+
     load_env()
     sys.path.insert(0, os.getcwd())
     from app.apis.firebase_utils import get_firebase_app, get_firestore_db
 
-    return get_firestore_db(), get_firebase_app()
+    with contextlib.redirect_stdout(io.StringIO()):  # Startmeldungen von firebase_utils nicht in die Liste
+        return get_firestore_db(), get_firebase_app()
 
 
 def cmd_liste() -> None:
