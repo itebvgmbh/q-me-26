@@ -3,31 +3,22 @@ import { getFirestore } from 'firebase/firestore';
 import { auth, firebaseApp } from 'app';
 import { Customer } from './types';
 
-/** So lange gilt der Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate) */
-const ACTIVATION_DAYS = 30;
-
-/** Neuer Link: 128 Bit Zufall, nicht zu erraten. Prüfen und Verbinden: backend/app/apis/customer_activation */
-const newActivation = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return {
-    activationToken: Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''),
-    activationExpires: Timestamp.fromDate(new Date(Date.now() + ACTIVATION_DAYS * 24 * 60 * 60 * 1000)),
-  };
-};
-
-/** Link zum Verbinden des Kontos, z. B. https://dranzeit.de/activate?token=… */
-export const activationLink = (customer: Customer, base: string) => `${base}/activate?token=${encodeURIComponent(customer.activationToken || '')}`;
-
-/** Noch nicht verbunden und Link abgelaufen (oder nie erzeugt): Dann braucht es einen neuen */
-export const activationExpired = (customer: Customer) =>
-  !customer.userId && (!customer.activationToken || !customer.activationExpires || customer.activationExpires.toMillis() < Date.now());
-
-/** Neuen Link für eine noch nicht verbundene Person erzeugen (der alte gilt dann nicht mehr) */
-export const renewActivation = async (customer: Customer): Promise<Customer> => {
-  const db = getFirestore(firebaseApp);
-  const update = { ...newActivation(), updatedAt: Timestamp.now() };
-  await setDoc(doc(db, 'customers', customer.id), update, { merge: true });
-  return { ...customer, ...update };
+/**
+ * Neuer Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate), z. B. https://dranzeit.de/activate?token=…
+ * Erzeugt das Backend (backend/app/apis/customer_activation): Es speichert nur einen Hash des Tokens, den Link gibt es
+ * nur in dieser Antwort. Der alte Link gilt danach nicht mehr. Wirft mit einer Meldung für den Laden.
+ */
+export const createActivationLink = async (customerId: string): Promise<{ link: string; expires: string }> => {
+  let res: Response;
+  try {
+    const headers = { Authorization: await auth.getAuthHeaderValue(), 'Content-Type': 'application/json' };
+    res = await fetch('/routes/customer-activation', { method: 'POST', headers, body: JSON.stringify({ customer_id: customerId }) });
+  } catch {
+    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof body?.detail === 'string' && body.detail ? body.detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+  return body;
 };
 
 /**
@@ -162,7 +153,7 @@ export const findCustomerByEmailAndShop = async (email: string, shopId: string):
  * @param data Kundendaten
  * @returns Erstellter oder existierender Kunde
  */
-export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationToken' | 'activationExpires' | 'isActive'>): Promise<Customer> => {
+export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationTokenHash' | 'activationExpires' | 'isActive'>): Promise<Customer> => {
   console.log('Creating customer with data:', data);
   try {
     // Prüfe zuerst, ob bereits ein Kunde mit dieser Email für diesen Shop existiert
@@ -182,7 +173,6 @@ export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | '
     const customerData = {
       id: customerRef.id,
       ...data,
-      ...newActivation(),
       isActive: false,
       createdAt: now,
       updatedAt: now,

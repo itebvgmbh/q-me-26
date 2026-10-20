@@ -47,6 +47,14 @@ def _daily_privacy_cleanup() -> None:
         return
     _last_cleanup_day = today
     try:
+        # Kunden-Links von vor dem Umbau: Token im Klartext durch den Hash ersetzen (app/apis/customer_activation)
+        from app.apis.customer_activation import hash_plain_tokens
+        from app.apis.firebase_utils import get_firestore_db
+
+        print(f"Kunden-Link: {hash_plain_tokens(get_firestore_db())} Tokens im Klartext auf Hash umgestellt")
+    except Exception as e:
+        print(f"Kunden-Links umstellen fehlgeschlagen: {e}")
+    try:
         from app.apis.firebase_utils import get_firestore_db
         from app.libs.privacy import anonymize_old_appointments, delete_stale_customers
 

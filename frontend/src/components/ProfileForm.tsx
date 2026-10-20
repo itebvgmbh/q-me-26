@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { UserProfile, USER_ROLES } from '../utils/types';
 import { toast } from 'sonner';
 import { DeleteAccountCard } from './DeleteAccountCard';
+import { EmailVerificationNote } from './EmailVerificationNote';
 
 interface ProfileFormProps {
   userId: string;
@@ -86,6 +87,7 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
             <Input id="profil-rolle" value={USER_ROLES[profile.role]} disabled />
           </div>
         </div>
+        <EmailVerificationNote role={profile.role} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="displayName">Name</Label>
           <Input id="displayName" autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="So rufen wir dich auf" />

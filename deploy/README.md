@@ -152,7 +152,7 @@ Gilt der Schlüssel für mehrere Workspaces, lehnt Claude jede Anfrage ab („no
 im Log). Dann zusätzlich die Workspace-ID eintragen (Option 3 im Block, `wrkspc_…`, zu finden unter
 [Workspaces](https://platform.claude.com/settings/workspaces)) – sie ist kein Geheimnis.
 
-**Resend** (`RESEND_API_KEY`, E-Mails wie Team-Einladungen und Erinnerungen): [resend.com](https://resend.com/) →
+**Resend** (`RESEND_API_KEY`, E-Mails wie Bestätigung der E-Mail-Adresse, Team-Einladungen und Erinnerungen): [resend.com](https://resend.com/) →
 „Domains“ → `dranzeit.de` hinzufügen und die angezeigten DNS-Einträge (SPF, DKIM) beim Domain-Anbieter
 eintragen, bis Resend „Verified“ zeigt. Dann „API Keys“ → „Create API Key“ mit Berechtigung „Sending access“
 nur für `dranzeit.de`. Absender ist `Dranzeit <hallo@dranzeit.de>`; abweichend mit `MAIL_FROM=…` in

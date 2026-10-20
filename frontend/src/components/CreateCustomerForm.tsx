@@ -1,17 +1,9 @@
 import { useState } from 'react';
-import {
-  Customer,
-  activationExpired,
-  activationLink,
-  createCustomer,
-  findCustomerByEmailAndShop,
-  renewActivation,
-} from '../utils/firestore';
+import { Customer, createActivationLink, createCustomer, findCustomerByEmailAndShop } from '../utils/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { APP_BASE_PATH } from 'app';
 
 interface Props {
   shopId: string;
@@ -33,6 +25,24 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [createdCustomer, setCreatedCustomer] = useState<Customer | null>(null);
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  /** Link vom Backend holen; klappt das nicht, bleibt der Eintrag und es gibt "Link erzeugen" zum Wiederholen */
+  const fetchLink = async (customer: Customer) => {
+    setLink('');
+    setLinkError('');
+    if (customer.userId) return; // schon verbunden, braucht keinen Link
+    setLinkBusy(true);
+    try {
+      setLink((await createActivationLink(customer.id)).link);
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : 'Der Link konnte nicht erzeugt werden.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,14 +53,15 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
       const existing = await findCustomerByEmailAndShop(email.trim(), shopId);
       let customer: Customer;
       if (existing) {
-        // Abgelaufener Link: neuen erzeugen, sonst kommt die Person nie ans Ziel
-        customer = activationExpired(existing) ? await renewActivation(existing) : existing;
+        // Den alten Link kennt nur noch die Person (gespeichert ist sein Hash): Es gibt einen neuen, der alte gilt dann nicht mehr
+        customer = existing;
         toast.info(`${customer.name} ist schon in deiner Kundenliste.`);
       } else {
         customer = await createCustomer({ shopId, name: name.trim(), email: email.trim(), phone: phone.trim() });
         toast.success('Kunde angelegt.');
       }
 
+      await fetchLink(customer);
       setCreatedCustomer(customer);
       onCustomerCreated?.(customer);
       setName('');
@@ -65,7 +76,6 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
   };
 
   if (createdCustomer) {
-    const link = activationLink(createdCustomer, `${window.location.origin}${APP_BASE_PATH}`);
     const copy = async () => {
       try {
         await navigator.clipboard.writeText(link);
@@ -92,12 +102,23 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
             <strong>{createdCustomer.name}</strong> hat das Konto schon verbunden. Termine, die du einträgst, stehen bei {createdCustomer.name} unter „Meine
             Termine“.
           </p>
+        ) : !link ? (
+          <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-sm">
+            <p>
+              <strong>{createdCustomer.name}</strong> steht in deiner Kundenliste.{' '}
+              {linkError ? `Den Link konnten wir gerade nicht erzeugen: ${linkError}` : 'Der Link wird erzeugt …'}
+            </p>
+            <Button variant="outline" disabled={linkBusy} onClick={() => fetchLink(createdCustomer)}>
+              Link erzeugen
+            </Button>
+          </div>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
               Schick {createdCustomer.name} diesen Link. Wer ihn öffnet und sich anmeldet (oder ein Konto anlegt), sieht die Termine, die du einträgst, unter
               „Meine Termine“. Hakst du beim Termin „Bei früherem freien Termin benachrichtigen“ an, bieten wir frühere Plätze an. Der Link gilt
-              30 Tage.
+              30 Tage. Brauchst du ihn später noch einmal, leg {createdCustomer.name} mit derselben E-Mail erneut an: Du bekommst einen neuen Link, der
+              alte gilt dann nicht mehr.
             </p>
             <p className="break-all rounded-2xl bg-muted p-3 font-mono text-sm" data-testid="activation-link">
               {link}

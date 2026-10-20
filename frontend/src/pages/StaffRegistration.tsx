@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { HilfeLink } from '../components/HilfeLink';
 import { createFirebaseUser } from '../utils/auth-helpers';
 import { authErrorMessage } from '../utils/auth-errors';
+import { sendVerificationMailAfterSignUp } from '../utils/email-verification';
 import { emitProfileSaved, getUserProfile } from '../utils/user-profile-service';
 import { acceptStaffInvite, getStaffInviteInfo, StaffInviteInfo } from '../utils/staff-invitation';
 import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
@@ -99,6 +100,7 @@ const StaffRegistration = () => {
       }
       try {
         await finish(created.uid);
+        sendVerificationMailAfterSignUp();
       } catch (err) {
         // Konto wieder entfernen, sonst ist die E-Mail verbraucht und der Link nutzlos
         await created.delete().catch((deleteError) => console.error('Rollback of auth user failed:', deleteError));

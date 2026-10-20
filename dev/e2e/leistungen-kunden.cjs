@@ -4,11 +4,13 @@
 //  2. Ladenauswahl unter "Leistungen" und "Mein Laden" (zweiter Laden des Testkontos, ?shopId=)
 //  3. Vorlaufzeit für Online-Termine: im Formular als Zahl gespeichert, Online-Zeiten und Speichern beachten sie,
 //     Nummer ziehen (frühester Platz) nicht
-//  4. "Kunde anlegen" in Mein Tag: Link bleibt sichtbar, /activate verbindet ein Kundenkonto, Termine wandern mit
+//  4. "Kunde anlegen" in Mein Tag: Link bleibt sichtbar, in der Datenbank steht nur sein Hash, gleiche E-Mail gibt
+//     einen neuen Link (der alte gilt nicht mehr), /activate verbindet ein Kundenkonto, Termine wandern mit
 // Braucht: Entwicklungsserver mit echtem Backend (QME_BACKEND=https://q-me.spielmacherei.de) und Testdaten
-// (python dev/fixtures.py anlegen). Teil 4 braucht das Backend mit /routes/customer-activation (ab diesem Stand).
+// (python dev/fixtures.py anlegen). Teil 4 braucht das Backend mit POST /routes/customer-activation (ab diesem Stand).
 // Räumt Zweitladen, Testperson, Vorlaufzeit und Kundenkonto selbst weg; Kunden, Termine und Leistungen im
 // Testladen löscht python dev/fixtures.py loeschen.
+const { createHash } = require('crypto');
 const { BASE, launch, newPage, collectErrors, fixture, signIn, report, run, shot } = require('./lib.cjs');
 
 /** fn(fs, firestore, arg) im Browser ausführen – fs = Firestore-Funktionen der App, firestore = ihre Datenbank */
@@ -203,6 +205,12 @@ run(async () => {
   const customerEmail = `kunde-${Date.now()}@example.com`;
   let customerPage = null;
   const kundenLink = async () => {
+    // Backend mit dem Endpunkt? Sonst klar melden statt in Zeitüberschreitungen zu laufen (ohne Anmeldung: 401)
+    const probe = await fetch(`${BASE}/routes/customer-activation`, { method: 'POST' }).then((r) => r.status, () => 0);
+    if ([0, 404, 405].includes(probe) || probe >= 500) {
+      rows.push({ name: 'Backend erzeugt Kunden-Links (POST /routes/customer-activation)', pass: false, detail: `Status ${probe} – Backend noch nicht ausgerollt?` });
+      return;
+    }
     await owner.goto(`${BASE}/employee-dashboard`, { waitUntil: 'domcontentloaded' });
     await owner.getByRole('button', { name: 'Kunde anlegen' }).click();
     const create = owner.getByRole('dialog');
@@ -214,7 +222,7 @@ run(async () => {
     const link = (await linkBox.innerText()).trim();
     const dialogStaysOpen = await create.getByRole('button', { name: 'Fertig' }).isVisible();
     await shot(owner, 'kunde-anlegen-link', false);
-    // gleiche E-Mail noch einmal: kein zweiter Eintrag, derselbe Link
+    // gleiche E-Mail noch einmal: kein zweiter Eintrag, neuer Link
     await create.getByRole('button', { name: 'Weiteren Kunden anlegen' }).click();
     await create.getByLabel('Name').fill('Kim Test');
     await create.getByLabel('E-Mail').fill(customerEmail);
@@ -227,14 +235,21 @@ run(async () => {
       owner,
       async (fs, firestore, { shopId, email }) => {
         const snap = await fs.getDocs(fs.query(fs.collection(firestore, 'customers'), fs.where('shopId', '==', shopId), fs.where('email', '==', email)));
-        return snap.docs.map((d) => ({ id: d.id, token: d.data().activationToken, expires: d.data().activationExpires.toMillis() }));
+        return snap.docs.map((d) => ({ id: d.id, hash: d.data().activationTokenHash || '', plain: 'activationToken' in d.data(), expires: d.data().activationExpires.toMillis() }));
       },
       { shopId: fx.shopId, email: customerEmail },
     );
-    const token = new URL(link).searchParams.get('token');
+    const oldToken = new URL(link).searchParams.get('token');
+    const token = new URL(link2).searchParams.get('token');
+    const oldStatus = await fetch(`${BASE}/routes/customer-activation/${oldToken}`).then((r) => r.status, () => 0);
     rows.push(
-      { name: 'Kunde anlegen zeigt Link, Dialog bleibt offen', pass: /\/activate\?token=[0-9a-f]{32}$/.test(link) && dialogStaysOpen, detail: link.replace(/token=.*/, 'token=…') },
-      { name: 'Gleiche E-Mail: kein zweiter Eintrag', pass: customer.length === 1 && link2 === link },
+      { name: 'Kunde anlegen zeigt Link, Dialog bleibt offen', pass: /\/activate\?token=[A-Za-z0-9_-]{32}$/.test(link) && dialogStaysOpen, detail: link.replace(/token=.*/, 'token=…') },
+      { name: 'Gleiche E-Mail: kein zweiter Eintrag, neuer Link', pass: customer.length === 1 && link2 !== link && /\/activate\?token=[A-Za-z0-9_-]{32}$/.test(link2) },
+      { name: 'Alter Link gilt danach nicht mehr', pass: oldStatus === 404, detail: `Status ${oldStatus}` },
+      {
+        name: 'In der Datenbank nur der Hash, kein Token',
+        pass: customer.length === 1 && customer[0].hash === createHash('sha256').update(token).digest('hex') && !customer[0].plain,
+      },
       { name: 'Link gilt 30 Tage', pass: customer.length === 1 && Math.abs(customer[0].expires - Date.now() - 30 * 86400000) < 3600000 },
     );
 
@@ -250,13 +265,6 @@ run(async () => {
       },
       { fx, customerId: customer[0].id },
     );
-
-    // Backend mit dem Endpunkt? Sonst klar melden statt in Zeitüberschreitungen zu laufen
-    const probe = await fetch(`${BASE}/routes/customer-activation/${token}`).then((r) => r.status, () => 0);
-    if (probe !== 200) {
-      rows.push({ name: 'Backend kennt /routes/customer-activation', pass: false, detail: `Status ${probe} – Backend noch nicht ausgerollt?` });
-      return;
-    }
 
     // Ohne Anmeldung: Laden genannt, Konto anlegen oder anmelden
     const visitor = await newPage(browser);
@@ -281,6 +289,12 @@ run(async () => {
       const { registerWithRole } = await import('/src/utils/auth-helpers.ts');
       return (await registerWithRole(email, `Test-${Math.random().toString(36).slice(2)}`, 'customer')).uid;
     }, customerEmail);
+    // Ein Kundenkonto darf für den Laden keinen Link erzeugen (sonst könnte es Einträge übernehmen)
+    const foreignLink = await customerPage.evaluate(async (customerId) => {
+      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${await firebaseAuth.currentUser.getIdToken()}` };
+      return (await fetch('/routes/customer-activation', { method: 'POST', headers, body: JSON.stringify({ customer_id: customerId }) })).status;
+    }, customer[0].id);
     await customerPage.goto(`${BASE}/activate?token=${token}`, { waitUntil: 'domcontentloaded' });
     await customerPage.getByRole('button', { name: 'Mit diesem Konto verbinden' }).click();
     const connected = await customerPage.getByRole('heading', { name: 'Verbunden.' }).waitFor({ timeout: 15000 }).then(() => true, () => false);
@@ -303,6 +317,7 @@ run(async () => {
       { name: 'Link ohne Anmeldung: Laden und Wege', pass: visitorOk && visitorButtons === 2 },
       { name: 'Falscher Link: klare Meldung', pass: badOk },
       { name: 'Ladenkonto kann sich nicht verbinden', pass: ownerBlocked },
+      { name: 'Kundenkonto kann keinen Link erzeugen', pass: foreignLink === 403, detail: `Status ${foreignLink}` },
       { name: 'Kundenkonto verbindet sich', pass: connected && after.customer?.userId === customerUid && after.customer?.isActive === true },
       { name: 'Termin des Eintrags gehört jetzt dem Konto', pass: after.appt?.customerId === customerUid, detail: after.appt?.customerId === customerUid ? '' : String(after.appt?.customerId) },
       { name: 'Termin steht unter Meine Termine', pass: inBookings },
