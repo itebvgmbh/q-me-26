@@ -419,6 +419,68 @@ QME_ADMIN_UIDS=…                               # alternativ die Firebase-UID
 
 Danach `systemctl restart q-me`. Ohne Eintrag kann niemand steuern; der Dienst startet trotzdem von selbst.
 
+## Konten aufräumen
+
+`deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur
+gelöscht, was ausdrücklich genannt ist. Ein Konto löschen heißt dasselbe wie „Konto löschen“ im Profil; Läden gehen
+nur mit, wenn sie selbst genannt sind. Der Laden ITEBV GmbH, Betreiber-Konten und Läden mit laufendem Abo sind
+geschützt. Vor dem Löschen legt das Skript eine Sicherung unter `/root/dranzeit-konten/` an (nur für root).
+
+**1. Liste** (ändert nichts). Speichert sie in `Downloads` und in der Zwischenablage:
+
+```powershell
+& {
+  [Console]::OutputEncoding = [Text.Encoding]::UTF8
+  $server = 'root@195.201.26.108'
+  $optionen = @('-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10')
+  $schluessel = Join-Path $env:USERPROFILE '.ssh\id_ed25519_spielmacherei'
+  if (Test-Path -LiteralPath $schluessel) { $optionen = @('-i', $schluessel) + $optionen }
+  $verbindung = ssh @optionen $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" aus deploy/README.md ausfuehren.' -ForegroundColor Red; return }
+  $stand = ssh @optionen $server 'test -f /opt/q-me/deploy/konten-aufraeumen.py && echo da' 2>&1 | Out-String
+  if ($stand -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/konten-aufraeumen.py. Erst den Block "Aktualisieren" aus deploy/README.md ausfuehren.' -ForegroundColor Red; return }
+  Write-Host 'Lese alle Konten und Laeden (aendert nichts, dauert etwa eine halbe Minute) ...' -ForegroundColor Cyan
+  $text = ssh @optionen $server 'cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/konten-aufraeumen.py liste' 2>&1 | Out-String
+  if ($LASTEXITCODE -ne 0 -or $text -notmatch 'Nummern gemerkt') { Write-Host 'Abbruch: Die Liste konnte nicht erstellt werden. Meldung vom Server:' -ForegroundColor Red; Write-Host $text; return }
+  $ordner = Join-Path $env:USERPROFILE 'Downloads'
+  if (-not (Test-Path -LiteralPath $ordner)) { $ordner = $env:USERPROFILE }
+  $datei = Join-Path $ordner ('dranzeit-konten-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt')
+  [System.IO.File]::WriteAllText($datei, $text, (New-Object System.Text.UTF8Encoding $true))
+  Write-Host $text
+  $text | Set-Clipboard
+  Write-Host "Fertig: Liste gespeichert in $datei und in der Zwischenablage. Geaendert wurde nichts." -ForegroundColor Green
+  Write-Host 'Jetzt Claude sagen, was bleibt und was weg soll (z. B. "behalten K2, K7, L1 - Rest weg"), oder die Liste dort einfuegen.' -ForegroundColor Green
+}
+```
+
+**2. Löschen** mit den Nummern aus der letzten Liste (`K1-K4,K7,L2`). Erst ein Probelauf, gelöscht wird nur nach `ja`:
+
+```powershell
+& {
+  [Console]::OutputEncoding = [Text.Encoding]::UTF8
+  $server = 'root@195.201.26.108'
+  $optionen = @('-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10')
+  $schluessel = Join-Path $env:USERPROFILE '.ssh\id_ed25519_spielmacherei'
+  if (Test-Path -LiteralPath $schluessel) { $optionen = @('-i', $schluessel) + $optionen }
+  $verbindung = ssh @optionen $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" aus deploy/README.md ausfuehren.' -ForegroundColor Red; return }
+  $eingabe = Read-Host 'Was soll weg? Nummern aus der Liste, z. B. K1-K4,K7,L2'
+  $auswahl = ($eingabe.Trim().Trim('"').Trim("'").Trim() -replace '\s*-\s*', '-' -replace '[\s;]+', ',' -replace ',+', ',').Trim(',').ToUpper()
+  if ($auswahl -notmatch '^[KL]\d+(-[KL]?\d+)?(,[KL]\d+(-[KL]?\d+)?)*$') { Write-Host "Abbruch: '$eingabe' verstehe ich nicht. Beispiel: K1-K4,K7,L2" -ForegroundColor Red; return }
+  Write-Host "1/2 Probelauf fuer $auswahl (aendert nichts) ..." -ForegroundColor Cyan
+  $probe = ssh @optionen $server ('cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/konten-aufraeumen.py loeschen ' + $auswahl) 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $probe
+  if ($ergebnis -ne 0 -or $probe -notmatch 'Probelauf') { Write-Host 'Abbruch: Der Probelauf meldet ein Problem (oben). Nichts geloescht.' -ForegroundColor Red; return }
+  if ((Read-Host 'Genau das loeschen? Vorher legt der Server eine Sicherung an. Zum Bestaetigen ja eingeben') -ne 'ja') { Write-Host 'Nichts geloescht.' -ForegroundColor Yellow; return }
+  Write-Host '2/2 Sichern, loeschen, nachpruefen ...' -ForegroundColor Cyan
+  $lauf = ssh @optionen $server ('cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/konten-aufraeumen.py loeschen ' + $auswahl + ' --ausfuehren') 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $lauf
+  if ($ergebnis -eq 0 -and $lauf -match 'alles Ausgew.+hlte ist weg') { Write-Host 'Fertig: geloescht und nachgeprueft. Sicherung siehe oben (auf dem Server, nur fuer root).' -ForegroundColor Green } else { Write-Host 'Achtung: Das Loeschen ist nicht sauber durchgelaufen, Meldung oben. Claude die Ausgabe schicken.' -ForegroundColor Red }
+}
+```
+
 ## Verbindung prüfen
 
 Fragt `ssh` nach einem Passwort, findet es in diesem Fenster keinen passenden
