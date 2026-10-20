@@ -29,6 +29,7 @@ import json
 import os
 import re
 import sys
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -375,7 +376,8 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
         if sid == ITEBV_SHOP:
             problems.append(f"„{shop.get('name')}“ ist der Laden der ITEBV GmbH, gegen den seiten.cjs und durchlauf-*.cjs laufen – den löscht dieses Skript nicht.")
         if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING:
-            problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen.")
+            problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
+                            f"(Kunde {shop['billing'].get('customerId') or '?'}, Abo {shop['billing'].get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
         shops.append({"id": sid, "name": shop.get("name") or "", "data": shop, "founder": bool(shop.get("founder")), "related": related})
 
@@ -564,6 +566,8 @@ def firebase():
     sys.path.insert(0, os.getcwd())
     from app.apis.firebase_utils import get_firebase_app, get_firestore_db
 
+    # Hinweis der Firestore-Bibliothek zu where(); PowerShell zeigt ihn sonst als roten Fehler
+    warnings.filterwarnings("ignore", message="Detected filter using positional arguments")
     with contextlib.redirect_stdout(io.StringIO()):  # Startmeldungen von firebase_utils nicht in die Liste
         return get_firestore_db(), get_firebase_app()
 
