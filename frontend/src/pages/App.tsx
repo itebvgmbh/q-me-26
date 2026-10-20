@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ActiveTicketBanner } from '../components/queue/ActiveTicketBanner';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnonymousBookingHandler } from '../components/AnonymousBookingHandler';
@@ -29,6 +30,7 @@ export default function App() {
     <div>
       {/* Verknüpft anonyme Buchungen nach dem Anmelden */}
       <AnonymousBookingHandler />
+      <ActiveTicketBanner />
 
       <section className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-14 gap-y-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-6">

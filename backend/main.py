@@ -84,6 +84,12 @@ def create_app() -> FastAPI:
     app = FastAPI()
     app.include_router(import_api_routers())
 
+    # Stadtseiten und sitemap.xml (app/seo.py): unter eigenem Pfad (Caddy leitet ihn weiter) und unter /routes/seo
+    from app import seo
+
+    app.include_router(seo.router)
+    app.include_router(seo.router, prefix="/routes/seo")
+
     for route in app.routes:
         if hasattr(route, "methods"):
             for method in route.methods:
@@ -118,6 +124,12 @@ def create_app() -> FastAPI:
 
             start_scheduler_thread()
             print("Scheduler autostarted")
+
+            # "Gleich dran", "Du bist dran" und Termin-Erinnerungen (app/libs/notify_worker.py)
+            from app.libs.notify_worker import start_notify_worker
+
+            start_notify_worker()
+            print("Notify worker autostarted")
 
     return app
 

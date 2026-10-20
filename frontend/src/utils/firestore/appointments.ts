@@ -255,9 +255,10 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
       processedData.endTime = Timestamp.fromDate(processedData.endTime);
     }
     
-    // Generate reference code for anonymous bookings
-    if (processedData.isAnonymous) {
-      processedData.referenceCode = generateReferenceCode();
+    // Nummer für den Aufruf: jede Nummer aus der Schlange (auch vom Tresen) und jede Buchung ohne Konto,
+    // am selben Tag im selben Laden nur einmal (Wartezimmer-Bildschirm, Nummernseite)
+    if (processedData.isAnonymous || processedData.type === 'queue') {
+      processedData.referenceCode = await uniqueReferenceCode(processedData.shopId, toDateValue(processedData.startTime) ?? new Date());
     }
     
     // Verbessere die Namenshandhabung für Kunden - IMMER den Namen aus der user-Collection holen, wenn customerId vorhanden ist
@@ -363,12 +364,26 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
   }
 };
 
-// Hilfsfunktion zur Generierung eines eindeutigen Referenzcodes für anonyme Buchungen
-function generateReferenceCode(): string {
-  // 2-stelliger numerischer Code, wie gewünscht
-  const min = 10; // Startwert für 2-stellige Nummern
-  const max = 99; // Maximalwert für 2-stellige Nummern
-  return String(Math.floor(Math.random() * (max - min + 1)) + min);
+// Zufällige Nummer, die an diesem Tag im Laden noch frei ist: erst 10–99, wird es eng, dreistellig
+async function uniqueReferenceCode(shopId: string, day: Date): Promise<string> {
+  const pick = (min: number, max: number) => String(Math.floor(Math.random() * (max - min + 1)) + min);
+  let used = new Set<string>();
+  try {
+    const dayStart = new Date(day);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const todays = await getAppointmentsInRange(shopId, dayStart, dayEnd);
+    used = new Set(todays.map((a) => a.referenceCode).filter((c): c is string => Boolean(c)));
+  } catch {
+    /* ohne Abfrage bleibt es zufällig */
+  }
+  const [min, max] = used.size < 60 ? [10, 99] : [100, 999];
+  for (let i = 0; i < 50; i++) {
+    const code = pick(min, max);
+    if (!used.has(code)) return code;
+  }
+  return pick(100, 999);
 }
 
 export const cancelAppointment = async (appointmentId: string): Promise<Appointment> => {
@@ -427,10 +442,18 @@ export const updateAppointment = async (appointmentId: string, appointmentData: 
     }
     
     const now = Timestamp.now();
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       ...appointmentData,
       updatedAt: now
     };
+    // Zeitpunkte für die Auswertung (Wartezeit = Nummer ziehen bis Aufruf), nur beim ersten Wechsel
+    if (appointmentData.status === 'in-progress' && originalAppointment.status !== 'in-progress' && !originalAppointment.calledAt) {
+      updateData.calledAt = now;
+    }
+    if (appointmentData.status === 'completed' && originalAppointment.status !== 'completed') {
+      updateData.completedAt = now;
+      if (!originalAppointment.calledAt && !updateData.calledAt) updateData.calledAt = now;
+    }
 
     await setDoc(appointmentRef, updateData, { merge: true });
     console.log('Appointment updated successfully');

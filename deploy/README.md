@@ -126,7 +126,7 @@ Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeich
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
-## Schlüssel für „Laden einrichten“
+## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
 übernimmt er Adresse, Telefon, Webseite, Öffnungszeiten und Branche von Google und liest die Preisliste von
@@ -152,6 +152,15 @@ Gilt der Schlüssel für mehrere Workspaces, lehnt Claude jede Anfrage ab („no
 im Log). Dann zusätzlich die Workspace-ID eintragen (Option 3 im Block, `wrkspc_…`, zu finden unter
 [Workspaces](https://platform.claude.com/settings/workspaces)) – sie ist kein Geheimnis.
 
+**Resend** (`RESEND_API_KEY`, E-Mails wie Team-Einladungen und Erinnerungen): [resend.com](https://resend.com/) →
+„Domains“ → `dranzeit.de` hinzufügen und die angezeigten DNS-Einträge (SPF, DKIM) beim Domain-Anbieter
+eintragen, bis Resend „Verified“ zeigt. Dann „API Keys“ → „Create API Key“ mit Berechtigung „Sending access“
+nur für `dranzeit.de`. Absender ist `Dranzeit <hallo@dranzeit.de>`; abweichend mit `MAIL_FROM=…` in
+`/etc/q-me.env` (kein Geheimnis). Ohne Schlüssel verschickt das Backend nichts und schreibt nur ins Log.
+
+**Stripe** (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Abo-Abrechnung der Läden): Einrichtung im Abschnitt
+„Abo-Abrechnung“ weiter unten.
+
 Eintragen: Block in PowerShell einfügen. Er fragt, welchen Schlüssel, liest ihn verdeckt ein und schickt ihn
 über die Standardeingabe an `deploy/set-secret.sh` – so steht er weder im Fenster noch in einer History.
 Für jeden weiteren Eintrag den Block noch einmal ausführen.
@@ -163,8 +172,8 @@ Für jeden weiteren Eintrag den Block noch einmal ausführen.
   if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
   $skript = ssh -o BatchMode=yes $server 'test -f /opt/q-me/deploy/set-secret.sh && echo da' 2>&1 | Out-String
   if ($skript -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/set-secret.sh. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
-  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID (nur wenn der Schluessel fuer mehrere Workspaces gilt)'
-  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } else { Write-Host 'Abbruch: Bitte 1, 2 oder 3 eingeben.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID, 4 = Resend (E-Mails), 5 = Stripe-Geheimschluessel, 6 = Stripe-Webhook-Geheimnis'
+  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } elseif ($wahl -eq '4') { $name = 'RESEND_API_KEY'; $muster = '^re_[0-9A-Za-z_]{20,}$' } elseif ($wahl -eq '5') { $name = 'STRIPE_SECRET_KEY'; $muster = '^(sk|rk)_(test|live)_[0-9A-Za-z]{20,}$' } elseif ($wahl -eq '6') { $name = 'STRIPE_WEBHOOK_SECRET'; $muster = '^whsec_[0-9A-Za-z]{20,}$' } else { Write-Host 'Abbruch: Bitte eine Zahl von 1 bis 6 eingeben.' -ForegroundColor Red; return }
   $geheim = Read-Host "$name einfuegen (Strg+V, wird nicht angezeigt), dann Enter" -AsSecureString
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
   try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
@@ -184,6 +193,174 @@ Für jeden weiteren Eintrag den Block noch einmal ausführen.
 Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^GOOGLE_MAPS_API_KEY= /etc/q-me.env`.
 Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stunde höchstens 300 Suchen,
 40 übernommene Einträge und 12 ausgelesene Webseiten.
+
+## Benachrichtigungen („Gleich dran“, Erinnerungen)
+
+Ein eigener Hintergrunddienst im Backend (`app/libs/notify_worker.py`) schickt Kunden eine Nachricht, kurz
+bevor sie dran sind, und wenn der Tresen sie aufruft. Gebuchte Termine bekommen 2 Stunden vorher eine
+Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schlüssel da ist.
+
+- **Web-Push:** Die Schlüssel (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) erzeugt `update.sh` beim ersten Lauf
+  selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
+  der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
+- **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
+  `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar).
+- Kunden schalten das auf ihrer Nummernseite `/nummer/<id>` ein; dorthin führt jetzt das Nummer-Ziehen.
+
+## Abo-Abrechnung (Stripe)
+
+Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird über Stripe Checkout, verwaltet und
+gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. Erst im **Testmodus** einrichten.
+
+1. **Schlüssel:** Stripe-Dashboard (Testmodus) → Entwickler → API-Schlüssel → „Eingeschränkten Schlüssel
+   erstellen“ mit Schreibrechten für Produkte, Preise, Kunden, Checkout-Sessions, Kundenportal und
+   Webhook-Endpunkte sowie Leserecht für Abonnements. (Ein `sk_test_…` geht auch, ist aber mächtiger.)
+   Eintragen mit dem Block „Schlüssel eintragen“, Option 5.
+2. **Einrichten:** Block unten. Er legt Produkte und Preise an (netto, Gründerpreise inklusive), den Webhook
+   auf `<adresse>/routes/stripe/webhook` und das Kundenportal. Das Webhook-Geheimnis schreibt das Skript direkt
+   nach `/etc/q-me.env`, es erscheint nirgends. Mehrfach ausführbar.
+3. **Im Dashboard:** Einstellungen → Steuern → Registrierung Deutschland anlegen (sonst rechnet Stripe keine
+   Mehrwertsteuer). Einstellungen → Zahlungsmethoden → SEPA-Lastschrift einschalten. Einstellungen →
+   Kunden-E-Mails → Rechnungen und Belege per E-Mail einschalten. Rechnungsvorlage, Fußzeile, USt-IdNr. und
+   Nummernkreis: Abschnitt „Rechnungen“ unten.
+4. **Testen:** Als Inhaber unter `/tarif` „Weiter zur Bezahlung“, Testkarte `4242 4242 4242 4242`.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $schluessel = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_SECRET_KEY= /etc/q-me.env' 2>&1 | Out-String
+  if ($schluessel -notmatch '^\s*1') { Write-Host 'Abbruch: STRIPE_SECRET_KEY fehlt. Erst den Block "Schluessel eintragen" ausfuehren (Option 5).' -ForegroundColor Red; return }
+  $adresse = Read-Host 'Adresse der App (Enter = https://q-me.spielmacherei.de)'
+  if (-not $adresse) { $adresse = 'https://q-me.spielmacherei.de' }
+  $adresse = $adresse.Trim().Trim('"').TrimEnd('/')
+  if ($adresse -notmatch '^https://[a-z0-9.-]+$') { Write-Host 'Abbruch: Bitte eine Adresse wie https://dranzeit.de eingeben.' -ForegroundColor Red; return }
+  Write-Host "Stripe fuer $adresse einrichten ..." -ForegroundColor Cyan
+  $ausgabe = ssh -o BatchMode=yes $server ('cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py ' + $adresse + ' && systemctl restart q-me') 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $ausgabe
+  if ($ergebnis -ne 0 -or $ausgabe -notmatch 'Fertig') { Write-Host 'Abbruch: Einrichtung fehlgeschlagen, Meldung oben.' -ForegroundColor Red; return }
+  Start-Sleep -Seconds 4
+  $pruefung = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_WEBHOOK_SECRET= /etc/q-me.env; systemctl is-active q-me' 2>&1 | Out-String
+  if ($pruefung -match '^\s*1\s+active') { Write-Host 'Fertig: Stripe ist eingerichtet, das Backend laeuft.' -ForegroundColor Green } else { Write-Host 'Eingerichtet, aber etwas fehlt. Ausgabe vom Server:' -ForegroundColor Yellow; Write-Host $pruefung }
+}
+```
+
+Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorher `STRIPE_WEBHOOK_SECRET` und
+`STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
+Die Rechnungseinstellungen aus dem Abschnitt „Rechnungen“ im Livemodus noch einmal kontrollieren.
+
+## Rechnungen (PDF und E-Rechnung)
+
+Läden laden ihre Rechnungen unter „Mein Tarif“ → „Rechnungen“ herunter: das **PDF**, so wie Stripe es per
+E-Mail schickt, und dieselbe Rechnung als **E-Rechnung** (XRechnung 3.0, XML) für DATEV, lexoffice, sevDesk.
+Aussteller ist die ITEBV GmbH; Stripe vergibt die Nummer, erzeugt das PDF und verschickt es. Backend:
+`app/apis/invoices` (nur Inhaber, nur Rechnungen des eigenen Stripe-Kunden), E-Rechnung: `app/libs/invoices.py`.
+
+Keine Steuerberatung, Stand Oktober 2026. Vor den ersten echten Rechnungen einmal mit dem Steuerbüro abgleichen.
+
+### Pflichtangaben und was dafür in Stripe einzustellen ist
+
+Stripe erfüllt die Pflichtangaben, wenn das Dashboard so eingestellt ist (im Test- **und** im Livemodus prüfen,
+vor der ersten echten Rechnung):
+
+| Pflichtangabe | Gesetz | Einstellung im Stripe-Dashboard |
+|---|---|---|
+| Name und Anschrift der ITEBV GmbH | § 14 Abs. 4 Nr. 1 UStG | Einstellungen → Unternehmen → Öffentliche Details: Name `ITEBV GmbH`, Zehntwerderweg 201A, 13469 Berlin, Adresse auf Rechnungen anzeigen |
+| Name und Anschrift des Ladens | § 14 Abs. 4 Nr. 1 UStG | nichts: Checkout verlangt die Rechnungsadresse, den Firmennamen über „Ich kaufe als Unternehmen“ |
+| USt-IdNr. `DE348787952` | § 14 Abs. 4 Nr. 2 UStG | Einstellungen → Billing → Rechnungen → „Steuerinformationen für Rechnungen“: anlegen und als Standard setzen |
+| Ausstellungsdatum | § 14 Abs. 4 Nr. 3 UStG | automatisch |
+| fortlaufende, einmalige Nummer | § 14 Abs. 4 Nr. 4 UStG | Einstellungen → Billing → Rechnungen → Nummerierung „fortlaufend für das gesamte Konto“, Präfix z. B. `DZ`. Vor der ersten Live-Rechnung festlegen, danach nicht mehr ändern |
+| Menge und Art der Leistung | § 14 Abs. 4 Nr. 5 UStG | automatisch („1 × Dranzeit Laden“, Produktnamen aus `stripe-setup.py`) |
+| Leistungszeitraum | § 14 Abs. 4 Nr. 6 UStG | automatisch (Abozeitraum je Position) |
+| Entgelt netto nach Steuersatz, Rabatte | § 14 Abs. 4 Nr. 7 UStG | Einstellungen → Billing → Rechnungen → Standard-Artikelpreise: „Steuern nicht im Preis enthalten“ (Positionen netto wie die Preise und die E-Rechnung) |
+| Steuersatz und Steuerbetrag | § 14 Abs. 4 Nr. 8 UStG | Stripe Tax mit Registrierung Deutschland (Abschnitt „Abo-Abrechnung“, Schritt 3) |
+| Rechtsform, Sitz, Registergericht, HRB, Geschäftsführer | § 35a GmbHG | Einstellungen → Billing → Rechnungen → Standardfußzeile: `ITEBV GmbH · Sitz Berlin · Amtsgericht Berlin-Charlottenburg HRB 236012 B · Geschäftsführer: Stefan Tittmann · USt-IdNr. DE348787952` |
+
+Sprache Deutsch setzt die App beim Anlegen des Kunden, Logo und Farbe stehen unter Einstellungen → Branding.
+Kontrolle: Dashboard → Rechnungen → eine Testrechnung öffnen → PDF ansehen.
+
+**Kleinbetragsrechnungen** (bis 250 € brutto, § 33 UStDV) brauchen weniger Angaben. Das sind alle
+Monatsrechnungen (höchstens 70,21 €) und die Jahresrechnungen von Solo und Gründer-Laden (je 226,10 €).
+
+**Kunden in anderen EU-Ländern** mit USt-IdNr. (z. B. Österreich): Stripe Tax berechnet 0 % (Reverse Charge).
+Auf die Rechnung gehören dann beide USt-IdNr. und der Hinweis „Steuerschuldnerschaft des
+Leistungsempfängers“, ausgestellt bis zum 15. des Folgemonats (§ 14a Abs. 1 und 5 UStG). Mit einer
+Testrechnung an einen österreichischen Testkunden prüfen, dass der Hinweis auf dem PDF steht; die E-Rechnung
+enthält ihn immer. Diese Umsätze gehören in die Zusammenfassende Meldung (§ 18a UStG). Gibt ein EU-Kunde
+keine USt-IdNr. an, behandelt Stripe ihn wie einen Privatkunden.
+
+### E-Rechnung
+
+- Seit 1.1.2025 muss jedes Unternehmen in Deutschland E-Rechnungen **empfangen** können.
+- **Ausstellen** müssen sie Unternehmen für Unternehmen, wenn beide in Deutschland sitzen: 2026 ist ein PDF noch
+  erlaubt. 2027 nur noch, wenn der Gesamtumsatz der ITEBV GmbH **2026** höchstens 800.000 € betrug, sonst gilt
+  die Pflicht ab 1.1.2027. Ab **1.1.2028** gilt sie für alle (§ 14 Abs. 1 und § 27 Abs. 38 UStG).
+- Kleinbetragsrechnungen bis 250 € sind dauerhaft ausgenommen. Bei Dranzeit betrifft die Pflicht also nur die
+  Jahresrechnungen **Laden (464,10 €)** und **Team (702,10 €)** und Rechnungen, die durch Tarifwechsel über
+  250 € kommen.
+- Zulässig sind Formate nach EN 16931: **XRechnung** oder **ZUGFeRD ab 2.0.1** (nicht die Profile MINIMUM und
+  BASIC-WL). Ein PDF allein ist keine E-Rechnung, und Stripe erzeugt keine. Die App baut die XRechnung deshalb
+  aus denselben Stripe-Daten wie das PDF (Nummer, Datum, Kunde, Positionen, Zeitraum, Steuer). Weichen beide
+  voneinander ab, gilt das XML.
+- Übermitteln per Download aus einem Kundenportal ist zulässig (BMF-Schreiben zur E-Rechnung). Genau das ist
+  „Mein Tarif“ → „Rechnungen“. Das PDF aus der Stripe-E-Mail ist eine inhaltsgleiche Zweitschrift.
+- Keine E-Rechnung gibt es für 0-€-Rechnungen (Testphase), stornierte Rechnungen und andere Steuerfälle als
+  19 % und Reverse Charge (z. B. Kunden außerhalb der EU). Für die gilt die Pflicht auch nicht.
+
+Die Angaben zur ITEBV GmbH in der XRechnung stehen in `backend/app/libs/invoices.py` (`SELLER`). Sie müssen zu
+den öffentlichen Details in Stripe und zu `frontend/src/constants/legal.ts` passen. Prüfen gegen die
+offiziellen Regeln (XML-Schema, EN 16931, XRechnung 3.0.2 der KoSIT) geht ohne Java mit
+`dev/e-rechnung-pruefen.py`, auch mit einer unter „Mein Tarif“ geladenen Datei (Anleitung im Kopf des Skripts).
+
+### Aufbewahren
+
+Die ITEBV GmbH muss jede Rechnung **8 Jahre** aufbewahren (§ 14b UStG, § 147 AO), eine E-Rechnung im
+Originalformat (XML), unveränderbar und auffindbar (GoBD). Stripe hält die Rechnungen vor, ist aber kein
+Archiv im Sinne der GoBD: regelmäßig exportieren (Dashboard → Rechnungen → Exportieren, oder über die
+Buchhaltung des Steuerbüros), ab Pflichtbeginn die XRechnungen der Jahresrechnungen mit. Die E-Rechnung
+hängt nicht vom Zahlungsstand ab: Wer sie mehrmals lädt, bekommt dieselbe Datei. Läden sehen unter
+„Mein Tarif“ bis zu 120 Rechnungen zurück, ältere im Stripe-Kundenportal.
+
+## Umzug auf dranzeit.de
+
+Vorher von Hand (in dieser Reihenfolge):
+
+1. **Domains kaufen:** `dranzeit.de` und `www.dranzeit.de` (dazu am besten `.com`, `.app`, `.at`, `.ch`, `.eu`).
+2. **DNS** beim Domain-Anbieter: A-Record `dranzeit.de` und `www.dranzeit.de` → `195.201.26.108`,
+   AAAA-Record beider Namen → `2a01:4f8:1c18:b8d8::1`. Warten, bis der Block unten „DNS stimmt“ meldet.
+3. **Firebase Console** → Authentication → Settings → Autorisierte Domains: `dranzeit.de` und
+   `www.dranzeit.de` eintragen (sonst scheitert die Google-Anmeldung).
+4. **Resend** → Domains → `dranzeit.de` hinzufügen, die SPF/DKIM-Einträge beim Domain-Anbieter eintragen.
+
+Dann den Block einfügen. Er prüft DNS, setzt den Dranzeit-Block in der gemeinsamen Caddyfile (alte Adresse
+leitet weiter, Stadtseiten und Sitemap gehen ans Backend), stellt `PUBLIC_URL` um, richtet bei vorhandenem
+Stripe-Schlüssel den Webhook auf die neue Adresse um und prüft, dass `https://dranzeit.de` antwortet.
+Ohne Umzug, nur Stadtseiten auf der alten Adresse: `python3 /opt/q-me/deploy/caddy-domain.py q-me.spielmacherei.de`.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  foreach ($name in @('dranzeit.de', 'www.dranzeit.de')) { $ip = (Resolve-DnsName $name -Type A -ErrorAction SilentlyContinue | Where-Object { $_.Type -eq 'A' } | Select-Object -First 1).IPAddress; if ($ip -ne '195.201.26.108') { Write-Host "Abbruch: $name zeigt noch nicht auf den Server (gefunden: $ip). DNS-Eintrag pruefen und spaeter noch einmal." -ForegroundColor Red; return } }
+  Write-Host 'DNS stimmt. 1/4 Caddy umstellen ...' -ForegroundColor Cyan
+  $caddy = ssh -o BatchMode=yes $server 'python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de' 2>&1 | Out-String
+  Write-Host $caddy
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Caddy wurde nicht umgestellt, Meldung oben. Die anderen Seiten laufen unveraendert.' -ForegroundColor Red; return }
+  Write-Host '2/4 Adresse fuer Links in E-Mails setzen ...' -ForegroundColor Cyan
+  ssh -o BatchMode=yes $server 'sed -i /^PUBLIC_URL=/d /etc/q-me.env && echo PUBLIC_URL=https://dranzeit.de >> /etc/q-me.env && systemctl restart q-me'
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: PUBLIC_URL konnte nicht gesetzt werden.' -ForegroundColor Red; return }
+  Write-Host '3/4 Stripe-Webhook umziehen (falls eingerichtet) ...' -ForegroundColor Cyan
+  $stripe = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_SECRET_KEY= /etc/q-me.env' 2>&1 | Out-String
+  if ($stripe -match '^\s*1') { $ausgabe = ssh -o BatchMode=yes $server 'cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de && systemctl restart q-me' 2>&1 | Out-String; Write-Host $ausgabe; if ($ausgabe -notmatch 'Fertig') { Write-Host 'Achtung: Stripe-Webhook nicht umgezogen, Meldung oben. Der Rest ist umgestellt.' -ForegroundColor Yellow } } else { Write-Host '    Stripe noch nicht eingerichtet, uebersprungen.' }
+  Write-Host '4/4 Pruefen (das Zertifikat kann beim ersten Aufruf ein paar Sekunden dauern) ...' -ForegroundColor Cyan
+  $ok = $false
+  for ($i = 0; $i -lt 10 -and -not $ok; $i++) { try { $antwort = Invoke-WebRequest -Uri 'https://dranzeit.de/' -UseBasicParsing -TimeoutSec 10; $ok = ($antwort.StatusCode -eq 200) } catch { Start-Sleep -Seconds 3 } }
+  if ($ok) { Write-Host 'Fertig: https://dranzeit.de laeuft, die alte Adresse leitet weiter.' -ForegroundColor Green } else { Write-Host 'https://dranzeit.de antwortet noch nicht. In einer Minute im Browser pruefen; Caddy-Log: journalctl -u caddy -n 50' -ForegroundColor Yellow }
+}
+```
 
 ## Betreiber der App
 

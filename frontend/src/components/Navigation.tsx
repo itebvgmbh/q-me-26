@@ -24,6 +24,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     { to: '/shop-map', label: 'Shops finden' },
     { to: '/public-join-queue', label: 'In die Schlange' },
     { to: '/features', label: 'Für Betriebe' },
+    { to: '/preise', label: 'Preise' },
   ],
   customer: [
     { to: '/my-bookings', label: 'Meine Termine' },
@@ -36,6 +37,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     { to: '/staff-management', label: 'Team' },
     { to: '/service-management', label: 'Leistungen' },
     { to: '/shop-profile', label: 'Mein Laden' },
+    { to: '/tarif', label: 'Tarif' },
   ],
   employee: [
     { to: '/employee-dashboard', label: 'Mein Tag' },
@@ -72,7 +74,7 @@ export function Navigation() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+    <header className="sticky top-0 z-40 border-b border-border print:hidden bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
