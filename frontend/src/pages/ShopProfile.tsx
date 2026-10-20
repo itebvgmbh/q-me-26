@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserGuardContext } from 'app';
 import { ShopLogo } from '../components/brand/ShopLogo';
-import { getShopByOwner, Shop } from '../utils/firestore';
 import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
+import { ShopSwitcher } from '../components/ShopSwitcher';
+import { useOwnedShops } from '../utils/hooks/useOwnedShops';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { getIndustryNameById } from '../utils/industries';
@@ -21,25 +22,26 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
   </div>
 );
 
-/** Mein Laden: so sehen Kunden den Laden, plus QR-Code zum Aufhängen */
+/** Mein Laden: so sehen Kunden den Laden, plus QR-Code zum Aufhängen; bei mehreren Läden mit Ladenauswahl */
 const ShopProfile = () => {
   const { user } = useUserGuardContext();
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { shops, shop, selectShop, replaceShop, failed } = useOwnedShops(user.uid);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  useEffect(() => {
-    getShopByOwner(user.uid)
-      .then((data) => setShop(data as Shop | null))
-      .catch((error) => console.error('Error loading shop:', error))
-      .finally(() => setLoading(false));
-  }, [user]);
-
-  if (loading) {
+  if (shops === null) {
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6" aria-busy="true" aria-label="Laden wird geladen">
         <div className="h-16 w-72 animate-pulse rounded-2xl bg-muted" />
         <div className="h-64 animate-pulse rounded-3xl bg-muted" />
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">Laden nicht geladen.</h1>
+        <p className="text-muted-foreground">Deine Läden konnten gerade nicht geladen werden. Bitte lade die Seite neu.</p>
       </div>
     );
   }
@@ -78,6 +80,8 @@ const ShopProfile = () => {
         </div>
       </div>
 
+      <ShopSwitcher shops={shops} shopId={shop.id} onChange={selectShop} />
+
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <section className="grid gap-6 rounded-3xl border border-border bg-card p-5 sm:grid-cols-2 sm:p-6" aria-label="Angaben zum Laden">
           <Block title="Adresse">{address || <span className="text-muted-foreground">Noch keine Adresse – ohne sie findet dich niemand auf der Karte.</span>}</Block>
@@ -113,7 +117,7 @@ const ShopProfile = () => {
           <EditShopForm
             shop={shop}
             onUpdate={(updatedShop) => {
-              setShop(updatedShop);
+              replaceShop(updatedShop);
               setShowEditDialog(false);
             }}
             onCancel={() => setShowEditDialog(false)}

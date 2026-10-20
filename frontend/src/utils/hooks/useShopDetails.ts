@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { doc, getDocFromServer } from 'firebase/firestore';
-import { getServicesByShopId, getStaffByShopId, Service, Shop, Staff } from '../firestore';
+import { getServicesByShopId, getStaffByShopId, offeredServices, Service, Shop, Staff } from '../firestore';
 import { firestore as db } from '../firestore-client';
 import { isConnectionError, retryWithSimpleConnection } from '../connection';
 
@@ -43,7 +43,7 @@ export const useShopDetails = (shopId: string | null) => {
 
         // Load services data
         const servicesData = await getServicesByShopId(shopId);
-        setServices(servicesData);
+        setServices(offeredServices(servicesData));
 
         // Load staff data - filter for active staff only
         const staffData = await getStaffByShopId(shopId);

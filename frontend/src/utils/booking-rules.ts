@@ -244,3 +244,32 @@ export const assertBookable = async (params: {
   const conflict = findConflict(ctx, params.start.getTime(), params.end.getTime());
   if (conflict) throw new SlotConflictError(conflict);
 };
+
+/** Höchste Vorlaufzeit für Online-Termine in Minuten (ein Tag) */
+export const MAX_ONLINE_LEAD_MINUTES = 24 * 60;
+
+/**
+ * Vorlaufzeit für Online-Termine in Minuten (Mein Laden → Bearbeiten): Online buchbar ist frühestens
+ * so weit ab jetzt. Gespeichert in shops.timeSlotBuffer als Millisekunden, ältere Einträge als Text.
+ * Gilt nur für die Kundenbuchung – Nummer ziehen und Termine vom Tresen oder aus "Mein Tag" gehen sofort.
+ */
+export const onlineLeadMinutes = (shop: { timeSlotBuffer?: unknown } | null | undefined): number => {
+  const ms = Number(shop?.timeSlotBuffer ?? 0);
+  return Number.isFinite(ms) && ms > 0 ? Math.min(MAX_ONLINE_LEAD_MINUTES, Math.round(ms / 60000)) : 0;
+};
+
+/** Frühester Beginn eines Online-Termins als Zeitstempel (ms) */
+export const earliestOnlineStart = (shop: { timeSlotBuffer?: unknown } | null | undefined, now = Date.now()): number =>
+  now + onlineLeadMinutes(shop) * 60000;
+
+const leadText = (minutes: number) =>
+  minutes % 60 === 0 ? (minutes === 60 ? 'eine Stunde' : `${minutes / 60} Stunden`) : `${minutes} Minuten`;
+
+/** Wirft SlotConflictError, wenn ein Online-Termin zu kurzfristig ist (vor dem Speichern der Kundenbuchung) */
+export const assertOnlineLead = async (shopId: string, start: Date): Promise<void> => {
+  const shop = await loadShopData(shopId);
+  const minutes = onlineLeadMinutes(shop);
+  if (minutes > 0 && start.getTime() < earliestOnlineStart(shop)) {
+    throw new SlotConflictError(`Online geht es hier frühestens ${leadText(minutes)} im Voraus.`);
+  }
+};

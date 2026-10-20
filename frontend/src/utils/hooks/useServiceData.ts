@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Service, getServicesByShopId } from '../firestore';
+import { Service, getServicesByShopId, offeredServices } from '../firestore';
 
 /**
  * Custom hook for fetching and managing service data
@@ -25,16 +25,17 @@ export const useServiceData = (shopId: string, serviceIdFromURL: string | null) 
       try {
         const servicesData = await getServicesByShopId(shopId);
         if (!active) return;
-        setServices(servicesData);
+        const offered = offeredServices(servicesData);
+        setServices(offered);
         
-        // If a service is provided in URL, pre-select it
+        // If a service is provided in URL, pre-select it (gelöschte Leistungen nicht)
         if (serviceIdFromURL) {
-          const serviceExists = servicesData.some(service => service.id === serviceIdFromURL);
+          const serviceExists = offered.some(service => service.id === serviceIdFromURL);
           if (serviceExists) {
             setSelectedService(serviceIdFromURL);
           } else {
             console.error('Service from URL not found:', serviceIdFromURL);
-            toast.error('Der gewünschte Service wurde nicht gefunden');
+            toast.error('Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.');
           }
         } else {
           // Reset selected service when services are loaded without a preselection

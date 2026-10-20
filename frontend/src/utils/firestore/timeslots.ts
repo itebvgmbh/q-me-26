@@ -1,7 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { firestore as db } from '../firestore-client';
 import { TimeSlot } from '../types';
-import { buildDayContext, findConflict, loadShopData, loadStaffDayContext, loadStaffRange, StaffDayContext } from '../booking-rules';
+import { buildDayContext, earliestOnlineStart, findConflict, loadShopData, loadStaffRange, StaffDayContext } from '../booking-rules';
 
 // Raster der angebotenen Startzeiten – gleich wie im Backend
 const SLOT_INTERVAL_MINUTES = 15;
@@ -30,8 +30,10 @@ const slotsForDay = (ctx: StaffDayContext, day: Date, totalMinutes: number): Tim
 };
 
 /**
- * Freie Zeiten einer Person an einem Tag, direkt aus Firestore.
+ * Freie Zeiten einer Person an einem Tag für die Online-Buchung, direkt aus Firestore.
  * Nutzt dieselbe Regel wie das Speichern (booking-rules): Öffnungszeiten, Arbeitszeiten, Pausen, Termine.
+ * Dazu die Vorlaufzeit des Ladens für Online-Termine (onlineLeadMinutes) – Nummer ziehen und Tresen nutzen
+ * findEarliestSlots und gehen ohne Vorlauf.
  */
 export const getAvailableTimeslotsDirect = async (
   shopId: string,
@@ -44,8 +46,10 @@ export const getAvailableTimeslotsDirect = async (
     const [year, month, day] = date.split('-').map(Number);
     if (!year || !month || !day) return [];
     const dateObj = new Date(year, month - 1, day);
-    const [totalMinutes, ctx] = await Promise.all([loadServiceMinutes(serviceId), loadStaffDayContext(shopId, staffId, dateObj)]);
-    return slotsForDay(ctx, dateObj, totalMinutes);
+    const until = new Date(year, month - 1, day + 1);
+    const [totalMinutes, range] = await Promise.all([loadServiceMinutes(serviceId), loadStaffRange(shopId, staffId, dateObj, until)]);
+    const earliest = earliestOnlineStart(range.shop);
+    return slotsForDay(buildDayContext(range, dateObj), dateObj, totalMinutes).filter((slot) => slot.start.getTime() >= earliest);
   } catch (error) {
     console.error('Error directly fetching timeslots from Firestore:', error);
     return [];

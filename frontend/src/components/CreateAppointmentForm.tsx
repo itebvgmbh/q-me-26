@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Service, Staff, Customer, Appointment } from '../utils/firestore';
+import { Service, Staff, Customer, Appointment, appointmentCustomerId, offeredServices } from '../utils/firestore';
 import { findEarliestSlots } from '../utils/firestore/timeslots';
 
 interface CreateAppointmentFormProps {
@@ -50,7 +50,8 @@ export const CreateAppointmentForm = ({
   createAppointment,
 }: CreateAppointmentFormProps) => {
   const active = useMemo(() => staff.filter((s) => s.isActive !== false), [staff]);
-  const [serviceId, setServiceId] = useState(services.length === 1 ? services[0].id : '');
+  const offered = useMemo(() => offeredServices(services), [services]);
+  const [serviceId, setServiceId] = useState(offered.length === 1 ? offered[0].id : '');
   const [staffId, setStaffId] = useState<string>('any');
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -163,8 +164,9 @@ export const CreateAppointmentForm = ({
   };
 
   const customerOptions = useMemo(() => {
+    // Wert = customerId des Termins: bei verbundenem Konto das Konto (utils/firestore/customers.ts)
     const seen = new Map<string, Customer>();
-    customers.forEach((c) => !seen.has(c.id) && seen.set(c.id, c));
+    customers.forEach((c) => !seen.has(appointmentCustomerId(c)) && seen.set(appointmentCustomerId(c), c));
     return [...seen.values()];
   }, [customers]);
 
@@ -195,7 +197,7 @@ export const CreateAppointmentForm = ({
             <SelectValue placeholder="Leistung wählen" />
           </SelectTrigger>
           <SelectContent>
-            {services.map((s) => (
+            {offered.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name} · {s.duration} Min.
               </SelectItem>
@@ -256,7 +258,7 @@ export const CreateAppointmentForm = ({
                 value={customerId}
                 onValueChange={(value) => {
                   setCustomerId(value);
-                  const c = customerOptions.find((x) => x.id === value);
+                  const c = customerOptions.find((x) => appointmentCustomerId(x) === value);
                   if (c && !customerName.trim()) setCustomerName(c.name);
                 }}
               >
@@ -265,7 +267,7 @@ export const CreateAppointmentForm = ({
                 </SelectTrigger>
                 <SelectContent>
                   {customerOptions.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={appointmentCustomerId(c)}>
                       {c.name} {c.email ? `(${c.email})` : ''}
                     </SelectItem>
                   ))}

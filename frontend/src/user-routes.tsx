@@ -15,6 +15,7 @@ const RedirectKeepQuery = ({ to }: { to: string }) => {
 
 
 const App = lazy(() => import("./pages/App.tsx"));
+const Activate = lazy(() => import("./pages/Activate.tsx"));
 const Agb = lazy(() => import("./pages/Agb.tsx"));
 const Auswertung = lazy(() => import("./pages/Auswertung.tsx"));
 const Preise = lazy(() => import("./pages/Preise.tsx"));
@@ -52,6 +53,8 @@ const StadtWeiterleitung = lazy(() => import("./pages/StadtWeiterleitung.tsx"));
 export const userRoutes: RouteObject[] = [
 
 	{ path: "/", element: <App />},
+	// Kunden-Link aus "Mein Tag" → Kunde anlegen
+	{ path: "/activate", element: <Activate />},
 	{ path: "/book-appointment", element: <BookAppointment />},
 	{ path: "/bookappointment", element: <BookAppointment />},
 	{ path: "/code-health", element: <UserGuard><CodeHealth /></UserGuard>},

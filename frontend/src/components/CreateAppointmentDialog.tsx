@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers } from '../utils/firestore';
+import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers, appointmentCustomerId, offeredServices } from '../utils/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -84,11 +84,12 @@ export const CreateAppointmentDialog = ({
           email: customerEmail,
           phone: customerPhone,
         });
-        customerId = newCustomer.id;
+        customerId = appointmentCustomerId(newCustomer);
         finalCustomerName = newCustomer.name;
       } else {
         const customer = customers.find(c => c.id === selectedCustomerId);
         if (!customer) throw new Error('Selected customer not found');
+        customerId = appointmentCustomerId(customer);
         finalCustomerName = customer.name;
       }
 
@@ -255,7 +256,7 @@ export const CreateAppointmentDialog = ({
                   <SelectValue placeholder="Leistung wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {services.map((service) => (
+                  {offeredServices(services).map((service) => (
                     <SelectItem key={service.id} value={service.id}>
                       {service.name} ({service.duration} Min.)
                     </SelectItem>

@@ -8,7 +8,7 @@ const INCLUDES: Record<PlanId, string[]> = {
   gratis: ['1 Person', 'bis 100 Kunden im Monat', 'Nummer ziehen per QR-Code', 'Tresen-Ansicht', 'Eintrag auf Karte und Shop-Suche'],
   solo: ['1 Person, unbegrenzt Kunden', 'Online-Termine und Schlange in einem Tag', 'Früher dran', '„Gleich dran“-Nachricht per Push oder E-Mail', 'Termin-Erinnerungen'],
   laden: ['bis 4 Personen', 'alles aus Solo', 'Team mit „Mein Tag“', 'Wartezimmer-Bildschirm', 'Auswertung: Wartezeit, Kunden pro Tag'],
-  team: ['bis 10 Personen', 'alles aus Laden', 'mehrere Tresen gleichzeitig', 'bevorzugter Support'],
+  team: ['bis 10 Personen', 'alles aus Laden', 'bevorzugter Support'],
 };
 
 const NOTES: Record<PlanId, string> = {

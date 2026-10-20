@@ -49,6 +49,18 @@ const fixture = () => {
   return JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 };
 
+/** Im Browser mit E-Mail und Passwort anmelden (Firebase der App, ohne Formular) */
+const signIn = async (page, account) => {
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2500);
+  await page.evaluate(async (account) => {
+    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
+    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
+    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    await signInWithEmailAndPassword(firebaseAuth, account.email, account.pw);
+  }, account);
+};
+
 /** Ergebnisliste ausgeben; Rückgabe true, wenn alles passt */
 const report = (rows) => {
   let ok = true;
@@ -69,4 +81,4 @@ const run = (fn) =>
       process.exit(1);
     });
 
-module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, report, run };
+module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, signIn, report, run };

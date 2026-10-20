@@ -11,6 +11,7 @@ import { INDUSTRIES } from '../utils/industries';
 import { Loader2, Upload, X } from 'lucide-react';
 import { OpeningHoursEditor } from './OpeningHoursEditor';
 import { defaultHours, hoursFromLegacy, hoursProblem, normalizeHours } from '../utils/opening-hours';
+import { MAX_ONLINE_LEAD_MINUTES, onlineLeadMinutes } from '../utils/booking-rules';
 
 interface Props {
   shop: ShopProfileType;
@@ -33,7 +34,8 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     businessHoursByDay: shop?.businessHoursByDay || [],
     industry: shop?.industry || '',
     logoUrl: shop?.logoUrl || '',
-    timeSlotBuffer: shop?.timeSlotBuffer ?? 60000 // Standard: 1 Minute (60000 ms)
+    // Vorlaufzeit für Online-Termine in ms (utils/booking-rules.ts); ältere Läden haben sie als Text
+    timeSlotBuffer: onlineLeadMinutes(shop) * 60000
   }));
   
   const [isUploading, setIsUploading] = useState(false);
@@ -357,24 +359,26 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="timeSlotBuffer">Zeitpuffer für Termine (in Minuten)</Label>
+        <Label htmlFor="timeSlotBuffer">Vorlaufzeit für Online-Termine (Minuten)</Label>
         <Input
           id="timeSlotBuffer"
           type="number"
-          min="1"
-          max="120"
-          value={String(Math.round((formData.timeSlotBuffer as number) / 60000))}
+          inputMode="numeric"
+          min="0"
+          max={MAX_ONLINE_LEAD_MINUTES}
+          step="5"
+          className="w-32"
+          value={String(Math.round(Number(formData.timeSlotBuffer || 0) / 60000))}
           onChange={(e) => {
-            // Umrechnung von Minuten in Millisekunden
-            const minutes = parseInt(e.target.value) || 1;
-            const milliseconds = Math.max(1, Math.min(120, minutes)) * 60000;
-            handleInputChange('timeSlotBuffer', String(milliseconds));
+            // In Minuten eingeben, in Millisekunden speichern (als Zahl, nicht als Text)
+            const minutes = Math.max(0, Math.min(MAX_ONLINE_LEAD_MINUTES, parseInt(e.target.value, 10) || 0));
+            setFormData((prev) => ({ ...prev, timeSlotBuffer: minutes * 60000 }));
           }}
+          aria-describedby="timeSlotBuffer-hint"
         />
-        <p className="text-sm text-muted-foreground mt-1">
-          Definiert den minimalen Zeitabstand zwischen jetzt und dem frühestmöglichen Buchungszeitpunkt.
-          Verhindert, dass Kunden Termine für die unmittelbare Zukunft buchen können.
-          Empfohlen: 30-60 Minuten.
+        <p id="timeSlotBuffer-hint" className="text-sm text-muted-foreground mt-1">
+          So weit im Voraus muss online gebucht werden. Bei 30 ist um 10:00 online frühestens 10:30 frei.
+          Nummer ziehen und Termine, die du selbst einträgst, gehen immer sofort. 0 = keine Vorlaufzeit.
         </p>
       </div>
 
