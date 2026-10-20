@@ -3,6 +3,7 @@
 //  2. Platz wird kurz vor dem Bestätigen weggeschnappt → Nummer bekommt gleich den nächsten Platz,
 //     die Nummernseite sagt „verschoben“ (kein zweites Bestätigen)
 //  3. Seite stand offen, Platz liegt inzwischen in der Vergangenheit → Hinweis und neuer Platz
+//  4. Letzter Platz des Tages weggeschnappt → kein Umbuchen auf morgen, Hinweis und neues Angebot
 // Braucht: Entwicklungsserver und Testdaten.
 const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, shot } = require('./lib.cjs');
 
@@ -77,6 +78,28 @@ run(async () => {
     rows.push({ name: 'Vorbei: Hinweis', pass: /schon vorbei/.test(hint), detail: hint });
     rows.push({ name: 'Vorbei: neuer Platz 09:15', pass: /09:00/.test(before) && /09:15/.test(await box(page)), detail: `${before} → ${await box(page)}` });
     rows.push({ name: 'Keine JavaScript-Fehler (2)', pass: errors.length === 0, detail: errors.join(' | ') });
+    await page.context().close();
+  }
+
+  // 4: letzter Platz des Tages weggeschnappt → nicht von selbst auf morgen, der Kunde entscheidet
+  {
+    const { page, errors } = await open(`${mo}T16:10:00`);
+    await page.getByRole('button', { name: /^Robin/ }).click();
+    await page.locator('#queue-name').fill('Test Sonderfall');
+    const before = await box(page);
+    const blockerId = await page.evaluate(async (fx) => {
+      const appts = await import('/src/utils/firestore/appointments.ts');
+      const [y, m, d] = fx.monday.split('-').map(Number);
+      const a = await appts.createAppointment({ shopId: fx.shopId, staffId: fx.staffId, serviceId: fx.serviceId, customerName: 'war schneller', status: 'scheduled', type: 'queue', isAnonymous: true, startTime: new Date(y, m - 1, d, 16, 15), endTime: new Date(y, m - 1, d, 16, 45) });
+      return a.id;
+    }, fx);
+    await page.getByRole('button', { name: 'Nummer ziehen' }).click();
+    await waitFor(page, '09:00');
+    const hint = await toast(page);
+    rows.push({ name: 'Tag voll: Hinweis statt morgen', pass: /gerade weggegangen/.test(hint) && !/\/nummer\//.test(page.url()), detail: hint });
+    rows.push({ name: 'Tag voll: neues Angebot morgen 09:00', pass: /16:15/.test(before) && /09:00/.test(await box(page)), detail: `${before} → ${await box(page)}` });
+    await page.evaluate(async (id) => (await import('/src/utils/firestore/appointments.ts')).updateAppointment(id, { status: 'cancelled' }), blockerId);
+    rows.push({ name: 'Keine JavaScript-Fehler (3)', pass: errors.length === 0, detail: errors.join(' | ') });
     await page.context().close();
   }
   await browser.close();
