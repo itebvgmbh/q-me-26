@@ -46,7 +46,7 @@ Gratis und Solo sind für eine Person, Laden für bis zu 4 und Team für bis zu 
 
 ### Was ist mit Datenschutz?
 
-Deine Kunden geben nur ihren Vornamen an, Handynummer und E-Mail-Adresse sind freiwillig. Bei Nummern ohne Konto entfernen wir Namen und Kontaktdaten 90 Tage nach dem Termin. Die Vereinbarung zur Auftragsverarbeitung steht in Abschnitt 7 der [AGB](/agb). Mehr: [Datenschutz: welche Daten Dranzeit speichert](/hilfe/datenschutz)
+Deine Kunden geben nur ihren Vornamen an, Handynummer und E-Mail-Adresse sind freiwillig. Bei Nummern und Terminen ohne Konto entfernen wir Namen und Kontaktdaten 90 Tage nach dem Termin. Kunden, die du selbst anlegst, löschen wir, wenn 12 Monate kein Termin mit ihnen war, oder du löschst sie vorher unter „Mein Tag“ → **„Kundenliste“**. Die Vereinbarung zur Auftragsverarbeitung steht in Abschnitt 7 der [AGB](/agb). Mehr: [Datenschutz: welche Daten Dranzeit speichert](/hilfe/datenschutz)
 
 ### Wie finden mich neue Kunden?
 

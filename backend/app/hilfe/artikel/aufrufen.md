@@ -17,6 +17,8 @@ Am Tresen hat jede Person aus deinem Team eine eigene Spalte. Ein Knopf darin ru
 
 Wer ohne Konto per QR-Code eine Nummer gezogen hat, steht mit Vorname und Nummer da, zum Beispiel „Lena · Nr. 42“.
 
+Hat der Kunde beim Nummer-Ziehen oder in seinem Profil eine Handynummer angegeben, steht sie darunter. Tipp darauf, um ihn anzurufen, etwa wenn er nach dem Aufrufen nicht da ist. Nach 90 Tagen löscht Dranzeit die Nummer.
+
 ## Aufrufen
 
 1. Tipp in der Spalte auf **„Nächste Nummer aufrufen“**. Der oberste Kunde aus „Als Nächstes“ wandert nach „Jetzt dran“.
