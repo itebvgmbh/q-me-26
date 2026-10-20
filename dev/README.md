@@ -101,7 +101,7 @@ Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) 
 Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
-`uv run python tests/test_customer_activation.py` (Kunden-Link /activate),
+`uv run python tests/test_customer_activation.py` (Kunden-Link /activate, Kunden-Eintrag beim Buchen mit Konto),
 `uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration),
 `uv run python tests/test_frueher_dran.py` (Schalter „Früher dran“ unter Meine Termine) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
