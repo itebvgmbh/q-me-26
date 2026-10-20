@@ -56,6 +56,30 @@ node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung sta
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
 ```
 
+## Lasttest (gegen die Live-Seite)
+
+Eigener Laden „Lasttest (wird gleich gelöscht)“ mit 7 Konten, 4 Personen, 56 Terminen morgen und einem
+Verlauf alter Termine – getrennt vom Testladen oben, damit parallel laufende Tests sich nicht stören.
+Braucht keinen Entwicklungsserver, läuft gegen `QME_URL` (Standard: dranzeit.de, solange das nicht
+auflöst q-me.spielmacherei.de).
+
+```powershell
+node dev/e2e/lasttest.cjs alles               # anlegen, alle Szenarien, löschen (ca. 3 Minuten)
+node dev/e2e/lasttest.cjs anlegen 200         # oder einzeln: anlegen (Zahl = alte Termine bei Alex)
+node dev/e2e/lasttest.cjs lauf kaskade        # nur bestimmte Szenarien
+node dev/e2e/lasttest.cjs zeigen              # Tagesplan von morgen je Person
+node dev/e2e/lasttest.cjs loeschen
+```
+
+Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen gleichzeitig eine Nummer,
+`QME_ANSTURM` ändert die Zahl), `kaskade` („Früher dran“ nach 4 Absagen, alle nehmen sofort an),
+`wettlauf` (Annahme und Tresen gleichzeitig, `QME_WETTLAUF=0,25,50` setzt die Verzögerungen des Tresens),
+`absage` (Angebot nach Absage angenommen), `flut` (25× „Platz frei“), `ruhe` (nur Puls, `QME_RUHE` Sekunden).
+Ein Puls misst dabei alle 250 ms die Antwortzeit des Servers. Ergebnisse auch in `dev/out/lasttest-*.json`.
+Der Puls misst von diesem Rechner aus, also mit Leitung und DNS: Regelmäßige Ausreißer um 1,2 s kamen im Test
+von hier, nicht vom Server. Was der Server selbst gebraucht hat, steht im Caddy-Log (`/var/log/caddy/q-me.log`, Feld `duration`).
+Ein Lauf liest grob 15 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag).
+
 Jeder Test meldet je Prüfung `OK` oder `FEHL` und endet bei Fehlern mit Exit-Code 1.
 Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im Testladen:
 `python dev/fixtures.py loeschen`, dann wieder `anlegen`.
