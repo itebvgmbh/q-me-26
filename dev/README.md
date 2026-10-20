@@ -66,7 +66,7 @@ Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im 
 | `QME_URL` | `http://localhost:5173` | Adresse der App. Für echte Ladezeiten den Build messen: `npm run build`, `npm run preview`, dann `http://localhost:4173` |
 | `QME_SHOP_ID` | ITEBV GmbH | Laden für Durchläufe, Seiten, Ladezeit, WLAN |
 | `QME_BROWSER_ARGS` | leer | Zusätzliche Chromium-Argumente, z. B. hinter einem Firmen-Proxy |
-| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://q-me.spielmacherei.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
+| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://dranzeit.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
 
 Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) und brauchen deshalb den
 Entwicklungsserver, nicht den Build.

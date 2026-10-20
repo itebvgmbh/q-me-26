@@ -13,7 +13,7 @@ Der Nutzer führt Befehle in PowerShell auf Windows aus (meist Windows PowerShel
 - Befehle für den Server in einfache Anführungszeichen, darin keine doppelten (PowerShell 5.1 verstümmelt sie bei `ssh.exe`). Daten mit doppelten Anführungszeichen (JSON) per Pipe an `ssh` übergeben.
 - Vor der Ausgabe testen, z. B. mit PowerShell 7 für Linux und Attrappen für `ssh`/`scp`/`Read-Host`.
 
-Server: `root@195.201.26.108`, Code in `/opt/q-me`, Einzelheiten in `deploy/README.md`.
+Server: `root@195.201.26.108`, Code in `/opt/q-me`, Einzelheiten in `deploy/README.md`. Adresse: https://dranzeit.de (q-me.spielmacherei.de, www.dranzeit.de und dranzeit.com leiten dorthin weiter).
 
 ## Testen
 

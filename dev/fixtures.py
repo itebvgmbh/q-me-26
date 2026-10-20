@@ -27,7 +27,7 @@ from pathlib import Path
 KEY = 'AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE'  # öffentlicher Web-Schlüssel, steht auch in der App
 FS = 'https://firestore.googleapis.com/v1/projects/qmedata-7c79e/databases/(default)/documents'
 AUTH = 'https://identitytoolkit.googleapis.com/v1/accounts'
-REFERER = 'https://q-me.spielmacherei.de/'
+REFERER = 'https://dranzeit.de/'
 FILE = Path(__file__).resolve().parent / '.local' / 'fixture.json'
 
 try:

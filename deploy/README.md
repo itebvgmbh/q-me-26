@@ -231,8 +231,8 @@ gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. 
   if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
   $schluessel = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_SECRET_KEY= /etc/q-me.env' 2>&1 | Out-String
   if ($schluessel -notmatch '^\s*1') { Write-Host 'Abbruch: STRIPE_SECRET_KEY fehlt. Erst den Block "Schluessel eintragen" ausfuehren (Option 5).' -ForegroundColor Red; return }
-  $adresse = Read-Host 'Adresse der App (Enter = https://q-me.spielmacherei.de)'
-  if (-not $adresse) { $adresse = 'https://q-me.spielmacherei.de' }
+  $adresse = Read-Host 'Adresse der App (Enter = https://dranzeit.de)'
+  if (-not $adresse) { $adresse = 'https://dranzeit.de' }
   $adresse = $adresse.Trim().Trim('"').TrimEnd('/')
   if ($adresse -notmatch '^https://[a-z0-9.-]+$') { Write-Host 'Abbruch: Bitte eine Adresse wie https://dranzeit.de eingeben.' -ForegroundColor Red; return }
   Write-Host "Stripe fuer $adresse einrichten ..." -ForegroundColor Cyan
@@ -354,7 +354,7 @@ fest für den Server ein und schaut zuletzt in WSL nach:
 ```bash
 systemctl status q-me                  # Läuft der Dienst?
 journalctl -u q-me -n 50               # Letzte Meldungen
-curl -s https://q-me.spielmacherei.de/routes/scheduler-status
+curl -s https://dranzeit.de/routes/scheduler-status
 # → {"detail":"Not authenticated"}: Caddy und Backend sind verbunden
 ```
 

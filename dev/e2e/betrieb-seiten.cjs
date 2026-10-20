@@ -6,7 +6,7 @@
 //  - "Nummer vergeben": nur Leistung/Person/Name, zeigt den nächsten Platz, legt die Nummer an
 //  - keine englischen Beschriftungen, keine JavaScript-Fehler, kein waagrechtes Überlaufen
 //  - "Früher dran": Steuerung nur für den Betreiber; Verlauf nur eigene Läden (Backend)
-// Braucht: Entwicklungsserver (für das echte Backend: QME_BACKEND=https://q-me.spielmacherei.de) und Testdaten.
+// Braucht: Entwicklungsserver (für das echte Backend: QME_BACKEND=https://dranzeit.de) und Testdaten.
 // Schreibt nur im Testladen (eine Nummer); python dev/fixtures.py loeschen räumt sie weg.
 const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
 

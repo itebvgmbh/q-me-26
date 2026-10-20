@@ -2,7 +2,7 @@
 //  - Produkt, Preis, übernommene Testphase, Knopf "Kostenpflichtig abonnieren"
 //  - Steuer und SEPA zeigen, ob die Einstellungen im Stripe-Dashboard stimmen
 // Bezahlt wird hier nicht: Stripe Checkout hat einen Bot-Schutz; den Testkauf mit 4242 4242 4242 4242 von Hand machen.
-// Braucht: Entwicklungsserver mit echtem Backend (QME_BACKEND=https://q-me.spielmacherei.de, auf dem Server
+// Braucht: Entwicklungsserver mit echtem Backend (QME_BACKEND=https://dranzeit.de, auf dem Server
 // ein Stripe-TESTschlüssel) und Testdaten (python dev/fixtures.py anlegen). Im Stripe-Testkonto bleibt ein
 // Testkunde zurück; python dev/fixtures.py loeschen entfernt den Testladen.
 const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');

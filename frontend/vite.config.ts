@@ -99,7 +99,7 @@ export default defineConfig({
 	plugins: [react(), splitVendorChunkPlugin(), tsConfigPaths(), injectHTML()],
 	server: {
 		proxy: {
-			// QME_BACKEND=https://q-me.spielmacherei.de: lokales Frontend gegen das Backend auf dem Server testen
+			// QME_BACKEND=https://dranzeit.de: lokales Frontend gegen das Backend auf dem Server testen
 			"/routes": {
 				target: process.env.QME_BACKEND || "http://127.0.0.1:8000",
 				changeOrigin: true,
