@@ -115,6 +115,11 @@ def check_dns(names: list[str]) -> list[str]:
     return problems
 
 
+def write_keeping_permissions(path: str, text: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 def env_value(name: str) -> str:
     with open(ENV_FILE, encoding="utf-8") as f:
         for line in f:
@@ -153,10 +158,13 @@ def main() -> None:
 
     backup = f"{CADDYFILE}.bak-{dt.datetime.now():%Y%m%d-%H%M%S}"
     shutil.copy2(CADDYFILE, backup)
-    shutil.copy(tmp.name, CADDYFILE)
+    # In die bestehende Datei schreiben: Besitzer und Rechte bleiben (Caddy läuft als eigener Benutzer;
+    # eine kopierte Temp-Datei hätte nur root-Leserechte)
+    write_keeping_permissions(CADDYFILE, new)
     reload = subprocess.run(["systemctl", "reload", "caddy"], capture_output=True, text=True)
     if reload.returncode != 0:
-        shutil.copy2(backup, CADDYFILE)
+        with open(backup, encoding="utf-8") as f:
+            write_keeping_permissions(CADDYFILE, f.read())
         subprocess.run(["systemctl", "reload", "caddy"])
         sys.exit("Abbruch: Caddy hat die neue Datei nicht geladen, alte wiederhergestellt.\n" + reload.stderr[-2000:])
     print(f"Caddy: {domain} aktiv" + (f", Weiterleitung von {', '.join(redirects)}" if redirects else "") + f". Sicherung: {backup}")

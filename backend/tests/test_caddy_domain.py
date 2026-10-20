@@ -60,6 +60,24 @@ def test_block_leitet_stadtseiten_ans_backend():
     assert b.count("{") == b.count("}")
 
 
+
+def test_schreiben_behaelt_rechte_der_datei():
+    import stat
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "Caddyfile")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("alt
+")
+        os.chmod(path, 0o644)
+        before = stat.S_IMODE(os.stat(path).st_mode)
+        cd.write_keeping_permissions(path, "neu
+")
+        assert stat.S_IMODE(os.stat(path).st_mode) == before
+        assert open(path, encoding="utf-8").read() == "neu
+"
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:
