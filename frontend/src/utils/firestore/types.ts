@@ -43,6 +43,8 @@ export interface Shop {
     interval?: 'monat' | 'jahr';
     currentPeriodEnd?: Timestamp;
     cancelAtPeriodEnd?: boolean;
+    /** Stripe-Kunde; gibt es, sobald einmal ein Abo begonnen wurde (dann auch Rechnungen) */
+    customerId?: string;
   };
   /** Merker der Startklar-Liste am Tresen (components/onboarding/Startklar.tsx) */
   onboarding?: { testlaufAt?: Timestamp; plakatAt?: Timestamp; dismissedAt?: Timestamp };

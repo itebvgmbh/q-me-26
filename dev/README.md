@@ -38,6 +38,7 @@ node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken
 node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperren im Gratis-Tarif
 node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung, QR-Plakat, Tagesnummern
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
+node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
@@ -55,6 +56,30 @@ node dev/e2e/ladezeit.cjs handy             # Ladezeit im langsamen Handynetz
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
 ```
+
+## Lasttest (gegen die Live-Seite)
+
+Eigener Laden „Lasttest (wird gleich gelöscht)“ mit 7 Konten, 4 Personen, 56 Terminen morgen und einem
+Verlauf alter Termine – getrennt vom Testladen oben, damit parallel laufende Tests sich nicht stören.
+Braucht keinen Entwicklungsserver, läuft gegen `QME_URL` (Standard: dranzeit.de, solange das nicht
+auflöst q-me.spielmacherei.de).
+
+```powershell
+node dev/e2e/lasttest.cjs alles               # anlegen, alle Szenarien, löschen (ca. 3 Minuten)
+node dev/e2e/lasttest.cjs anlegen 200         # oder einzeln: anlegen (Zahl = alte Termine bei Alex)
+node dev/e2e/lasttest.cjs lauf kaskade        # nur bestimmte Szenarien
+node dev/e2e/lasttest.cjs zeigen              # Tagesplan von morgen je Person
+node dev/e2e/lasttest.cjs loeschen
+```
+
+Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen gleichzeitig eine Nummer,
+`QME_ANSTURM` ändert die Zahl), `kaskade` („Früher dran“ nach 4 Absagen, alle nehmen sofort an),
+`wettlauf` (Annahme und Tresen gleichzeitig, `QME_WETTLAUF=0,25,50` setzt die Verzögerungen des Tresens),
+`absage` (Angebot nach Absage angenommen), `flut` (25× „Platz frei“), `ruhe` (nur Puls, `QME_RUHE` Sekunden).
+Ein Puls misst dabei alle 250 ms die Antwortzeit des Servers. Ergebnisse auch in `dev/out/lasttest-*.json`.
+Der Puls misst von diesem Rechner aus, also mit Leitung und DNS: Regelmäßige Ausreißer um 1,2 s kamen im Test
+von hier, nicht vom Server. Was der Server selbst gebraucht hat, steht im Caddy-Log (`/var/log/caddy/q-me.log`, Feld `duration`).
+Ein Lauf liest grob 15 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag).
 
 Jeder Test meldet je Prüfung `OK` oder `FEHL` und endet bei Fehlern mit Exit-Code 1.
 Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im Testladen:
@@ -74,7 +99,12 @@ Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py` und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
-`uv run python tests/test_access.py` (wer ist Betreiber der App)
+`uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
+(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber)
+
+E-Rechnungen gegen die offiziellen Prüfregeln (XML-Schema, EN 16931, XRechnung der KoSIT), ohne Java:
+`cd backend; uv pip install --python .venv saxonche`, dann `uv run python ../dev/e-rechnung-pruefen.py`
+(prüft die Beispiele aus `tests/test_invoices.py`; mit Dateinamen eine eigene, z. B. unter „Mein Tarif“ geladene XRechnung).
 
 ## PowerShell-Blöcke testen
 

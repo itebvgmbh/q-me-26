@@ -6,6 +6,7 @@ import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
+import { InvoiceList } from '../components/pricing/InvoiceList';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { HilfeLink } from '../components/HilfeLink';
 import { firestore } from '../utils/firestore-client';
@@ -15,7 +16,7 @@ import { claimFounder, getFoundersLeft, openPortal, startCheckout, type Interval
 import { countCustomersThisMonth } from '../utils/plan-usage';
 import { effectivePlan, type PlanId } from '../utils/plans';
 
-/** Mein Tarif: Stand, Verbrauch, Abo abschließen oder verwalten, Gründerangebot */
+/** Mein Tarif: Stand, Verbrauch, Rechnungen, Abo abschließen oder verwalten, Gründerangebot */
 export default function Tarif() {
   const { user } = useCurrentUser();
   const [params] = useSearchParams();
@@ -128,7 +129,7 @@ export default function Tarif() {
           {hasAbo && (
             <div>
               <Button variant="signal" onClick={() => run('portal', () => openPortal(shop.id))} disabled={busy !== ''}>
-                {busy === 'portal' ? 'Wird geöffnet …' : 'Abo verwalten, Rechnungen, kündigen'}
+                {busy === 'portal' ? 'Wird geöffnet …' : 'Abo verwalten, Zahlungsart, kündigen'}
               </Button>
             </div>
           )}
@@ -150,6 +151,10 @@ export default function Tarif() {
           </div>
         </dl>
       </section>
+
+      {billing?.customerId && (
+        <InvoiceList shopId={shop.id} refreshKey={`${billing.status ?? ''}-${billing.currentPeriodEnd?.seconds ?? ''}`} />
+      )}
 
       {!shop.founder && !hasAbo && foundersLeft !== null && foundersLeft > 0 && (
         <section className="flex flex-col gap-3 rounded-3xl bg-signal p-6 text-signal-foreground">
