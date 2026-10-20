@@ -53,6 +53,31 @@ def test_ohne_laden_gratis():
     assert effective_plan(None, NOW) == "gratis"
 
 
+def test_freischaltung_gilt_bis_zum_enddatum():
+    shop = {"trialEndsAt": NOW - timedelta(days=1), "grant": {"plan": "laden", "until": NOW + timedelta(days=10)}}
+    assert effective_plan(shop, NOW) == "laden"
+    assert effective_plan(shop, NOW + timedelta(days=11)) == "gratis"
+
+
+def test_freischaltung_ohne_enddatum_oder_mit_unbekanntem_tarif_gilt_nicht():
+    old = NOW - timedelta(days=1)
+    assert effective_plan({"trialEndsAt": old, "grant": {"plan": "laden"}}, NOW) == "gratis"
+    assert effective_plan({"trialEndsAt": old, "grant": {"plan": "gold", "until": NOW + timedelta(days=5)}}, NOW) == "gratis"
+
+
+def test_hoeherer_tarif_von_abo_und_freischaltung_gilt():
+    later = NOW + timedelta(days=30)
+    solo_abo = {"billing": {"plan": "solo", "status": "active"}}
+    assert effective_plan({**solo_abo, "grant": {"plan": "team", "until": later}}, NOW) == "team"
+    assert effective_plan({"billing": {"plan": "team", "status": "active"}, "grant": {"plan": "solo", "until": later}}, NOW) == "team"
+
+
+def test_in_der_testphase_bleibt_alles_offen():
+    shop = {"trialEndsAt": NOW + timedelta(days=3), "grant": {"plan": "solo", "until": NOW + timedelta(days=60)}}
+    assert effective_plan(shop, NOW) == "team"
+    assert effective_plan(shop, NOW + timedelta(days=4)) == "solo"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:

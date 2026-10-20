@@ -178,7 +178,7 @@ def run_once(db, base_url: str, now: datetime | None = None) -> int:
             first_shop[owner] = created
     sent = 0
     for doc, shop in docs:
-        if not shop.get("owner"):
+        if not shop.get("owner") or shop.get("suspended"):
             continue
         created = _aware(shop.get("createdAt"))
         recent = created is not None and now - created <= timedelta(days=REMINDER_UNTIL_DAYS)

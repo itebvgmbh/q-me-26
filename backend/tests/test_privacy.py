@@ -37,11 +37,17 @@ class Ref:
     def __init__(self, db, coll, doc_id):
         self.db, self.coll, self.id = db, coll, doc_id
 
-    def get(self):
+    def get(self, transaction=None):
         return Snap(self, self.db.data[self.coll].get(self.id))
 
     def update(self, values):
         self.db.data[self.coll][self.id].update(values)
+
+    def set(self, values, merge=False):
+        doc = self.db.data[self.coll].setdefault(self.id, {})
+        if not merge:
+            doc.clear()
+        doc.update(values)
 
     def delete(self):
         self.db.data[self.coll].pop(self.id, None)

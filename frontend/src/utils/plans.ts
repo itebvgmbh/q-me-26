@@ -41,6 +41,7 @@ export const FOUNDER_LADEN_YEARLY = 190;
 export const TARIFF_LAUNCH = new Date('2026-10-20T00:00:00+02:00');
 
 const ACTIVE_BILLING = ['active', 'trialing', 'past_due'];
+const PLAN_ORDER: PlanId[] = ['gratis', 'solo', 'laden', 'team'];
 
 export interface ShopBilling {
   plan?: PlanId;
@@ -50,21 +51,32 @@ export interface ShopBilling {
   cancelAtPeriodEnd?: boolean;
 }
 
+/** Freischaltung durch den Betreiber ohne Stripe (Betreiber-Bereich), gilt bis until */
+export interface ShopGrant {
+  plan?: PlanId;
+  until?: Timestamp;
+}
+
 export interface ShopPlanFields {
   plan?: PlanId;
   trialEndsAt?: Timestamp;
   founder?: boolean;
   billing?: ShopBilling;
+  grant?: ShopGrant | null;
+  /** Vom Betreiber gesperrt (Betreiber-Bereich) */
+  suspended?: { at?: Timestamp } | null;
   createdAt?: Timestamp;
 }
 
 export interface EffectivePlan {
   plan: PlanInfo;
-  source: 'abo' | 'test' | 'gratis';
+  source: 'abo' | 'test' | 'freischaltung' | 'gratis';
   trialEndsAt: Date | null;
   /** Tage Test übrig (aufgerundet), 0 außerhalb der Testphase */
   trialDaysLeft: number;
   founder: boolean;
+  /** Ende der Freischaltung, nur bei source 'freischaltung' */
+  grantUntil?: Date;
 }
 
 const addDays = (d: Date, days: number) => new Date(d.getTime() + days * 86_400_000);
@@ -76,11 +88,24 @@ export const trialEnd = (shop: ShopPlanFields): Date => {
   return addDays(from, TRIAL_DAYS);
 };
 
+/** Freigeschalteter Tarif, solange die Freischaltung läuft */
+export const activeGrant = (shop: ShopPlanFields, now: Date = new Date()): { plan: PlanId; until: Date } | null => {
+  const grant = shop.grant;
+  if (!grant?.plan || !PAID_PLANS.includes(grant.plan) || !grant.until) return null;
+  const until = safelyConvertToDate(grant.until);
+  return until > now ? { plan: grant.plan, until } : null;
+};
+
 export const effectivePlan = (shop: ShopPlanFields | null | undefined, now: Date = new Date()): EffectivePlan => {
   const founder = Boolean(shop?.founder);
   if (!shop) return { plan: PLANS.gratis, source: 'gratis', trialEndsAt: null, trialDaysLeft: 0, founder };
   const billing = shop.billing;
+  const grant = activeGrant(shop, now);
   if (billing?.plan && PAID_PLANS.includes(billing.plan) && ACTIVE_BILLING.includes(billing.status || '')) {
+    // Eine höhere Freischaltung geht dem Abo vor
+    if (grant && PLAN_ORDER.indexOf(grant.plan) > PLAN_ORDER.indexOf(billing.plan)) {
+      return { plan: PLANS[grant.plan], source: 'freischaltung', trialEndsAt: null, trialDaysLeft: 0, founder, grantUntil: grant.until };
+    }
     return { plan: PLANS[billing.plan], source: 'abo', trialEndsAt: null, trialDaysLeft: 0, founder };
   }
   const end = trialEnd(shop);
@@ -88,11 +113,17 @@ export const effectivePlan = (shop: ShopPlanFields | null | undefined, now: Date
     const days = Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
     return { plan: PLANS.team, source: 'test', trialEndsAt: end, trialDaysLeft: days, founder };
   }
+  if (grant) {
+    return { plan: PLANS[grant.plan], source: 'freischaltung', trialEndsAt: end, trialDaysLeft: 0, founder, grantUntil: grant.until };
+  }
   return { plan: PLANS.gratis, source: 'gratis', trialEndsAt: end, trialDaysLeft: 0, founder };
 };
 
+/** Vom Betreiber gesperrt: nicht buchbar, nicht auffindbar, keine Benachrichtigungen (wie backend/app/libs/plans.py) */
+export const isSuspended = (shop: ShopPlanFields | null | undefined) => Boolean(shop?.suspended);
+
 export const hasFeature = (shop: ShopPlanFields | null | undefined, feature: Feature, now: Date = new Date()) =>
-  effectivePlan(shop, now).plan.features.includes(feature);
+  !isSuspended(shop) && effectivePlan(shop, now).plan.features.includes(feature);
 
 /** Bruttopreis für die Anzeige (Kleinunternehmer können die Mehrwertsteuer nicht abziehen) */
 export const gross = (net: number) => Math.round(net * (1 + VAT_RATE) * 100) / 100;

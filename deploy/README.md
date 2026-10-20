@@ -419,6 +419,27 @@ QME_ADMIN_UIDS=…                               # alternativ die Firebase-UID
 
 Danach `systemctl restart q-me`. Ohne Eintrag kann niemand steuern; der Dienst startet trotzdem von selbst.
 
+### Betreiber-Bereich (/betreiber)
+
+Wer Betreiber ist, sieht im Konto-Menü (Handy: im Menü) den Punkt **Betreiber-Bereich**. Dort:
+
+- **Übersicht**: Läden, Testphasen, zahlende Läden, Monatsumsatz netto aus Abos, offene Zahlungen, Gründerplätze,
+  Konten. Testläden, Konten aus Testskripten und die eigenen (ITEBV GmbH, Betreiber) zählen nicht mit.
+- **Läden** und **Konten**: Liste mit Suche und Filtern; ein Klick öffnet Stand und Eingriffe.
+- **Betrieb**: was eingerichtet ist (Stripe Test/Live, Webhook, Resend, Hintergrunddienst) – nur ja/nein.
+- **Protokoll**: jeder Eingriff mit Grund, wer, wann, vorher/nachher.
+
+Eingriffe: Testphase setzen, Gründerplatz vergeben/entziehen, Tarif ohne Stripe bis zu einem Datum freischalten
+(Feld `grant`, Regel in `backend/app/libs/plans.py`), Abo mit Stripe abgleichen oder die Verknüpfung lösen (z. B.
+Sandbox-Kunden vor dem Live-Start), Laden sperren (nicht auffindbar, nichts buchbar, Inhaber und Team abgemeldet –
+Betreiber-Konten nie), Konto sperren, Anmelde-Adresse ändern, Passwort-Mail, Bestätigungs-Mail, Löschen wie
+`konten-aufraeumen.py` (Probelauf, Namen eintippen, Sicherung). Kündigen, Erstatten und Gutschriften gehen im
+Stripe-Dashboard; die Laden-Ansicht verlinkt den Kunden dort.
+
+Gründe, Protokoll und Sicherungen liegen **nicht** in Firestore (dort ist alles ohne Anmeldung lesbar), sondern im
+Datenordner des Dienstes: `/opt/q-me/backend/.local_data/betreiber/` (`protokoll.jsonl`, `sicherungen/`,
+`gesperrte-konten.json`, nur für den Dienst lesbar). Ein `git pull` bringt diese Dateien nicht mit und löscht sie nicht.
+
 ## Konten aufräumen
 
 `deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur

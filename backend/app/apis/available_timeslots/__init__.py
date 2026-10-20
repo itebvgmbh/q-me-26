@@ -326,6 +326,9 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
     try:
         day = request.date.date()
         inputs = load_timeslot_inputs(get_firestore_db(), request.shop_id, request.staff_id, [request.service_id], day, day)
+        if (inputs.shop or {}).get("suspended"):
+            print(f"Freie Zeiten {label}: Laden gesperrt")
+            return AvailableTimeslotsResponse(timeslots=[])
         available_slots = timeslots_for_day(inputs, request.service_id, request.date)
         execution_time = time_module.time() - perf_start_time
         if available_slots is None:

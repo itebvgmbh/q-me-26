@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { APP_BASE_PATH } from 'app';
 import { BrandMark } from '../components/brand/Logo';
+import { HILFE_MAIL } from '../components/HilfeLink';
 import { ShopLogo } from '../components/brand/ShopLogo';
 import { firestore } from '../utils/firestore-client';
 import { hasFeature } from '../utils/plans';
@@ -84,6 +85,9 @@ export default function Bildschirm() {
   if (shop === undefined) return <div className="min-h-screen bg-foreground" />;
   if (shop === null) {
     return <Message title="Diesen Laden gibt es nicht." text="Prüf den Link zum Bildschirm am Tresen." />;
+  }
+  if (shop.suspended) {
+    return <Message title="Dieser Laden ist gerade gesperrt." text={`Fragen beantworten wir unter ${HILFE_MAIL}.`} />;
   }
   if (!hasFeature(shop, 'bildschirm', now)) {
     return <Message title="Der Wartezimmer-Bildschirm gehört zum Tarif Laden." text="Unter „Tarif“ lässt er sich freischalten." />;

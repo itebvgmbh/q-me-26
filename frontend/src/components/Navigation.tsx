@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { CircleHelp, Menu, LogOut, UserRound } from 'lucide-react';
+import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { firebaseAuth } from 'app';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { cn } from '@/lib/utils';
 import { Logo } from './brand/Logo';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
+import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
 
 /** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link */
@@ -64,6 +65,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export function Navigation() {
   const navigate = useNavigate();
   const { user, profile, loading } = useUserProfile();
+  const betreiber = useIsBetreiber();
   const [open, setOpen] = useState(false);
 
   const role: UserRole | 'guest' = user && profile ? profile.role : 'guest';
@@ -143,6 +145,12 @@ export function Navigation() {
                     Mein Profil
                   </DropdownMenuItem>
                 )}
+                {betreiber && (
+                  <DropdownMenuItem onSelect={() => navigate('/betreiber')}>
+                    <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Betreiber-Bereich
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                   Abmelden
@@ -186,6 +194,11 @@ export function Navigation() {
                 {profile && (
                   <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
                     Mein Profil
+                  </NavLink>
+                )}
+                {betreiber && (
+                  <NavLink to="/betreiber" onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
+                    Betreiber-Bereich
                   </NavLink>
                 )}
                 {user && (

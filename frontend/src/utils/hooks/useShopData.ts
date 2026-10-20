@@ -30,6 +30,14 @@ export const useShopData = (shopIdFromQR: string | null) => {
         if (shopIdFromQR) {
           const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
           if (!active) return;
+          if (snap.exists() && snap.data().suspended) {
+            // Vom Betreiber gesperrt: wie nicht gefunden, mit eigenem Hinweis
+            toast.error('Dieser Laden nimmt gerade keine Nummern an.');
+            setShops([]);
+            setSelectedShop('');
+            setArrivedFromQR(false);
+            return;
+          }
           if (snap.exists()) {
             setShops([{ id: snap.id, ...snap.data() } as Shop]);
             setSelectedShop(snap.id);
@@ -42,7 +50,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
           setArrivedFromQR(false);
         }
         const snapshot = await getDocsFromServer(collection(db, 'shops'));
-        if (active) setShops(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Shop));
+        if (active) setShops(snapshot.docs.filter((d) => !d.data().suspended).map((d) => ({ id: d.id, ...d.data() }) as Shop));
       } catch (error) {
         console.error('Error loading shops:', error);
         if (!active) return;

@@ -47,6 +47,10 @@ export interface Shop {
     /** Stripe-Kunde; gibt es, sobald einmal ein Abo begonnen wurde (dann auch Rechnungen) */
     customerId?: string;
   };
+  /** Tarif vom Betreiber ohne Stripe freigeschaltet (utils/plans.ts activeGrant); schreibt nur das Backend */
+  grant?: { plan?: 'solo' | 'laden' | 'team'; until?: Timestamp } | null;
+  /** Vom Betreiber gesperrt (utils/plans.ts isSuspended): nicht buchbar, nicht auffindbar */
+  suspended?: { at?: Timestamp } | null;
   /** Merker der Startklar-Liste am Tresen (components/onboarding/Startklar.tsx) */
   onboarding?: { testlaufAt?: Timestamp; plakatAt?: Timestamp; dismissedAt?: Timestamp };
   createdAt: Timestamp;

@@ -73,7 +73,10 @@ export default function Tarif() {
 
   const current = effectivePlan(shop);
   const billing = shop.billing;
-  const hasAbo = current.source === 'abo';
+  // Laufendes Abo – auch wenn gerade eine höhere Freischaltung des Betreibers gilt
+  const hasAbo = Boolean(billing?.plan && ['active', 'trialing', 'past_due'].includes(billing.status || ''));
+  const aboPlan = hasAbo ? billing?.plan : undefined;
+  const grantUntil = current.grantUntil ? format(current.grantUntil, 'd. MMMM yyyy', { locale: de }) : null;
   const periodEnd = billing?.currentPeriodEnd ? format(safelyConvertToDate(billing.currentPeriodEnd), 'd. MMMM yyyy', { locale: de }) : null;
 
   const run = async (key: string, fn: () => Promise<unknown>) => {
@@ -92,9 +95,11 @@ export default function Tarif() {
       ? `Abo ${current.plan.name}${billing?.interval === 'jahr' ? ', jährlich' : ', monatlich'}${
           billing?.status === 'past_due' ? '. Die letzte Zahlung ist offen, bitte Zahlungsart prüfen.' : ''
         }${billing?.cancelAtPeriodEnd && periodEnd ? `. Gekündigt zum ${periodEnd}.` : periodEnd ? `. Nächste Abrechnung am ${periodEnd}.` : ''}`
-      : current.source === 'test'
-        ? `Testphase mit allen Funktionen, noch ${current.trialDaysLeft} ${current.trialDaysLeft === 1 ? 'Tag' : 'Tage'}. Danach Gratis, wenn du kein Abo wählst.`
-        : 'Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.';
+      : current.source === 'freischaltung'
+        ? `Von Dranzeit freigeschaltet bis ${grantUntil}. Danach ${hasAbo ? 'gilt wieder dein Abo' : 'Gratis, wenn du kein Abo wählst'}.`
+        : current.source === 'test'
+          ? `Testphase mit allen Funktionen, noch ${current.trialDaysLeft} ${current.trialDaysLeft === 1 ? 'Tag' : 'Tage'}. Danach Gratis, wenn du kein Abo wählst.`
+          : 'Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.';
 
   const maxCustomers = current.plan.maxCustomersPerMonth;
 
@@ -187,16 +192,16 @@ export default function Tarif() {
         </div>
         <PlanCards
           interval={interval}
-          current={hasAbo ? current.plan.id : current.source === 'gratis' ? 'gratis' : undefined}
+          current={hasAbo ? aboPlan : current.source === 'gratis' ? 'gratis' : undefined}
           founder={Boolean(shop.founder)}
           action={(plan: PlanId) =>
             plan === 'gratis' ? null : (
               <Button
                 variant={plan === 'laden' ? 'default' : 'outline'}
-                disabled={busy !== '' || (hasAbo && plan === current.plan.id)}
+                disabled={busy !== '' || (hasAbo && plan === aboPlan)}
                 onClick={() => run(plan, () => (hasAbo ? openPortal(shop.id) : startCheckout(shop.id, plan, interval)))}
               >
-                {busy === plan ? 'Wird geöffnet …' : hasAbo ? (plan === current.plan.id ? 'Aktueller Tarif' : 'Wechseln') : 'Weiter zur Bezahlung'}
+                {busy === plan ? 'Wird geöffnet …' : hasAbo ? (plan === aboPlan ? 'Aktueller Tarif' : 'Wechseln') : 'Weiter zur Bezahlung'}
               </Button>
             )
           }
