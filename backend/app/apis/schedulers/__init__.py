@@ -40,7 +40,7 @@ _last_cleanup_day = None
 
 
 def _daily_privacy_cleanup() -> None:
-    """Einmal am Tag: Namen und Kontaktdaten alter Wartenummern ohne Konto entfernen (app/libs/privacy.py)."""
+    """Einmal am Tag: Namen und Kontaktdaten alter Termine ohne Konto entfernen, alte Kunden-Einträge löschen (app/libs/privacy.py)."""
     global _last_cleanup_day
     today = datetime.now().date()
     if _last_cleanup_day == today:
@@ -48,10 +48,12 @@ def _daily_privacy_cleanup() -> None:
     _last_cleanup_day = today
     try:
         from app.apis.firebase_utils import get_firestore_db
-        from app.libs.privacy import anonymize_old_appointments
+        from app.libs.privacy import anonymize_old_appointments, delete_stale_customers
 
         changed = anonymize_old_appointments(get_firestore_db())
         print(f"Datenschutz: {changed} alte Termine anonymisiert")
+        deleted = delete_stale_customers(get_firestore_db())
+        print(f"Datenschutz: {deleted} Kunden-Einträge ohne Termin seit 12 Monaten gelöscht")
     except Exception as e:  # nie den Scheduler deswegen anhalten
         print(f"Datenschutz-Aufräumen fehlgeschlagen: {e}")
 

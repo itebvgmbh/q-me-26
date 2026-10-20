@@ -286,6 +286,10 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
             processedData.customerName = processedData.customerName || 'Unbekannter Kunde';
             console.log(`No valid name or email found, using: ${processedData.customerName}`);
           }
+          // Handynummer aus dem Profil ("Damit der Laden dich erreicht"): steht am Tresen, nach 90 Tagen gelöscht
+          if (userData.phoneNumber && !processedData.customerPhone) {
+            processedData.customerPhone = userData.phoneNumber;
+          }
         } else {
           console.log(`No user document found for ID: ${processedData.customerId}`);
           // Fallback auf vorhandenen Namen oder 'Unbekannter Kunde'
