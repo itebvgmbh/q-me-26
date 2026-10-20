@@ -67,7 +67,10 @@ export const useBookingState = () => {
     setSubmitting(false);
     
     if (bookingResult.success) {
-      if (bookingResult.isAnonymous) {
+      if (bookingResult.appointmentId) {
+        // Eigene Seite je Nummer: live, mit Benachrichtigung (pages/Nummer.tsx)
+        navigate(`/nummer/${bookingResult.appointmentId}?neu=1`);
+      } else if (bookingResult.isAnonymous) {
         setBookedSlot(nextAvailableSlot);
         // Show successful anonymous booking with reference code
         setBookingSuccess(true);

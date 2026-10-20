@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { safelyConvertToDate } from '../utils/datetime';
@@ -108,7 +109,10 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, o
       )}
 
       {!past && appointment.status === 'scheduled' && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/nummer/${appointment.id}`}>Live ansehen und Bescheid bekommen</Link>
+          </Button>
           <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancelClick(appointment.id)}>
             Termin absagen
           </Button>

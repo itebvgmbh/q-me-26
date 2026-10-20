@@ -33,6 +33,17 @@ export interface Shop {
     longitude: number;
   }; // Gespeicherte Koordinaten für Kartenansicht
   timeSlotBuffer?: number; // Puffer in Millisekunden für die Zeitslot-Suche (Standard: 60000 = 1 Minute)  
+  /** Tarif (utils/plans.ts); das bezahlte Abo steht in billing und wird nur vom Backend geschrieben */
+  plan?: 'gratis' | 'solo' | 'laden' | 'team';
+  trialEndsAt?: Timestamp;
+  founder?: boolean;
+  billing?: {
+    plan?: 'gratis' | 'solo' | 'laden' | 'team';
+    status?: string;
+    interval?: 'monat' | 'jahr';
+    currentPeriodEnd?: Timestamp;
+    cancelAtPeriodEnd?: boolean;
+  };
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

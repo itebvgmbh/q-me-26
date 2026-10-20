@@ -7,6 +7,7 @@ import { Staff, Shop, Service, getStaffByShopId, getShopsByOwnerId, getServicesB
 import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
+import { effectivePlan } from '../utils/plans';
 
 /** Team: Personen anlegen, einladen, Leistungen und Arbeitszeiten pflegen */
 const StaffManagement = () => {
@@ -59,6 +60,10 @@ const StaffManagement = () => {
     if (selectedShop) await loadShopData(selectedShop.id);
   };
 
+  // Personen je Tarif (utils/plans.ts)
+  const currentPlan = effectivePlan(selectedShop);
+  const staffLimitReached = staff.filter((s) => s.isActive !== false).length >= currentPlan.plan.maxStaff;
+
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -66,7 +71,14 @@ const StaffManagement = () => {
           <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Team</h1>
           <p className="text-muted-foreground">Wer arbeitet wann und bietet was an. Nur so entstehen freie Zeiten.</p>
         </div>
-        {selectedShop && (
+        {selectedShop && staffLimitReached ? (
+          <p className="max-w-xs text-sm text-muted-foreground">
+            Im Tarif {currentPlan.plan.name} sind {currentPlan.plan.maxStaff === 1 ? 'eine Person' : `${currentPlan.plan.maxStaff} Personen`} dabei.{' '}
+            <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
+              Tarif wechseln
+            </Link>
+          </p>
+        ) : selectedShop && (
           <div className="flex flex-wrap gap-2">
             <AddStaffDialog shop={selectedShop} services={services} onStaffAdded={reload} />
             <InviteStaffDialog shop={selectedShop} onStaffInvited={reload} />

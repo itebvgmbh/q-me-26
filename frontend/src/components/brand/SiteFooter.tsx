@@ -13,13 +13,21 @@ export const SiteFooter = () => {
           <Link to="/shop-map" className="hover:text-foreground">Shops finden</Link>
           <Link to="/public-join-queue" className="hover:text-foreground">In die Schlange</Link>
           <Link to="/features" className="hover:text-foreground">Für Betriebe</Link>
+          <Link to="/preise" className="hover:text-foreground">Preise</Link>
           {user ? (
             <Link to="/my-bookings" className="hover:text-foreground">Meine Termine</Link>
           ) : (
             <Link to="/login" className="hover:text-foreground">Anmelden</Link>
           )}
         </nav>
-        <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} q-me</p>
+        <div className="flex flex-col gap-1 text-sm text-muted-foreground sm:items-end">
+          <nav aria-label="Rechtliches" className="flex gap-x-5 [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center">
+            <Link to="/impressum" className="hover:text-foreground">Impressum</Link>
+            <Link to="/datenschutz" className="hover:text-foreground">Datenschutz</Link>
+            <Link to="/agb" className="hover:text-foreground">AGB</Link>
+          </nav>
+          <p>© {new Date().getFullYear()} Dranzeit · ITEBV GmbH</p>
+        </div>
       </div>
     </footer>
   );

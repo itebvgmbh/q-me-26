@@ -38,7 +38,7 @@ DETAIL_FIELDS = ",".join([
     "nationalPhoneNumber", "internationalPhoneNumber", "websiteUri", "regularOpeningHours", "googleMapsUri",
     "businessStatus",
 ])
-USER_AGENT = "Q-ME-Einrichtung/1.0 (+https://q-me.spielmacherei.de)"
+USER_AGENT = "Dranzeit-Einrichtung/1.0 (+https://dranzeit.de)"
 
 
 def _google_key() -> str:

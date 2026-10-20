@@ -126,7 +126,7 @@ Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeich
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
-## Schlüssel für „Laden einrichten“
+## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
 übernimmt er Adresse, Telefon, Webseite, Öffnungszeiten und Branche von Google und liest die Preisliste von
@@ -152,6 +152,15 @@ Gilt der Schlüssel für mehrere Workspaces, lehnt Claude jede Anfrage ab („no
 im Log). Dann zusätzlich die Workspace-ID eintragen (Option 3 im Block, `wrkspc_…`, zu finden unter
 [Workspaces](https://platform.claude.com/settings/workspaces)) – sie ist kein Geheimnis.
 
+**Resend** (`RESEND_API_KEY`, E-Mails wie Team-Einladungen und Erinnerungen): [resend.com](https://resend.com/) →
+„Domains“ → `dranzeit.de` hinzufügen und die angezeigten DNS-Einträge (SPF, DKIM) beim Domain-Anbieter
+eintragen, bis Resend „Verified“ zeigt. Dann „API Keys“ → „Create API Key“ mit Berechtigung „Sending access“
+nur für `dranzeit.de`. Absender ist `Dranzeit <hallo@dranzeit.de>`; abweichend mit `MAIL_FROM=…` in
+`/etc/q-me.env` (kein Geheimnis). Ohne Schlüssel verschickt das Backend nichts und schreibt nur ins Log.
+
+**Stripe** (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Abo-Abrechnung der Läden): Einrichtung im Abschnitt
+„Abo-Abrechnung“ weiter unten.
+
 Eintragen: Block in PowerShell einfügen. Er fragt, welchen Schlüssel, liest ihn verdeckt ein und schickt ihn
 über die Standardeingabe an `deploy/set-secret.sh` – so steht er weder im Fenster noch in einer History.
 Für jeden weiteren Eintrag den Block noch einmal ausführen.
@@ -163,8 +172,8 @@ Für jeden weiteren Eintrag den Block noch einmal ausführen.
   if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
   $skript = ssh -o BatchMode=yes $server 'test -f /opt/q-me/deploy/set-secret.sh && echo da' 2>&1 | Out-String
   if ($skript -notmatch 'da') { Write-Host 'Abbruch: Auf dem Server fehlt deploy/set-secret.sh. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
-  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID (nur wenn der Schluessel fuer mehrere Workspaces gilt)'
-  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } else { Write-Host 'Abbruch: Bitte 1, 2 oder 3 eingeben.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Was eintragen? 1 = Google Maps (Laden bei Google finden), 2 = Anthropic (Preisliste lesen), 3 = Anthropic-Workspace-ID, 4 = Resend (E-Mails), 5 = Stripe-Geheimschluessel, 6 = Stripe-Webhook-Geheimnis'
+  if ($wahl -eq '1') { $name = 'GOOGLE_MAPS_API_KEY'; $muster = '^AIza[0-9A-Za-z_-]{30,}$' } elseif ($wahl -eq '2') { $name = 'ANTHROPIC_API_KEY'; $muster = '^sk-ant-[0-9A-Za-z_-]{20,}$' } elseif ($wahl -eq '3') { $name = 'ANTHROPIC_WORKSPACE_ID'; $muster = '^wrkspc_[0-9A-Za-z]{10,}$' } elseif ($wahl -eq '4') { $name = 'RESEND_API_KEY'; $muster = '^re_[0-9A-Za-z_]{20,}$' } elseif ($wahl -eq '5') { $name = 'STRIPE_SECRET_KEY'; $muster = '^(sk|rk)_(test|live)_[0-9A-Za-z]{20,}$' } elseif ($wahl -eq '6') { $name = 'STRIPE_WEBHOOK_SECRET'; $muster = '^whsec_[0-9A-Za-z]{20,}$' } else { Write-Host 'Abbruch: Bitte eine Zahl von 1 bis 6 eingeben.' -ForegroundColor Red; return }
   $geheim = Read-Host "$name einfuegen (Strg+V, wird nicht angezeigt), dann Enter" -AsSecureString
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
   try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
@@ -184,6 +193,61 @@ Für jeden weiteren Eintrag den Block noch einmal ausführen.
 Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^GOOGLE_MAPS_API_KEY= /etc/q-me.env`.
 Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stunde höchstens 300 Suchen,
 40 übernommene Einträge und 12 ausgelesene Webseiten.
+
+## Benachrichtigungen („Gleich dran“, Erinnerungen)
+
+Ein eigener Hintergrunddienst im Backend (`app/libs/notify_worker.py`) schickt Kunden eine Nachricht, kurz
+bevor sie dran sind, und wenn der Tresen sie aufruft. Gebuchte Termine bekommen 2 Stunden vorher eine
+Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schlüssel da ist.
+
+- **Web-Push:** Die Schlüssel (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) erzeugt `update.sh` beim ersten Lauf
+  selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
+  der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
+- **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
+  `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar).
+- Kunden schalten das auf ihrer Nummernseite `/nummer/<id>` ein; dorthin führt jetzt das Nummer-Ziehen.
+
+## Abo-Abrechnung (Stripe)
+
+Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird über Stripe Checkout, verwaltet und
+gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. Erst im **Testmodus** einrichten.
+
+1. **Schlüssel:** Stripe-Dashboard (Testmodus) → Entwickler → API-Schlüssel → „Eingeschränkten Schlüssel
+   erstellen“ mit Schreibrechten für Produkte, Preise, Kunden, Checkout-Sessions, Kundenportal und
+   Webhook-Endpunkte sowie Leserecht für Abonnements. (Ein `sk_test_…` geht auch, ist aber mächtiger.)
+   Eintragen mit dem Block „Schlüssel eintragen“, Option 5.
+2. **Einrichten:** Block unten. Er legt Produkte und Preise an (netto, Gründerpreise inklusive), den Webhook
+   auf `<adresse>/routes/stripe/webhook` und das Kundenportal. Das Webhook-Geheimnis schreibt das Skript direkt
+   nach `/etc/q-me.env`, es erscheint nirgends. Mehrfach ausführbar.
+3. **Im Dashboard:** Einstellungen → Steuern → Registrierung Deutschland anlegen (sonst rechnet Stripe keine
+   Mehrwertsteuer). Einstellungen → Zahlungsmethoden → SEPA-Lastschrift einschalten. Einstellungen →
+   Kunden-E-Mails → Rechnungen und Belege per E-Mail einschalten.
+4. **Testen:** Als Inhaber unter `/tarif` „Weiter zur Bezahlung“, Testkarte `4242 4242 4242 4242`.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $schluessel = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_SECRET_KEY= /etc/q-me.env' 2>&1 | Out-String
+  if ($schluessel -notmatch '^\s*1') { Write-Host 'Abbruch: STRIPE_SECRET_KEY fehlt. Erst den Block "Schluessel eintragen" ausfuehren (Option 5).' -ForegroundColor Red; return }
+  $adresse = Read-Host 'Adresse der App (Enter = https://q-me.spielmacherei.de)'
+  if (-not $adresse) { $adresse = 'https://q-me.spielmacherei.de' }
+  $adresse = $adresse.Trim().Trim('"').TrimEnd('/')
+  if ($adresse -notmatch '^https://[a-z0-9.-]+$') { Write-Host 'Abbruch: Bitte eine Adresse wie https://dranzeit.de eingeben.' -ForegroundColor Red; return }
+  Write-Host "Stripe fuer $adresse einrichten ..." -ForegroundColor Cyan
+  $ausgabe = ssh -o BatchMode=yes $server ('cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py ' + $adresse + ' && systemctl restart q-me') 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $ausgabe
+  if ($ergebnis -ne 0 -or $ausgabe -notmatch 'Fertig') { Write-Host 'Abbruch: Einrichtung fehlgeschlagen, Meldung oben.' -ForegroundColor Red; return }
+  Start-Sleep -Seconds 4
+  $pruefung = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_WEBHOOK_SECRET= /etc/q-me.env; systemctl is-active q-me' 2>&1 | Out-String
+  if ($pruefung -match '^\s*1\s+active') { Write-Host 'Fertig: Stripe ist eingerichtet, das Backend laeuft.' -ForegroundColor Green } else { Write-Host 'Eingerichtet, aber etwas fehlt. Ausgabe vom Server:' -ForegroundColor Yellow; Write-Host $pruefung }
+}
+```
+
+Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorher `STRIPE_WEBHOOK_SECRET` und
+`STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
 
 ## Betreiber der App
 

@@ -24,6 +24,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     { to: '/shop-map', label: 'Shops finden' },
     { to: '/public-join-queue', label: 'In die Schlange' },
     { to: '/features', label: 'Für Betriebe' },
+    { to: '/preise', label: 'Preise' },
   ],
   customer: [
     { to: '/my-bookings', label: 'Meine Termine' },
@@ -36,6 +37,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     { to: '/staff-management', label: 'Team' },
     { to: '/service-management', label: 'Leistungen' },
     { to: '/shop-profile', label: 'Mein Laden' },
+    { to: '/tarif', label: 'Tarif' },
   ],
   employee: [
     { to: '/employee-dashboard', label: 'Mein Tag' },

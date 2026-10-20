@@ -15,14 +15,20 @@ const RedirectKeepQuery = ({ to }: { to: string }) => {
 
 
 const App = lazy(() => import("./pages/App.tsx"));
+const Agb = lazy(() => import("./pages/Agb.tsx"));
+const Preise = lazy(() => import("./pages/Preise.tsx"));
+const Tarif = lazy(() => import("./pages/Tarif.tsx"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
 const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
+const Datenschutz = lazy(() => import("./pages/Datenschutz.tsx"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazy(() => import("./pages/Features.tsx"));
+const Impressum = lazy(() => import("./pages/Impressum.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Logout = lazy(() => import("./pages/Logout.tsx"));
 const MyBookings = lazy(() => import("./pages/MyBookings.tsx"));
+const Nummer = lazy(() => import("./pages/Nummer.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
 const PublicJoinQueue = lazy(() => import("./pages/PublicJoinQueue.tsx"));
 const Register = lazy(() => import("./pages/Register.tsx"));
@@ -54,6 +60,11 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/employeedashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/features", element: <Features />},
+	{ path: "/impressum", element: <Impressum />},
+	{ path: "/datenschutz", element: <Datenschutz />},
+	{ path: "/agb", element: <Agb />},
+	{ path: "/preise", element: <Preise />},
+	{ path: "/tarif", element: <UserGuard><Tarif /></UserGuard>},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},
@@ -62,6 +73,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/logout", element: <UserGuard><Logout /></UserGuard>},
 	{ path: "/my-bookings", element: <UserGuard><MyBookings /></UserGuard>},
 	{ path: "/mybookings", element: <UserGuard><MyBookings /></UserGuard>},
+	{ path: "/nummer/:id", element: <Nummer />},
 	{ path: "/profile", element: <UserGuard><Profile /></UserGuard>},
 	{ path: "/public-join-queue", element: <PublicJoinQueue />},
 	{ path: "/publicjoinqueue", element: <PublicJoinQueue />},

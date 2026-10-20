@@ -29,6 +29,8 @@ export interface BookingRequest {
 export interface BookingResponse {
   success: boolean;
   referenceCode?: string;
+  /** ID des angelegten Termins – für die Nummernseite /nummer/:id */
+  appointmentId?: string;
   isAnonymous: boolean;
   message?: string;
   error?: any;
@@ -136,7 +138,7 @@ export const QueueBookingService = {
     });
 
     // Create queue appointment with customer data
-    await createAppointment({
+    const appointment = await createAppointment({
       shopId: selectedShop,
       staffId: selectedStaffForSlot,
       customerId: user.uid,
@@ -158,6 +160,7 @@ export const QueueBookingService = {
     return {
       success: true,
       isAnonymous: false,
+      appointmentId: appointment.id,
       message: 'Du bist eingereiht'
     };
   },
@@ -215,6 +218,7 @@ export const QueueBookingService = {
     return {
       success: true,
       isAnonymous: true,
+      appointmentId: appointment.id,
       referenceCode: appointment.referenceCode || '',
       message: 'Termin erfolgreich gebucht!'
     };

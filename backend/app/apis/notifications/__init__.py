@@ -8,6 +8,7 @@ from app.apis.firebase_utils import get_firestore_db
 from fastapi import Depends
 from app.auth import AuthorizedUser
 from app.auth.access import require_admin, require_shop_of_owner
+from app.libs.mail import branded_html, esc
 
 router = APIRouter()
 
@@ -58,7 +59,7 @@ async def send_staff_invitation(request: StaffInvitationEmailRequest, user: Auth
             raise HTTPException(status_code=404, detail=f"Shop with ID {request.shop_id} not found")
             
         shop_data = shop_doc.to_dict()
-        shop_name = shop_data.get('name', 'Ihr Shop')
+        shop_name = shop_data.get('name') or 'deinem Laden'
         
         # Update the invitation with email sent status if not using placeholder or temp ID
         if request.invitation_id != 'placeholder' and not request.invitation_id.startswith('temp-'):
@@ -74,58 +75,26 @@ async def send_staff_invitation(request: StaffInvitationEmailRequest, user: Auth
                 print(f"Error updating invitation status for ID {request.invitation_id}: {str(e)}")
                 # Weiter ausführen, auch wenn die Status-Aktualisierung fehlschlägt
         
-        # Create the email content
-        subject = f"Einladung zur Mitarbeiterregistrierung für {shop_name}"
-        
-        # HTML email content
-        content_html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #4f46e5; padding: 20px; text-align: center; color: white;">
-                <h1>Willkommen bei Q-ME</h1>
-            </div>
-            <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
-                <h2>Sie wurden als Mitarbeiter zu {shop_name} eingeladen</h2>
-                <p>Sehr geehrte(r) Mitarbeiter(in),</p>
-                <p>Sie wurden eingeladen, sich bei der Q-ME Terminmanagement-Plattform als Mitarbeiter für <strong>{shop_name}</strong> zu registrieren.</p>
-                <p>Um Ihre Registrierung abzuschließen, klicken Sie bitte auf den folgenden Link:</p>
-                <div style="margin: 30px 0; text-align: center;">
-                    <a href="{request.invitation_link}" style="background-color: #4f46e5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Registrierung abschließen</a>
-                </div>
-                <p>Oder kopieren Sie diesen Link in Ihren Browser:</p>
-                <p style="background-color: #f5f5f5; padding: 10px; word-break: break-all;">{request.invitation_link}</p>
-                <p>Dieser Link ist nur für eine begrenzte Zeit gültig. Bitte schließen Sie Ihre Registrierung bald ab.</p>
-                <p>Bei Fragen wenden Sie sich bitte an den Shop-Inhaber.</p>
-                <p>Mit freundlichen Grüßen,<br>Das Q-ME Team</p>
-            </div>
-            <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-                <p>Dies ist eine automatisch generierte E-Mail. Bitte antworten Sie nicht auf diese Nachricht.</p>
-            </div>
-        </div>
-        """
-        
-        # Plain text version
-        content_text = f"""
-        Willkommen bei Q-ME
-        
-        Sie wurden als Mitarbeiter zu {shop_name} eingeladen
-        
-        Sehr geehrte(r) Mitarbeiter(in),
-        
-        Sie wurden eingeladen, sich bei der Q-ME Terminmanagement-Plattform als Mitarbeiter für {shop_name} zu registrieren.
-        
-        Um Ihre Registrierung abzuschließen, besuchen Sie bitte den folgenden Link:
-        {request.invitation_link}
-        
-        Dieser Link ist nur für eine begrenzte Zeit gültig. Bitte schließen Sie Ihre Registrierung bald ab.
-        
-        Bei Fragen wenden Sie sich bitte an den Shop-Inhaber.
-        
-        Mit freundlichen Grüßen,
-        Das Q-ME Team
-        
-        Dies ist eine automatisch generierte E-Mail. Bitte antworten Sie nicht auf diese Nachricht.
-        """
-        
+        # E-Mail im Dranzeit-Design, du-Form wie in der App
+        subject = f"Einladung ins Team von {shop_name}"
+        content_html = branded_html(
+            f"Du bist ins Team von {esc(shop_name)} eingeladen",
+            [
+                f"Hallo, <strong>{esc(shop_name)}</strong> nutzt Dranzeit für Termine und die Warteschlange und hat dich ins Team eingeladen.",
+                "Leg dein Konto über den Link an. Danach siehst du unter „Mein Tag“ deine eigenen Kunden.",
+            ],
+            button_text="Einladung annehmen",
+            button_url=request.invitation_link,
+            note="Der Link gilt nur eine begrenzte Zeit. Fragen beantwortet dir der Inhaber des Ladens.",
+        )
+        content_text = (
+            f"Du bist ins Team von {shop_name} eingeladen.\n\n"
+            f"{shop_name} nutzt Dranzeit für Termine und die Warteschlange. "
+            "Leg dein Konto über diesen Link an:\n"
+            f"{request.invitation_link}\n\n"
+            "Der Link gilt nur eine begrenzte Zeit. Fragen beantwortet dir der Inhaber des Ladens.\n"
+        )
+
         # Send the email
         db.notify.email(
             to=request.email,
