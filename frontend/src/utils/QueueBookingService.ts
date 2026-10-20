@@ -3,11 +3,65 @@ import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { TimeSlot } from './types';
 import {
+  Appointment,
   createAppointment,
   isCustomerInQueue,
   linkOwnCustomerEntry
 } from './firestore';
+import { findNextSlots } from './firestore/timeslots';
+import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
+
+// Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
+// Auswahl (Raster 15 Minuten – bei 30 Minuten Leistung also etwa halb so viele verschiedene Plätze)
+const RETRY_ROUNDS = 3;
+const RETRY_CANDIDATES = 8;
+
+type RetryOptions = { serviceId: string; staffIds: string[] };
+
+/**
+ * Nummer anlegen. Ist der angezeigte Platz beim Bestätigen schon weg (jemand war schneller, z. B. im Ansturm),
+ * gleich die nächsten freien Plätze suchen – bei derselben Person, bei „Egal wer“ bei allen in staffIds – und
+ * neu buchen, statt den Kunden noch mal bestätigen zu lassen. Die Transaktion in createAppointment nimmt davon
+ * den ersten, der dann noch frei ist; doppelt vergeben wird ein Platz dabei nie (Belegung, schedule.ts).
+ */
+async function createQueueAppointment(
+  data: Parameters<typeof createAppointment>[0],
+  retry: RetryOptions
+): Promise<Appointment> {
+  let lastError: unknown;
+  try {
+    return await createAppointment(data);
+  } catch (error) {
+    if (!isSlotConflict(error)) throw error;
+    lastError = error;
+  }
+  for (let round = 0; round < RETRY_ROUNDS; round++) {
+    const next = await findNextSlots(data.shopId, retry.serviceId, retry.staffIds, RETRY_CANDIDATES);
+    if (next.length === 0) break;
+    const [first, ...rest] = next;
+    try {
+      return await createAppointment(
+        { ...data, staffId: first.staffId, startTime: Timestamp.fromDate(first.slot.start), endTime: Timestamp.fromDate(first.slot.end) },
+        { alternatives: rest.map(({ staffId, slot }) => ({ staffId, start: slot.start, end: slot.end })) }
+      );
+    } catch (error) {
+      if (!isSlotConflict(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+/** Platz, den die Nummer tatsächlich bekommen hat, und ob er später liegt als angezeigt */
+const bookedSlotOf = (appointment: Appointment, shown: Date) => {
+  const start = appointment.startTime.toDate();
+  return {
+    bookedSlot: { start, end: appointment.endTime.toDate(), isAvailable: true },
+    bookedStaffId: appointment.staffId,
+    moved: start.getTime() !== shown.getTime()
+  };
+};
 
 /**
  * Interface for booking request data
@@ -21,6 +75,8 @@ export interface BookingRequest {
   user: User | null;
   /** Name und Telefon bei Buchung ohne Konto */
   contact?: { name: string; phone: string };
+  /** Wer in Frage kommt, wenn der Platz schon weg ist: die gewählte Person, bei „Egal wer“ alle (Standard: selectedStaffForSlot) */
+  staffChoices?: string[];
 }
 
 /**
@@ -32,6 +88,11 @@ export interface BookingResponse {
   /** ID des angelegten Termins – für die Nummernseite /nummer/:id */
   appointmentId?: string;
   isAnonymous: boolean;
+  /** Platz, den die Nummer tatsächlich bekommen hat */
+  bookedSlot?: TimeSlot;
+  bookedStaffId?: string;
+  /** true, wenn der angezeigte Platz weg war und die Nummer eine andere Zeit bekommen hat */
+  moved?: boolean;
   message?: string;
   error?: any;
 }
@@ -54,11 +115,13 @@ export const QueueBookingService = {
       nextAvailableSlot, 
       checkEarlierOptions, 
       user,
-      contact
+      contact,
+      staffChoices
     } = request;
     
     const startTime = nextAvailableSlot.start;
     const endTime = nextAvailableSlot.end;
+    const retry = { serviceId: selectedService, staffIds: staffChoices?.length ? staffChoices : [selectedStaffForSlot] };
     
     try {
       // Authenticated user booking
@@ -70,7 +133,8 @@ export const QueueBookingService = {
           startTime, 
           endTime, 
           checkEarlierOptions, 
-          user
+          user,
+          retry
         });
       } 
       // Anonymous booking
@@ -82,7 +146,8 @@ export const QueueBookingService = {
           startTime, 
           endTime, 
           checkEarlierOptions,
-          contact
+          contact,
+          retry
         });
       }
     } catch (error) {
@@ -109,6 +174,7 @@ export const QueueBookingService = {
     endTime: Date;
     checkEarlierOptions: boolean;
     user: User;
+    retry: RetryOptions;
   }): Promise<BookingResponse> {
     const { 
       selectedShop, 
@@ -117,7 +183,8 @@ export const QueueBookingService = {
       startTime, 
       endTime, 
       checkEarlierOptions, 
-      user 
+      user,
+      retry
     } = params;
     
     // Check if customer is already in queue for this shop
@@ -131,7 +198,7 @@ export const QueueBookingService = {
     }
     
     // Create queue appointment with customer data
-    const appointment = await createAppointment({
+    const appointment = await createQueueAppointment({
       shopId: selectedShop,
       staffId: selectedStaffForSlot,
       customerId: user.uid,
@@ -148,7 +215,7 @@ export const QueueBookingService = {
       checkEarlierOptions: checkEarlierOptions,
       // Only add if option is enabled
       ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    });
+    }, retry);
 
     // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
     void linkOwnCustomerEntry(selectedShop);
@@ -157,6 +224,7 @@ export const QueueBookingService = {
       success: true,
       isAnonymous: false,
       appointmentId: appointment.id,
+      ...bookedSlotOf(appointment, startTime),
       message: 'Du bist eingereiht'
     };
   },
@@ -174,6 +242,7 @@ export const QueueBookingService = {
     endTime: Date;
     checkEarlierOptions: boolean;
     contact?: { name: string; phone: string };
+    retry: RetryOptions;
   }): Promise<BookingResponse> {
     const { 
       selectedShop, 
@@ -182,13 +251,14 @@ export const QueueBookingService = {
       startTime, 
       endTime, 
       checkEarlierOptions,
-      contact
+      contact,
+      retry
     } = params;
     const name = contact?.name.trim();
     const phone = contact?.phone.trim();
 
     // Anonymous booking without customer data
-    const appointment = await createAppointment({
+    const appointment = await createQueueAppointment({
       shopId: selectedShop,
       staffId: selectedStaffForSlot,
       serviceId: selectedService,
@@ -202,7 +272,7 @@ export const QueueBookingService = {
       checkEarlierOptions: checkEarlierOptions,
       // Firestore lehnt Felder mit undefined ab – nur setzen, wenn gewünscht
       ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    });
+    }, retry);
 
     console.log('Anonymous booking successfully created:', appointment);
     
@@ -216,6 +286,7 @@ export const QueueBookingService = {
       isAnonymous: true,
       appointmentId: appointment.id,
       referenceCode: appointment.referenceCode || '',
+      ...bookedSlotOf(appointment, startTime),
       message: 'Termin erfolgreich gebucht!'
     };
   }

@@ -5,9 +5,11 @@
 //  3. 2 Termine werden auf denselben Platz verschoben   → nur einer
 //  4. Absage gibt den Platz frei                        → danach geht er wieder
 //  5. Aufgerufen und fertig vor der geplanten Zeit      → Platz wieder frei
+//  6. 10 ziehen über die Nummernseite (QueueBookingService) dieselbe angezeigte Nummer
+//                                                       → alle eingereiht, wer zu spät war, gleich auf den nächsten Platz
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Bucht Donnerstag/Freitag der
-// Testwoche und sagt am Ende alles wieder ab.
-const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+// Testwoche und den Dienstag danach (6.) und sagt am Ende alles wieder ab.
+const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const N = Number(process.env.QME_GERAETE || 10);
 
@@ -30,16 +32,17 @@ run(async () => {
   /** Alle Geräte rufen im selben Moment fn(window.__appts, i) auf; Ergebnis je Gerät */
   const together = async (count, fn, arg) => {
     const t0 = Date.now() + 1500;
-    return Promise.all(devices.slice(0, count).map(({ page }, i) => page.evaluate(async ({ t0, fn, arg, i }) => {
-      while (Date.now() < t0) await new Promise((r) => setTimeout(r, 5));
+    // Warten über setTimeout statt Date.now(): läuft auch, wenn die Uhr der Seite verstellt ist (6.)
+    return Promise.all(devices.slice(0, count).map(({ page }, i) => page.evaluate(async ({ wait, fn, arg, i }) => {
+      await new Promise((r) => setTimeout(r, wait));
       try {
         // eslint-disable-next-line no-new-func
         const result = await new Function('appts', 'arg', 'i', `return (${fn})(appts, arg, i);`)(window.__appts, arg, i);
-        return { ok: true, id: result?.id, code: result?.referenceCode };
+        return { ok: true, id: result?.id, code: result?.referenceCode, start: result?.start, end: result?.end, moved: result?.moved };
       } catch (e) {
         return { ok: false, name: e.name, message: e.message };
       }
-    }, { t0, fn: fn.toString(), arg, i })));
+    }, { wait: Math.max(0, t0 - Date.now()), fn: fn.toString(), arg, i })));
   };
   const at = (d, h, m) => new Date(d[0], d[1], d[2], h, m).getTime();
   const created = [];
@@ -91,6 +94,41 @@ run(async () => {
   }, { base, start: at(thu, 15, 0), end: at(thu, 15, 30) });
   if (early.ok) created.push(...early.id.split(','));
   rows.push({ name: 'Früher fertig gibt den Platz frei', pass: early.ok, detail: early.ok ? '' : early.message });
+
+  // 6. Nummer ziehen im Ansturm: Alle sehen denselben Platz (09:00) und bestätigen gleichzeitig über den Weg der
+  //    Nummernseite. Früher bekam ihn einer und alle anderen mussten neu bestätigen; jetzt nimmt QueueBookingService
+  //    für die Nachzügler gleich den nächsten freien Platz. Am Dienstag nach der Testwoche (ohne Pausen und Termine),
+  //    Uhr der Geräte dort auf 08:00 gestellt – die Suche nach dem nächsten Platz rechnet ab "jetzt".
+  const later = new Date(...day(8));
+  const tue = [later.getFullYear(), later.getMonth(), later.getDate()];
+  const tueText = `${tue[0]}-${String(tue[1] + 1).padStart(2, '0')}-${String(tue[2]).padStart(2, '0')}`;
+  await Promise.all(devices.map(async ({ page }) => {
+    await page.clock.setFixedTime(berlin(`${tueText}T08:00:00`));
+    await page.evaluate(async () => { window.__queue = await import('/src/utils/QueueBookingService.ts'); });
+  }));
+  const queue = await together(N, async (appts, a, i) => {
+    const r = await window.__queue.QueueBookingService.processBooking({
+      selectedShop: a.shopId, selectedService: a.serviceId, selectedStaffForSlot: a.staffId,
+      nextAvailableSlot: { start: new Date(a.start), end: new Date(a.end), isAvailable: true },
+      checkEarlierOptions: false, user: null, contact: { name: `Ansturm ${i + 1}`, phone: '' },
+    });
+    if (!r.success) throw Object.assign(new Error(r.message || 'nicht eingereiht'), { name: r.error?.name || 'Error' });
+    return { id: r.appointmentId, referenceCode: r.referenceCode, start: r.bookedSlot.start.getTime(), end: r.bookedSlot.end.getTime(), moved: r.moved };
+  }, { ...base, start: at(tue, 9, 0), end: at(tue, 9, 30) });
+  created.push(...queue.filter((r) => r.ok).map((r) => r.id));
+  const placed = queue.filter((r) => r.ok).sort((a, b) => a.start - b.start);
+  const hm = (ms) => new Date(ms).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+  const clash = placed.filter((a, i) => placed.some((b, j) => j !== i && a.start < b.end && b.start < a.end));
+  const queueCodes = placed.map((r) => r.code);
+  rows.push({ name: `Nummer ziehen: ${N} gleichzeitig, alle eingereiht`, pass: placed.length === N,
+    detail: queue.filter((r) => !r.ok).map((r) => `${r.name}: ${r.message}`).join(' | ').slice(0, 200) || `${placed.length} eingereiht` });
+  rows.push({ name: 'Nummer ziehen: jeder eigener Platz', pass: placed.length === N && clash.length === 0 && new Set(placed.map((r) => r.start)).size === N,
+    detail: placed.map((r) => hm(r.start)).join(', ') });
+  rows.push({ name: 'Nummer ziehen: lückenlos ab 09:00', pass: placed.length === N && placed.every((r, i) => r.start === at(tue, 9, 0) + i * 30 * 60000),
+    detail: `${hm(placed[0]?.start)}–${hm(placed[placed.length - 1]?.end)}` });
+  rows.push({ name: 'Nummer ziehen: einer auf 09:00, Rest verschoben', pass: placed.filter((r) => !r.moved).length === 1 && placed.filter((r) => r.moved).length === N - 1,
+    detail: `${placed.filter((r) => r.moved).length} verschoben` });
+  rows.push({ name: 'Nummer ziehen: jede Nummer nur einmal', pass: queueCodes.every(Boolean) && new Set(queueCodes).size === placed.length, detail: queueCodes.join(', ') });
 
   // Aufräumen: alles absagen, was dieser Test gebucht hat
   const [cleanup] = await together(1, async (appts, a) => { for (const id of a.ids) await appts.cancelAppointment(id); }, { ids: [...new Set(created)] });
