@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, limit } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
+import { auth, firebaseApp } from 'app';
 import { Customer } from './types';
 
 /** So lange gilt der Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate) */
@@ -35,6 +35,22 @@ export const renewActivation = async (customer: Customer): Promise<Customer> => 
  * dann steht er unter "Meine Termine", und "Früher dran" kann sie erreichen. Sonst die ID des Eintrags.
  */
 export const appointmentCustomerId = (customer: Customer) => customer.userId || customer.id;
+
+/**
+ * Nach dem Buchen mit Konto (Nummer ziehen, Termin buchen): eigenen Kunden-Eintrag im Laden gleich verbunden anlegen,
+ * oder einen vorhandenen mit derselben bestätigten E-Mail verbinden. Das macht das Backend
+ * (backend/app/apis/customer_activation), damit niemand über eine fremde Adresse einen Eintrag übernimmt.
+ * Wirft nie: Die Buchung zählt, der Eintrag ist Beiwerk.
+ */
+export const linkOwnCustomerEntry = async (shopId: string): Promise<void> => {
+  try {
+    const headers = { Authorization: await auth.getAuthHeaderValue() };
+    const res = await fetch(`/routes/customer-link/${encodeURIComponent(shopId)}`, { method: 'POST', headers });
+    if (!res.ok) console.error('Kunden-Eintrag nicht verbunden, Status', res.status);
+  } catch (error) {
+    console.error('Kunden-Eintrag nicht verbunden:', error);
+  }
+};
 
 // Filter customers to ensure unique entries by ID and email
 export const getUniqueCustomers = (customers: Customer[]): Customer[] => {

@@ -1,5 +1,6 @@
 """
 Tests für den Kunden-Link (/activate): Ein Laden legt eine Person an, die Person verbindet ihr Konto.
+Und für das Buchen mit Konto (/customer-link): Eintrag gleich verbunden anlegen oder vorhandenen verbinden.
 Ohne Firebase lauffähig (Datenbank nachgebildet):
 
     cd backend && .venv/bin/python tests/test_customer_activation.py
@@ -27,6 +28,14 @@ class Ref:
 
     def update(self, values):
         self.db.data[self.coll][self.id].update({k: ("ZEIT" if v.__class__.__name__ == "Sentinel" else v) for k, v in values.items()})
+
+    def create(self, values):
+        from google.api_core.exceptions import Conflict
+
+        if self.id in self.db.data[self.coll]:
+            raise Conflict("gibt es schon")
+        self.db.data[self.coll][self.id] = {}
+        self.update(values)
 
 
 class Snap:
@@ -87,7 +96,7 @@ class FakeDb:
 
 def data(**customer):
     return {
-        "shops": {"laden1": {"name": "Barbershop Kaya", "owner": "inhaber"}},
+        "shops": {"laden1": {"name": "Barbershop Kaya", "owner": "inhaber"}, "laden2": {"name": "Salon Nord", "owner": "inhaber2"}},
         "customers": {
             "kunde1": {
                 "shopId": "laden1",
@@ -107,12 +116,13 @@ def data(**customer):
     }
 
 
-def client(store, uid="kontoMax"):
+def client(store, uid="kontoMax", email="max@example.com", verified=True, name="Max Muster"):
     import app.apis.customer_activation as api
     from databutton_app.mw.auth_mw import get_authorized_user
 
     db = FakeDb(store)
     api.get_firestore_db = lambda: db
+    api.account = lambda _uid: {"email": email, "verified": verified, "name": name}
     app = FastAPI()
     app.include_router(api.router, prefix="/routes")
     if uid:
@@ -193,6 +203,98 @@ def test_verbinden_nur_angemeldet():
     app.include_router(api.router, prefix="/routes")
     app.dependency_overrides[get_authorized_user] = nicht_angemeldet
     assert TestClient(app).post(f"/routes/customer-activation/{TOKEN}").status_code == 401
+    assert TestClient(app).post("/routes/customer-link/laden1").status_code == 401
+
+
+# Buchen mit Konto (Nummer ziehen, Termin buchen): POST /customer-link/{shopId}
+
+
+def ohne_eintrag():
+    store = data()
+    del store["customers"]["kunde1"]
+    return store
+
+
+def test_buchen_mit_konto_legt_verbundenen_eintrag_an():
+    store = ohne_eintrag()
+    r = client(store).post("/routes/customer-link/laden1")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"status": "neu", "moved": 0}
+    assert list(store["customers"]) == ["laden1_kontoMax"]
+    kunde = store["customers"]["laden1_kontoMax"]
+    assert kunde["userId"] == "kontoMax" and kunde["isActive"] is True
+    assert kunde["shopId"] == "laden1" and kunde["email"] == "max@example.com" and kunde["name"] == "Max Muster"
+    assert "activationToken" not in kunde  # verbunden, braucht keinen Link
+
+
+def test_ohne_namen_teil_der_email():
+    store = ohne_eintrag()
+    client(store, name="").post("/routes/customer-link/laden1")
+    assert store["customers"]["laden1_kontoMax"]["name"] == "max"
+
+
+def test_zweimal_buchen_ein_eintrag():
+    store = ohne_eintrag()
+    client(store).post("/routes/customer-link/laden1")
+    r = client(store).post("/routes/customer-link/laden1")
+    assert r.json() == {"status": "schon_verbunden", "moved": 0}
+    assert len(store["customers"]) == 1
+
+
+def test_gleichzeitig_gebucht_ein_eintrag():
+    # Der zweite Aufruf sieht den ersten Eintrag noch nicht (Abfrage nach userId leer), anlegen scheitert an der festen ID
+    store = ohne_eintrag()
+    store["customers"]["laden1_kontoMax"] = {"shopId": "laden1", "name": "Max"}
+    assert client(store).post("/routes/customer-link/laden1").json()["status"] == "schon_verbunden"
+    assert store["customers"]["laden1_kontoMax"] == {"shopId": "laden1", "name": "Max"}
+
+
+def test_vorhandener_eintrag_mit_bestaetigter_email_wird_verbunden():
+    store = data()
+    r = client(store, email="Max@Example.com").post("/routes/customer-link/laden1")  # Groß/klein egal
+    assert r.json() == {"status": "verbunden", "moved": 2}
+    assert list(store["customers"]) == ["kunde1"]  # kein zweiter Eintrag
+    assert store["customers"]["kunde1"]["userId"] == "kontoMax" and store["customers"]["kunde1"]["isActive"] is True
+    assert store["appointments"]["t1"]["customerId"] == "kontoMax"
+    assert store["appointments"]["t3"]["customerId"] == "jemand"
+
+
+def test_unbestaetigte_email_uebernimmt_keinen_eintrag():
+    store = data()
+    r = client(store, uid="angreifer", verified=False).post("/routes/customer-link/laden1")
+    assert r.json() == {"status": "nicht_bestaetigt", "moved": 0}
+    assert list(store["customers"]) == ["kunde1"]
+    assert "userId" not in store["customers"]["kunde1"]
+    assert store["appointments"]["t1"]["customerId"] == "kunde1"
+
+
+def test_eintrag_eines_anderen_kontos_bleibt():
+    store = data(userId="fremd")
+    r = client(store).post("/routes/customer-link/laden1")
+    assert r.json() == {"status": "anderes_konto", "moved": 0}
+    assert list(store["customers"]) == ["kunde1"] and store["customers"]["kunde1"]["userId"] == "fremd"
+
+
+def test_schon_ueber_den_link_verbunden():
+    store = data(userId="kontoMax")
+    assert client(store).post("/routes/customer-link/laden1").json() == {"status": "schon_verbunden", "moved": 0}
+    assert list(store["customers"]) == ["kunde1"]
+
+
+def test_eintrag_in_anderem_laden_bleibt():
+    store = data()
+    r = client(store).post("/routes/customer-link/laden2")
+    assert r.json() == {"status": "neu", "moved": 0}
+    assert "userId" not in store["customers"]["kunde1"]
+    assert store["customers"]["laden2_kontoMax"]["shopId"] == "laden2"
+
+
+def test_unbekannter_laden():
+    store = data()
+    c = client(store)
+    assert c.post("/routes/customer-link/gibtsnicht").status_code == 404
+    assert c.post("/routes/customer-link/laden%2Fx").status_code == 404
+    assert list(store["customers"]) == ["kunde1"]
 
 
 if __name__ == "__main__":
