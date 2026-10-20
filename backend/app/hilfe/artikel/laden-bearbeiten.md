@@ -3,7 +3,7 @@ titel: Name, Adresse, Logo und Beschreibung ändern
 kurz: So änderst du die Angaben zu deinem Laden: Name, Adresse, Kontakt, Branche, Logo und Beschreibung.
 thema: laden
 reihenfolge: 3
-stichworte: laden, profil, name, adresse, logo, bild, beschreibung, telefon, webseite, branche, ändern, umzug, kontakt
+stichworte: laden, profil, name, adresse, logo, bild, beschreibung, telefon, webseite, branche, ändern, umzug, kontakt, vorlaufzeit, zeitpuffer, kurzfristig
 ---
 Alle Angaben zu deinem Laden änderst du an einer Stelle. Sie gelten sofort, auch auf deiner Ladenseite.
 
@@ -21,6 +21,7 @@ Alle Angaben zu deinem Laden änderst du an einer Stelle. Sie gelten sofort, auc
 - **Öffnungszeiten:** siehe [Öffnungszeiten einstellen](/hilfe/oeffnungszeiten).
 - **Branche:** Danach richten sich die Vorschläge für Leistungen und der Filter auf der Karte. Auf den Stadtseiten „Friseur ohne Termin“ stehen nur Läden mit der Branche „Friseure/Barbiere“. Die Branche steht auf deiner Ladenseite unter dem Namen.
 - **Logo:** Tipp auf **„Logo hochladen“** und wähl eine Bilddatei bis 1 MB. JPG und PNG verkleinert Dranzeit auf höchstens 200 Pixel Breite und Höhe, am besten passt ein quadratisches Bild. Mit dem X oben rechts am Bild entfernst du es wieder.
+- **Vorlaufzeit für Online-Termine:** So viele Minuten im Voraus muss online gebucht werden. Bei 30 ist um 10:00 online frühestens 10:30 frei. Nummer ziehen und Termine, die du selbst einträgst, gehen immer sofort. 0 heißt: keine Vorlaufzeit.
 - **Beschreibung:** ein, zwei Sätze, was deinen Laden ausmacht.
 
 > **Achtung:** Ein neues Logo ist erst gespeichert, wenn du danach auf „Änderungen speichern“ tippst.

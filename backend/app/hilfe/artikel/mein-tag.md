@@ -24,6 +24,12 @@ In der Zeitleiste ist die rote Linie die aktuelle Uhrzeit, deine wöchentlichen 
 
 Passt die Zeit nicht, etwa wegen einer Pause, nennt Dranzeit den Grund und speichert nichts.
 
+## Kunde anlegen
+
+Tipp oben auf **„Kunde anlegen“**, trag Name und E-Mail ein und tipp auf **„Kunde anlegen“**. Die Person steht dann unter **„Bestandskunde“**, wenn du einen Termin einträgst.
+
+Danach zeigt Dranzeit einen Link. Schick ihn der Person mit **„Link kopieren“** oder **„Per E-Mail schicken“**, auf dem Handy auch mit **„Teilen“**. Öffnet sie ihn und meldet sich an oder legt ein Konto an, stehen die Termine, die du für sie einträgst, unter „Meine Termine“ in ihrem Konto. Der Link gilt 30 Tage. Ist er abgelaufen, leg die Person mit derselben E-Mail noch einmal an: Du bekommst einen neuen Link, aber keinen zweiten Eintrag.
+
 ## Verschieben
 
 Halt einen Termin fest und zieh ihn an die neue Stelle: am Computer mit der Maus, auf Handy oder Tablet nach kurzem Gedrückthalten. Ein gestrichelter Rahmen zeigt die neue Uhrzeit. Lass los, wenn sie stimmt. Sind 3 oder mehr Tage zu sehen, ziehst du ihn auch auf einen anderen Tag.

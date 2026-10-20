@@ -97,7 +97,7 @@ const Activate = () => {
     return (
       <AuthShell
         title="Verbunden."
-        intro={`Deine Termine bei ${done.shopName} stehen jetzt unter „Meine Termine“. Wird vorher ein Platz frei, bieten wir ihn dir an.`}
+        intro={`Deine Termine bei ${done.shopName} stehen jetzt unter „Meine Termine“.`}
       >
         <Button asChild size="lg" className="w-full">
           <Link to="/my-bookings">Zu meinen Terminen</Link>
@@ -129,7 +129,7 @@ const Activate = () => {
   return (
     <AuthShell
       title={`${info.shopName} hat dich angelegt.`}
-      intro={`Verbinde dein Dranzeit-Konto, dann siehst du deine Termine bei ${info.shopName} unter „Meine Termine“ und bekommst einen früheren Platz angeboten, wenn einer frei wird.`}
+      intro={`Verbinde dein Dranzeit-Konto, dann siehst du deine Termine bei ${info.shopName} jederzeit unter „Meine Termine“. Wird ein früherer Platz frei, können wir ihn dir anbieten.`}
       footer={
         user ? (
           <p>

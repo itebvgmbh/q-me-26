@@ -13,13 +13,11 @@ Mit einem Konto kannst du mehrere Läden führen. Jeder Laden hat eigene Öffnun
 2. Der Einrichtungsassistent startet wie beim ersten Mal: Laden finden, Angaben, Branche, Öffnungszeiten, Leistungen und Team. Wie das geht, steht in [In 10 Minuten startklar](/hilfe/in-10-minuten-startklar).
 3. Tipp am Ende auf **„Laden eröffnen“** und dann auf **„Zum Tresen“**.
 
-Leg die Leistungen dabei gleich vollständig an. Warum, steht unten im Hinweis.
-
 ## Zwischen Läden wechseln
 
 Am Tresen steht oben der Name des Ladens. Tipp darauf und wähl einen anderen Laden. Der Tresen startet immer mit demselben Laden, wechsle also bei Bedarf oben.
 
-**„Wartezimmer-Bildschirm öffnen“** und **„Laden bearbeiten“** im Menü **„…“** gelten für den Laden, den du gerade am Tresen gewählt hast. Plakat, Auswertung, Team und Tarif haben oben eine eigene Auswahl für den Laden.
+**„Wartezimmer-Bildschirm öffnen“** und **„Laden bearbeiten“** im Menü **„…“** gelten für den Laden, den du gerade am Tresen gewählt hast. Plakat, Auswertung, Team, Tarif, Leistungen und Mein Laden haben oben eine eigene Auswahl für den Laden.
 
 ## Was für jeden Laden einzeln gilt
 
@@ -27,6 +25,6 @@ Am Tresen steht oben der Name des Ladens. Tipp darauf und wähl einen anderen La
 - **Team:** Jede Person gehört zu genau einem Laden. Mit derselben E-Mail-Adresse lässt sich niemand in einem zweiten Laden anlegen, außer dir selbst.
 - **QR-Code und Link:** Jeder Laden hat einen eigenen. Häng in jedem Laden sein eigenes [QR-Plakat](/hilfe/plakat) auf.
 
-> **Achtung:** Die Seiten „Leistungen“ und „Mein Laden“ zeigen im Moment nur einen deiner Läden. Arbeitest du in mehreren Läden selbst mit, gilt das auch für „Mein Tag“. Name, Adresse, Öffnungszeiten und Logo eines anderen Ladens änderst du am Tresen: oben den Laden wählen, dann „…“ → „Laden bearbeiten“.
+> **Achtung:** Arbeitest du in mehreren Läden selbst mit, zeigt „Mein Tag“ nur einen davon.
 
 [Zum Tresen](/shop-dashboard){knopf}

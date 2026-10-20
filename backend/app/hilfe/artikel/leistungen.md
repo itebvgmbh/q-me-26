@@ -1,9 +1,9 @@
 ---
 titel: Leistungen anlegen und ändern
-kurz: Was man bei dir buchen kann: Name, Dauer, Vor- und Nachbereitung, Preis und wer welche Leistung macht.
+kurz: Was man bei dir buchen kann: Name, Dauer, Vor- und Nachbereitung, Preis, wer welche Leistung macht und wie du eine löschst.
 thema: laden
 reihenfolge: 1
-stichworte: leistung, leistungen, service, dienstleistung, preis, preise, dauer, preisliste, haarschnitt, kategorie, vorbereitung, nachbereitung, rüstzeit
+stichworte: leistung, leistungen, service, dienstleistung, preis, preise, dauer, preisliste, haarschnitt, kategorie, vorbereitung, nachbereitung, rüstzeit, löschen, entfernen, zurückholen
 ---
 Leistungen sind das, was Kunden beim Nummer-Ziehen und Buchen auswählen. Am wichtigsten ist die **Dauer**: Daraus rechnet Dranzeit, wann jemand dran ist.
 
@@ -26,6 +26,14 @@ Die Felder:
 ## Leistung ändern
 
 Tipp bei der Leistung auf **„Bearbeiten“**, ändere, was nötig ist, und tipp auf **„Änderungen speichern“**. Das gilt für neue Buchungen. Wer schon eine Nummer hat, behält seine Zeit.
+
+## Leistung löschen
+
+1. Tipp bei der Leistung auf **„Löschen“**.
+2. Lies die Rückfrage: Dort steht, wie viele kommende Termine die Leistung schon haben.
+3. Tipp auf **„Löschen“**.
+
+Kunden können die Leistung dann nicht mehr buchen, und sie verschwindet bei den Personen im Team. Schon gebuchte Termine bleiben mit dieser Leistung bestehen. Versehentlich gelöscht? Unten unter **„Gelöschte Leistungen“** tippst du auf **„Zurückholen“**, auch die Zuordnung zu den Personen ist dann wieder da.
 
 ## Wer macht welche Leistung?
 

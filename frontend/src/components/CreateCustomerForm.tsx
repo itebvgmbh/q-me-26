@@ -23,7 +23,7 @@ interface Props {
 const mailText = (customer: Customer, link: string) =>
   `Hallo ${customer.name},\n\n` +
   'hier ist dein Link für Dranzeit. Einmal öffnen und mit deinem Konto verbinden (oder schnell eins anlegen). ' +
-  'Dann siehst du deine Termine bei uns und bekommst einen früheren Platz angeboten, wenn einer frei wird.\n\n' +
+  'Dann siehst du deine Termine bei uns jederzeit unter „Meine Termine“.\n\n' +
   `${link}\n`;
 
 /** Kunde anlegen ("Mein Tag"): Eintrag für die Kundenliste plus Link, mit dem die Person ihr Konto verbindet */
@@ -96,7 +96,8 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
           <>
             <p className="text-sm text-muted-foreground">
               Schick {createdCustomer.name} diesen Link. Wer ihn öffnet und sich anmeldet (oder ein Konto anlegt), sieht die Termine, die du einträgst, unter
-              „Meine Termine“ und bekommt frühere Plätze angeboten. Der Link gilt 30 Tage.
+              „Meine Termine“. Hakst du beim Termin „Bei früherem freien Termin benachrichtigen“ an, bieten wir frühere Plätze an. Der Link gilt
+              30 Tage.
             </p>
             <p className="break-all rounded-2xl bg-muted p-3 font-mono text-sm" data-testid="activation-link">
               {link}

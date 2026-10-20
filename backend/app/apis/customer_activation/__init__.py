@@ -2,7 +2,7 @@
 /activate?token=…  Damit verbindet die Person ihr Dranzeit-Konto mit diesem Eintrag.
 
 Danach gehören die Termine, die der Laden für sie eingetragen hat, ihrem Konto: Sie stehen unter "Meine Termine",
-und "Früher dran" bietet ihr frei gewordene Plätze an (find_slots liest dafür customers.userId).
+und "Früher dran" erreicht sie bei Terminen mit checkEarlierOptions (find_slots liest dafür auch customers.userId).
 
 Öffentlich ist nur, ob der Link gilt und von welchem Laden er ist. Verbinden geht nur angemeldet, und nur einmal:
 Ist der Eintrag schon mit einem Konto verbunden, kann ihn kein anderes Konto mehr übernehmen.

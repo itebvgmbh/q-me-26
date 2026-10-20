@@ -32,7 +32,7 @@ export const renewActivation = async (customer: Customer): Promise<Customer> => 
 
 /**
  * customerId für einen Termin dieser Person. Hat sie ihr Konto verbunden, gehört der Termin dem Konto –
- * dann steht er unter "Meine Termine", und "Früher dran" erreicht sie. Sonst die ID des Eintrags.
+ * dann steht er unter "Meine Termine", und "Früher dran" kann sie erreichen. Sonst die ID des Eintrags.
  */
 export const appointmentCustomerId = (customer: Customer) => customer.userId || customer.id;
 
