@@ -108,7 +108,8 @@ export interface Customer {
   email: string;
   phone?: string;
   userId?: string;
-  activationToken?: string;
+  /** SHA-256 des Tokens im Kunden-Link /activate – das Token selbst kennt nur, wer den Link bekommen hat */
+  activationTokenHash?: string;
   activationExpires?: Timestamp;
   isActive: boolean;
   createdAt: Timestamp;

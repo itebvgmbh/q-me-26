@@ -1,5 +1,6 @@
 """
-Tests für den Kunden-Link (/activate): Ein Laden legt eine Person an, die Person verbindet ihr Konto.
+Tests für den Kunden-Link (/activate): Ein Laden legt eine Person an und erzeugt den Link (nur der Hash wird
+gespeichert), die Person verbindet ihr Konto. Dazu der Übergang für alte Links mit Token im Klartext.
 Und für das Buchen mit Konto (/customer-link): Eintrag gleich verbunden anlegen oder vorhandenen verbinden.
 Ohne Firebase lauffähig (Datenbank nachgebildet):
 
@@ -14,6 +15,9 @@ os.environ.setdefault("FIREBASE_PROJECT_ID", "test")
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from google.cloud import firestore as gcf  # noqa: E402
+
+from app.libs.links import token_hash  # noqa: E402
 
 TOKEN = "abc123def456ghi789"
 NOW = datetime.now(timezone.utc)
@@ -27,7 +31,12 @@ class Ref:
         return Snap(self, self.db.data[self.coll].get(self.id))
 
     def update(self, values):
-        self.db.data[self.coll][self.id].update({k: ("ZEIT" if v.__class__.__name__ == "Sentinel" else v) for k, v in values.items()})
+        doc = self.db.data[self.coll][self.id]
+        for k, v in values.items():
+            if v is gcf.DELETE_FIELD:
+                doc.pop(k, None)
+            else:
+                doc[k] = "ZEIT" if v is gcf.SERVER_TIMESTAMP else v
 
     def create(self, values):
         from google.api_core.exceptions import Conflict
@@ -52,8 +61,8 @@ class Query:
         self.db, self.coll, self.filters, self.max_rows = db, coll, list(filters), max_rows
 
     def where(self, field, op, value):
-        assert op == "=="
-        return Query(self.db, self.coll, self.filters + [(field, value)], self.max_rows)
+        assert op in ("==", ">")
+        return Query(self.db, self.coll, self.filters + [(field, op, value)], self.max_rows)
 
     def limit(self, n):
         return Query(self.db, self.coll, self.filters, n)
@@ -65,7 +74,7 @@ class Query:
         rows = [
             Snap(Ref(self.db, self.coll, doc_id), data)
             for doc_id, data in self.db.data[self.coll].items()
-            if all(data.get(f) == v for f, v in self.filters)
+            if all((data.get(f) == v) if op == "==" else (isinstance(data.get(f), str) and data[f] > v) for f, op, v in self.filters)
         ]
         return iter(rows[: self.max_rows] if self.max_rows else rows)
 
@@ -97,12 +106,17 @@ class FakeDb:
 def data(**customer):
     return {
         "shops": {"laden1": {"name": "Barbershop Kaya", "owner": "inhaber"}, "laden2": {"name": "Salon Nord", "owner": "inhaber2"}},
+        "staff": {
+            "s1": {"shopId": "laden1", "name": "Robin", "userId": "kontoRobin", "isActive": True},
+            "s2": {"shopId": "laden1", "name": "Alex", "userId": "kontoAlex", "isActive": False},
+            "s3": {"shopId": "laden2", "name": "Sam", "userId": "kontoSam"},
+        },
         "customers": {
             "kunde1": {
                 "shopId": "laden1",
                 "name": "Max",
                 "email": "max@example.com",
-                "activationToken": TOKEN,
+                "activationTokenHash": token_hash(TOKEN),
                 "activationExpires": NOW + timedelta(days=10),
                 "isActive": False,
                 **customer,
@@ -118,16 +132,168 @@ def data(**customer):
 
 def client(store, uid="kontoMax", email="max@example.com", verified=True, name="Max Muster"):
     import app.apis.customer_activation as api
+    import app.apis.firebase_utils as fu
+    import app.auth.access as access
     from databutton_app.mw.auth_mw import get_authorized_user
 
     db = FakeDb(store)
     api.get_firestore_db = lambda: db
+    fu.get_firestore_db = lambda: db  # require_shop_member in app/auth/access.py
+    access.is_admin = lambda _u: False
     api.account = lambda _uid: {"email": email, "verified": verified, "name": name}
     app = FastAPI()
     app.include_router(api.router, prefix="/routes")
     if uid:
         app.dependency_overrides[get_authorized_user] = lambda: type("User", (), {"sub": uid, "email": f"{uid}@example.com"})()
     return TestClient(app)
+
+
+# Link erzeugen: POST /customer-activation (Inhaber und Team)
+
+
+def new_link(store, uid="inhaber", customer_id="kunde1", **headers):
+    return client(store, uid=uid).post("/routes/customer-activation", json={"customer_id": customer_id}, headers=headers)
+
+
+def link_token(r) -> str:
+    return r.json()["link"].split("token=", 1)[1]
+
+
+def test_link_speichert_nur_den_hash():
+    store = data()
+    r = new_link(store)
+    assert r.status_code == 200, r.text
+    assert r.json()["link"].startswith("https://dranzeit.de/activate?token=")
+    token = link_token(r)
+    assert len(token) == 32 and token != TOKEN
+    kunde = store["customers"]["kunde1"]
+    assert kunde["activationTokenHash"] == token_hash(token)
+    assert token not in str(kunde)  # das Token selbst steht nirgends
+    assert "activationToken" not in kunde
+    assert abs((kunde["activationExpires"] - NOW).total_seconds() - 30 * 86400) < 60
+    assert r.json()["expires"] == kunde["activationExpires"].isoformat()
+
+
+def test_neuer_link_ersetzt_den_alten():
+    store = data()
+    token = link_token(new_link(store))
+    c = client(store, uid=None)
+    assert c.get(f"/routes/customer-activation/{TOKEN}").status_code == 404
+    assert c.get(f"/routes/customer-activation/{token}").json()["status"] == "offen"
+    token2 = link_token(new_link(store))
+    assert c.get(f"/routes/customer-activation/{token}").status_code == 404
+    assert c.get(f"/routes/customer-activation/{token2}").status_code == 200
+
+
+def test_neuer_link_nach_ablauf_gilt_wieder():
+    store = data(activationExpires=NOW - timedelta(days=1))
+    token = link_token(new_link(store))
+    assert client(store, uid=None).get(f"/routes/customer-activation/{token}").json()["status"] == "offen"
+
+
+def test_link_vom_team_des_ladens():
+    store = data()
+    r = new_link(store, uid="kontoRobin")
+    assert r.status_code == 200, r.text
+    assert store["customers"]["kunde1"]["activationTokenHash"] == token_hash(link_token(r))
+
+
+def test_link_nur_fuer_den_eigenen_laden():
+    for uid in ("kontoAlex", "kontoSam", "inhaber2", "kontoMax"):  # deaktiviert, anderer Laden, fremder Inhaber, Kunde
+        store = data()
+        r = new_link(store, uid=uid)
+        assert r.status_code == 403, (uid, r.text)
+        assert store["customers"]["kunde1"]["activationTokenHash"] == token_hash(TOKEN), uid
+
+
+def test_link_nur_angemeldet():
+    from fastapi import HTTPException
+
+    import app.apis.customer_activation as api
+    from databutton_app.mw.auth_mw import get_authorized_user
+
+    def nicht_angemeldet():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    store = data()
+    db = FakeDb(store)
+    api.get_firestore_db = lambda: db
+    app = FastAPI()
+    app.include_router(api.router, prefix="/routes")
+    app.dependency_overrides[get_authorized_user] = nicht_angemeldet
+    assert TestClient(app).post("/routes/customer-activation", json={"customer_id": "kunde1"}).status_code == 401
+    assert store["customers"]["kunde1"]["activationTokenHash"] == token_hash(TOKEN)
+
+
+def test_link_fuer_verbundenen_eintrag():
+    store = data(userId="kontoMax")
+    r = new_link(store)
+    assert r.status_code == 409 and "Max hat das Konto schon verbunden" in r.json()["detail"]
+
+
+def test_link_fuer_unbekannten_eintrag():
+    assert new_link(data(), customer_id="gibtsnicht").status_code == 404
+    assert new_link(data(), customer_id="a/b").status_code == 404
+
+
+def test_link_auf_die_adresse_des_ladens():
+    store = data()
+    assert new_link(store, Origin="https://q-me.spielmacherei.de").json()["link"].startswith("https://q-me.spielmacherei.de/activate?token=")
+    assert new_link(store, Origin="https://boese.example").json()["link"].startswith("https://dranzeit.de/activate?token=")
+
+
+# Übergang: Einträge von vor dem Umbau tragen das Token im Klartext
+
+
+def alt(**customer):
+    store = data(activationToken=TOKEN, **customer)
+    del store["customers"]["kunde1"]["activationTokenHash"]
+    return store
+
+
+def test_alter_link_gilt_weiter_und_wird_umgestellt():
+    store = alt()
+    r = client(store, uid=None).get(f"/routes/customer-activation/{TOKEN}")
+    assert r.json() == {"status": "offen", "shopName": "Barbershop Kaya"}
+    kunde = store["customers"]["kunde1"]
+    assert "activationToken" not in kunde and kunde["activationTokenHash"] == token_hash(TOKEN)
+    assert client(store, uid=None).get(f"/routes/customer-activation/{TOKEN}").status_code == 200
+
+
+def test_alter_link_verbindet():
+    store = alt()
+    r = client(store).post(f"/routes/customer-activation/{TOKEN}")
+    assert r.json() == {"shopName": "Barbershop Kaya", "moved": 2}
+    assert store["customers"]["kunde1"]["userId"] == "kontoMax" and "activationToken" not in store["customers"]["kunde1"]
+
+
+def test_alles_umstellen():
+    import app.apis.customer_activation as api
+
+    store = alt()
+    store["customers"]["kunde2"] = {"shopId": "laden2", "name": "Eva", "activationToken": "zweiterlinkzweiterlink", "userId": "kontoEva"}
+    store["customers"]["kunde3"] = {"shopId": "laden1", "name": "Ole", "activationTokenHash": "abc"}
+    store["customers"]["kunde4"] = {"shopId": "laden1", "name": "Ida"}
+    assert api.hash_plain_tokens(FakeDb(store)) == 2
+    assert not any("activationToken" in c for c in store["customers"].values())
+    assert store["customers"]["kunde1"]["activationTokenHash"] == token_hash(TOKEN)
+    assert store["customers"]["kunde2"]["activationTokenHash"] == token_hash("zweiterlinkzweiterlink")
+    assert store["customers"]["kunde3"] == {"shopId": "laden1", "name": "Ole", "activationTokenHash": "abc"}
+    assert store["customers"]["kunde4"] == {"shopId": "laden1", "name": "Ida"}
+    assert api.hash_plain_tokens(FakeDb(store)) == 0  # zweiter Lauf: nichts mehr zu tun
+    assert client(store, uid=None).get(f"/routes/customer-activation/{TOKEN}").json()["status"] == "offen"
+
+
+def test_neuer_link_ersetzt_alten_klartext():
+    store = alt()
+    token = link_token(new_link(store))
+    assert "activationToken" not in store["customers"]["kunde1"]
+    c = client(store, uid=None)
+    assert c.get(f"/routes/customer-activation/{TOKEN}").status_code == 404
+    assert c.get(f"/routes/customer-activation/{token}").status_code == 200
+
+
+# Link öffnen und verbinden: GET/POST /customer-activation/{token}
 
 
 def test_info_ohne_anmeldung():
@@ -224,7 +390,7 @@ def test_buchen_mit_konto_legt_verbundenen_eintrag_an():
     kunde = store["customers"]["laden1_kontoMax"]
     assert kunde["userId"] == "kontoMax" and kunde["isActive"] is True
     assert kunde["shopId"] == "laden1" and kunde["email"] == "max@example.com" and kunde["name"] == "Max Muster"
-    assert "activationToken" not in kunde  # verbunden, braucht keinen Link
+    assert "activationToken" not in kunde and "activationTokenHash" not in kunde  # verbunden, braucht keinen Link
 
 
 def test_ohne_namen_teil_der_email():

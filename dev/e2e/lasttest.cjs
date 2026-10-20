@@ -7,7 +7,7 @@
 //   node dev/e2e/lasttest.cjs alles [Verlauf]      anlegen, lauf, loeschen
 //
 // Szenarien:
-//   abfragen   freie Zeiten: viele Anfragen gleichzeitig, mit und ohne Zwischenspeicher, Verlauf kostet
+//   abfragen   freie Zeiten: viele Anfragen gleichzeitig, mit und ohne Zwischenspeicher, mit und ohne Verlauf
 //   ansturm    QME_ANSTURM Leute (Standard 10) ziehen im selben Moment eine Nummer bei derselben Person
 //   kaskade    "Früher dran": 4 Absagen, Kunden nehmen jedes Angebot sofort an, bis nichts mehr nachrückt;
 //              dabei: fremdes Angebot annehmen, dasselbe Angebot zweimal gleichzeitig
@@ -22,7 +22,8 @@
 //   (Alex und Bea 30-Minuten-Termine, Cem gemischt 30/15). 3 von 4 Terminen wollen "früher dran" und gehören
 //   einem von 6 Kundenkonten. Dora arbeitet täglich 07–22 Uhr (für den Ansturm heute).
 //   Alex hat zusätzlich einen Verlauf alter Termine. Seit PR #23 liest eine Platzberechnung nur die Termine ihres
-//   Tages; "abfragen" prüft das (Alex soll so schnell sein wie Bea, vorher ~0,27 ms je altem Termin).
+//   Tages. Belastbar zeigt das das Server-Log ("… Termine gelesen" je Berechnung); der Zeitvergleich Alex/Bea in
+//   "abfragen" schwankt bei Verlauf 200 um ±70 ms und taugt erst mit großem Verlauf (z. B. anlegen 2000).
 //
 // Lese-Budget: ein Lauf kostet grob 8 000 Firestore-Lesevorgänge, vor PR #23 mit Verlauf 200 grob 15 000
 // (Gratis-Kontingent: 50 000/Tag).
@@ -475,12 +476,11 @@ async function lauf(only) {
     const day = (d) => at(d, 12 * 60).toISOString();
     const p = pulse('abfragen');
     const req = (staff, date, force) => ({ shop_id: state.shopId, staff_id: S[staff], service_id: state.services.schnitt, date: day(date), force_refresh: force });
-    // Ohne Zwischenspeicher, nacheinander: Kosten des Verlaufs (Alex) gegenüber ohne (Bea)
-    const seq = {};
-    for (const staff of ['alex', 'bea']) {
-      seq[staff] = [];
-      for (let i = 0; i < 5; i++) seq[staff].push((await api.slots(req(staff, state.d1, true))).ms);
-    }
+    // Ohne Zwischenspeicher, nacheinander: Kosten des Verlaufs (Alex) gegenüber ohne (Bea). Im Wechsel und mit
+    // einem Aufwärmaufruf vorweg – sonst ist, wer zuerst dran ist, ~50 ms langsamer (Verbindung, Server kalt)
+    const seq = { alex: [], bea: [] };
+    await api.slots(req('bea', state.d1, true));
+    for (let i = 0; i < 6; i++) for (const staff of i % 2 ? ['bea', 'alex'] : ['alex', 'bea']) seq[staff].push((await api.slots(req(staff, state.d1, true))).ms);
     // Viele gleichzeitig, wie mehrere Kunden auf der Buchungsseite (zum Teil aus dem Zwischenspeicher)
     const burst = Array.from({ length: 60 }, (_, i) => req(['bea', 'cem', 'dora'][i % 3], i % 2 ? state.d1 : ymd(new Date()), false));
     const burstRes = await pool(burst, 20, (b) => api.slots(b));
@@ -496,9 +496,8 @@ async function lauf(only) {
     measures.push(pm);
     rows.push({ name: 'Freie Zeiten: keine Fehler unter Last', pass: burstRes.every((r) => r.ok) && parallel.every((r) => r.ok), detail: `${burstRes.filter((r) => !r.ok).length + parallel.filter((r) => !r.ok).length} Fehler` });
     rows.push({ name: 'Freie Zeiten: p95 unter 2 s', pass: (stats(burstRes.map((r) => r.ms)).p95 || 0) < 2000 && (stats(parallel.map((r) => r.ms)).p95 || 0) < 2000, detail: `Ansturm ${fmt(stats(burstRes.map((r) => r.ms)))}` });
-    const perDoc = state.history ? (sa.p50 - sb.p50) / state.history : 0;
-    results.scenarios.abfragen.msPerHistoryDoc = perDoc;
-    console.log(`  Verlauf kostet ~${perDoc.toFixed(2)} ms je altem Termin und Berechnung (Alex ${sa.p50} ms, Bea ${sb.p50} ms)`);
+    results.scenarios.abfragen.historyDiffMs = sa.p50 - sb.p50;
+    console.log(`  Alex mit ${state.history} alten Terminen ${sa.p50} ms, Bea ohne ${sb.p50} ms (Unterschied ${sa.p50 - sb.p50} ms; schwankt um ±70 ms)`);
   }
 
   // --- ansturm ----------------------------------------------------------------------------------

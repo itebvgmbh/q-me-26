@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { AuthShell, FormError } from '../components/auth/AuthShell';
 
 // Kunden-Link: Ein Laden hat die Person unter "Mein Tag" angelegt und ihr diesen Link geschickt.
-// Prüfen und Verbinden macht das Backend (backend/app/apis/customer_activation), Link erzeugt CreateCustomerForm.
+// Link erzeugen (CreateCustomerForm), Prüfen und Verbinden macht das Backend (backend/app/apis/customer_activation).
 
 type Info = { status: 'offen' | 'verbunden' | 'abgelaufen'; shopName: string };
 
