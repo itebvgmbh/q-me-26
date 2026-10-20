@@ -346,6 +346,13 @@ def test_fremde_duerfen_keine_kunden_loeschen():
     assert client(laden(), "inhaber").delete("/routes/datenschutz/kunde/a.b").status_code == 404
 
 
+def test_deaktivierte_duerfen_keine_kunden_loeschen():
+    store = laden()
+    store["staff"]["st1"]["isActive"] = False
+    assert client(store, "mitarbeiter").delete("/routes/datenschutz/kunde/kunde1").status_code == 403
+    assert "kunde1" in store["customers"]
+
+
 def test_kunde_loescht_eigenes_konto():
     store = laden()
     r = client(store, "kontoEva").delete("/routes/datenschutz/konto")

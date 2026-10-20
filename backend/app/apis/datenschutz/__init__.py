@@ -28,7 +28,9 @@ def _require_shop_member(user, shop_id: str) -> None:
         raise HTTPException(status_code=404, detail="Diesen Kunden gibt es nicht mehr.")
     if (shop.to_dict() or {}).get("owner") == user.sub:
         return
-    if any((s.to_dict() or {}).get("shopId") == shop_id for s in db.collection("staff").where("userId", "==", user.sub).stream()):
+    # Nur aktive Personen im Team: Deaktivierte haben keine Rechte mehr im Laden
+    entries = [s.to_dict() or {} for s in db.collection("staff").where("userId", "==", user.sub).stream()]
+    if any(e.get("shopId") == shop_id and e.get("isActive") is not False for e in entries):
         return
     raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
 
