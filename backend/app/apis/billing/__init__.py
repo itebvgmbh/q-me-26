@@ -3,8 +3,11 @@
 Nur Inhaber des Ladens. Der Stand des Abos kommt über den Webhook (app/apis/stripe_webhook) an den Laden.
 """
 
+import functools
 import os
 from datetime import datetime, timedelta, timezone
+
+import stripe
 
 from fastapi import APIRouter, HTTPException, Request
 from google.cloud import firestore as gcf
@@ -38,6 +41,25 @@ def _shop(shop_id: str) -> dict:
     return doc.to_dict() or {}
 
 
+def stripe_errors(fn):
+    """Fehler von Stripe verständlich melden. Im Testmodus mit Stripes eigener Meldung (hilft beim Einrichten)."""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except stripe.StripeError as e:
+            print(f"Stripe-Fehler in {fn.__name__}: {e}")
+            test_mode = "_test_" in os.environ.get("STRIPE_SECRET_KEY", "")
+            detail = f"Stripe meldet: {e.user_message or str(e)}" if test_mode else "Die Bezahlung klappt gerade nicht. Bitte versuch es später noch einmal."
+            raise HTTPException(status_code=502, detail=detail) from e
+        except RuntimeError as e:  # z. B. Preis fehlt, weil stripe-setup.py noch nicht lief
+            print(f"Abrechnung nicht bereit in {fn.__name__}: {e}")
+            raise HTTPException(status_code=503, detail="Die Bezahlung ist noch nicht fertig eingerichtet. Schreib uns, wir schalten dich frei.") from e
+
+    return wrapper
+
+
 def _require_stripe() -> None:
     if not stripe_configured():
         raise HTTPException(status_code=503, detail="Die Bezahlung ist noch nicht eingerichtet. Schreib uns, wir schalten dich frei.")
@@ -50,6 +72,7 @@ class CheckoutRequest(BaseModel):
 
 
 @router.post("/billing/checkout")
+@stripe_errors
 def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> dict:
     """Stripe-Checkout für ein Abo. Läuft schon eins, geht es ins Kundenportal (Tarif wechseln dort)."""
     require_shop_of_owner(user, body.shop_id)
@@ -118,6 +141,7 @@ class ShopRequest(BaseModel):
 
 
 @router.post("/billing/portal")
+@stripe_errors
 def portal(body: ShopRequest, user: AuthorizedUser, request: Request) -> dict:
     """Kundenportal: Tarif wechseln, Zahlungsart ändern, Rechnungen, kündigen."""
     require_shop_of_owner(user, body.shop_id)
