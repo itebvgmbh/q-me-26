@@ -84,7 +84,9 @@ Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen glei
 Ein Puls misst dabei alle 250 ms die Antwortzeit des Servers. Ergebnisse auch in `dev/out/lasttest-*.json`.
 Der Puls misst von diesem Rechner aus, also mit Leitung und DNS: Regelmäßige Ausreißer um 1,2 s kamen im Test
 von hier, nicht vom Server. Was der Server selbst gebraucht hat, steht im Caddy-Log (`/var/log/caddy/q-me.log`, Feld `duration`).
-Ein Lauf liest grob 15 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag).
+Ein Lauf liest grob 8 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag), auch mit großem Verlauf:
+Eine Platzberechnung liest nur die Termine ihres Tages. Im Server-Log steht je Berechnung eine Zeile
+(`Freie Zeiten <laden>/<person> am <tag>: N Termine gelesen, …`).
 
 Jeder Test meldet je Prüfung `OK` oder `FEHL` und endet bei Fehlern mit Exit-Code 1.
 Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im Testladen:
