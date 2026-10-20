@@ -34,8 +34,6 @@ import {
   RunNowData,
   SendEmailData,
   SendEmailError,
-  SendStaffInvitationData,
-  SendStaffInvitationError,
   SetIntervalData,
   SetIntervalError,
   SetIntervalParams,
@@ -48,7 +46,6 @@ import {
   SlotFreedRequest,
   WebsiteServicesData,
   WebsiteServicesRequest,
-  StaffInvitationEmailRequest,
   StartSchedulerData,
   StopSchedulerData,
   UpdateAppointmentEndpointData,
@@ -86,23 +83,6 @@ export class Brain<SecurityDataType = unknown> extends HttpClient<SecurityDataTy
   send_email = (data: EmailNotificationRequest, params: RequestParams = {}) =>
     this.request<SendEmailData, SendEmailError>({
       path: `/routes/send-email`,
-      method: "POST",
-      body: data,
-      type: ContentType.Json,
-      ...params,
-    });
-
-  /**
-   * @description Send a staff invitation email with a registration link
-   *
-   * @tags dbtn/module:notifications, dbtn/hasAuth
-   * @name send_staff_invitation
-   * @summary Send Staff Invitation
-   * @request POST:/routes/send-staff-invitation
-   */
-  send_staff_invitation = (data: StaffInvitationEmailRequest, params: RequestParams = {}) =>
-    this.request<SendStaffInvitationData, SendStaffInvitationError>({
-      path: `/routes/send-staff-invitation`,
       method: "POST",
       body: data,
       type: ContentType.Json,

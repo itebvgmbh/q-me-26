@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, Megaphone } from 'lucide-react';
+import { Check, Megaphone, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,13 @@ export const customerLabel = (a: Appointment) => {
   }
   return raw && raw !== 'Unbekannter Kunde' ? raw : 'Gast';
 };
+
+/** Handynummer vom Nummer-Ziehen oder aus dem Profil, damit der Laden anrufen kann (nach 90 Tagen gelöscht) */
+const PhoneLink = ({ phone }: { phone: string }) => (
+  <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2">
+    <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {phone}
+  </a>
+);
 
 interface Props {
   title: string;
@@ -110,6 +117,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
               {serviceName(current)} · seit{' '}
               <span className="font-mono">{format(safelyConvertToDate(current.lastCalledAt ?? current.calledAt ?? current.startTime), 'HH:mm')}</span>
             </p>
+            {current.customerPhone && <PhoneLink phone={current.customerPhone} />}
             {live && ask?.kind !== 'noShow' && (
               <button
                 type="button"
@@ -186,6 +194,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
                       {serviceName(a)} · {a.type === 'queue' ? 'Nummer' : 'Termin'}
                       {late >= SHOW_DELAY_MINUTES && ` · ca. ${format(expectedStart(a, projection), 'HH:mm')}`}
                     </span>
+                    {a.customerPhone && <PhoneLink phone={a.customerPhone} />}
                   </span>
                   {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">Nächste</span>}
                 </li>

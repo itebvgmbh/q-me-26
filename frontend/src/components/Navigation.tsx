@@ -43,6 +43,8 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   ],
   employee: [
     { to: '/employee-dashboard', label: 'Mein Tag' },
+    // Wer vorher Kunde war, behält seine eigenen Buchungen
+    { to: '/my-bookings', label: 'Meine Termine' },
   ],
 };
 

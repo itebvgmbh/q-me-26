@@ -41,6 +41,7 @@ node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Te
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
+node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
 # 4. Testladen wieder löschen
@@ -99,7 +100,8 @@ Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) 
 Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
-`uv run python tests/test_customer_activation.py` (Kunden-Link /activate) und
+`uv run python tests/test_customer_activation.py` (Kunden-Link /activate),
+`uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
 `uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
 (Rechnungen und E-Rechnung, Zugriff nur für den Inhaber)

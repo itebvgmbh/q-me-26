@@ -53,7 +53,9 @@ Ja. Tipp auf deiner Nummernseite auf **„Nummer zurückgeben“** und bestätig
 
 ### Was passiert mit meinen Daten?
 
-Ohne Konto speichert Dranzeit Leistung, Person, Uhrzeit und deinen Vornamen, dazu Handynummer, E-Mail-Adresse oder Push-Anmeldung, wenn du sie angibst. Namen und Kontaktdaten werden 90 Tage nach dem Termin entfernt. Werbe-Cookies gibt es nicht. Mehr dazu in der [Datenschutzerklärung](/datenschutz).
+Ohne Konto speichert Dranzeit Leistung, Person, Uhrzeit und deinen Vornamen, dazu Handynummer, E-Mail-Adresse oder Push-Anmeldung, wenn du sie angibst. Deine Handynummer sieht der Laden, damit er dich anrufen kann, falls du beim Aufrufen nicht da bist. Namen und Kontaktdaten werden 90 Tage nach dem Termin entfernt, die Push-Anmeldung nach 3 Tagen.
+
+Mit Konto bleibt dein Name in deinen Terminen, Handynummer und E-Mail-Adresse am Termin werden ebenfalls nach 90 Tagen entfernt. Dein Konto löschst du unter **„Mein Profil“** → **„Konto löschen“**. Werbe-Cookies gibt es nicht. Mehr dazu in der [Datenschutzerklärung](/datenschutz).
 
 ### Was ist „Früher dran“?
 

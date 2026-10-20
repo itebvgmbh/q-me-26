@@ -16,7 +16,7 @@ import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { HilfeLink } from '../components/HilfeLink';
 import { INDUSTRIES, getIndustryById } from '../utils/industries';
 import { getUserProfile } from '../utils/user-profile-service';
-import { isEmailInUse } from '../utils/auth-helpers';
+import { isEmail } from '../utils/auth-helpers';
 import { DAY_SHORT, formatDayHours, hoursProblem, normalizeHours, WEEK_ORDER } from '../utils/opening-hours';
 import {
   applyPlace,
@@ -56,7 +56,6 @@ const GROUPS: { label: string; steps: Step[] }[] = [
   { label: 'Fertig', steps: ['summary'] },
 ];
 
-const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const host = (url: string) => {
   try {
     return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '');
@@ -221,22 +220,26 @@ const ShopSetup = () => {
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
             <h2 id="einladungen" className="font-display text-xl font-bold">Einladungen fürs Team</h2>
-            <p className="text-sm text-muted-foreground">Schick jedem seinen Link. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag. Die Links gelten 7 Tage.</p>
+            <p className="text-sm text-muted-foreground">Schick jedem seinen Link. Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.</p>
             <ul className="flex flex-col gap-2">
               {invitations.map((inv) => (
-                <li key={inv.link} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                <li key={`${inv.name}-${inv.email}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
                   <span className="flex min-w-0 flex-col">
                     <span className="font-semibold">{inv.name}</span>
                     <span className="truncate text-sm text-muted-foreground">{inv.email}</span>
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
-                  >
-                    <Copy className="h-4 w-4" aria-hidden="true" />
-                    Link kopieren
-                  </Button>
+                  {inv.link ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                      Link kopieren
+                    </Button>
+                  ) : (
+                    <span className="max-w-[12rem] text-right text-sm text-destructive">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -496,12 +499,7 @@ const ShopSetup = () => {
           if (new Set(emails).size !== emails.length || (draft.ownerWorks && emails.includes(draft.email.trim().toLowerCase()))) {
             return setProblem('Jede E-Mail darf nur einmal vorkommen.');
           }
-          // Hat jemand mit dieser E-Mail schon ein Konto oder ist eingeladen, scheitert der Einladungslink später
-          for (const t of others.filter((x) => x.email.trim() && !draft.progress?.staffKeys.includes(x.key))) {
-            if (await isEmailInUse(t.email.trim()).catch(() => false)) {
-              return setProblem(`${t.email.trim()} hat schon ein Konto oder ist eingeladen. Lass die E-Mail bei ${t.name} leer und lade später unter „Team“ ein.`);
-            }
-          }
+          // Hat jemand schon ein Konto (z. B. als Kunde), meldet er sich beim Einladungslink damit an – kein Hindernis
           next({ ...draft, team: draft.team.filter((t) => t.name.trim()) });
         },
       };

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useUserGuardContext } from 'app';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAppointmentsInRange } from '../utils/firestore';
 
 // Import utility hooks
@@ -41,7 +42,7 @@ const EmployeeDashboard = () => {
   } = useDashboardState();
   
   // Use custom hooks to load data
-  const { employee, services, loading, setEmployee } = useEmployeeData(user);
+  const { employee, entries, selectEntry, services, loading, setEmployee } = useEmployeeData(user);
   const { recurringBreaks } = useRecurringBreaks(employee);
   const { appointments, setAppointments } = useAppointments(employee, startDate, numDays);
 
@@ -91,6 +92,22 @@ const EmployeeDashboard = () => {
       />
       
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
+        {/* Im Team mehrerer Läden: hier umschalten */}
+        {entries.length > 1 && (
+          <Select value={employee.id} onValueChange={selectEntry}>
+            <SelectTrigger className="sm:w-72" aria-label="Laden wählen">
+              <SelectValue placeholder="Laden wählen" />
+            </SelectTrigger>
+            <SelectContent>
+              {entries.map((entry) => (
+                <SelectItem key={entry.id} value={entry.id}>
+                  {entry.shopName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         {/* Dashboard header with date selector and action buttons */}
         <DashboardHeader
           employee={employee}

@@ -346,7 +346,7 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
           </div>
           {emailSaved && <p className="text-sm font-semibold">E-Mail ist hinterlegt.</p>}
           <p className="text-xs text-muted-foreground">
-            Nur für diese Nummer. Ohne Konto löschen wir die Adresse spätestens 90 Tage nach dem Termin.
+            Nur für diese Nummer. Wir löschen die Adresse spätestens 90 Tage nach dem Termin.
           </p>
         </form>
       )}
