@@ -5,6 +5,7 @@ Ablauf einer Prüfung (alle 5 Minuten im Hintergrund, sofort nach einer Absage, 
   1. Kandidaten: wartende Termine mit "früher benachrichtigen" und Kundenkonto (sonst erreicht das
      Angebot niemanden), die noch mindestens OFFER_LEAD_MINUTES in der Zukunft liegen.
   2. Freie Plätze je Person, Leistung und Tag aus available_timeslots (dieselbe Regel wie beim Buchen).
+     Termine, Pausen und Laden liest sie dafür einmal je Person für den ganzen Zeitraum, nicht je Tag.
   3. Verteilung in der Reihenfolge der Schlange: Wer den frühesten Termin hat, bekommt den frühesten
      passenden Platz zuerst angeboten – exklusiv für OFFER_HOLD_MINUTES. Derselbe Platz geht in dieser
      Zeit an niemand anderen. Nimmt die Person nicht an, verfällt das Angebot und der Platz geht an die
@@ -28,8 +29,8 @@ from firebase_admin import firestore
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
-from app.apis.models import AvailableTimeslotsRequest, CheckEarlierSlotsResponse
-from app.apis.available_timeslots import get_available_timeslots
+from app.apis.models import CheckEarlierSlotsResponse
+from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.utils import convert_timestamp_to_datetime
 from app.libs import notify_worker
 from app.libs.plans import has_feature
@@ -169,18 +170,26 @@ def _aware(dt: datetime) -> datetime:
     return dt.astimezone() if dt.tzinfo is None else dt
 
 
-def _free_slots_for(shop_id: str, staff_id: str, service_id: str, days: List[datetime]) -> List[Tuple[datetime, datetime]]:
-    slots: List[Tuple[datetime, datetime]] = []
-    for day in days:
-        request = AvailableTimeslotsRequest(shop_id=shop_id, staff_id=staff_id, service_id=service_id, date=day, force_refresh=True)
-        response = get_available_timeslots(request, BackgroundTasks())
-        for slot in response.timeslots:
-            if slot.is_available:
-                start = convert_timestamp_to_datetime(slot.start_time)
-                end = convert_timestamp_to_datetime(slot.end_time)
-                if start and end:
-                    slots.append((start, end))
-    return slots
+def _free_slots_for(db, shop_id: str, staff_id: str, latest: Dict[str, datetime], today: datetime) -> Tuple[Dict[str, List[Tuple[datetime, datetime]]], int]:
+    """
+    Freie Plätze einer Person je Leistung, von heute bis zum Tag des spätesten Kandidaten dieser Leistung.
+    Eine Abfrage für den ganzen Zeitraum – vorher eine je Tag und Leistung, jede mit allen Terminen seit Anbeginn.
+    Gibt auch die Zahl der gelesenen Termine zurück (fürs Log).
+    """
+    last_day = max(latest.values()).date()
+    inputs = load_timeslot_inputs(db, shop_id, staff_id, list(latest), today.date(), last_day)
+    result: Dict[str, List[Tuple[datetime, datetime]]] = {}
+    for service_id, until in latest.items():
+        slots: List[Tuple[datetime, datetime]] = []
+        for i in range((until.date() - today.date()).days + 1):
+            for slot in timeslots_for_day(inputs, service_id, today + timedelta(days=i)) or []:
+                if slot.is_available:
+                    start = convert_timestamp_to_datetime(slot.start_time)
+                    end = convert_timestamp_to_datetime(slot.end_time)
+                    if start and end:
+                        slots.append((start, end))
+        result[service_id] = slots
+    return result, len(inputs.appointments)
 
 
 def run_earlier_slot_check(shop_id: Optional[str] = None, staff_id: Optional[str] = None, now: Optional[datetime] = None) -> CheckEarlierSlotsResponse:
@@ -195,8 +204,13 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     now = now or datetime.now()
     earliest = now + timedelta(minutes=OFFER_LEAD_MINUTES)
 
-    def in_scope(data: dict) -> bool:
-        return (not shop_id or data.get('shopId') == shop_id) and (not staff_id or data.get('staffId') == staff_id)
+    def scoped(query):
+        """Nach einer Absage nur Laden bzw. Person lesen, nicht die Daten aller Läden."""
+        if shop_id:
+            query = query.where('shopId', '==', shop_id)
+        if staff_id:
+            query = query.where('staffId', '==', staff_id)
+        return query
 
     # "Früher dran" gehört zu den Bezahltarifen (app/libs/plans.py); gelöschte Läden bleiben unberührt
     shop_allows: Dict[str, bool] = {}
@@ -210,11 +224,9 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     # Kandidaten
     candidates: List[Candidate] = []
     appt_data: Dict[str, dict] = {}
-    query = db.collection('appointments').where('checkEarlierOptions', '==', True).where('status', '==', 'scheduled')
+    query = scoped(db.collection('appointments').where('checkEarlierOptions', '==', True).where('status', '==', 'scheduled'))
     for doc in query.stream():
         data = doc.to_dict() or {}
-        if not in_scope(data):
-            continue
         start = convert_timestamp_to_datetime(data.get('startTime'))
         if not start or start <= earliest or start > now + timedelta(days=MAX_DAYS_AHEAD):
             continue
@@ -229,10 +241,8 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     # Offene Angebote (angenommene bleiben als Verlauf, verfallene merken abgelehnte Plätze)
     offers: List[Offer] = []
     expired_by_appt: Dict[str, set] = {}
-    for doc in db.collection('earlier_slot_notifications').where('isAccepted', '==', False).stream():
+    for doc in scoped(db.collection('earlier_slot_notifications').where('isAccepted', '==', False)).stream():
         data = doc.to_dict() or {}
-        if not in_scope(data):
-            continue
         start = convert_timestamp_to_datetime(data.get('earlierStartTime'))
         end = convert_timestamp_to_datetime(data.get('earlierEndTime'))
         if data.get('status') == 'expired':
@@ -249,20 +259,23 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     for cand in candidates:
         cand.declined |= expired_by_appt.get(cand.appointment_id, set())
 
-    # Freie Plätze je Person und Leistung, von heute bis zum spätesten Kandidaten
+    # Freie Plätze je Person und Leistung, von heute bis zum spätesten Kandidaten – je Person eine Abfrage
     free_slots: Dict[Tuple[str, str], List[Tuple[datetime, datetime]]] = {}
-    groups: Dict[Tuple[str, str, str], datetime] = {}
+    groups: Dict[Tuple[str, str], Dict[str, datetime]] = {}
     for cand in candidates:
-        key = (appt_data[cand.appointment_id]['shopId'], cand.staff_id, cand.service_id)
-        groups[key] = max(groups.get(key, cand.start), cand.start)
+        latest = groups.setdefault((appt_data[cand.appointment_id]['shopId'], cand.staff_id), {})
+        latest[cand.service_id] = max(latest.get(cand.service_id, cand.start), cand.start)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    for (shop, staff, service), latest in groups.items():
-        days = [today + timedelta(days=i) for i in range((latest.date() - today.date()).days + 1)]
+    appointments_read = 0
+    for (shop, staff), latest in groups.items():
         try:
-            free_slots[(staff, service)] = _free_slots_for(shop, staff, service, days)
+            by_service, read = _free_slots_for(db, shop, staff, latest, today)
+            appointments_read += read
         except Exception as e:
-            print(f"Free slots for staff {staff} / service {service} failed: {e}")
-            free_slots[(staff, service)] = []
+            print(f"Free slots for staff {staff} failed: {e}")
+            by_service = {}
+        for service in latest:
+            free_slots[(staff, service)] = by_service.get(service, [])
 
     plan = plan_offers(candidates, free_slots, offers, now)
 
@@ -317,7 +330,7 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     print(
         f"Earlier slot check ({shop_id or 'alle'}/{staff_id or 'alle'}): {len(candidates)} candidates, "
         f"{len(plan.create)} new, {len(plan.move)} improved, {len(plan.keep)} kept, {len(plan.expire)} expired, "
-        f"{len(plan.delete)} removed in {time_module.time() - perf_start:.2f}s"
+        f"{len(plan.delete)} removed in {time_module.time() - perf_start:.2f}s ({appointments_read} appointments read for {len(groups)} staff)"
     )
     return CheckEarlierSlotsResponse(
         notifications_created=len(plan.create) + len(plan.move),

@@ -48,8 +48,6 @@ def calculate_available_timeslots(
     day_start_minutes = day_start.hour * 60 + day_start.minute
     day_end_minutes = day_end.hour * 60 + day_end.minute
     
-    print(f"Working hours for day: {day_start_minutes} to {day_end_minutes} minutes")
-    
     # Markiere NUR die Arbeitszeiten als verfügbar (1)
     for i in range(day_start_minutes, day_end_minutes):
         availability[i] = 1
@@ -100,8 +98,6 @@ def calculate_available_timeslots(
                         end_datetime = datetime.fromisoformat(end_str)
                     else:
                         end_datetime = datetime.fromisoformat(end_str.replace(' ', 'T'))
-                        
-                    print(f"Converted string timestamps: {start_datetime} to {end_datetime}")
                 except ValueError as e:
                     print(f"Error converting timestamp strings: {e}")
                     # Wenn die erste Methode fehlschlägt, verwenden wir dateutil als Fallback
@@ -109,7 +105,6 @@ def calculate_available_timeslots(
                         from dateutil import parser
                         start_datetime = parser.parse(appt['startTime'])
                         end_datetime = parser.parse(appt['endTime'])
-                        print(f"Converted string timestamps using dateutil: {start_datetime} to {end_datetime}")
                     except (ImportError, ValueError) as e2:
                         print(f"Error using dateutil for parsing: {e2}")
                         # Dritte Methode: Versuche häufige Formate
@@ -125,7 +120,6 @@ def calculate_available_timeslots(
                                 try:
                                     start_datetime = datetime.strptime(appt['startTime'], fmt)
                                     end_datetime = datetime.strptime(appt['endTime'], fmt)
-                                    print(f"Converted timestamps using format {fmt}")
                                     break
                                 except ValueError:
                                     continue
@@ -218,7 +212,6 @@ def calculate_available_timeslots(
                 
                 # Zur Liste der blockierten Perioden hinzufügen
                 all_blocked_periods.append((start_minutes, end_minutes))
-                print(f"Added recurring break from {start_time_str} to {end_time_str}")
                 
             except Exception as e:
                 print(f"Fehler bei wiederkehrender Pausen-Verarbeitung: {str(e)}")
@@ -328,6 +321,4 @@ def calculate_available_timeslots(
         # Gehe zum nächsten Zeitslot entsprechend des konfigurierten Intervalls
         minute += slot_interval_minutes
     
-    # Ende der Berechnung
-    print(f"Generated {len(available_slots)} slots")
     return available_slots
