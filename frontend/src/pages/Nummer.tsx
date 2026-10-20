@@ -41,6 +41,8 @@ export default function Nummer() {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const justJoined = params.get('neu') === '1';
+  // Angezeigter Platz war beim Bestätigen schon weg, die Nummer hat gleich den nächsten bekommen (QueueBookingService)
+  const movedOnJoin = justJoined && params.get('verschoben') === '1';
 
   const [appt, setAppt] = useState<Live | null>(null);
   const [missing, setMissing] = useState(false);
@@ -156,6 +158,13 @@ export default function Nummer() {
         </h1>
         {names.shop && <p className="text-muted-foreground">{names.shop}</p>}
       </header>
+
+      {movedOnJoin && appt.status === 'scheduled' && (
+        <p role="status" className="rounded-2xl border border-border bg-card px-4 py-3 font-semibold">
+          Dein Platz hat sich auf {isToday(start) ? format(start, 'HH:mm') : format(start, 'EEEEEE d.M., HH:mm', { locale: de })} verschoben –
+          jemand war kurz vor dir dran.
+        </p>
+      )}
 
       {appt.status === 'in-progress' && (
         <div role="status" className="flex items-center gap-3 rounded-3xl bg-foreground px-5 py-4 text-background">

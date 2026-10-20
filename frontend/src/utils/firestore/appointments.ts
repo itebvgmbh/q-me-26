@@ -1,10 +1,10 @@
 import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, runTransaction, deleteField } from 'firebase/firestore';
-import { assertBookable, SlotConflictError } from '../booking-rules';
+import { assertBookable, bookableOf, SlotConflictError } from '../booking-rules';
 import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Appointment } from './types';
-import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef } from './schedule';
+import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef, type PlacementChange } from './schedule';
 
 // Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
 // braucht die letzte mehrere Anläufe
@@ -234,7 +234,22 @@ const toDateValue = (value: any): Date | null => {
   return null;
 };
 
-export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment> => {
+/** Anderer Platz für denselben neuen Termin, falls der gewünschte beim Speichern schon weg ist */
+export interface AlternativeSlot {
+  staffId: string;
+  start: Date;
+  end: Date;
+}
+
+/**
+ * Legt einen Termin an. alternatives (nur Nummer ziehen, siehe QueueBookingService): weitere Plätze am selben
+ * Tag in der gewünschten Reihenfolge – ist der gewünschte Platz schon belegt, nimmt die Transaktion den ersten
+ * freien davon, statt mit SlotConflictError abzubrechen. Bei einem Ansturm kommt so jeder in einem Durchgang unter.
+ */
+export const createAppointment = async (
+  data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>,
+  options: { alternatives?: AlternativeSlot[] } = {},
+): Promise<Appointment> => {
   console.log('Creating appointment with data:', data);
   try {
     const db = getFirestore(firebaseApp);
@@ -248,8 +263,13 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
     if (!newStart || !newEnd) {
       throw new Error('Ungültige Zeitangabe für den Termin.');
     }
+    // Mögliche Plätze: der gewünschte (override null = so wie in data), dahinter die Ausweichplätze desselben
+    // Tages (die Tagesnummer hängt am Tag). Alle nach denselben Regeln geprüft; ohne Ausweichplätze wie bisher.
+    const requested = { staffId: data.staffId, start: newStart, end: newEnd, override: null as AlternativeSlot | null };
+    const sameDay = data.staffId ? (options.alternatives || []).filter((a) => a.staffId && dayKey(a.start) === dayKey(newStart)) : [];
+    let candidates = [requested, ...sameDay.map((a) => ({ ...a, override: a }))];
     if (data.status !== 'cancelled') {
-      await assertBookable({ shopId: data.shopId, staffId: data.staffId, start: newStart, end: newEnd });
+      candidates = await bookableOf(data.shopId, candidates);
     }
     
     // Ensure startTime and endTime are Timestamp objects
@@ -318,17 +338,28 @@ export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdA
       customerName: processedData.customerName || 'Unbekannter Kunde',
     };
     // Platz belegen, Nummer ziehen und Termin speichern in einem Schritt: Wer zeitgleich denselben Platz
-    // will, läuft neu an und bekommt SlotConflictError ("Der Platz ist gerade weggegangen").
-    const occupy = placementOf(baseData);
+    // will, läuft neu an und bekommt SlotConflictError ("Der Platz ist gerade weggegangen") – oder mit
+    // Ausweichplätzen den ersten davon, der dann noch frei ist.
     const appointmentData = await runTransaction(db, async (tx) => {
-      const placement = occupy ? await readPlacement(tx, db, appointmentRef.id, { shopId: baseData.shopId, occupy }) : null;
+      let chosen = baseData;
+      let placement: PlacementChange | null = null;
+      let conflict: string | null = null;
+      for (const { override } of candidates) {
+        chosen = override
+          ? { ...baseData, staffId: override.staffId, startTime: Timestamp.fromDate(override.start), endTime: Timestamp.fromDate(override.end) }
+          : baseData;
+        const occupy = placementOf(chosen);
+        placement = occupy ? await readPlacement(tx, db, appointmentRef.id, { shopId: baseData.shopId, occupy }) : null;
+        if (!placement?.conflict) break;
+        conflict ??= placement.conflict;
+      }
+      if (placement?.conflict) throw new SlotConflictError(conflict || placement.conflict);
       const numbersRef = needsCode ? shopDayRef(db, baseData.shopId, codeDay) : null;
       const numbers = numbersRef ? await tx.get(numbersRef) : null;
-      if (placement?.conflict) throw new SlotConflictError(placement.conflict);
       const codes: string[] = (numbers?.data()?.codes as string[]) || [];
       const referenceCode = needsCode ? pickReferenceCode(new Set([...earlierCodes, ...codes])) : undefined;
       const now = Timestamp.now();
-      const created = { ...baseData, ...(referenceCode ? { referenceCode } : {}), createdAt: now, updatedAt: now };
+      const created = { ...chosen, ...(referenceCode ? { referenceCode } : {}), createdAt: now, updatedAt: now };
       tx.set(appointmentRef, created);
       placement?.write();
       if (numbersRef && referenceCode) {

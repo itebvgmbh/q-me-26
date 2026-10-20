@@ -31,7 +31,7 @@ python dev/fixtures.py anlegen
 # 3. Tests
 node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben (24 Prüfungen)
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
-node dev/e2e/gleichzeitig.cjs               # 10 Geräte buchen im selben Moment: ein Platz nur einmal, jede Nummer nur einmal, Verschieben, Absage
+node dev/e2e/gleichzeitig.cjs               # 10 Geräte buchen im selben Moment: ein Platz nur einmal, jede Nummer nur einmal, Verschieben, Absage, Nummer ziehen im Ansturm
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
 node dev/e2e/schlange-tresen.cjs            # Schlange bei Verzug: Überfällige bleiben, ca.-Zeiten wandern, Rückfrage beim Aufruf, früher fertig, Kundennachricht
@@ -77,8 +77,8 @@ node dev/e2e/lasttest.cjs zeigen              # Tagesplan von morgen je Person
 node dev/e2e/lasttest.cjs loeschen
 ```
 
-Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen gleichzeitig eine Nummer,
-`QME_ANSTURM` ändert die Zahl), `kaskade` („Früher dran“ nach 4 Absagen, alle nehmen sofort an),
+Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen gleichzeitig eine Nummer, alle werden
+eingereiht, jeder auf eine eigene Uhrzeit; `QME_ANSTURM` ändert die Zahl), `kaskade` („Früher dran“ nach 4 Absagen, alle nehmen sofort an),
 `wettlauf` (Annahme und Tresen gleichzeitig, `QME_WETTLAUF=0,25,50` setzt die Verzögerungen des Tresens),
 `absage` (Angebot nach Absage angenommen), `flut` (25× „Platz frei“), `ruhe` (nur Puls, `QME_RUHE` Sekunden).
 Ein Puls misst dabei alle 250 ms die Antwortzeit des Servers. Ergebnisse auch in `dev/out/lasttest-*.json`.

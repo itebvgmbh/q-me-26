@@ -8,7 +8,8 @@
 //
 // Szenarien:
 //   abfragen   freie Zeiten: viele Anfragen gleichzeitig, mit und ohne Zwischenspeicher, mit und ohne Verlauf
-//   ansturm    QME_ANSTURM Leute (Standard 10) ziehen im selben Moment eine Nummer bei derselben Person
+//   ansturm    QME_ANSTURM Leute (Standard 10) ziehen im selben Moment eine Nummer bei derselben Person;
+//              alle werden eingereiht, wer zu spät war, gleich auf den nächsten freien Platz (QueueBookingService)
 //   kaskade    "Früher dran": 4 Absagen, Kunden nehmen jedes Angebot sofort an, bis nichts mehr nachrückt;
 //              dabei: fremdes Angebot annehmen, dasselbe Angebot zweimal gleichzeitig
 //   wettlauf   Annahme und Buchung am Tresen für denselben Platz gleichzeitig (6 Runden, QME_WETTLAUF)
@@ -551,6 +552,9 @@ async function lauf(only) {
     measures.push(pm);
     rows.push({ name: 'Ansturm: alle Seiten laden', pass: ready.length === n, detail: `${ready.length}/${n}` });
     rows.push({ name: 'Ansturm: jeder bekommt Rückmeldung', pass: outcome.every((o) => o.res !== 'keine Rückmeldung'), detail: `${outcome.filter((o) => o.res === 'keine Rückmeldung').length} ohne` });
+    rows.push({ name: 'Ansturm: alle eingereiht', pass: outcome.every((o) => o.res === 'eingereiht') && rush.length === ready.length,
+      detail: `${outcome.filter((o) => o.res === 'eingereiht').length}/${ready.length} eingereiht, ${rush.length} Termine` });
+    rows.push({ name: 'Ansturm: jede Nummer eigene Uhrzeit', pass: slotsUsed.size === rush.length, detail: `${rush.length} Termine auf ${slotsUsed.size} Uhrzeiten` });
     rows.push({ name: 'Ansturm: keine Doppelbuchung', pass: dup.length === 0, detail: `${rush.length} Termine, ${dup.length} Überschneidungen` });
     rows.push({ name: 'Ansturm: keine doppelte Nummer', pass: dupCodes.length === 0, detail: dupCodes.length ? `doppelt: ${[...new Set(dupCodes)].join(', ')}` : `${codes.length} Nummern` });
     // Wieder freigeben, damit nichts liegen bleibt

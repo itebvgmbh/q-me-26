@@ -57,19 +57,19 @@ export const getAvailableTimeslotsDirect = async (
 };
 
 /**
- * Frühester freier Platz je Person ab jetzt, höchstens maxDays Tage voraus (Nummer ziehen und vergeben).
+ * Die nächsten freien Plätze je Person ab jetzt (bis zu perStaff Stück), höchstens maxDays Tage voraus.
  * Lädt Leistung, Laden und die Daten aller Personen gleichzeitig (eine Rundreise) und rechnet die
  * Tage dann im Speicher durch – vorher waren es pro Tag drei Rundreisen nacheinander.
  * Heute zählt dabei der Stand am Tresen (Prognose aus queue-lane.ts): Hängt die Person hinterher,
  * kommt die neue Nummer hinter die Wartenden statt auf eine Zeit, die schon überholt ist.
- * Personen ohne freien Platz im Zeitraum bekommen null.
  */
-export const findEarliestSlots = async (
+const upcomingSlots = async (
   shopId: string,
   serviceId: string,
   staffIds: string[],
-  maxDays = 14,
-): Promise<Record<string, TimeSlot | null>> => {
+  perStaff: number,
+  maxDays: number,
+): Promise<Record<string, TimeSlot[]>> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const until = new Date(today.getFullYear(), today.getMonth(), today.getDate() + maxDays);
@@ -80,15 +80,49 @@ export const findEarliestSlots = async (
   ]);
 
   const now = Date.now();
-  const result: Record<string, TimeSlot | null> = {};
+  const result: Record<string, TimeSlot[]> = {};
   staffIds.forEach((staffId, i) => {
-    result[staffId] = null;
-    for (let offset = 0; offset < maxDays && !result[staffId]; offset++) {
+    const found: TimeSlot[] = [];
+    for (let offset = 0; offset < maxDays && found.length < perStaff; offset++) {
       const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
       const ctx = buildDayContext(ranges[i], day, undefined, { projectAt: now });
-      const first = slotsForDay(ctx, day, totalMinutes).find((slot) => slot.start.getTime() > now);
-      if (first) result[staffId] = first;
+      const free = slotsForDay(ctx, day, totalMinutes).filter((slot) => slot.start.getTime() > now);
+      found.push(...free.slice(0, perStaff - found.length));
     }
+    result[staffId] = found;
   });
   return result;
+};
+
+/**
+ * Frühester freier Platz je Person ab jetzt, höchstens maxDays Tage voraus (Nummer ziehen und vergeben).
+ * Personen ohne freien Platz im Zeitraum bekommen null.
+ */
+export const findEarliestSlots = async (
+  shopId: string,
+  serviceId: string,
+  staffIds: string[],
+  maxDays = 14,
+): Promise<Record<string, TimeSlot | null>> => {
+  const upcoming = await upcomingSlots(shopId, serviceId, staffIds, 1, maxDays);
+  return Object.fromEntries(staffIds.map((staffId) => [staffId, upcoming[staffId][0] ?? null]));
+};
+
+/**
+ * Die nächsten freien Plätze über alle genannten Personen, nach Beginn sortiert (höchstens limit) –
+ * der erste ist der früheste, bei mehreren Personen also der der schnellsten.
+ * Für Nummer ziehen, wenn der angezeigte Platz beim Bestätigen schon weg war (QueueBookingService).
+ */
+export const findNextSlots = async (
+  shopId: string,
+  serviceId: string,
+  staffIds: string[],
+  limit: number,
+  maxDays = 14,
+): Promise<{ staffId: string; slot: TimeSlot }[]> => {
+  const upcoming = await upcomingSlots(shopId, serviceId, staffIds, limit, maxDays);
+  return staffIds
+    .flatMap((staffId) => upcoming[staffId].map((slot) => ({ staffId, slot })))
+    .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime())
+    .slice(0, limit);
 };

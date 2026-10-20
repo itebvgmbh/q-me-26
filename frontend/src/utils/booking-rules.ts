@@ -265,6 +265,24 @@ export const assertBookable = async (params: {
   if (conflict) throw new SlotConflictError(conflict);
 };
 
+/**
+ * Wie assertBookable, aber für mehrere mögliche Plätze eines neuen Termins (Nummer ziehen im Ansturm):
+ * gibt die erlaubten in derselben Reihenfolge zurück; je Person und Tag wird nur einmal geladen.
+ * Ist keiner erlaubt, SlotConflictError mit dem Grund des ersten.
+ */
+export const bookableOf = async <T extends { staffId?: string | null; start: Date; end: Date }>(shopId: string, slots: T[]): Promise<T[]> => {
+  const contexts = new Map<string, Promise<StaffDayContext>>();
+  const contextOf = (slot: T) => {
+    const key = `${slot.staffId ?? ''}|${slot.start.toDateString()}`;
+    if (!contexts.has(key)) contexts.set(key, loadStaffDayContext(shopId, slot.staffId, slot.start));
+    return contexts.get(key)!;
+  };
+  const reasons = await Promise.all(slots.map(async (slot) => findConflict(await contextOf(slot), slot.start.getTime(), slot.end.getTime())));
+  const allowed = slots.filter((_, i) => !reasons[i]);
+  if (allowed.length === 0) throw new SlotConflictError(reasons[0] || 'An diesem Tag ist nichts buchbar.');
+  return allowed;
+};
+
 /** Höchste Vorlaufzeit für Online-Termine in Minuten (ein Tag) */
 export const MAX_ONLINE_LEAD_MINUTES = 24 * 60;
 

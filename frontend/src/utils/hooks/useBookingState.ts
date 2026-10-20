@@ -45,7 +45,8 @@ export const useBookingState = () => {
     selectedStaffForSlot: string,
     nextAvailableSlot: TimeSlot | null,
     user: User | null,
-    contact?: { name: string; phone: string }
+    contact?: { name: string; phone: string },
+    staffChoices?: string[]
   ): Promise<BookingResponse | null> => {
     // Validate required data is available
     if (!selectedShop || !selectedService || !nextAvailableSlot || !selectedStaffForSlot) {
@@ -62,16 +63,18 @@ export const useBookingState = () => {
       nextAvailableSlot,
       checkEarlierOptions,
       user,
-      contact
+      contact,
+      staffChoices
     });
     setSubmitting(false);
     
     if (bookingResult.success) {
       if (bookingResult.appointmentId) {
-        // Eigene Seite je Nummer: live, mit Benachrichtigung (pages/Nummer.tsx)
-        navigate(`/nummer/${bookingResult.appointmentId}?neu=1`);
+        // Eigene Seite je Nummer: live, mit Benachrichtigung (pages/Nummer.tsx). War der angezeigte Platz
+        // schon weg, hat QueueBookingService gleich den nächsten genommen – die Seite sagt das dazu.
+        navigate(`/nummer/${bookingResult.appointmentId}?neu=1${bookingResult.moved ? '&verschoben=1' : ''}`);
       } else if (bookingResult.isAnonymous) {
-        setBookedSlot(nextAvailableSlot);
+        setBookedSlot(bookingResult.bookedSlot ?? nextAvailableSlot);
         // Show successful anonymous booking with reference code
         setBookingSuccess(true);
         setBookingReference(bookingResult.referenceCode || '');
@@ -81,7 +84,7 @@ export const useBookingState = () => {
         navigate('/my-bookings');
       }
     } else if (isSlotConflict(bookingResult.error)) {
-      // Jemand war schneller: die Seite sucht neu (siehe PublicJoinQueue)
+      // Auch die nächsten Plätze waren weg (großer Ansturm): die Seite sucht neu (siehe PublicJoinQueue)
       toast.error('Der Platz ist gerade weggegangen. Wir suchen dir den nächsten – bitte gleich noch mal bestätigen.');
     } else {
       toast.error(bookingResult.message || 'Das Einreihen hat nicht geklappt. Versuch es noch einmal.');

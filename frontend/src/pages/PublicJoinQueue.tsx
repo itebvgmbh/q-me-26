@@ -157,13 +157,19 @@ const PublicJoinQueue = () => {
       refreshSlots();
       return;
     }
+    // Ist der Platz beim Bestätigen schon weg, nimmt QueueBookingService gleich den nächsten: bei derselben
+    // Person oder bei „Egal wer“ den der schnellsten (gleiche Personen wie die Suche oben)
+    const staffChoices = useAnyStaff
+      ? serviceStaff.filter((s) => s.isActive !== false).map((s) => s.id)
+      : [selectedStaffForSlot];
     const result = await handleJoinQueue(
       selectedShop,
       selectedService,
       selectedStaffForSlot,
       nextAvailableSlot,
       user,
-      contact
+      contact,
+      staffChoices
     );
     if (result && !result.success && isSlotConflict(result.error)) refreshSlots();
   };
