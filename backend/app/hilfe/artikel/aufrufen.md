@@ -17,6 +17,8 @@ Am Tresen hat jede Person aus deinem Team eine eigene Spalte. Ein Knopf darin ru
 
 Wer eine Nummer hat, steht mit Nummer da, mit Vorname, wenn er einen angegeben hat: „Lena · Nr. 42“ oder nur „Nr. 42“. Das gilt auch für Nummern, die du am Tresen vergibst. Unter dieser Nummer steht der Kunde auch auf dem [Wartezimmer-Bildschirm](/hilfe/bildschirm).
 
+Hat der Kunde beim Nummer-Ziehen oder in seinem Profil eine Handynummer angegeben, steht sie darunter. Tipp darauf, um ihn anzurufen, etwa wenn er nach dem Aufrufen nicht da ist. Nach 90 Tagen löscht Dranzeit die Nummer.
+
 Wer wartet, bleibt in der Spalte, bis du ihn aufrufst oder absagst, auch wenn seine geplante Zeit schon vorbei ist.
 
 ## Aufrufen
@@ -35,7 +37,7 @@ Ohne Nachfrage ruft der Knopf nur auf, wer in höchstens 15 Minuten eingeplant i
 
 ## Wenn jemand nicht kommt
 
-Hast du jemanden aufgerufen und er ist nicht da, tipp unter seinem Namen bei „Jetzt dran“ auf **„Nicht gekommen“** und bestätige. Dranzeit sagt ihn ab, sein Platz wird frei, und er bekommt Bescheid, wenn er Benachrichtigungen eingeschaltet hat. Danach rufst du wie gewohnt den Nächsten auf.
+Hast du jemanden aufgerufen und er ist nicht da, ruf ihn kurz an, wenn eine Handynummer dabeisteht. Kommt er nicht, tipp unter seinem Namen bei „Jetzt dran“ auf **„Nicht gekommen“** und bestätige. Dranzeit sagt ihn ab, sein Platz wird frei, und er bekommt Bescheid, wenn er Benachrichtigungen eingeschaltet hat. Danach rufst du wie gewohnt den Nächsten auf.
 
 Sag Kunden ab, die nicht mehr kommen. Sonst stehen sie weiter vorn in der Schlange, und alle nach ihnen sehen eine spätere Uhrzeit.
 

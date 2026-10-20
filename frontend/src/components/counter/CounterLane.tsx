@@ -10,12 +10,17 @@ import { delayMinutes, expectedStart, isDue, projectLane, SHOW_DELAY_MINUTES, wa
 
 const PLACEHOLDER_NAMES = ['Unbekannter Kunde', 'Laufkundschaft', 'Gast'];
 
-/** Name und Nummer, wie am Tresen gerufen wird – die Nummer steht immer dabei, auch bei Nummern vom Tresen */
+/**
+ * Name und Nummer, wie am Tresen gerufen wird – die Nummer steht immer dabei, auch bei Nummern vom Tresen
+ * (vorher nur bei Buchungen ohne Konto; wer am Tresen eine Nummer bekam, kannte sie nicht).
+ */
 export const customerLabel = (a: Appointment) => {
   const raw = a.customerName?.trim() ?? '';
-  const name = raw && !PLACEHOLDER_NAMES.includes(raw) ? raw : '';
-  if (a.referenceCode) return name ? `${name} · Nr. ${a.referenceCode}` : `Nr. ${a.referenceCode}`;
-  return name || 'Gast';
+  if (a.referenceCode) {
+    const name = raw && !PLACEHOLDER_NAMES.includes(raw) ? raw : '';
+    return name ? `${name} · Nr. ${a.referenceCode}` : `Nr. ${a.referenceCode}`;
+  }
+  return raw && raw !== 'Unbekannter Kunde' ? raw : 'Gast';
 };
 
 interface Props {
