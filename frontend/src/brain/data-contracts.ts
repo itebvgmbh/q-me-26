@@ -188,21 +188,6 @@ export interface NotificationItem {
   isAccepted: boolean;
 }
 
-/** StaffInvitationEmailRequest */
-export interface StaffInvitationEmailRequest {
-  /** Invitation Id */
-  invitation_id: string;
-  /** Shop Id */
-  shop_id: string;
-  /**
-   * Email
-   * @format email
-   */
-  email: string;
-  /** Invitation Link */
-  invitation_link: string;
-}
-
 /** TimeSlot */
 export interface TimeSlot {
   /**
@@ -360,11 +345,6 @@ export type CheckHealthData = HealthResponse;
 export type SendEmailData = Record<string, string>;
 
 export type SendEmailError = HTTPValidationError;
-
-/** Response Send Staff Invitation */
-export type SendStaffInvitationData = Record<string, string>;
-
-export type SendStaffInvitationError = HTTPValidationError;
 
 export interface GetNotificationHistoryFull2222222Params {
   /**

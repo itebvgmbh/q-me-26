@@ -33,7 +33,7 @@ Eine eigene Urlaubsfunktion gibt es noch nicht. So geht es:
 - **Einzelne Tage:** Trag für jeden freien Tag eine einzelne Pause über die ganze Arbeitszeit ein, z. B. von 9:00 bis 18:00.
 - **Länger weg:** Schalte die Tage in den Arbeitszeiten aus. Danach wieder einschalten, denn Arbeitszeiten gelten jede Woche.
 
-Nimm dafür nicht „Deaktivieren“. Das lässt sich in der App nicht rückgängig machen.
+Nimm dafür nicht „Deaktivieren“: Dann sieht die Person auch „Mein Tag“ nicht mehr, und du musst sie danach unter „Deaktiviert“ zurückholen.
 
 ## Und wer schon gebucht hat?
 

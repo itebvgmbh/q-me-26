@@ -5,6 +5,7 @@
 // Prüft danach, was in der Datenbank steht, und dass die Mittagspause des Ladens Buchungen sperrt.
 // Handygröße; meldet waagrechtes Überlaufen. Fotos jeder Frage in dev/out/einrichten-*.png.
 // Braucht: Entwicklungsserver und Testdaten (nur das Testkonto). Räumt die angelegten Läden selbst weg.
+// Die Einladungslinks am Ende kommen vom Backend (/routes/staff-invitation): QME_BACKEND=https://q-me.spielmacherei.de
 const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const PLACE = {
@@ -196,9 +197,10 @@ run(async () => {
     for (const s of shops) {
       const services = await byField('services', 'shopId', s.id);
       const staff = await byField('staff', 'shopId', s.id);
-      const invitations = await byField('staff-invitations', 'shopId', s.id);
       const data = s.data();
-      const entry = { id: s.id, data, services: services.map((d) => d.data()), staff: staff.map((d) => ({ id: d.id, ...d.data() })), invitations: invitations.map((d) => d.data().email) };
+      const entry = { id: s.id, data, services: services.map((d) => d.data()), staff: staff.map((d) => ({ id: d.id, ...d.data() })) };
+      // Einladung hängt am Eintrag (Hash des Links, gesetzt vom Backend), nicht mehr in staff-invitations
+      entry.invitations = entry.staff.filter((p) => p.inviteTokenHash).map((p) => p.email);
       if (data.name === 'Salon Testschnitt (Test)') {
         const kim = entry.staff.find((p) => p.name === 'Kim');
         const t = new Date(); t.setDate(t.getDate() + ((9 - t.getDay()) % 7 || 7)); // nächster Dienstag
@@ -208,7 +210,7 @@ run(async () => {
         entry.regelFrei = rules.findConflict(ctx, at(13, 30), at(14, 0));
       }
       out.shops[data.name] = entry;
-      for (const d of [...services, ...staff, ...invitations, s]) {
+      for (const d of [...services, ...staff, s]) {
         try {
           await fs.deleteDoc(d.ref);
         } catch (e) {
