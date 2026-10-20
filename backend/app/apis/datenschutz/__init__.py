@@ -10,29 +10,12 @@ from fastapi import APIRouter, HTTPException
 
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
-from app.auth.access import is_admin, owned_shop_ids
+from app.auth.access import owned_shop_ids, require_shop_member
 from app.libs.privacy import DATENSCHUTZ_KONTAKT, delete_account_data, forget_customer
 
 router = APIRouter()
 
 ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
-
-
-def _require_shop_member(user, shop_id: str) -> None:
-    """Inhaber und Team des Ladens dürfen seine Kundenliste pflegen (anlegen dürfen sie ebenfalls beide)"""
-    if is_admin(user):
-        return
-    db = get_firestore_db()
-    shop = db.collection("shops").document(shop_id).get() if shop_id else None
-    if shop is None or not shop.exists:
-        raise HTTPException(status_code=404, detail="Diesen Kunden gibt es nicht mehr.")
-    if (shop.to_dict() or {}).get("owner") == user.sub:
-        return
-    # Nur aktive Personen im Team: Deaktivierte haben keine Rechte mehr im Laden
-    entries = [s.to_dict() or {} for s in db.collection("staff").where("userId", "==", user.sub).stream()]
-    if any(e.get("shopId") == shop_id and e.get("isActive") is not False for e in entries):
-        return
-    raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
 
 
 @router.delete("/datenschutz/kunde/{customer_id}")
@@ -44,7 +27,7 @@ def delete_customer(customer_id: str, user: AuthorizedUser) -> dict:
     if not snap.exists:
         raise HTTPException(status_code=404, detail="Diesen Kunden gibt es nicht mehr.")
     customer = snap.to_dict() or {}
-    _require_shop_member(user, customer.get("shopId", ""))
+    require_shop_member(user, customer.get("shopId", ""))  # Inhaber und Team
     return forget_customer(get_firestore_db(), snap.reference, customer)
 
 

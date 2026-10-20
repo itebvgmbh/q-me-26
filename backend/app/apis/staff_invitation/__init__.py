@@ -10,10 +10,7 @@ wer den Link bekommen hat. Ein neuer Link ersetzt den alten.
 einmal: Ist der Eintrag schon mit einem Konto verbunden, kann ihn kein anderes Konto mehr übernehmen.
 """
 
-import hashlib
-import os
 import re
-import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -23,6 +20,7 @@ from pydantic import BaseModel
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.libs.links import new_token, public_origin, token_hash
 from app.libs.mail import MailError, branded_html, esc, send_mail
 from app.libs.onboarding_mail import is_test_address
 
@@ -31,19 +29,6 @@ router = APIRouter()
 VALID_DAYS = 14
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
 NOT_FOUND = "Diesen Einladungslink gibt es nicht oder er wurde durch einen neueren ersetzt. Bitte deinen Laden um einen neuen."
-ALLOWED_ORIGINS = ("https://dranzeit.de", "https://www.dranzeit.de", "https://q-me.spielmacherei.de", "http://localhost:5173")
-
-
-def token_hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def _origin(request: Request) -> str:
-    """Link auf die Adresse, von der der Inhaber kam – nur bekannte Adressen."""
-    origin = (request.headers.get("origin") or "").rstrip("/")
-    if origin in ALLOWED_ORIGINS:
-        return origin
-    return (os.environ.get("PUBLIC_URL", "").strip() or "https://dranzeit.de").rstrip("/")
 
 
 def _aware(value) -> datetime | None:
@@ -128,8 +113,8 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
     if body.send_email and not email:
         raise HTTPException(status_code=400, detail="Für die E-Mail fehlt die Adresse. Trag sie unter „Bearbeiten“ ein und speichere.")
 
-    token = secrets.token_urlsafe(24)
-    link = f"{_origin(request)}/staff-registration?token={token}"
+    token = new_token()
+    link = f"{public_origin(request)}/staff-registration?token={token}"
     expires = datetime.now(timezone.utc) + timedelta(days=VALID_DAYS)
     ref.update(
         {

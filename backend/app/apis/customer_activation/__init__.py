@@ -4,6 +4,11 @@
 Danach gehören die Termine, die der Laden für sie eingetragen hat, ihrem Konto: Sie stehen unter "Meine Termine",
 und "Früher dran" erreicht sie bei Terminen mit checkEarlierOptions (find_slots liest dafür auch customers.userId).
 
+Den Link erzeugt POST /customer-activation (Inhaber und Team des Ladens). Gespeichert wird nur der SHA-256-Hash
+des Tokens (activationTokenHash): Die Sammlung ist für die Buchung lesbar, das Token selbst kennt nur, wer den Link
+bekommen hat. Ein neuer Link ersetzt den alten. Einträge von vor diesem Umbau tragen das Token noch im Klartext
+(activationToken); hash_plain_tokens stellt sie um, ohne dass verschickte Links ungültig werden.
+
 Öffentlich ist nur, ob der Link gilt und von welchem Laden er ist. Verbinden geht nur angemeldet, und nur einmal:
 Ist der Eintrag schon mit einem Konto verbunden, kann ihn kein anderes Konto mehr übernehmen.
 
@@ -14,17 +19,21 @@ anlegen und so die Termine dieser Person übernehmen. Dann bleibt es beim Kunden
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from google.api_core.exceptions import Conflict
 from google.cloud import firestore as gcf
+from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
+from app.auth.access import require_shop_member
+from app.libs.links import new_token, public_origin, token_hash
 
 router = APIRouter()
 
+VALID_DAYS = 30
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
 SHOP_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
 NOT_FOUND = "Diesen Link gibt es nicht. Bitte den Laden um einen neuen."
@@ -39,11 +48,31 @@ def _expired(data: dict, now: datetime) -> bool:
     return expires < now
 
 
+def _hash_plain(ref, token: str) -> None:
+    """Klartext-Token eines alten Eintrags durch seinen Hash ersetzen – der Link gilt weiter"""
+    ref.update({"activationTokenHash": token_hash(token), "activationToken": gcf.DELETE_FIELD})
+
+
+def hash_plain_tokens(db) -> int:
+    """Übergang: Klartext-Tokens aller Einträge hashen (läuft beim Start und täglich, app/apis/schedulers).
+    Danach steht kein Token mehr offen in der Datenbank. Gibt die Zahl der umgestellten Einträge zurück."""
+    docs = list(db.collection("customers").where("activationToken", ">", "").stream())
+    for doc in docs:
+        _hash_plain(doc.reference, str((doc.to_dict() or {}).get("activationToken")))
+    return len(docs)
+
+
 def _customer(token: str):
     """Eintrag zum Link als (Dokument, Daten) – 404, wenn es ihn nicht oder nicht eindeutig gibt"""
     if not TOKEN_RE.fullmatch(token or ""):
         raise HTTPException(status_code=404, detail=NOT_FOUND)
-    docs = list(get_firestore_db().collection("customers").where("activationToken", "==", token).limit(2).stream())
+    customers = get_firestore_db().collection("customers")
+    docs = list(customers.where("activationTokenHash", "==", token_hash(token)).limit(2).stream())
+    if not docs:
+        # Link von vor dem Umbau, noch nicht umgestellt (oder von einer alten, noch offenen Seite erzeugt)
+        docs = list(customers.where("activationToken", "==", token).limit(2).stream())
+        if len(docs) == 1:
+            _hash_plain(docs[0].reference, token)
     if len(docs) != 1:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return docs[0], docs[0].to_dict() or {}
@@ -80,6 +109,39 @@ def account(uid: str) -> dict:
 
     record = auth.get_user(uid, app=get_firebase_app())
     return {"email": (record.email or "").strip(), "verified": bool(record.email_verified), "name": (record.display_name or "").strip()}
+
+
+class LinkRequest(BaseModel):
+    customer_id: str
+
+
+@router.post("/customer-activation")
+def create_link(body: LinkRequest, request: Request, user: AuthorizedUser) -> dict:
+    """Neuer Link für einen Eintrag der Kundenliste ("Kunde anlegen" in Mein Tag); der alte gilt danach nicht mehr.
+
+    Das Token steht nur in dieser Antwort, am Eintrag nur sein Hash."""
+    if not SHOP_ID_RE.fullmatch(body.customer_id or ""):
+        raise HTTPException(status_code=404, detail="Diesen Kunden gibt es nicht mehr. Lade die Seite neu.")
+    ref = get_firestore_db().collection("customers").document(body.customer_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="Diesen Kunden gibt es nicht mehr. Lade die Seite neu.")
+    customer = snap.to_dict() or {}
+    require_shop_member(user, customer.get("shopId", ""))
+    if customer.get("userId"):
+        raise HTTPException(status_code=409, detail=f"{customer.get('name') or 'Die Person'} hat das Konto schon verbunden und braucht keinen Link.")
+
+    token = new_token()
+    expires = datetime.now(timezone.utc) + timedelta(days=VALID_DAYS)
+    ref.update(
+        {
+            "activationTokenHash": token_hash(token),
+            "activationExpires": expires,
+            "activationToken": gcf.DELETE_FIELD,
+            "updatedAt": gcf.SERVER_TIMESTAMP,
+        }
+    )
+    return {"link": f"{public_origin(request)}/activate?token={token}", "expires": expires.isoformat()}
 
 
 @router.get("/customer-activation/{token}")

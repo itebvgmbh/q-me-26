@@ -47,3 +47,23 @@ def require_shop_of_owner(user, shop_id: str) -> None:
     shop = get_firestore_db().collection("shops").document(shop_id).get()
     if not shop.exists or (shop.to_dict() or {}).get("owner") != user.sub:
         raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
+
+
+def require_shop_member(user, shop_id: str) -> None:
+    """403, wenn das Konto weder Inhaber noch im Team des Ladens ist (Betreiber dürfen alles).
+    Für die Kundenliste: anlegen, Link erzeugen, löschen dürfen Inhaber und Team."""
+    if is_admin(user):
+        return
+    from app.apis.firebase_utils import get_firestore_db
+
+    db = get_firestore_db()
+    shop = db.collection("shops").document(shop_id).get() if shop_id else None
+    if shop is None or not shop.exists:
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    if (shop.to_dict() or {}).get("owner") == user.sub:
+        return
+    # Nur aktive Personen im Team: Deaktivierte haben keine Rechte mehr im Laden
+    entries = [s.to_dict() or {} for s in db.collection("staff").where("userId", "==", user.sub).stream()]
+    if any(e.get("shopId") == shop_id and e.get("isActive") is not False for e in entries):
+        return
+    raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
