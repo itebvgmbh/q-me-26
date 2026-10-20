@@ -24,3 +24,5 @@ pywebpush
 tzdata
 # Abo-Abrechnung der Läden (app/libs/stripe_billing.py)
 stripe
+# E-Rechnung (XRechnung) zu den Abo-Rechnungen (app/libs/invoices.py); feste Version, damit das XML gleich bleibt
+drafthorse==2025.2.0

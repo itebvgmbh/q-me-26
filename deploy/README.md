@@ -221,7 +221,8 @@ gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. 
    nach `/etc/q-me.env`, es erscheint nirgends. Mehrfach ausführbar.
 3. **Im Dashboard:** Einstellungen → Steuern → Registrierung Deutschland anlegen (sonst rechnet Stripe keine
    Mehrwertsteuer). Einstellungen → Zahlungsmethoden → SEPA-Lastschrift einschalten. Einstellungen →
-   Kunden-E-Mails → Rechnungen und Belege per E-Mail einschalten.
+   Kunden-E-Mails → Rechnungen und Belege per E-Mail einschalten. Rechnungsvorlage, Fußzeile, USt-IdNr. und
+   Nummernkreis: Abschnitt „Rechnungen“ unten.
 4. **Testen:** Als Inhaber unter `/tarif` „Weiter zur Bezahlung“, Testkarte `4242 4242 4242 4242`.
 
 ```powershell
@@ -248,6 +249,79 @@ gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. 
 
 Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorher `STRIPE_WEBHOOK_SECRET` und
 `STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
+Die Rechnungseinstellungen aus dem Abschnitt „Rechnungen“ im Livemodus noch einmal kontrollieren.
+
+## Rechnungen (PDF und E-Rechnung)
+
+Läden laden ihre Rechnungen unter „Mein Tarif“ → „Rechnungen“ herunter: das **PDF**, so wie Stripe es per
+E-Mail schickt, und dieselbe Rechnung als **E-Rechnung** (XRechnung 3.0, XML) für DATEV, lexoffice, sevDesk.
+Aussteller ist die ITEBV GmbH; Stripe vergibt die Nummer, erzeugt das PDF und verschickt es. Backend:
+`app/apis/invoices` (nur Inhaber, nur Rechnungen des eigenen Stripe-Kunden), E-Rechnung: `app/libs/invoices.py`.
+
+Keine Steuerberatung, Stand Oktober 2026. Vor den ersten echten Rechnungen einmal mit dem Steuerbüro abgleichen.
+
+### Pflichtangaben und was dafür in Stripe einzustellen ist
+
+Stripe erfüllt die Pflichtangaben, wenn das Dashboard so eingestellt ist (im Test- **und** im Livemodus prüfen,
+vor der ersten echten Rechnung):
+
+| Pflichtangabe | Gesetz | Einstellung im Stripe-Dashboard |
+|---|---|---|
+| Name und Anschrift der ITEBV GmbH | § 14 Abs. 4 Nr. 1 UStG | Einstellungen → Unternehmen → Öffentliche Details: Name `ITEBV GmbH`, Zehntwerderweg 201A, 13469 Berlin, Adresse auf Rechnungen anzeigen |
+| Name und Anschrift des Ladens | § 14 Abs. 4 Nr. 1 UStG | nichts: Checkout verlangt die Rechnungsadresse, den Firmennamen über „Ich kaufe als Unternehmen“ |
+| USt-IdNr. `DE348787952` | § 14 Abs. 4 Nr. 2 UStG | Einstellungen → Billing → Rechnungen → „Steuerinformationen für Rechnungen“: anlegen und als Standard setzen |
+| Ausstellungsdatum | § 14 Abs. 4 Nr. 3 UStG | automatisch |
+| fortlaufende, einmalige Nummer | § 14 Abs. 4 Nr. 4 UStG | Einstellungen → Billing → Rechnungen → Nummerierung „fortlaufend für das gesamte Konto“, Präfix z. B. `DZ`. Vor der ersten Live-Rechnung festlegen, danach nicht mehr ändern |
+| Menge und Art der Leistung | § 14 Abs. 4 Nr. 5 UStG | automatisch („1 × Dranzeit Laden“, Produktnamen aus `stripe-setup.py`) |
+| Leistungszeitraum | § 14 Abs. 4 Nr. 6 UStG | automatisch (Abozeitraum je Position) |
+| Entgelt netto nach Steuersatz, Rabatte | § 14 Abs. 4 Nr. 7 UStG | Einstellungen → Billing → Rechnungen → Standard-Artikelpreise: „Steuern nicht im Preis enthalten“ (Positionen netto wie die Preise und die E-Rechnung) |
+| Steuersatz und Steuerbetrag | § 14 Abs. 4 Nr. 8 UStG | Stripe Tax mit Registrierung Deutschland (Abschnitt „Abo-Abrechnung“, Schritt 3) |
+| Rechtsform, Sitz, Registergericht, HRB, Geschäftsführer | § 35a GmbHG | Einstellungen → Billing → Rechnungen → Standardfußzeile: `ITEBV GmbH · Sitz Berlin · Amtsgericht Berlin-Charlottenburg HRB 236012 B · Geschäftsführer: Stefan Tittmann · USt-IdNr. DE348787952` |
+
+Sprache Deutsch setzt die App beim Anlegen des Kunden, Logo und Farbe stehen unter Einstellungen → Branding.
+Kontrolle: Dashboard → Rechnungen → eine Testrechnung öffnen → PDF ansehen.
+
+**Kleinbetragsrechnungen** (bis 250 € brutto, § 33 UStDV) brauchen weniger Angaben. Das sind alle
+Monatsrechnungen (höchstens 70,21 €) und die Jahresrechnungen von Solo und Gründer-Laden (je 226,10 €).
+
+**Kunden in anderen EU-Ländern** mit USt-IdNr. (z. B. Österreich): Stripe Tax berechnet 0 % (Reverse Charge).
+Auf die Rechnung gehören dann beide USt-IdNr. und der Hinweis „Steuerschuldnerschaft des
+Leistungsempfängers“, ausgestellt bis zum 15. des Folgemonats (§ 14a Abs. 1 und 5 UStG). Mit einer
+Testrechnung an einen österreichischen Testkunden prüfen, dass der Hinweis auf dem PDF steht; die E-Rechnung
+enthält ihn immer. Diese Umsätze gehören in die Zusammenfassende Meldung (§ 18a UStG). Gibt ein EU-Kunde
+keine USt-IdNr. an, behandelt Stripe ihn wie einen Privatkunden.
+
+### E-Rechnung
+
+- Seit 1.1.2025 muss jedes Unternehmen in Deutschland E-Rechnungen **empfangen** können.
+- **Ausstellen** müssen sie Unternehmen für Unternehmen, wenn beide in Deutschland sitzen: 2026 ist ein PDF noch
+  erlaubt. 2027 nur noch, wenn der Gesamtumsatz der ITEBV GmbH **2026** höchstens 800.000 € betrug, sonst gilt
+  die Pflicht ab 1.1.2027. Ab **1.1.2028** gilt sie für alle (§ 14 Abs. 1 und § 27 Abs. 38 UStG).
+- Kleinbetragsrechnungen bis 250 € sind dauerhaft ausgenommen. Bei Dranzeit betrifft die Pflicht also nur die
+  Jahresrechnungen **Laden (464,10 €)** und **Team (702,10 €)** und Rechnungen, die durch Tarifwechsel über
+  250 € kommen.
+- Zulässig sind Formate nach EN 16931: **XRechnung** oder **ZUGFeRD ab 2.0.1** (nicht die Profile MINIMUM und
+  BASIC-WL). Ein PDF allein ist keine E-Rechnung, und Stripe erzeugt keine. Die App baut die XRechnung deshalb
+  aus denselben Stripe-Daten wie das PDF (Nummer, Datum, Kunde, Positionen, Zeitraum, Steuer). Weichen beide
+  voneinander ab, gilt das XML.
+- Übermitteln per Download aus einem Kundenportal ist zulässig (BMF-Schreiben zur E-Rechnung). Genau das ist
+  „Mein Tarif“ → „Rechnungen“. Das PDF aus der Stripe-E-Mail ist eine inhaltsgleiche Zweitschrift.
+- Keine E-Rechnung gibt es für 0-€-Rechnungen (Testphase), stornierte Rechnungen und andere Steuerfälle als
+  19 % und Reverse Charge (z. B. Kunden außerhalb der EU). Für die gilt die Pflicht auch nicht.
+
+Die Angaben zur ITEBV GmbH in der XRechnung stehen in `backend/app/libs/invoices.py` (`SELLER`). Sie müssen zu
+den öffentlichen Details in Stripe und zu `frontend/src/constants/legal.ts` passen. Prüfen gegen die
+offiziellen Regeln (XML-Schema, EN 16931, XRechnung 3.0.2 der KoSIT) geht ohne Java mit
+`dev/e-rechnung-pruefen.py`, auch mit einer unter „Mein Tarif“ geladenen Datei (Anleitung im Kopf des Skripts).
+
+### Aufbewahren
+
+Die ITEBV GmbH muss jede Rechnung **8 Jahre** aufbewahren (§ 14b UStG, § 147 AO), eine E-Rechnung im
+Originalformat (XML), unveränderbar und auffindbar (GoBD). Stripe hält die Rechnungen vor, ist aber kein
+Archiv im Sinne der GoBD: regelmäßig exportieren (Dashboard → Rechnungen → Exportieren, oder über die
+Buchhaltung des Steuerbüros), ab Pflichtbeginn die XRechnungen der Jahresrechnungen mit. Die E-Rechnung
+hängt nicht vom Zahlungsstand ab: Wer sie mehrmals lädt, bekommt dieselbe Datei. Läden sehen unter
+„Mein Tarif“ bis zu 120 Rechnungen zurück, ältere im Stripe-Kundenportal.
 
 ## Umzug auf dranzeit.de
 

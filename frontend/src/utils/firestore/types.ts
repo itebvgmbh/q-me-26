@@ -43,6 +43,8 @@ export interface Shop {
     interval?: 'monat' | 'jahr';
     currentPeriodEnd?: Timestamp;
     cancelAtPeriodEnd?: boolean;
+    /** Stripe-Kunde; gibt es, sobald einmal ein Abo begonnen wurde (dann auch Rechnungen) */
+    customerId?: string;
   };
   createdAt: Timestamp;
   updatedAt: Timestamp;

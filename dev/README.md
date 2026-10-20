@@ -38,6 +38,7 @@ node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken
 node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperren im Gratis-Tarif
 node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung, QR-Plakat, Tagesnummern
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
+node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 
 # 4. Testladen wieder löschen
@@ -73,7 +74,12 @@ Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py` und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
-`uv run python tests/test_access.py` (wer ist Betreiber der App)
+`uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
+(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber)
+
+E-Rechnungen gegen die offiziellen Prüfregeln (XML-Schema, EN 16931, XRechnung der KoSIT), ohne Java:
+`cd backend; uv pip install --python .venv saxonche`, dann `uv run python ../dev/e-rechnung-pruefen.py`
+(prüft die Beispiele aus `tests/test_invoices.py`; mit Dateinamen eine eigene, z. B. unter „Mein Tarif“ geladene XRechnung).
 
 ## PowerShell-Blöcke testen
 
