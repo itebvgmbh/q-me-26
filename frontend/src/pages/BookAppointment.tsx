@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
-import { createCustomer } from '../utils/firestore';
+import { linkOwnCustomerEntry } from '../utils/firestore';
 import { BookingForm } from '../components/BookingForm';
 import { useShops } from '../utils/hooks/useShops';
 import { useShopServices } from '../utils/hooks/useShopServices';
@@ -82,18 +82,6 @@ const BookAppointment = () => {
     if (!validateBookingForm({ selectedShop, selectedStaff, selectedService, selectedTimeSlot })) return;
 
     try {
-      try {
-        await createCustomer({
-          shopId: selectedShop,
-          name: user.displayName || user.email?.split('@')[0] || 'Unbekannt',
-          email: user.email || '',
-          phone: '',
-          userId: user.uid,
-        });
-      } catch (err) {
-        console.error('Error with customer record, but continuing...', err);
-      }
-
       const result = await bookAppointment(
         selectedShop,
         selectedStaff,
@@ -104,7 +92,11 @@ const BookAppointment = () => {
         selectedTimeSlot!,
         checkEarlierOptions,
       );
-      if (result.success) navigate('/my-bookings');
+      if (result.success) {
+        // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+        void linkOwnCustomerEntry(selectedShop);
+        navigate('/my-bookings');
+      }
     } catch (error) {
       console.error('Error in booking process:', error);
       toast.error('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.');
