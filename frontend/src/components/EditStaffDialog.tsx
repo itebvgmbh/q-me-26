@@ -3,6 +3,7 @@ import { uploadImage } from '../utils/firestore/storage';
 import { collection, doc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { APP_BASE_PATH } from 'app';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from './HilfeLink';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -238,7 +239,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('breaks')}
             >
-              Tägliche Pausen
+              Einzelne Pausen
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'recurring-breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
@@ -458,10 +459,18 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
           </TabsContent>
           
           <TabsContent value="breaks" className="mt-4">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Gilt nur an einem bestimmten Tag, z. B. für einen Arzttermin. Für jede Woche gleich: „Wöchentliche Pausen“. Die Mittagspause des ganzen Ladens steht bei den Öffnungszeiten.{' '}
+              <HilfeLink hilfe="arbeitszeiten-und-pausen" />
+            </p>
             <BreakManager staff={staff} shopId={shop.id} />
           </TabsContent>
           
           <TabsContent value="recurring-breaks" className="mt-4">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Jede Woche zur selben Zeit, z. B. dienstags 12–13 Uhr. In dieser Zeit bekommt die Person keine Kunden.{' '}
+              <HilfeLink hilfe="arbeitszeiten-und-pausen" />
+            </p>
             <RecurringBreakManager staff={staff} shopId={shop.id} />
           </TabsContent>
         </Tabs>

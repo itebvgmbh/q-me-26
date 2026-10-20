@@ -206,6 +206,21 @@ Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schl
 - **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
   `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar).
 - Kunden schalten das auf ihrer Nummernseite `/nummer/<id>` ein; dorthin führt jetzt das Nummer-Ziehen.
+- **Start-Mails an Läden** (`app/libs/onboarding_mail.py`, im selben Dienst): Willkommen, eine Erinnerung zum
+  Ausprobieren (2–7 Tage nach dem Anlegen, nur wenn noch nichts eingetragen ist) und „Testphase endet“ (5 Tage
+  vorher, nicht bei laufendem Abo). Je Laden einmal, geprüft alle 15 Minuten, Testadressen (`@example.com`)
+  ausgenommen. Antworten gehen an `hilfe@dranzeit.de` – dieses Postfach (oder eine Weiterleitung) muss es geben.
+
+## Hilfe-Bereich (/hilfe)
+
+Anleitungen, häufige Fragen und Begriffe für Läden und Kunden. Die Artikel sind Markdown-Dateien in
+`backend/app/hilfe/artikel/` (Anleitung: `backend/app/hilfe/README.md`), das Backend macht daraus fertige Seiten
+samt Suche und Sitemap. Neue oder geänderte Artikel kommen mit dem normalen Update.
+
+Caddy muss `/hilfe` ans Backend geben. Das stellt `caddy-domain.py` ein, aber nur, wenn man es nach diesem Update
+**einmal neu ausführt** – mit denselben Adressen wie beim Umzug (Block „Umzug auf dranzeit.de“), z. B.
+`python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de`.
+Bis dahin leitet die App `/hilfe` auf `/routes/seo/hilfe` weiter; es funktioniert also auch vorher.
 
 ## Abo-Abrechnung (Stripe)
 

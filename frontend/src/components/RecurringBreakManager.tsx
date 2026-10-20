@@ -263,7 +263,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
     <div className="space-y-6">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Wiederkehrende Pausen für {staff.name}</CardTitle>
+          <CardTitle>Wöchentliche Pausen für {staff.name}</CardTitle>
           <CardDescription>
             Regelmäßige Pausen – in dieser Zeit kann niemand buchen.
           </CardDescription>

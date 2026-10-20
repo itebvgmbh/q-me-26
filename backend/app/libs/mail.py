@@ -26,8 +26,9 @@ def mail_configured() -> bool:
     return bool(os.environ.get("RESEND_API_KEY", "").strip())
 
 
-def send_mail(to: str, subject: str, html_body: str, text_body: str = "") -> bool:
-    """Schickt eine E-Mail. True = verschickt, False = kein Schlüssel gesetzt (nur geloggt)."""
+def send_mail(to: str, subject: str, html_body: str, text_body: str = "", reply_to: str = "") -> bool:
+    """Schickt eine E-Mail. True = verschickt, False = kein Schlüssel gesetzt (nur geloggt).
+    reply_to: Antwortadresse für diese Mail, sonst MAIL_REPLY_TO."""
     key = os.environ.get("RESEND_API_KEY", "").strip()
     if not key:
         print(f"E-Mail nicht verschickt, RESEND_API_KEY fehlt: an {to}, Betreff „{subject}“")
@@ -40,7 +41,7 @@ def send_mail(to: str, subject: str, html_body: str, text_body: str = "") -> boo
     }
     if text_body:
         payload["text"] = text_body
-    reply_to = os.environ.get("MAIL_REPLY_TO", "").strip()
+    reply_to = reply_to or os.environ.get("MAIL_REPLY_TO", "").strip()
     if reply_to:
         payload["reply_to"] = reply_to
     try:

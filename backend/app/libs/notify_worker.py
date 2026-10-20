@@ -1,4 +1,5 @@
-"""Hintergrunddienst für Benachrichtigungen: "Gleich bist du dran", "Du bist dran" und Termin-Erinnerungen.
+"""Hintergrunddienst für Benachrichtigungen: "Gleich bist du dran", "Du bist dran" und Termin-Erinnerungen,
+nebenbei die Start-Mails an neue Läden (app/libs/onboarding_mail.py).
 
 Läuft als eigener Thread (gestartet in main.py, wie "Früher dran"). Alle 30 Sekunden liest er die heutigen
 Termine und schickt fällige Nachrichten. Ruft der Tresen eine Nummer auf, weckt ihn ein Firestore-Listener
@@ -14,6 +15,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from app.libs import onboarding_mail
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.plans import has_feature
 from app.libs.queue_notify import message_for, needs_reminder, plan_queue_notifications
@@ -47,6 +49,7 @@ def _loop() -> None:
     db = get_firestore_db()
     _start_watch(db)
     last_cleanup = None
+    last_onboarding = None
     while True:
         try:
             run_once(db)
@@ -57,6 +60,16 @@ def _loop() -> None:
                 print(f"Benachrichtigungen: {removed} alte Push-Anmeldungen entfernt")
         except Exception as e:  # nie den Dienst deswegen anhalten
             print(f"Benachrichtigungen: Fehler im Durchlauf: {e}")
+        # Start-Mails an Läden (app/libs/onboarding_mail.py), seltener als die Nachrichten an Kunden
+        now = datetime.now(timezone.utc)
+        if last_onboarding is None or now - last_onboarding >= timedelta(minutes=onboarding_mail.SWEEP_MINUTES):
+            last_onboarding = now
+            try:
+                count = onboarding_mail.run_once(db, public_url(), now)
+                if count:
+                    print(f"Start-Mails: {count} verschickt")
+            except Exception as e:
+                print(f"Start-Mails: Fehler im Durchlauf: {e}")
         _wakeup.wait(SWEEP_SECONDS)
         _wakeup.clear()
 

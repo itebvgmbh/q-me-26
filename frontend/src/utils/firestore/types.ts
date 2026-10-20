@@ -44,6 +44,8 @@ export interface Shop {
     currentPeriodEnd?: Timestamp;
     cancelAtPeriodEnd?: boolean;
   };
+  /** Merker der Startklar-Liste am Tresen (components/onboarding/Startklar.tsx) */
+  onboarding?: { testlaufAt?: Timestamp; plakatAt?: Timestamp; dismissedAt?: Timestamp };
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

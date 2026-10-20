@@ -10,10 +10,11 @@ export const SiteFooter = () => {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Logo />
         <nav aria-label="Fußzeile" className="flex flex-wrap gap-x-6 text-sm text-muted-foreground [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center">
-          <Link to="/shop-map" className="hover:text-foreground">Shops finden</Link>
-          <Link to="/public-join-queue" className="hover:text-foreground">In die Schlange</Link>
-          <Link to="/features" className="hover:text-foreground">Für Betriebe</Link>
+          <Link to="/shop-map" className="hover:text-foreground">Läden finden</Link>
+          <Link to="/public-join-queue" className="hover:text-foreground">Nummer ziehen</Link>
+          <Link to="/features" className="hover:text-foreground">Für Läden</Link>
           <Link to="/preise" className="hover:text-foreground">Preise</Link>
+          <a href="/hilfe" className="hover:text-foreground">Hilfe</a>
           <a href="/friseur-ohne-termin" className="hover:text-foreground">Friseur ohne Termin</a>
           {user ? (
             <Link to="/my-bookings" className="hover:text-foreground">Meine Termine</Link>

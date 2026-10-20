@@ -72,6 +72,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/plakat", element: <UserGuard><Plakat /></UserGuard>},
 	{ path: "/friseur-ohne-termin/*", element: <StadtWeiterleitung />},
 	{ path: "/friseur-ohne-termin", element: <StadtWeiterleitung />},
+	{ path: "/hilfe/*", element: <StadtWeiterleitung />},
+	{ path: "/hilfe", element: <StadtWeiterleitung />},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},

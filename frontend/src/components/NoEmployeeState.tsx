@@ -23,7 +23,7 @@ export const NoEmployeeState = ({ user }: Props) => {
         <p className="text-muted-foreground">
           {owner
             ? 'Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.'
-            : 'Frag deinen Betrieb nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.'}
+            : 'Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.'}
         </p>
         <Button variant="signal" asChild>
           <Link to={owner ? '/staff-management' : '/'}>{owner ? 'Zum Team' : 'Zur Startseite'}</Link>

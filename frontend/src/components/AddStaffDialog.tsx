@@ -158,7 +158,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
         // Einladungslink für das eigene Konto der Person (unter "Bearbeiten" zum Kopieren)
         try {
           await createStaffInvitation(shop.id, mail, false);
-          toast.success(`${name.trim()} ist im Team. Den Einladungslink findest du unter „Bearbeiten“.`);
+          toast.success(`${name.trim()} ist im Team. Unter „Bearbeiten“ erstellst du den Einladungslink zum Weiterschicken.`);
         } catch (invitationError) {
           console.error('Error creating staff invitation:', invitationError);
           toast.error(`${name.trim()} ist im Team, aber der Einladungslink konnte nicht erstellt werden.`);
@@ -191,7 +191,7 @@ export const AddStaffDialog = ({ shop, services, onStaffAdded }: AddStaffDialogP
         <DialogHeader>
           <DialogTitle>Person anlegen</DialogTitle>
           <DialogDescription>
-            Für dich selbst (mit deiner E-Mail) oder jemanden aus dem Team. Mit E-Mail bekommt die Person einen Einladungslink.
+            Für dich selbst (mit deiner E-Mail) oder jemanden aus dem Team. Den Einladungslink für die Person erstellst du danach unter „Bearbeiten“.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
