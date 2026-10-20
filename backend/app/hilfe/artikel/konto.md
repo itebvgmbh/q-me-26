@@ -1,9 +1,9 @@
 ---
 titel: Konto, Anmeldung und Passwort
-kurz: Konto für deinen Laden anlegen, anmelden, Passwort zurücksetzen, Profil ändern, abmelden und Konto löschen.
+kurz: Konto für deinen Laden anlegen, E-Mail bestätigen, anmelden, Passwort zurücksetzen, Profil ändern, abmelden und Konto löschen.
 thema: konto
 reihenfolge: 1
-stichworte: konto, registrieren, registrierung, anmelden, login, einloggen, passwort, vergessen, zurücksetzen, profil, name, handynummer, abmelden, logout, löschen, e-mail, rolle
+stichworte: konto, registrieren, registrierung, anmelden, login, einloggen, passwort, vergessen, zurücksetzen, profil, name, handynummer, abmelden, logout, löschen, e-mail, rolle, bestätigen, bestätigung, bestätigungs-mail, verifizieren
 ---
 Für deinen Laden brauchst du ein Konto mit E-Mail-Adresse und Passwort. Deine Kunden brauchen zum Nummer ziehen keins.
 
@@ -12,10 +12,19 @@ Für deinen Laden brauchst du ein Konto mit E-Mail-Adresse und Passwort. Deine K
 1. Geh auf [Registrieren](/register-options) und tipp auf **„Ich habe einen Laden“**.
 2. Gib deine E-Mail-Adresse und ein Passwort mit mindestens 6 Zeichen ein.
 3. Tipp auf **„Konto für deinen Laden anlegen“**. Danach startet der Einrichtungsassistent.
+4. Wir schicken dir eine E-Mail. Tipp auf **„E-Mail-Adresse bestätigen“**, dann ist deine Adresse bestätigt.
 
 Wer bei dir arbeitet, registriert sich nicht selbst, sondern bekommt von dir eine Einladung per Link oder E-Mail. Hat die Person schon ein Konto bei Dranzeit, nimmt sie die Einladung damit an. Mehr dazu: [Team einladen](/hilfe/team-einladen).
 
 > **Achtung:** Ob ein Konto zu einem Laden oder zu einem Kunden gehört, legst du beim Registrieren fest. Das kannst du später nicht selbst ändern. Hast du dich aus Versehen als Kunde registriert, schreib uns an [hilfe@dranzeit.de](mailto:hilfe@dranzeit.de).
+
+## E-Mail-Adresse bestätigen
+
+Nach dem Registrieren bekommst du von uns eine E-Mail mit dem Betreff „Bitte bestätige deine E-Mail-Adresse“. Tipp darin auf **„E-Mail-Adresse bestätigen“**. Das klappt auch auf einem anderen Gerät, zum Beispiel am Handy. Ob deine Adresse bestätigt ist, siehst du unter **„Mein Profil“** direkt unter deiner E-Mail-Adresse.
+
+Pflicht ist das nicht: Buchen, Nummer ziehen und dein Laden funktionieren auch ohne. Mit bestätigter Adresse wissen wir aber, dass sie dir gehört. Hat dich ein Laden mit dieser Adresse in seine Kundenliste eingetragen, kommen seine Termine in dein Konto, sobald du dort selbst buchst.
+
+Keine E-Mail da? Schau im Spam-Ordner nach. Unter **„Mein Profil“** schickst du sie dir mit **„Bestätigungs-Mail noch mal schicken“** neu. Steht nach dem Tippen auf den Link „Dieser Link klappt nicht.“, ist er abgelaufen oder schon benutzt. Dann schau im Profil nach, ob deine Adresse schon bestätigt ist, und schick dir sonst eine neue E-Mail.
 
 ## Anmelden
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { registerWithRole } from '../../utils/auth-helpers';
 import { authErrorMessage, safeRedirect } from '../../utils/auth-errors';
 import { linkAnonymousBookingsToUser } from '../../utils/AnonymousBookingLinker';
+import { sendVerificationMailAfterSignUp } from '../../utils/email-verification';
 import { UserRole } from '../../utils/types';
 import { AuthShell, EmailField, FormError, PasswordField } from './AuthShell';
 
@@ -58,6 +59,7 @@ export const RegisterForm = ({ role }: Props) => {
         await linkAnonymousBookingsToUser(user.uid, state.shopId, state.referenceCode);
       }
       toast.success('Dein Konto ist angelegt.');
+      sendVerificationMailAfterSignUp();
       navigate(next || copy.home, { replace: true });
     } catch (err) {
       console.error('Registration error:', err);

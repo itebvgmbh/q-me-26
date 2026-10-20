@@ -24,6 +24,7 @@ const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
 const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
 const Datenschutz = lazy(() => import("./pages/Datenschutz.tsx"));
+const EmailBestaetigen = lazy(() => import("./pages/EmailBestaetigen.tsx"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazy(() => import("./pages/Features.tsx"));
 const Impressum = lazy(() => import("./pages/Impressum.tsx"));
@@ -63,6 +64,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/customerdashboard", element: <RedirectKeepQuery to="/my-bookings" />},
 	{ path: "/customer-profile", element: <UserGuard><CustomerProfile /></UserGuard>},
 	{ path: "/customerprofile", element: <UserGuard><CustomerProfile /></UserGuard>},
+	// Link aus der Bestätigungs-Mail (utils/email-verification.ts)
+	{ path: "/email-bestaetigen", element: <EmailBestaetigen />},
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/employeedashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/features", element: <Features />},

@@ -100,8 +100,8 @@ export default function Datenschutz() {
             und Wartenummern, Speicher für Ladenlogos.
           </li>
           <li>
-            <strong>Resend</strong> (Resend, Inc., San Francisco): Versand von E-Mails, zum Beispiel Einladungen ins
-            Team und Erinnerungen an Termine.
+            <strong>Resend</strong> (Resend, Inc., San Francisco): Versand von E-Mails, zum Beispiel Bestätigung der
+            E-Mail-Adresse, Einladungen ins Team und Erinnerungen an Termine.
           </li>
           <li>
             <strong>Stripe</strong> (Stripe Payments Europe Ltd., Dublin): Abrechnung der Abos der Läden. Kunden der

@@ -30,7 +30,7 @@ Tipp oben auf **„Kunde anlegen“**, trag Name und E-Mail ein und tipp auf **�
 
 Danach zeigt Dranzeit einen Link. Schick ihn der Person mit **„Link kopieren“** oder **„Per E-Mail schicken“**, auf dem Handy auch mit **„Teilen“**. Öffnet sie ihn und meldet sich an oder legt ein Konto an, stehen die Termine, die du für sie einträgst, unter „Meine Termine“ in ihrem Konto. Dort kann sie für jeden kommenden Termin selbst **„Früher dran“** einschalten und bekommt dann einen früheren Platz angeboten, wenn einer frei wird ([Früher dran](/hilfe/frueher-dran)). Der Link gilt 30 Tage, und Dranzeit zeigt ihn nur dieses eine Mal. Brauchst du ihn noch einmal, etwa weil er abgelaufen ist, leg die Person mit derselben E-Mail noch einmal an: Du bekommst einen neuen Link, aber keinen zweiten Eintrag. Der alte Link gilt dann nicht mehr.
 
-Wer bei dir mit Konto eine Nummer zieht oder einen Termin bucht, steht danach von selbst unter **„Bestandskunde“**, schon mit dem Konto verbunden. Hast du die Person vorher mit derselben E-Mail angelegt, verbindet Dranzeit deinen Eintrag mit ihrem Konto, wenn ihre Adresse dort bestätigt ist (zum Beispiel bei Anmeldung mit Google). Sonst schick ihr den Link.
+Wer bei dir mit Konto eine Nummer zieht oder einen Termin bucht, steht danach von selbst unter **„Bestandskunde“**, schon mit dem Konto verbunden. Hast du die Person vorher mit derselben E-Mail angelegt, verbindet Dranzeit deinen Eintrag mit ihrem Konto, wenn ihre Adresse dort bestätigt ist (über den Link in unserer Bestätigungs-Mail). Sonst schick ihr den Link.
 
 ## Kunde löschen
 
