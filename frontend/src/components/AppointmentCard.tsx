@@ -4,8 +4,11 @@ import { de } from 'date-fns/locale';
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { safelyConvertToDate } from '../utils/datetime';
+import { hasFeature } from '../utils/plans';
+import { FRUEHER_DRAN_VORLAUF_MINUTEN } from '../utils/frueher-dran';
 import type { Appointment, Service, Shop, Staff } from '../utils/firestore';
 import type { EarlierSlotNotificationType } from '../utils/types';
 
@@ -20,6 +23,8 @@ interface AppointmentCardProps {
   appointment: AppointmentWithDetails;
   onCancelClick: (appointmentId: string) => void;
   onAcceptEarlierSlot?: (notificationId: string) => Promise<boolean>;
+  /** „Früher dran“ für diesen Termin ein-/ausschalten; ohne diese Angabe kein Schalter */
+  onToggleEarlier?: (appointmentId: string, on: boolean) => Promise<void>;
   notification?: EarlierSlotNotificationType;
   /** vergangene oder stornierte Termine gedämpft und ohne Aktionen */
   past?: boolean;
@@ -35,13 +40,43 @@ const STATUS_LABEL: Record<Appointment['status'], string> = {
 };
 
 /** Ein Termin in „Meine Termine“ */
-export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onCancelClick, onAcceptEarlierSlot, notification, past = false, actionsOnly = false }) => {
+export const AppointmentCard: React.FC<AppointmentCardProps> = ({
+  appointment,
+  onCancelClick,
+  onAcceptEarlierSlot,
+  onToggleEarlier,
+  notification,
+  past = false,
+  actionsOnly = false,
+}) => {
   const [accepting, setAccepting] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const start = safelyConvertToDate(appointment.startTime);
   const end = safelyConvertToDate(appointment.endTime);
   const earlier = notification ? safelyConvertToDate(notification.earlierStartTime) : null;
   const offerUntil = notification?.expiresAt ? safelyConvertToDate(notification.expiresAt) : null;
   const price = appointment.service?.price;
+  // Schalter auch für Termine, die der Laden eingetragen hat (dort fehlt der Haken vom Buchen)
+  const earlierOn = appointment.checkEarlierOptions === true;
+  const showEarlierSwitch =
+    !past &&
+    !!onToggleEarlier &&
+    appointment.status === 'scheduled' &&
+    start.getTime() - Date.now() > FRUEHER_DRAN_VORLAUF_MINUTEN * 60_000 &&
+    hasFeature(appointment.shop, 'frueherDran');
+  const switchId = `frueher-dran-${appointment.id}`;
+
+  const toggleEarlier = async (on: boolean) => {
+    if (!onToggleEarlier) return;
+    setSwitching(true);
+    try {
+      await onToggleEarlier(appointment.id, on);
+    } catch {
+      // Meldung kommt von der Seite
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   const accept = async () => {
     if (!notification || !onAcceptEarlierSlot) return;
@@ -105,6 +140,20 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, o
             <ArrowUpRight className="mr-1.5 h-4 w-4" aria-hidden="true" />
             {accepting ? 'Wird übernommen …' : 'Früheren Platz nehmen'}
           </Button>
+        </div>
+      )}
+
+      {showEarlierSwitch && (
+        <div className="flex items-start justify-between gap-4 rounded-2xl border border-border p-4">
+          <label htmlFor={switchId} className="flex cursor-pointer flex-col text-sm">
+            <strong className="text-foreground">Früher dran, wenn etwas frei wird</strong>
+            <span className="text-muted-foreground">
+              {earlierOn
+                ? 'Ist an. Wird vorher ein Platz frei, bieten wir ihn dir hier an. Dein Termin bleibt sicher, bis du zusagst.'
+                : 'Wir bieten dir einen früheren Platz an, wenn einer frei wird. Dein Termin bleibt sicher, bis du zusagst.'}
+            </span>
+          </label>
+          <Switch id={switchId} checked={earlierOn} disabled={switching} onCheckedChange={toggleEarlier} className="mt-0.5" />
         </div>
       )}
 

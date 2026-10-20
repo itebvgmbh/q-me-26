@@ -3,16 +3,24 @@ titel: Früher dran: frei gewordene Plätze nachrücken lassen
 kurz: Sagt jemand ab, bietet Dranzeit den Platz von selbst Kunden an, die früher kommen möchten. So funktioniert es und wer mitmachen kann.
 thema: tresen
 reihenfolge: 7
-stichworte: früher dran, absage, frei geworden, nachrücken, lücke, angebot, früherer platz, warteliste, konto, solo, kaskade
+stichworte: früher dran, absage, frei geworden, nachrücken, lücke, angebot, früherer platz, warteliste, konto, solo, kaskade, einschalten, ausschalten, schalter, meine termine
 ---
 Sagt ein Kunde ab, entsteht eine Lücke. „Früher dran“ füllt sie von selbst: Dranzeit bietet den frei gewordenen Platz Kunden an, die später eingeplant sind und gern früher kämen. Du musst dafür nichts tun.
 
 ## Wer mitmacht
 
 - Dein Tarif enthält „Früher dran“: ab Solo und in der Testphase.
-- Der Kunde hat ein **Konto** und beim Nummer-Ziehen oder Termin-Buchen **„Früher dran, wenn etwas frei wird“** angehakt.
+- Der Kunde hat ein **Konto** und „Früher dran“ für seinen Termin eingeschaltet.
 
-Ohne Konto geht es nicht, denn das Angebot erscheint nur unter „Meine Termine“. Hat ein Kunde mit Konto gezogen oder gebucht, kannst du den Haken auch nachträglich setzen: in der Liste **„Alle Termine am …“** unter **„Bearbeiten“** → **„Bei früherem freien Termin benachrichtigen“**.
+Ohne Konto geht es nicht, denn das Angebot erscheint nur unter „Meine Termine“.
+
+## So wird es eingeschaltet
+
+- **Beim Nummer-Ziehen oder Termin-Buchen:** Der Kunde hakt **„Früher dran, wenn etwas frei wird“** an.
+- **Später unter „Meine Termine“:** Bei jedem kommenden Termin steht der Schalter **„Früher dran, wenn etwas frei wird“**. Damit schaltet der Kunde es selbst ein oder wieder aus, bis 15 Minuten vor Beginn. Das geht auch bei Terminen, die du für ihn eingetragen hast, sobald er sein Konto über deinen Link verbunden hat ([Mein Tag](/hilfe/mein-tag), Abschnitt „Kunde anlegen“).
+- **Von dir am Tresen:** in der Liste **„Alle Termine am …“** unter **„Bearbeiten“** → **„Bei früherem freien Termin benachrichtigen“**. Das wirkt nur bei Kunden mit Konto.
+
+Schaltet ein Kunde es aus, während ihm gerade ein Platz angeboten wird, verschwindet das Angebot und der Platz geht an den Nächsten.
 
 ## So läuft es ab
 
