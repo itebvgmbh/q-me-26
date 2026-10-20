@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from './HilfeLink';
 
 /**
  * Props for the ServiceForm component
@@ -81,7 +82,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     }
     
     if (setupTime.trim() && (isNaN(parseInt(setupTime)) || parseInt(setupTime) < 0)) {
-      newErrors.setupTime = 'Rüstzeit muss eine nicht-negative Zahl sein';
+      newErrors.setupTime = 'Vor- und Nachbereitung muss 0 oder mehr Minuten sein';
     }
     
     setErrors(newErrors);
@@ -156,7 +157,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       
       <div className="grid gap-2">
         <Label htmlFor="setupTime">
-          Rüstzeit (Minuten)
+          Vor- und Nachbereitung (Minuten)
           {errors.setupTime && <span className="text-destructive ml-1 text-sm">{errors.setupTime}</span>}
         </Label>
         <Input
@@ -167,6 +168,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           placeholder="5"
           disabled={isSubmitting}
         />
+        <p className="text-sm text-muted-foreground">
+          Zeit zum Aufräumen und Vorbereiten. Bei Nummern und Online-Terminen wird sie zur Dauer dazugerechnet, damit zwischen zwei Kunden Luft bleibt. <HilfeLink hilfe="leistungen" />
+        </p>
       </div>
       
       <div className="grid gap-2">

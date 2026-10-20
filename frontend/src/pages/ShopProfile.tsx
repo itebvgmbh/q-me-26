@@ -112,7 +112,7 @@ const ShopProfile = () => {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Laden bearbeiten</DialogTitle>
-            <DialogDescription>Änderungen gelten sofort, auch für die Shop-Suche.</DialogDescription>
+            <DialogDescription>Änderungen gelten sofort.</DialogDescription>
           </DialogHeader>
           <EditShopForm
             shop={shop}

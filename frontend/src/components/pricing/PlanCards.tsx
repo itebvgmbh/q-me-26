@@ -5,7 +5,7 @@ import type { Interval } from '../../utils/billing';
 
 // Was in welchem Tarif steckt – Texte wie auf der Preisseite der Strategie
 const INCLUDES: Record<PlanId, string[]> = {
-  gratis: ['1 Person', 'bis 100 Kunden im Monat', 'Nummer ziehen per QR-Code', 'Tresen-Ansicht', 'Eintrag auf Karte und Shop-Suche'],
+  gratis: ['1 Person', 'bis 100 Kunden im Monat', 'Nummer ziehen per QR-Code', 'Tresen-Ansicht', 'Eintrag auf der Karte'],
   solo: ['1 Person, unbegrenzt Kunden', 'Online-Termine und Schlange in einem Tag', 'Früher dran', '„Gleich dran“-Nachricht per Push oder E-Mail', 'Termin-Erinnerungen'],
   laden: ['bis 4 Personen', 'alles aus Solo', 'Team mit „Mein Tag“', 'Wartezimmer-Bildschirm', 'Auswertung: Wartezeit, Kunden pro Tag'],
   team: ['bis 10 Personen', 'alles aus Laden', 'bevorzugter Support'],
@@ -15,7 +15,7 @@ const NOTES: Record<PlanId, string> = {
   gratis: 'Zum Ausprobieren und für kleine Läden.',
   solo: 'Ein Haarschnitt im Monat bezahlt den Tarif.',
   laden: 'Der typische Barbershop.',
-  team: 'Mehr als 10 Personen oder mehrere Läden? Schreib uns.',
+  team: 'Mehr als 10 Personen? Schreib uns.',
 };
 
 interface Props {

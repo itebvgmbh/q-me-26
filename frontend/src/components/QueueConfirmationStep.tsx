@@ -105,7 +105,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
       </div>
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
-        <div><dt className="text-muted-foreground">Shop</dt><dd className="font-semibold">{shop?.name}</dd></div>
+        <div><dt className="text-muted-foreground">Laden</dt><dd className="font-semibold">{shop?.name}</dd></div>
         <div><dt className="text-muted-foreground">Leistung</dt><dd className="font-semibold">{service?.name}</dd></div>
         <div><dt className="text-muted-foreground">Bei</dt><dd className="font-semibold">{person?.name ?? (searchingForSlot ? '…' : '–')}</dd></div>
       </dl>

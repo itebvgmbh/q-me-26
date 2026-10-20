@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { getFoundersLeft, type Interval } from '../utils/billing';
 import { FOUNDER_LIMIT } from '../utils/plans';
+import { HILFE_MAIL } from '../components/HilfeLink';
 
 const FAQ: [string, string][] = [
   ['Nehmt ihr Provision?', 'Nein. Du zahlst den festen Monatspreis, egal wie viele Kunden über Dranzeit kommen. Auch nicht für Neukunden.'],
   ['Wie lange kann ich testen?', '30 Tage mit allen Funktionen, ohne Zahlungsdaten. Danach läuft dein Laden im Gratis-Tarif weiter, bis du ein Abo wählst. Nichts verschwindet.'],
-  ['Wie kündige ich?', 'Monatlich, mit einem Klick unter „Mein Tarif“. Beim Jahresabo endet der Vertrag zum Ende des bezahlten Jahres.'],
-  ['Wie bezahle ich?', 'Per SEPA-Lastschrift oder Karte. Die Rechnung kommt jeden Monat per E-Mail.'],
+  ['Wie kündige ich?', 'Jederzeit unter „Tarif“, zum Ende des bezahlten Monats. Beim Jahresabo endet der Vertrag zum Ende des bezahlten Jahres.'],
+  ['Wie bezahle ich?', 'Per SEPA-Lastschrift oder Karte. Die Rechnung kommt per E-Mail, beim Jahresabo einmal im Jahr.'],
   ['Ich bin Kleinunternehmer. Was zahle ich wirklich?', 'Die Preise sind netto. Wenn du keine Vorsteuer abziehen kannst, zählt der Bruttopreis, der unter jedem Preis steht.'],
   ['Brauchen meine Kunden eine App?', 'Nein. Sie scannen den QR-Code an der Tür, ziehen eine Nummer im Browser und bekommen Bescheid, kurz bevor sie dran sind.'],
 ];
@@ -52,6 +53,7 @@ export default function Preise() {
               Dafür hängt unser QR-Plakat sichtbar an deiner Tür, und du sagst uns in den ersten 3 Monaten einmal im Monat, was dich stört.
             </p>
             {foundersLeft !== null && <p className="font-mono font-bold">Noch {foundersLeft} Plätze frei.</p>}
+            <p className="text-sm">Den Platz sicherst du nach der Anmeldung unter „Tarif“.</p>
             <div>
               <Button size="lg" asChild>
                 <Link to="/register-shop-owner">Gründerplatz sichern</Link>
@@ -71,6 +73,17 @@ export default function Preise() {
             </div>
           ))}
         </dl>
+        <p className="text-muted-foreground">
+          Noch Fragen? Mehr Antworten unter{' '}
+          <a href="/hilfe/fragen-fuer-laeden" className="font-semibold text-foreground underline underline-offset-4">
+            Häufige Fragen von Läden
+          </a>
+          , oder schreib uns an{' '}
+          <a href={`mailto:${HILFE_MAIL}`} className="font-semibold text-foreground underline underline-offset-4">
+            {HILFE_MAIL}
+          </a>
+          .
+        </p>
         <p className="text-sm text-muted-foreground">
           Alle Preise netto zuzüglich Mehrwertsteuer, nur für Unternehmen. Es gelten unsere <Link to="/agb" className="underline underline-offset-2">AGB</Link>.
         </p>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { Menu, LogOut, UserRound } from 'lucide-react';
+import { CircleHelp, Menu, LogOut, UserRound } from 'lucide-react';
 import { firebaseAuth } from 'app';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,19 +17,21 @@ import { Logo } from './brand/Logo';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
 import type { UserRole } from '../utils/types';
 
-type NavItem = { to: string; label: string };
+/** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link */
+type NavItem = { to: string; label: string; server?: boolean };
 
 const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   guest: [
-    { to: '/shop-map', label: 'Shops finden' },
-    { to: '/public-join-queue', label: 'In die Schlange' },
-    { to: '/features', label: 'Für Betriebe' },
+    { to: '/shop-map', label: 'Läden finden' },
+    { to: '/public-join-queue', label: 'Nummer ziehen' },
+    { to: '/features', label: 'Für Läden' },
     { to: '/preise', label: 'Preise' },
+    { to: '/hilfe', label: 'Hilfe', server: true },
   ],
   customer: [
     { to: '/my-bookings', label: 'Meine Termine' },
-    { to: '/shop-map', label: 'Shops finden' },
-    { to: '/public-join-queue', label: 'In die Schlange' },
+    { to: '/shop-map', label: 'Läden finden' },
+    { to: '/public-join-queue', label: 'Nummer ziehen' },
   ],
   shopOwner: [
     { to: '/shop-dashboard', label: 'Tresen' },
@@ -52,7 +54,7 @@ const PROFILE_PATH: Record<UserRole, string> = {
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    'inline-flex h-10 items-center rounded-full px-4 text-[15px] font-medium transition-colors',
+    'inline-flex h-10 items-center rounded-full px-3 text-[15px] font-medium transition-colors lg:px-4',
     isActive ? 'bg-signal text-signal-foreground' : 'text-foreground hover:bg-foreground/5',
   );
 
@@ -79,11 +81,18 @@ export function Navigation() {
         <Logo />
 
         <nav aria-label="Hauptnavigation" className="hidden items-center gap-1 md:flex">
-          {links.map((item) => (
-            <NavLink key={item.to} to={item.to} className={linkClass}>
-              {item.label}
-            </NavLink>
-          ))}
+          {links.map((item) =>
+            item.server ? (
+              // zwischen md und lg wäre die Zeile zu voll; dort steht die Hilfe in der Fußzeile
+              <a key={item.to} href={item.to} className={cn(linkClass({ isActive: false }), 'hidden lg:inline-flex')}>
+                {item.label}
+              </a>
+            ) : (
+              <NavLink key={item.to} to={item.to} className={linkClass}>
+                {item.label}
+              </NavLink>
+            ),
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -96,6 +105,17 @@ export function Navigation() {
                 <Link to="/register-options">Registrieren</Link>
               </Button>
             </div>
+          )}
+
+          {user && (
+            <a
+              href="/hilfe"
+              aria-label="Hilfe und Anleitungen"
+              title="Hilfe und Anleitungen"
+              className="hidden h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-foreground/5 sm:flex"
+            >
+              <CircleHelp className="h-6 w-6" aria-hidden="true" />
+            </a>
           )}
 
           {user && (
@@ -140,25 +160,36 @@ export function Navigation() {
                 <SheetTitle className="font-display text-2xl">Menü</SheetTitle>
               </SheetHeader>
               <nav aria-label="Hauptnavigation" className="flex flex-col gap-1">
-                {links.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex h-12 items-center rounded-xl px-4 text-lg font-medium',
-                        isActive ? 'bg-signal text-signal-foreground' : 'hover:bg-foreground/5',
-                      )
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+                {links.map((item) =>
+                  item.server ? (
+                    <a key={item.to} href={item.to} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
+                      {item.label}
+                    </a>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex h-12 items-center rounded-xl px-4 text-lg font-medium',
+                          isActive ? 'bg-signal text-signal-foreground' : 'hover:bg-foreground/5',
+                        )
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  ),
+                )}
                 {profile && (
                   <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
                     Mein Profil
                   </NavLink>
+                )}
+                {user && (
+                  <a href="/hilfe" className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
+                    Hilfe
+                  </a>
                 )}
               </nav>
               <div className="mt-auto flex flex-col gap-2">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from './HilfeLink';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -183,7 +184,12 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-4">
-        <p className="text-sm font-medium">Adresse</p>
+        <div>
+          <p className="text-sm font-medium">Adresse</p>
+          <p className="text-sm text-muted-foreground">
+            Ohne Ort erscheint dein Laden nicht auf der Karte. <HilfeLink hilfe="gefunden-werden" />
+          </p>
+        </div>
         <div className="grid grid-cols-1 gap-4">
           <div>
             <Label htmlFor="street" className="text-xs">Straße und Hausnummer</Label>
@@ -262,6 +268,9 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
 
       <div className="space-y-2">
         <Label>Öffnungszeiten</Label>
+        <p className="text-sm text-muted-foreground">
+          Gelten für den ganzen Laden. Wann jede Person arbeitet, stellst du unter „Team“ ein. <HilfeLink hilfe="oeffnungszeiten" />
+        </p>
         {!formData.businessHoursByDay?.length && (
           <p className="text-sm text-muted-foreground">
             Noch keine Öffnungszeiten je Tag hinterlegt{formData.businessHours ? ` (bisher: ${formData.businessHours} an allen Tagen)` : ''}. Sobald du hier etwas änderst, gelten diese Zeiten.

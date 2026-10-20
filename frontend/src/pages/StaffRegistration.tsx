@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from '../components/HilfeLink';
 import { getStaffInvitation, useStaffInvitation as markInvitationUsed, updateStaffWithUserId, StaffInvitation } from '../utils/firestore';
 import { createUserProfile } from '../utils/user-profile-service';
 import { createFirebaseUser } from '../utils/auth-helpers';
@@ -30,7 +31,7 @@ const StaffRegistration = () => {
     getStaffInvitation(token)
       .then((inv) => {
         if (inv) setInvitation(inv);
-        else setInviteError('Diese Einladung ist abgelaufen oder wurde schon benutzt. Bitte deinen Betrieb um einen neuen Link.');
+        else setInviteError('Diese Einladung ist abgelaufen oder wurde schon benutzt. Bitte deinen Laden um einen neuen Link.');
       })
       .catch((err) => {
         console.error('Error checking invitation:', err);
@@ -99,6 +100,9 @@ const StaffRegistration = () => {
         <Button type="submit" size="lg" disabled={submitting}>
           {submitting ? 'Wird angelegt …' : 'Konto anlegen'}
         </Button>
+        <HilfeLink hilfe="fuers-team" className="self-start text-sm">
+          So arbeitest du mit Dranzeit
+        </HilfeLink>
       </form>
     </AuthShell>
   );

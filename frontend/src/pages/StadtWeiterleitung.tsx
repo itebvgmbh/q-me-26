@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
- * Stadtseiten liefert das Backend (backend/app/seo.py). Solange Caddy diese Pfade noch nicht ans Backend
+ * Stadtseiten und Hilfe liefert das Backend (backend/app/seo.py, backend/app/hilfe). Solange Caddy diese Pfade noch nicht ans Backend
  * gibt (deploy/caddy-domain.py), landet der Aufruf in der App – dann zum gleichen Inhalt unter /routes/seo.
  */
 export default function StadtWeiterleitung() {

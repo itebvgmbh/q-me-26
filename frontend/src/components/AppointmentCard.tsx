@@ -29,9 +29,9 @@ interface AppointmentCardProps {
 
 const STATUS_LABEL: Record<Appointment['status'], string> = {
   scheduled: 'Gebucht',
-  'in-progress': 'Läuft gerade',
-  completed: 'Erledigt',
-  cancelled: 'Storniert',
+  'in-progress': 'Du bist dran',
+  completed: 'Fertig',
+  cancelled: 'Abgesagt',
 };
 
 /** Ein Termin in „Meine Termine“ */

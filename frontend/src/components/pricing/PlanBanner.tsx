@@ -17,7 +17,7 @@ export const PlanBanner = ({ shop }: { shop: Shop }) => {
   } else if (current.source === 'test') {
     if (current.trialDaysLeft > 7 && !shop.founder) return null;
     text = shop.founder
-      ? `Gründer: noch ${current.trialDaysLeft} Tage kostenlos, danach Laden für 19 € im Monat.`
+      ? `Gründer: noch ${current.trialDaysLeft} Tage kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.`
       : `Deine Testphase endet in ${current.trialDaysLeft} ${current.trialDaysLeft === 1 ? 'Tag' : 'Tagen'}. Danach Gratis mit 100 Kunden im Monat.`;
   } else if (usage.full) {
     text = `Die ${usage.max} Gratis-Kunden für diesen Monat sind erreicht. Online kann gerade niemand eine Nummer ziehen.`;

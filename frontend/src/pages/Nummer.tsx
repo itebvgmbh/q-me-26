@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Ticket } from '../components/brand/Ticket';
+import { HilfeLink } from '../components/HilfeLink';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
 import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
@@ -179,8 +180,8 @@ export default function Nummer() {
         }
       />
 
-      {appt.status === 'completed' && <p className="text-lg font-semibold">Erledigt. Danke für deinen Besuch!</p>}
-      {appt.status === 'cancelled' && <p className="text-lg font-semibold">Diese Nummer ist abgesagt.</p>}
+      {appt.status === 'completed' && <p className="text-lg font-semibold">Fertig. Danke für deinen Besuch!</p>}
+      {appt.status === 'cancelled' && <p className="text-lg font-semibold">{isQueue ? 'Diese Nummer ist abgesagt.' : 'Dieser Termin ist abgesagt.'}</p>}
 
       {appt.status === 'scheduled' && shopData && hasFeature(shopData, 'benachrichtigung') && (
         <NotifyCard appt={appt} userEmail={user?.email ?? ''} />
@@ -210,9 +211,12 @@ export default function Nummer() {
           <CancelButton onConfirm={cancel} label={isQueue ? 'Nummer zurückgeben' : 'Termin absagen'} confirmLabel={isQueue ? 'Ja, zurückgeben' : 'Ja, absagen'} />
         )}
       </div>
-      <Link to={`/shop-details?shopId=${appt.shopId}`} className="text-sm font-semibold underline underline-offset-2">
-        Zum Laden
-      </Link>
+      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <Link to={`/shop-details?shopId=${appt.shopId}`} className="font-semibold underline underline-offset-2">
+          Zum Laden
+        </Link>
+        <HilfeLink hilfe="so-funktioniert-die-nummer">So funktioniert’s</HilfeLink>
+      </div>
     </div>
   );
 }
@@ -228,7 +232,7 @@ function CancelButton({ onConfirm, label, confirmLabel }: { onConfirm: () => voi
   }
   return (
     <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-border p-3">
-      <p className="text-sm font-semibold">Wirklich? Dein Platz geht dann an die nächste Person.</p>
+      <p className="text-sm font-semibold">Wirklich? Dein Platz wird dann frei.</p>
       <div className="flex gap-2">
         <Button variant="destructive" className="flex-1" onClick={onConfirm}>
           {confirmLabel}
@@ -311,7 +315,7 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
 
       {iosBrowser && config.push && (
         <p className="text-sm text-muted-foreground">
-          Auf dem iPhone gehen Benachrichtigungen nur aus der App vom Home-Bildschirm. Am einfachsten nimmst du hier die E-Mail.
+          Auf dem iPhone kommen Benachrichtigungen im Browser nicht an. Trag hier deine E-Mail ein, dann sagen wir dir per Mail Bescheid.
         </p>
       )}
 
@@ -335,7 +339,7 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
           </div>
           {emailSaved && <p className="text-sm font-semibold">E-Mail ist hinterlegt.</p>}
           <p className="text-xs text-muted-foreground">
-            Nur für diese Nummer. Wir löschen die Adresse spätestens 90 Tage nach dem Termin.
+            Nur für diese Nummer. Ohne Konto löschen wir die Adresse spätestens 90 Tage nach dem Termin.
           </p>
         </form>
       )}

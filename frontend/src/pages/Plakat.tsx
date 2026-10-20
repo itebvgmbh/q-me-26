@@ -5,8 +5,10 @@ import { APP_BASE_PATH, useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { BrandMark } from '../components/brand/Logo';
 import { getShopsByOwnerId, type Shop } from '../utils/firestore';
+import { HilfeLink } from '../components/HilfeLink';
+import { markOnboarding } from '../components/onboarding/Startklar';
 
-const STEPS = ['QR-Code scannen', 'Leistung wählen, Nummer ziehen', 'Draußen warten. Wir sagen dir Bescheid.'];
+const STEPS = ['QR-Code scannen', 'Leistung wählen, Nummer ziehen', 'Draußen warten. Auf dem Handy siehst du, wann du dran bist.'];
 
 /** QR-Plakat für Tür und Tresen, A4 hoch. Gedruckt wird über den Browser (Strg+P). */
 export default function Plakat() {
@@ -35,7 +37,9 @@ export default function Plakat() {
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
           <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em]">QR-Plakat</h1>
-          <p className="text-sm text-muted-foreground">Auf A4 drucken und an Tür oder Tresen hängen.</p>
+          <p className="text-sm text-muted-foreground">
+            Auf A4 drucken und an Tür oder Tresen hängen. <HilfeLink hilfe="plakat">Tipps fürs Aufhängen</HilfeLink>
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {shops.length > 1 && (
@@ -47,7 +51,12 @@ export default function Plakat() {
               ))}
             </select>
           )}
-          <Button onClick={() => window.print()}>
+          <Button
+            onClick={() => {
+              markOnboarding(shop.id, 'plakatAt');
+              window.print();
+            }}
+          >
             <Printer className="mr-2 h-4 w-4" aria-hidden="true" /> Drucken
           </Button>
         </div>

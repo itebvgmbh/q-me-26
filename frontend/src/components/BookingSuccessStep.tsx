@@ -43,8 +43,8 @@ export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingR
       <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5">
         <p className="font-semibold">Mach einen Screenshot von deiner Nummer.</p>
         <p className="text-sm text-muted-foreground">
-          Ohne Konto schicken wir dir keine Erinnerung. Mit Konto siehst du die Nummer unter „Meine Termine“ und bekommst frühere
-          Plätze angeboten. Deine Nummer wird dabei übernommen.
+          Mit Konto siehst du die Nummer unter „Meine Termine“ und bekommst frühere Plätze angeboten. Deine Nummer wird dabei
+          übernommen.
         </p>
       </div>
 

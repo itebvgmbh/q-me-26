@@ -13,6 +13,7 @@ import { OpeningHoursEditor } from '../components/OpeningHoursEditor';
 import { PlaceSearch } from '../components/setup/PlaceSearch';
 import { ServicePicker } from '../components/setup/ServicePicker';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
+import { HilfeLink } from '../components/HilfeLink';
 import { INDUSTRIES, getIndustryById } from '../utils/industries';
 import { getUserProfile } from '../utils/user-profile-service';
 import { isEmailInUse } from '../utils/auth-helpers';
@@ -212,6 +213,10 @@ const ShopSetup = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Fertig</p>
           <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{shop.name} ist startklar.</h1>
           <p className="text-muted-foreground">Ab jetzt können Kunden eine Nummer ziehen und Termine buchen. Alles lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.</p>
+          <p className="text-muted-foreground">
+            Am Tresen zeigt dir eine kurze Liste, was als Nächstes kommt: einmal selbst ausprobieren, Plakat aufhängen, fertig.{' '}
+            <HilfeLink hilfe="in-10-minuten-startklar">Anleitung</HilfeLink>
+          </p>
         </div>
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
@@ -281,7 +286,7 @@ const ShopSetup = () => {
     case 'find': {
       title = 'Wie heißt dein Laden?';
       intro = status.google
-        ? 'Tipp den Namen und den Ort. Findest du deinen Laden, übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google.'
+        ? 'Tipp den Namen und den Ort und wähl deinen Laden aus der Liste. Dann übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google. Nicht dabei? Einfach „Weiter“.'
         : 'Wie er draußen am Schild steht.';
       body = status.google ? (
         <div className="flex flex-col gap-4">
@@ -304,13 +309,12 @@ const ShopSetup = () => {
       ) : (
         <Field id="laden-name" label="Name des Ladens" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
       );
-      primary = status.google
-        ? null
-        : {
-            label: 'Weiter',
-            disabled: !query.trim(),
-            onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
-          };
+      // Auch mit Google-Suche ein „Weiter“: wer keinen Vorschlag antippt, trägt selbst ein
+      primary = {
+        label: 'Weiter',
+        disabled: !query.trim(),
+        onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
+      };
       break;
     }
     case 'check': {
@@ -328,7 +332,7 @@ const ShopSetup = () => {
             <Field id="plz" label="PLZ" inputMode="numeric" autoComplete="postal-code" value={draft.postalCode} onChange={(e) => patch({ postalCode: e.target.value })} />
           </div>
           <div className="sm:col-span-4">
-            <Field id="ort" label="Ort" autoComplete="address-level2" value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
+            <Field id="ort" label="Ort" autoComplete="address-level2" hint="Mit Adresse findet man dich auf der Karte." value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
           </div>
           <div className="sm:col-span-3">
             <Field id="telefon" label="Telefon" type="tel" autoComplete="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} />
@@ -343,7 +347,7 @@ const ShopSetup = () => {
               type="url"
               inputMode="url"
               placeholder="www.dein-laden.de"
-              hint={status.ai ? 'Steht hier eine Webseite, lese ich gleich deine Preisliste aus.' : undefined}
+              hint={status.ai ? 'Steht hier eine Webseite, liest eine KI gleich deine Preisliste aus. Du prüfst die Vorschläge.' : undefined}
               value={draft.website}
               onChange={(e) => patch({ website: e.target.value })}
             />
@@ -439,7 +443,7 @@ const ShopSetup = () => {
     }
     case 'owner': {
       title = 'Nimmst du selbst Kundschaft an?';
-      intro = 'Dann bekommst du eigene Termine und eine eigene Spur am Tresen.';
+      intro = 'Dann bekommst du eigene Termine und eine eigene Schlange am Tresen.';
       body = (
         <div className="flex flex-col gap-2">
           <QueueOption selected={draft.ownerWorks === true} title="Ja, ich arbeite selbst mit" onClick={() => next({ ...draft, ownerWorks: true })} />
@@ -720,7 +724,12 @@ const ShopSetup = () => {
           )}
         </div>
       </section>
-      <p className="text-center text-xs text-muted-foreground">Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist.</p>
+      <p className="text-center text-xs text-muted-foreground">
+        Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist. Unsicher?{' '}
+        <HilfeLink hilfe="in-10-minuten-startklar" className="text-xs">
+          Schritt für Schritt erklärt
+        </HilfeLink>
+      </p>
     </div>
   );
 };
@@ -751,7 +760,9 @@ const WebsiteBox = ({
     return (
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4" role="status">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-sm">{state.text}</p>
+        <p className="text-sm">
+          {state.text} <span className="text-muted-foreground">Automatisch per KI ausgelesen – bitte Dauer und Preise prüfen.</span>
+        </p>
       </div>
     );
   }
@@ -762,7 +773,7 @@ const WebsiteBox = ({
         <div>
           <p className="font-semibold">Preisliste von deiner Webseite holen</p>
           <p className="text-sm text-muted-foreground">
-            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, lese ich Leistungen, Dauer und Preise automatisch aus.'}
+            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, liest eine KI Leistungen, Dauer und Preise aus. Prüf die Vorschläge, bevor du weitergehst.'}
           </p>
         </div>
       </div>

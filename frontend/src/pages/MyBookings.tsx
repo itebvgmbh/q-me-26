@@ -118,7 +118,7 @@ const MyBookings = () => {
           <p className="text-muted-foreground">Zieh eine Nummer für sofort oder buch eine feste Uhrzeit.</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="signal" asChild>
-              <Link to="/public-join-queue">In die Schlange</Link>
+              <Link to="/public-join-queue">Nummer ziehen</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/book-appointment">Termin buchen</Link>

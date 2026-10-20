@@ -13,6 +13,7 @@ import { EditShopForm } from '../components/EditShopForm';
 import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { CounterLane } from '../components/counter/CounterLane';
+import { Startklar } from '../components/onboarding/Startklar';
 import {
   listShopsOfOwner,
   getShopById,
@@ -211,6 +212,7 @@ const ShopDashboard = () => {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <PlanBanner shop={shop} />
+      <Startklar key={shop.id} shop={shop} staff={staff} appointments={live ? appointments : []} onEditShop={() => setShowEditShop(true)} />
 
       {/* Kopf: Laden, Tag, Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -281,6 +283,7 @@ const ShopDashboard = () => {
               <DropdownMenuItem onSelect={() => navigate('/staff-management')}>Team</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/service-management')}>Leistungen</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>Weiteren Laden einrichten</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => window.open('/hilfe', '_blank', 'noopener')}>Hilfe und Anleitungen</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -328,7 +331,7 @@ const ShopDashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Laden bearbeiten</DialogTitle>
-            <DialogDescription>Änderungen gelten sofort, auch für die Shop-Suche.</DialogDescription>
+            <DialogDescription>Änderungen gelten sofort.</DialogDescription>
           </DialogHeader>
           <EditShopForm
             shop={shop}

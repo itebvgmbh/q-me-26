@@ -87,7 +87,7 @@ export default function Bildschirm() {
     return <Message title="Diesen Laden gibt es nicht." text="Prüf den Link zum Bildschirm am Tresen." />;
   }
   if (!hasFeature(shop, 'bildschirm', now)) {
-    return <Message title="Der Wartezimmer-Bildschirm gehört zum Tarif Laden." text="Am Tresen unter „Tarif“ lässt er sich freischalten." />;
+    return <Message title="Der Wartezimmer-Bildschirm gehört zum Tarif Laden." text="Unter „Tarif“ lässt er sich freischalten." />;
   }
 
   const joinUrl = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shopId}`;
@@ -136,7 +136,7 @@ export default function Bildschirm() {
         <aside className="flex w-[22vw] flex-col items-center justify-center gap-[1.2vw] rounded-[2vw] bg-background p-[1.6vw] text-center text-foreground">
           <p className="font-display text-[2vw] font-extrabold leading-tight">Nummer ziehen ohne App</p>
           <QRCodeSVG value={joinUrl} size={512} className="h-auto w-full" marginSize={1} />
-          <p className="text-[1.2vw] text-muted-foreground">Scannen, Leistung wählen, draußen warten. Wir sagen dir Bescheid.</p>
+          <p className="text-[1.2vw] text-muted-foreground">Scannen, Leistung wählen, draußen warten. Auf dem Handy siehst du, wann du dran bist.</p>
         </aside>
       </main>
 

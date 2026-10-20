@@ -21,7 +21,7 @@ interface Props {
   live: boolean;
 }
 
-/** Eine Spur am Tresen: wer gerade dran ist, wer als Nächstes kommt */
+/** Eine Schlange am Tresen (je Person): wer gerade dran ist, wer als Nächstes kommt */
 export const CounterLane = ({ title, appointments, services, now, live }: Props) => {
   const [busy, setBusy] = useState(false);
   const sorted = [...appointments].sort((a, b) => safelyConvertToDate(a.startTime).getTime() - safelyConvertToDate(b.startTime).getTime());
@@ -51,7 +51,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={`Spur ${title}`}>
+    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={`Schlange von ${title}`}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl font-bold">{title}</h3>
         <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -70,7 +70,9 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
             </p>
           </>
         ) : (
-          <p className="text-muted-foreground">Niemand. {next ? 'Ruf die nächste Nummer auf.' : ''}</p>
+          <p className="text-muted-foreground">
+            {next ? 'Niemand. Ruf die nächste Nummer auf.' : appointments.length === 0 ? 'Noch niemand da.' : 'Niemand.'}
+          </p>
         )}
       </div>
 
@@ -84,7 +86,11 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
       <div className="flex flex-col gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Als Nächstes</p>
         {waiting.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Keiner mehr in der Schlange.</p>
+          <p className="text-sm text-muted-foreground">
+            {appointments.length === 0 && live
+              ? 'Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Nummer vergeben“.'
+              : 'Keiner mehr in der Schlange.'}
+          </p>
         ) : (
           <ol className="flex flex-col divide-y divide-border">
             {waiting.slice(0, 6).map((a, i) => (
@@ -93,7 +99,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{customerLabel(a)}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {serviceName(a)} · {a.type === 'queue' ? 'Schlange' : 'Termin'}
+                    {serviceName(a)} · {a.type === 'queue' ? 'Nummer' : 'Termin'}
                   </span>
                 </span>
                 {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">Nächste</span>}

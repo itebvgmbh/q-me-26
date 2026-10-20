@@ -126,7 +126,7 @@ export const QueueBookingService = {
       return {
         success: false,
         isAnonymous: false,
-        message: 'Du stehst schon in der Schlange dieses Shops.'
+        message: 'Du stehst schon in der Schlange dieses Ladens.'
       };
     }
     

@@ -181,7 +181,7 @@ const PublicJoinQueue = () => {
       return (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card" role="status" aria-live="polite">
           <Spinner className="h-9 w-9 border-4" />
-          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Shops' : 'die Leistungen'} …</span>
+          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Läden' : 'die Leistungen'} …</span>
         </div>
       );
     }
@@ -313,7 +313,7 @@ const PublicJoinQueue = () => {
       </div>
 
       {currentStep !== 5 && (
-        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Shop', 'Leistung', 'Person', 'Bestätigen']} />
+        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Laden', 'Leistung', 'Person', 'Bestätigen']} />
       )}
 
       {renderContent()}

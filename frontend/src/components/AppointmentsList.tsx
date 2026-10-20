@@ -226,7 +226,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Kunde auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="walk-in">Kein Bestandskunde / Walk-In</SelectItem>
+                  <SelectItem value="walk-in">Kein Bestandskunde</SelectItem>
                   {/* Robuste Deduplizierung von Kunden */}
                   {getUniqueCustomers(customers).map((customer) => (
                       <SelectItem key={customer.id} value={appointmentCustomerId(customer)}>
@@ -349,8 +349,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Termintyp auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="booked">Regulärer Termin</SelectItem>
-                  <SelectItem value="queue">Warteschlangen-Eintrag</SelectItem>
+                  <SelectItem value="booked">Termin</SelectItem>
+                  <SelectItem value="queue">Nummer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
