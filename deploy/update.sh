@@ -59,6 +59,13 @@ cd "$APP_DIR/frontend"
 npm ci --no-audit --no-fund --loglevel=error
 rm -rf "$WEB_ROOT.new"
 npx vite build --outDir "$WEB_ROOT.new" --emptyOutDir --logLevel warn
+# Bausteine der alten Fassungen noch eine Woche ausliefern: Wer die Seite vor dem Ausrollen
+# geöffnet hat, lädt beim Weiterklicken sonst Dateien nach, die es nicht mehr gibt.
+# Neu Gebautes nicht überschreiben; Zeitstempel behalten, damit Altes nach 7 Tagen wegfällt.
+if [ -d "$WEB_ROOT/assets" ]; then
+	cp -rp --update=none "$WEB_ROOT/assets/." "$WEB_ROOT.new/assets/"
+	find "$WEB_ROOT.new/assets" -type f -mtime +7 -delete
+fi
 # Erst nach erfolgreichem Build austauschen
 rm -rf "$WEB_ROOT.old"
 if [ -d "$WEB_ROOT" ]; then

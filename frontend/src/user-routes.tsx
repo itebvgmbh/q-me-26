@@ -1,6 +1,6 @@
 
 // Ursprünglich von Databutton erzeugt; wird seit dem Export von Hand gepflegt.
-import { lazy } from "react";
+import { lazyPage } from "./utils/lazy-page";
 import { RouteObject } from "react-router";
 import { Navigate, useLocation } from "react-router-dom";
 
@@ -14,43 +14,43 @@ const RedirectKeepQuery = ({ to }: { to: string }) => {
 };
 
 
-const App = lazy(() => import("./pages/App.tsx"));
-const Activate = lazy(() => import("./pages/Activate.tsx"));
-const Agb = lazy(() => import("./pages/Agb.tsx"));
-const Auswertung = lazy(() => import("./pages/Auswertung.tsx"));
-const Betreiber = lazy(() => import("./pages/Betreiber.tsx"));
-const Preise = lazy(() => import("./pages/Preise.tsx"));
-const Tarif = lazy(() => import("./pages/Tarif.tsx"));
-const BookAppointment = lazy(() => import("./pages/BookAppointment.tsx"));
-const CodeHealth = lazy(() => import("./pages/CodeHealth.tsx"));
-const CustomerProfile = lazy(() => import("./pages/CustomerProfile.tsx"));
-const Datenschutz = lazy(() => import("./pages/Datenschutz.tsx"));
-const EmailBestaetigen = lazy(() => import("./pages/EmailBestaetigen.tsx"));
-const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard.tsx"));
-const Features = lazy(() => import("./pages/Features.tsx"));
-const Impressum = lazy(() => import("./pages/Impressum.tsx"));
-const Login = lazy(() => import("./pages/Login.tsx"));
-const Logout = lazy(() => import("./pages/Logout.tsx"));
-const MyBookings = lazy(() => import("./pages/MyBookings.tsx"));
-const Nummer = lazy(() => import("./pages/Nummer.tsx"));
-const Plakat = lazy(() => import("./pages/Plakat.tsx"));
-const Profile = lazy(() => import("./pages/Profile.tsx"));
-const PublicJoinQueue = lazy(() => import("./pages/PublicJoinQueue.tsx"));
-const Register = lazy(() => import("./pages/Register.tsx"));
-const RegisterCustomer = lazy(() => import("./pages/RegisterCustomer.tsx"));
-const RegisterOptions = lazy(() => import("./pages/RegisterOptions.tsx"));
-const RegisterShopOwner = lazy(() => import("./pages/RegisterShopOwner.tsx"));
-const RoleSelection = lazy(() => import("./pages/RoleSelection.tsx"));
-const SchedulerControl = lazy(() => import("./pages/SchedulerControl.tsx"));
-const ServiceManagement = lazy(() => import("./pages/ServiceManagement.tsx"));
-const ShopDashboard = lazy(() => import("./pages/ShopDashboard.tsx"));
-const ShopDetails = lazy(() => import("./pages/ShopDetails.tsx"));
-const ShopMap = lazy(() => import("./pages/ShopMap.tsx"));
-const ShopProfile = lazy(() => import("./pages/ShopProfile.tsx"));
-const ShopSetup = lazy(() => import("./pages/ShopSetup.tsx"));
-const StaffManagement = lazy(() => import("./pages/StaffManagement.tsx"));
-const StaffRegistration = lazy(() => import("./pages/StaffRegistration.tsx"));
-const StadtWeiterleitung = lazy(() => import("./pages/StadtWeiterleitung.tsx"));
+const App = lazyPage(() => import("./pages/App.tsx"));
+const Activate = lazyPage(() => import("./pages/Activate.tsx"));
+const Agb = lazyPage(() => import("./pages/Agb.tsx"));
+const Auswertung = lazyPage(() => import("./pages/Auswertung.tsx"));
+const Betreiber = lazyPage(() => import("./pages/Betreiber.tsx"));
+const Preise = lazyPage(() => import("./pages/Preise.tsx"));
+const Tarif = lazyPage(() => import("./pages/Tarif.tsx"));
+const BookAppointment = lazyPage(() => import("./pages/BookAppointment.tsx"));
+const CodeHealth = lazyPage(() => import("./pages/CodeHealth.tsx"));
+const CustomerProfile = lazyPage(() => import("./pages/CustomerProfile.tsx"));
+const Datenschutz = lazyPage(() => import("./pages/Datenschutz.tsx"));
+const EmailBestaetigen = lazyPage(() => import("./pages/EmailBestaetigen.tsx"));
+const EmployeeDashboard = lazyPage(() => import("./pages/EmployeeDashboard.tsx"));
+const Features = lazyPage(() => import("./pages/Features.tsx"));
+const Impressum = lazyPage(() => import("./pages/Impressum.tsx"));
+const Login = lazyPage(() => import("./pages/Login.tsx"));
+const Logout = lazyPage(() => import("./pages/Logout.tsx"));
+const MyBookings = lazyPage(() => import("./pages/MyBookings.tsx"));
+const Nummer = lazyPage(() => import("./pages/Nummer.tsx"));
+const Plakat = lazyPage(() => import("./pages/Plakat.tsx"));
+const Profile = lazyPage(() => import("./pages/Profile.tsx"));
+const PublicJoinQueue = lazyPage(() => import("./pages/PublicJoinQueue.tsx"));
+const Register = lazyPage(() => import("./pages/Register.tsx"));
+const RegisterCustomer = lazyPage(() => import("./pages/RegisterCustomer.tsx"));
+const RegisterOptions = lazyPage(() => import("./pages/RegisterOptions.tsx"));
+const RegisterShopOwner = lazyPage(() => import("./pages/RegisterShopOwner.tsx"));
+const RoleSelection = lazyPage(() => import("./pages/RoleSelection.tsx"));
+const SchedulerControl = lazyPage(() => import("./pages/SchedulerControl.tsx"));
+const ServiceManagement = lazyPage(() => import("./pages/ServiceManagement.tsx"));
+const ShopDashboard = lazyPage(() => import("./pages/ShopDashboard.tsx"));
+const ShopDetails = lazyPage(() => import("./pages/ShopDetails.tsx"));
+const ShopMap = lazyPage(() => import("./pages/ShopMap.tsx"));
+const ShopProfile = lazyPage(() => import("./pages/ShopProfile.tsx"));
+const ShopSetup = lazyPage(() => import("./pages/ShopSetup.tsx"));
+const StaffManagement = lazyPage(() => import("./pages/StaffManagement.tsx"));
+const StaffRegistration = lazyPage(() => import("./pages/StaffRegistration.tsx"));
+const StadtWeiterleitung = lazyPage(() => import("./pages/StadtWeiterleitung.tsx"));
 
 export const userRoutes: RouteObject[] = [
 

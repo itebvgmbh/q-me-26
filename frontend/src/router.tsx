@@ -1,6 +1,9 @@
-import { lazy, type ReactNode, Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router-dom";
+import { type ReactNode, Suspense, useEffect } from "react";
+import { createBrowserRouter, Outlet, useRouteError } from "react-router-dom";
 import { userRoutes } from "./user-routes";
+import { lazyPage } from "./utils/lazy-page";
+// Nicht nachgeladen: Die Fehlerseite muss auch kommen, wenn das Nachladen der Fehler ist
+import SomethingWentWrongPage from "./pages/SomethingWentWrongPage";
 import { AppProvider } from "./components/AppProvider";
 import { Navigation } from "./components/Navigation";
 import { SiteFooter } from "./components/brand/SiteFooter";
@@ -18,12 +21,16 @@ export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const NotFoundPage = lazyPage(() => import("./pages/NotFoundPage"));
 // Vollbild für den Fernseher im Laden: ohne Navigation und Fußzeile
-const Bildschirm = lazy(() => import("./pages/Bildschirm"));
-const SomethingWentWrongPage = lazy(
-  () => import("./pages/SomethingWentWrongPage"),
-);
+const Bildschirm = lazyPage(() => import("./pages/Bildschirm"));
+
+// Statt der englischen Standardseite von React Router („Unexpected Application Error!“)
+const RouteError = () => {
+  const error = useRouteError();
+  useEffect(() => console.error(error), [error]);
+  return <SomethingWentWrongPage />;
+};
 
 export const router = createBrowserRouter(
   [
@@ -41,6 +48,7 @@ export const router = createBrowserRouter(
           </div>
         </AppProvider>
       ),
+      errorElement: <RouteError />,
       children: userRoutes
     },
     {
@@ -50,6 +58,7 @@ export const router = createBrowserRouter(
           <Bildschirm />
         </SuspenseWrapper>
       ),
+      errorElement: <RouteError />,
     },
     {
       path: "*",
@@ -63,11 +72,7 @@ export const router = createBrowserRouter(
           </main>
         </div>
       ),
-      errorElement: (
-        <SuspenseWrapper>
-          <SomethingWentWrongPage />
-        </SuspenseWrapper>
-      ),
+      errorElement: <RouteError />,
     },
   ]
 );
