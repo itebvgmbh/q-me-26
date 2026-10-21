@@ -317,6 +317,28 @@ def test_email_als_bestaetigt_markieren():
     assert client.post("/routes/betreiber/konto/gibtsnicht/email-bestaetigt", json={"verified": True}).status_code == 404
 
 
+def test_passwort_mail_ueber_resend_sonst_firebase_im_browser():
+    import app.apis.password_reset as pr
+    import app.libs.mail as mail
+
+    sent = []
+    real = (pr.mail_reset, mail.mail_configured)
+    pr.mail_reset = lambda address, origin: sent.append((address, origin))
+    try:
+        mail.mail_configured = lambda: True
+        client, _, auth = setup(users={**konten_daten(), "weg": {"email": "weg@laden.de", "disabled": True}})
+        r = client.post("/routes/betreiber/konto/kunde/passwort-mail", headers={"Origin": "https://dranzeit.de"})
+        assert r.json() == {"email": "kunde@web.de", "status": "verschickt"} and sent == [("kunde@web.de", "https://dranzeit.de")]
+        assert protokoll_zeilen()[-1]["action"] == "Passwort-Mail geschickt"
+        assert client.post("/routes/betreiber/konto/weg/passwort-mail").status_code == 400
+        assert client.post("/routes/betreiber/konto/fixture/passwort-mail").status_code == 400
+        mail.mail_configured = lambda: False
+        r = client.post("/routes/betreiber/konto/kunde/passwort-mail")
+        assert r.json() == {"email": "kunde@web.de", "status": "nicht_eingerichtet"} and len(sent) == 1
+    finally:
+        pr.mail_reset, mail.mail_configured = real
+
+
 # --- Löschen ------------------------------------------------------------------------------------------------------
 
 

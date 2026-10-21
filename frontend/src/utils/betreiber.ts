@@ -196,10 +196,10 @@ export const changeEmail = (uid: string, email: string, reason = '') => send<{ e
 export const markVerified = (uid: string, verified: boolean) => send(accountPath(uid, 'email-bestaetigt'), { verified });
 export const sendVerification = (uid: string) => send<{ status: string }>(accountPath(uid, 'bestaetigungs-mail'), {});
 
-/** Passwort-Mail: Backend hält es fest, verschickt wird sie von Firebase (wie "Passwort vergessen") */
+/** Passwort-Mail wie bei "Passwort vergessen": über Resend vom Backend, ohne Resend von Firebase */
 export const sendPasswordMail = async (uid: string) => {
-  const { email } = await send<{ email: string }>(accountPath(uid, 'passwort-mail'), {});
-  await sendPasswordResetEmail(firebaseAuth, email);
+  const { email, status } = await send<{ email: string; status: 'verschickt' | 'nicht_eingerichtet' }>(accountPath(uid, 'passwort-mail'), {});
+  if (status !== 'verschickt') await sendPasswordResetEmail(firebaseAuth, email);
   return email;
 };
 

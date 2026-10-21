@@ -572,14 +572,32 @@ def bestaetigungs_mail(uid: str, request: Request, user: AuthorizedUser) -> dict
 
 
 @admin.post("/betreiber/konto/{uid}/passwort-mail")
-def passwort_mail(uid: str, user: AuthorizedUser) -> dict:
-    """Festhalten, dass der Betreiber eine Passwort-Mail anstößt. Verschickt wird sie im Browser über Firebase
-    (sendPasswordResetEmail, wie "Passwort vergessen" beim Anmelden) – das geht auch ohne Resend."""
+def passwort_mail(uid: str, request: Request, user: AuthorizedUser) -> dict:
+    """Passwort-Mail wie bei „Passwort vergessen“ (app/apis/password_reset), über Resend und ohne Mengenbegrenzung.
+    status: verschickt | nicht_eingerichtet (kein Resend-Schlüssel: dann verschickt der Browser Firebases eigene Mail)"""
+    from app.apis import password_reset as pr
+    from app.apis.email_verification import _origin
+    from app.libs.mail import mail_configured
+    from app.libs.onboarding_mail import is_test_address
+
     record = _account(uid)
-    if not record.email:
+    email = (record.email or "").strip()
+    if not email:
         raise HTTPException(status_code=400, detail="Zu diesem Konto gibt es keine E-Mail-Adresse.")
-    protokoll.write(user, "Passwort-Mail angestoßen", {"uid": uid, "email": record.email})
-    return {"email": record.email}
+    if getattr(record, "disabled", False):
+        raise HTTPException(status_code=400, detail="Das Konto ist gesperrt. Erst entsperren, dann die Passwort-Mail schicken.")
+    if is_test_address(email):
+        raise HTTPException(status_code=400, detail="An Testadressen wie example.com verschickt Dranzeit keine E-Mails.")
+    if not mail_configured():
+        protokoll.write(user, "Passwort-Mail angestoßen", {"uid": uid, "email": email})
+        return {"email": email, "status": "nicht_eingerichtet"}
+    try:
+        pr.mail_reset(email, _origin(request))
+    except Exception as e:
+        print(f"Passwort-Mail an {email} nicht verschickt: {e}")
+        raise HTTPException(status_code=502, detail="Die E-Mail konnte nicht verschickt werden. Im Server-Log steht der Grund.")
+    protokoll.write(user, "Passwort-Mail geschickt", {"uid": uid, "email": email})
+    return {"email": email, "status": "verschickt"}
 
 
 # --- Löschen --------------------------------------------------------------------------------------------------------

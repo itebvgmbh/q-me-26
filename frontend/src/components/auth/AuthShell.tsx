@@ -38,11 +38,11 @@ export const EmailField = ({ value, onChange, invalid }: { value: string; onChan
 );
 
 /** Passwortfeld mit Anzeigen-Schalter statt zweitem Bestätigungsfeld */
-export const PasswordField = ({ value, onChange, isNew = false }: { value: string; onChange: (v: string) => void; isNew?: boolean }) => {
+export const PasswordField = ({ value, onChange, isNew = false, label = 'Passwort' }: { value: string; onChange: (v: string) => void; isNew?: boolean; label?: string }) => {
   const [visible, setVisible] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor="password">Passwort</Label>
+      <Label htmlFor="password">{label}</Label>
       <div className="relative">
         <Input
           id="password"
