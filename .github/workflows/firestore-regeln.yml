@@ -1,0 +1,37 @@
+# Prüft firestore.rules im Firestore-Emulator (dev/regeln, Anleitung dev/regeln/README.md).
+# Läuft, sobald sich die Regeln oder ihre Tests ändern; von Hand: Actions → Firestore-Regeln → Run workflow.
+name: Firestore-Regeln
+
+on:
+  push:
+    paths:
+      - firestore.rules
+      - dev/regeln/**
+      - .github/workflows/firestore-regeln.yml
+  pull_request:
+    paths:
+      - firestore.rules
+      - dev/regeln/**
+      - .github/workflows/firestore-regeln.yml
+  workflow_dispatch:
+
+jobs:
+  regeln:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dev/regeln
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dev/regeln/package-lock.json
+      - run: npm ci
+      - run: npm test
