@@ -488,6 +488,40 @@ Gründe, Protokoll und Sicherungen liegen **nicht** in Firestore (dort ist alles
 Datenordner des Dienstes: `/opt/q-me/backend/.local_data/betreiber/` (`protokoll.jsonl`, `sicherungen/`,
 `gesperrte-konten.json`, nur für den Dienst lesbar). Ein `git pull` bringt diese Dateien nicht mit und löscht sie nicht.
 
+### Salon-Verzeichnis (Reiter Verzeichnis, Seiten unter /friseur und /barbershop)
+
+Friseure und Barbershops, die (noch) nicht bei Dranzeit sind, bekommen eine eigene Seite mit Adresse, Telefon,
+Webseite, Öffnungszeiten, Preisen und kurzem Text – buchen geht dort nicht. Dazu Seiten je Stadt, Bezirk und Ortsteil
+(`/friseur/berlin`, `/friseur/berlin-pankow`, `/friseur/berlin-prenzlauer-berg`, `/barbershop/…`). Jeder echte Laden
+bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
+
+- **Finden**: Suche bei Google („Friseur Tegel“), Treffer ankreuzen, „Ausgewählte anlegen“. Gespeichert wird nur,
+  was auf der **eigenen Webseite** des Salons steht (Impressum, Preise, Zeiten; Claude macht daraus auch den Text),
+  von Google nur die Place-ID – mehr erlauben Googles Bedingungen nicht. Salons nur mit Instagram, Treatwell usw.:
+  „Von Hand“ mit selbst geprüften Angaben.
+- **Prüfen und veröffentlichen**: Neue Einträge sind Entwürfe. Text, Zeiten und Preise ansehen, dann
+  „Speichern und veröffentlichen“. Erst dann ist die Seite erreichbar und steht in der Sitemap. Seiten mit wenig
+  Inhalt (keine Zeiten, keine Preise, kein Text) bekommen `noindex`.
+- **Übernahme**: Meldet sich ein Salon aus dem Verzeichnis bei Dranzeit an, steht oben „Übernahme bestätigen“
+  (gleiche Google-Place-ID, sonst ähnlicher Name mit gleicher PLZ oder Lage). Bestätigen macht die Seite zur Seite
+  des Ladens, die Adresse bleibt. „Nicht derselbe“ gibt dem Laden eine eigene Seite.
+- **Vom Salon entfernt**: Jede Seite hat unten „Eintrag entfernen“ für den Salon selbst (Widerspruch). Die Seite
+  geht sofort offline; Grund und Kontakt stehen im Protokoll (nicht in Firestore).
+- **Wünsche**: „Das wünsch ich mir“ auf der Seite zählt mit (je Person und Tag einmal) – Liste nach Wünschen für den
+  Vertrieb.
+
+Probelauf ohne Speichern (zeigt, ob Google-Textsuche und Claude gehen und was aus einer Webseite wird):
+
+```bash
+cd /opt/q-me/backend && .venv/bin/python ../deploy/verzeichnis-probe.py --suche "Friseur Tegel" --anlegen 2
+```
+
+Voraussetzungen: `GOOGLE_MAPS_API_KEY` mit **Places API (New)** (wie der Einrichtungsassistent; die Textsuche kostet je
+Seite mit 20 Treffern ein paar Cent), `ANTHROPIC_API_KEY`, Caddy mit den Pfaden `/friseur` und `/barbershop`
+(`python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de dranzeit.com www.dranzeit.com`
+erneut ausführen; bis dahin leitet die App auf `/routes/seo/friseur/…` um). Die Sammlung `verzeichnis` schreibt nur
+das Backend; im Browser ist sie zu, sobald die Firestore-Regeln eingespielt sind (Abschnitt „Firestore-Regeln“).
+
 ## Konten aufräumen
 
 `deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur

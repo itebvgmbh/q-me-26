@@ -338,8 +338,8 @@ def _site(host: Optional[str]) -> str:
     return (host or "").lower().removeprefix("www.")
 
 
-def price_links(html: str, base_url: str, limit: int = 4) -> List[str]:
-    """Links derselben Seite, die nach Preisliste oder Leistungen klingen (Text oder Adresse)."""
+def price_links(html: str, base_url: str, limit: int = 4, pattern: re.Pattern = PRICE_LINK) -> List[str]:
+    """Links derselben Seite, die nach Preisliste oder Leistungen klingen (Text oder Adresse) – oder nach pattern."""
     site = _site(urlparse(base_url).hostname)
     soup = BeautifulSoup(html, "html.parser")
     found: List[str] = []
@@ -352,7 +352,7 @@ def price_links(html: str, base_url: str, limit: int = 4) -> List[str]:
         if href.lower().endswith((".pdf", ".jpg", ".png", ".zip")):
             continue
         label = f"{a.get_text(' ', strip=True)} {urlparse(href).path}"
-        if PRICE_LINK.search(label) and href not in found:
+        if pattern.search(label) and href not in found:
             found.append(href)
         if len(found) >= limit:
             break

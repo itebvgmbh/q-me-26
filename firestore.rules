@@ -135,6 +135,7 @@ service cloud.firestore {
     //   meta                 Zähler der Gründerplätze (meta/gruender). Wer ihn zurücksetzt, bekäme Gründerpreise.
     //   push_subscriptions   Push-Adressen der Geräte (anmelden über /routes/push)
     //   staff-invitations    alt; Einladungen stehen gehasht am staff-Eintrag
+    //   verzeichnis          Salon-Verzeichnis (/friseur/…); Seiten und Karte liefert das Backend
     //   und jede Sammlung, die hier nicht steht.
   }
 }

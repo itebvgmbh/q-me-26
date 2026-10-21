@@ -10,9 +10,10 @@ import { LadenDetail } from '../components/betreiber/LadenDetail';
 import { KontoDetail } from '../components/betreiber/KontoDetail';
 import { Betrieb } from '../components/betreiber/Betrieb';
 import { Protokoll } from '../components/betreiber/Protokoll';
+import { Verzeichnis } from '../components/betreiber/Verzeichnis';
 import { BILLING_LABEL, ROLE_LABEL, daysUntil, euro, fmtDate, fmtDateTime, planLine } from '../components/betreiber/format';
 
-type Tab = 'uebersicht' | 'laeden' | 'konten' | 'betrieb' | 'protokoll';
+type Tab = 'uebersicht' | 'laeden' | 'konten' | 'verzeichnis' | 'betrieb' | 'protokoll';
 type Selected = { kind: 'shop'; id: string } | { kind: 'account'; uid: string } | null;
 
 const SHOP_FILTERS: { id: string; label: string; test: (s: AdminShop, now: number) => boolean }[] = [
@@ -186,6 +187,7 @@ export default function Betreiber() {
     { id: 'uebersicht', label: 'Übersicht' },
     { id: 'laeden', label: `Läden ${hideTests ? st.shops : data.shops.length}` },
     { id: 'konten', label: `Konten ${hideTests ? st.accounts : data.accounts.length}` },
+    { id: 'verzeichnis', label: 'Verzeichnis' },
     { id: 'betrieb', label: 'Betrieb' },
     { id: 'protokoll', label: 'Protokoll' },
   ];
@@ -342,6 +344,8 @@ export default function Betreiber() {
           {tab === 'konten' && <AccountTable accounts={accounts} shops={shopsById} onOpen={(uid) => setSelected({ kind: 'account', uid })} />}
         </div>
       )}
+
+      {tab === 'verzeichnis' && <Verzeichnis />}
 
       {tab === 'betrieb' && <Betrieb data={data} />}
 

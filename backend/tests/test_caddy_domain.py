@@ -55,6 +55,7 @@ def test_zweiter_lauf_ersetzt_markierten_block():
 def test_block_leitet_stadtseiten_ans_backend():
     b = cd.block("dranzeit.de", "8091", ["www.dranzeit.de"])
     assert "@backend path /routes/* /friseur-ohne-termin" in b and "/sitemap.xml" in b
+    assert " /friseur /friseur/* /barbershop /barbershop/*" in b  # Salon-Verzeichnis
     assert "reverse_proxy 127.0.0.1:8091" in b
     assert "www.dranzeit.de {\n\tredir https://dranzeit.de{uri} permanent" in b
     assert b.count("{") == b.count("}")

@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="20.10.2026">
+    <LegalPage title="Datenschutz" updated="21.10.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -52,6 +52,16 @@ export default function Datenschutz() {
           <li>
             <strong>Läden:</strong> Angaben zum Laden, zum Team und zu den Leistungen sowie die Daten für die
             Abrechnung des Abos (Art. 6 Abs. 1 lit. b DSGVO).
+          </li>
+          <li>
+            <strong>Salon-Verzeichnis:</strong> Für Friseure und Barbershops, die (noch) nicht bei Dranzeit sind, zeigen wir
+            eine Seite mit Name, Adresse, Telefon, Webseite, Öffnungszeiten, Preisen und einer kurzen Beschreibung. Die
+            Angaben stammen von der eigenen Webseite des Salons und sind dort öffentlich; die Beschreibung fassen wir mit
+            KI zusammen und prüfen sie. Wir wollen Kunden helfen, einen Salon in der Nähe zu finden (Art. 6 Abs. 1 lit. f
+            DSGVO). Wer zum Salon gehört, kann dem jederzeit widersprechen: über „Eintrag entfernen“ auf der Seite des
+            Salons, dann geht sie sofort offline, oder per E-Mail an uns. Der Knopf „Das wünsch ich mir“ zählt nur mit;
+            damit niemand mehrfach zählt, halten wir bis zum Ende des Tages eine Prüfsumme der IP-Adresse im
+            Arbeitsspeicher, nicht die Adresse selbst.
           </li>
           <li>
             <strong>Server-Protokolle:</strong> IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browser-Kennung, um den
@@ -116,9 +126,9 @@ export default function Datenschutz() {
             und Umwandlung von Adressen in Koordinaten. Beim Laden der Karte erhält der Dienst deine IP-Adresse.
           </li>
           <li>
-            <strong>Nur beim Einrichten eines Ladens:</strong> Google Places (Google Ireland Limited) sucht den Laden
-            bei Google, und Anthropic (Anthropic, PBC, San Francisco) liest die Preisliste von der Webseite des Ladens.
-            Dabei werden keine Kundendaten übertragen.
+            <strong>Nur beim Einrichten eines Ladens und für das Salon-Verzeichnis:</strong> Google Places (Google
+            Ireland Limited) sucht den Laden bei Google, und Anthropic (Anthropic, PBC, San Francisco) liest die
+            Preisliste und die Angaben von der Webseite des Ladens. Dabei werden keine Kundendaten übertragen.
           </li>
         </ul>
         <p>

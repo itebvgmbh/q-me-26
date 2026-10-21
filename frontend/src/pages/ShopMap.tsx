@@ -17,10 +17,23 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { INDUSTRIES } from '../utils/industries';
+import { loadKartenSalons, type KartenSalon } from '../utils/verzeichnis';
 
 // Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
+
+// Salons aus dem Verzeichnis (noch ohne Dranzeit): grauer Marker
+const verzeichnisIcon = L.icon({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  className: 'grayscale opacity-75',
+});
 
 // Komponente zur Zentrierung der Karte auf den Benutzerstandort
 interface LocateMeProps {
@@ -58,6 +71,20 @@ const ShopMap = () => {
   const [maxDistance, setMaxDistance] = useState<number>(20); // Standardmäßig 20 km
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
+  // Salons ohne Dranzeit (Verzeichnis): zeigen, wo sie sind; buchen geht dort nicht
+  const [salons, setSalons] = useState<KartenSalon[]>([]);
+  const [searchCenter, setSearchCenter] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    loadKartenSalons().then(setSalons);
+  }, []);
+
+  const reference = searchCenter ?? userPosition;
+  const visibleSalons = salons
+    .filter((s) => !selectedIndustry || selectedIndustry === 'barbershop')
+    .map((s) => ({ ...s, distance: reference ? calculateDistance(reference[0], reference[1], s.latitude, s.longitude) : undefined }))
+    .filter((s) => s.distance === undefined || s.distance <= maxDistance)
+    .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0) || a.name.localeCompare(b.name));
 
   // Benutzerstandort ermitteln
   const getUserLocation = () => {
@@ -152,6 +179,7 @@ const ShopMap = () => {
         const coordinates = await geocodeAddress(searchInput);
         if (coordinates) {
           setMapCenter(coordinates);
+          setSearchCenter(coordinates);
           // Wir setzen nicht den userPosition, um die Unterscheidung zwischen
           // tatsächlichem Standort und Suchposition zu bewahren
           
@@ -266,13 +294,32 @@ const ShopMap = () => {
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
             </div>
-          ) : shops.length === 0 ? (
+          ) : shops.length === 0 && visibleSalons.length === 0 ? (
             <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.</p>
           ) : (
             <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pr-1">
               {shops.map((shop) => (
                 <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} />
               ))}
+              {visibleSalons.length > 0 && (
+                <>
+                  <h3 className="pt-2 font-display text-lg font-bold">Weitere Salons</h3>
+                  <p className="-mt-2 text-sm text-muted-foreground">Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.</p>
+                  {visibleSalons.map((s) => (
+                    <a
+                      key={s.id}
+                      href={s.pfad}
+                      className="flex flex-col gap-0.5 rounded-3xl border border-border bg-card p-4 transition-colors hover:bg-muted/40"
+                    >
+                      <span className="font-display font-bold">{s.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {[s.street, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                        {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
+                      </span>
+                    </a>
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -339,6 +386,21 @@ const ShopMap = () => {
                 </Marker>
               ))}
               
+              {visibleSalons.map((s) => (
+                <Marker key={`v-${s.id}`} position={[s.latitude, s.longitude]} icon={verzeichnisIcon}>
+                  <Popup>
+                    <div className="text-center">
+                      <h3 className="font-display font-bold">{s.name}</h3>
+                      <p className="text-sm">{[s.street, s.postalCode, s.city].filter(Boolean).join(', ')}</p>
+                      <p className="text-sm text-muted-foreground">Noch nicht online buchbar</p>
+                      <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
+                        Ansehen
+                      </a>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
               <LocateMe position={userPosition} />
             </MapContainer>
           </div>

@@ -42,6 +42,7 @@ node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
+node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis (suchen, anlegen, bearbeiten, veröffentlichen, Übernahme) und graue Salons auf der Karte (Backend und Anmeldung nachgebildet, keine Testdaten nötig)
 node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
 node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
@@ -123,7 +124,8 @@ Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/te
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
 `uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
 (Rechnungen und E-Rechnung, Zugriff nur für den Inhaber) und `uv run python tests/test_queue_notify.py`
-(Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten).
+(Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten) und `uv run python tests/test_verzeichnis.py`
+(Salon-Verzeichnis: Import, Seiten, Übernahme, Entfernen).
 
 Regel der Schlange im Frontend (`frontend/src/utils/queue-lane.ts`) ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.
 

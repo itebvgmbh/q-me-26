@@ -26,7 +26,10 @@ ENV_FILE = "/etc/q-me.env"
 WEB_ROOT = "/opt/q-me-web"
 BEGIN, END = "# >>> dranzeit", "# <<< dranzeit"
 
-BACKEND_PATHS = "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
+BACKEND_PATHS = (
+    "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
+    " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
+)
 
 
 def block(domain: str, port: str, redirects: list[str]) -> str:
@@ -35,7 +38,7 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 {domain} {{
 	encode zstd gzip
 
-	# API, Stadtseiten, Hilfe und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
+	# API, Stadtseiten, Salon-Verzeichnis, Hilfe und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
 	@backend path {BACKEND_PATHS}
 	handle @backend {{
 		reverse_proxy 127.0.0.1:{port}

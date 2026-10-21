@@ -39,8 +39,8 @@ Browser schreiben kann, nutzt bezahlte Tarife umsonst oder hebt eine Sperre auf.
   Löschen und Neuanlegen mit derselben ID (QR-Plakate gelten weiter) eine frische Testphase.
 
 **Nur Backend**, im Browser weder lesbar noch schreibbar: `meta` (Zähler der Gründerplätze – zurückgesetzt gäbe es
-Gründerpreise über die 100 hinaus), `push_subscriptions`, `staff-invitations` und jede Sammlung, die in den Regeln
-nicht vorkommt.
+Gründerpreise über die 100 hinaus), `push_subscriptions`, `staff-invitations`, `verzeichnis` (Salon-Verzeichnis; Seiten
+und Karte liefert das Backend) und jede Sammlung, die in den Regeln nicht vorkommt.
 
 **Offen wie bisher**: alle übrigen Sammlungen (siehe unten). Das ist bewusst ein eigener, späterer Schritt.
 
