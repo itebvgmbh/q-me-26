@@ -1,0 +1,140 @@
+rules_version = '2';
+
+// Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
+//
+// Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
+// Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
+//
+// Die Regeln gelten nur für den Browser (App und Testskripte mit dem öffentlichen Web-Schlüssel). Das Backend
+// arbeitet mit dem Admin SDK (Dienstkonto) und ist von ihnen nicht betroffen: Stripe-Webhook, Gründerplatz,
+// Betreiber-Bereich, Benachrichtigungen und Aufräumen dürfen weiter alles.
+//
+// Stand 21.10.2026:
+//  - shops: Die Tarif-Felder setzt nur noch das Backend. Den Rest des Ladens ändert nur noch sein Inhaber.
+//  - Sammlungen, die nur das Backend braucht, sind für den Browser zu (keine Regel = kein Zugriff).
+//  - Alle übrigen Sammlungen bleiben offen wie bisher. Buchen und Nummer ziehen gehen ohne Anmeldung und schreiben
+//    dort; wer was liest und schreibt, steht in dev/regeln/README.md. Sie zu verschärfen ist ein eigener Schritt.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(shop) {
+      return signedIn() && shop.owner == request.auth.uid;
+    }
+
+    // Tarif-Felder am Laden. Wer sie schreiben kann, nutzt bezahlte Tarife umsonst oder hebt eine Sperre auf.
+    //   plan, billing         Abo (Stripe-Webhook)
+    //   trialEndsAt           Ende der Testphase (Anlegen, Gründerplatz, Betreiber)
+    //   founder, founderSince Gründerplatz (/billing/claim-founder, Betreiber)
+    //   grant                 Freischaltung ohne Stripe (Betreiber)
+    //   suspended             Laden gesperrt (Betreiber)
+    function planFields() {
+      return ['plan', 'billing', 'trialEndsAt', 'founder', 'founderSince', 'grant', 'suspended'];
+    }
+
+    // Beim Anlegen darf ein Laden Tarif-Felder nur so mitbringen, dass sein Inhaber nichts davon hat:
+    // Gratis, höchstens die normale Testphase von 30 Tagen (ein Tag Spielraum für falsch gehende Uhren),
+    // auch eine schon abgelaufene, oder gleich gesperrt. Die App setzt plan 'gratis' und trialEndsAt = jetzt + 30 Tage
+    // (utils/plans.ts, newShopPlanFields); Testskripte legen so Läden mit beendeter Testphase oder gesperrt an.
+    // createdAt zählt mit: Ohne trialEndsAt läuft die Testphase 30 Tage ab createdAt (plans.ts/plans.py, trialEnd).
+    function harmlessNewShop(shop) {
+      return !shop.keys().hasAny(['billing', 'founder', 'founderSince', 'grant'])
+        && (!('plan' in shop) || shop.plan == 'gratis')
+        && (!('trialEndsAt' in shop)
+            || (shop.trialEndsAt is timestamp && shop.trialEndsAt <= request.time + duration.value(31, 'd')))
+        && (!('createdAt' in shop)
+            || (shop.createdAt is timestamp && shop.createdAt <= request.time + duration.value(1, 'd')))
+        && (!('suspended' in shop) || shop.suspended == null
+            || (shop.suspended is map && shop.suspended.keys().hasOnly(['at'])));
+    }
+
+    function deletedShop(shopId) {
+      return /databases/$(database)/documents/deleted_shops/$(shopId);
+    }
+
+    // Läden: lesen darf jeder (Läden finden, Buchen, Nummer ziehen, Wartezimmer-Bildschirm – alles ohne Anmeldung).
+    match /shops/{shopId} {
+      allow read: if true;
+
+      // Anlegen nur für sich selbst (Einrichtungsassistent, utils/shop-setup.ts) und nicht unter der ID eines
+      // gelöschten Ladens – sonst brächte Löschen und Neuanlegen eine frische Testphase und höbe eine Sperre auf.
+      allow create: if signedIn()
+        && request.resource.data.owner == request.auth.uid
+        && harmlessNewShop(request.resource.data)
+        && !exists(deletedShop(shopId));
+
+      // Ändern nur der Inhaber (Mein Laden, Assistent, Startklar-Merker) und nie Tarif-Felder, Inhaber oder
+      // Anlegedatum. Unverändert mitgeschickte Werte stören nicht: Es zählt nur, was sich wirklich ändert.
+      // Das Team ändert den Laden nicht (Startklar merkt sich dann im Browser).
+      allow update: if isOwner(resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(planFields().concat(['owner', 'createdAt']));
+
+      // Löschen nur der Inhaber und nur zusammen mit dem Vermerk in deleted_shops (ein Schritt, writeBatch oder
+      // commit). Die App selbst löscht keine Läden; das tun nur Testskripte und das Backend (Betreiber-Bereich).
+      allow delete: if isOwner(resource.data)
+        && existsAfter(deletedShop(shopId));
+    }
+
+    // Vermerk „diese Laden-ID ist verbraucht“. Nur anlegen, im selben Schritt, in dem der eigene Laden gelöscht wird;
+    // ändern, löschen oder lesen im Browser nicht (die Regel oben sieht ihn trotzdem).
+    match /deleted_shops/{shopId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['owner', 'deletedAt'])
+        && request.resource.data.owner == request.auth.uid
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.owner == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/shops/$(shopId));
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Offen wie bisher. Buchen und Nummer ziehen ohne Anmeldung legen Termine an und schreiben in derselben
+    // Transaktion die Belegung (schedules) und die Tagesnummern (shop_days); Absagen auf /nummer/<id> geht ohne
+    // Anmeldung. Inhaber und Team pflegen Leistungen, Personen, Pausen und Kunden; Kunden ihr Profil.
+    // ------------------------------------------------------------------------------------------------------------
+    match /appointments/{id} {
+      allow read, write: if true;
+    }
+    match /schedules/{id} {
+      allow read, write: if true;
+    }
+    match /shop_days/{id} {
+      allow read, write: if true;
+    }
+    match /staff/{id} {
+      allow read, write: if true;
+    }
+    match /services/{id} {
+      allow read, write: if true;
+    }
+    match /breaks/{id} {
+      allow read, write: if true;
+    }
+    match /recurring-breaks/{id} {
+      allow read, write: if true;
+    }
+    match /customers/{id} {
+      allow read, write: if true;
+    }
+    match /users/{id} {
+      allow read, write: if true;
+    }
+    match /earlier_slot_notifications/{id} {
+      allow read, write: if true;
+    }
+
+    // Alte Warteschlange: die App fragt sie beim Nummer ziehen noch ab, schreibt sie aber nicht mehr.
+    match /queue/{id} {
+      allow read: if true;
+    }
+
+    // Keine Regel, also für den Browser zu – nur das Backend:
+    //   meta                 Zähler der Gründerplätze (meta/gruender). Wer ihn zurücksetzt, bekäme Gründerpreise.
+    //   push_subscriptions   Push-Adressen der Geräte (anmelden über /routes/push)
+    //   staff-invitations    alt; Einladungen stehen gehasht am staff-Eintrag
+    //   und jede Sammlung, die hier nicht steht.
+  }
+}

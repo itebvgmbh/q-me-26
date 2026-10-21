@@ -273,15 +273,19 @@ run(async () => {
     // Aufräumen: Personen dieses Laufs, Zweitladen, Testkonten
     await db(
       owner,
-      async (fs, firestore, { shopId, second }) => {
+      async (fs, firestore, { shopId, second, uid }) => {
         const snap = await fs.getDocs(fs.query(fs.collection(firestore, 'staff'), fs.where('shopId', '==', shopId)));
         for (const d of snap.docs) if (/\(Test\)$/.test(d.data().name || '')) await fs.deleteDoc(d.ref);
         if (second) {
           await fs.deleteDoc(fs.doc(firestore, 'staff', second.staffId)).catch(() => {});
-          await fs.deleteDoc(fs.doc(firestore, 'shops', second.shopId)).catch(() => {});
+          // Laden löschen nur zusammen mit dem Vermerk in deleted_shops (firestore.rules)
+          const batch = fs.writeBatch(firestore);
+          batch.set(fs.doc(firestore, 'deleted_shops', second.shopId), { owner: uid, deletedAt: fs.Timestamp.now() });
+          batch.delete(fs.doc(firestore, 'shops', second.shopId));
+          await batch.commit().catch(() => {});
         }
       },
-      { shopId: fx.shopId, second: secondShop },
+      { shopId: fx.shopId, second: secondShop, uid: fx.uid },
     ).catch((e) => console.log('Aufräumen unvollständig:', String(e).slice(0, 120)));
     for (const page of accountPages) await removeAccount(page);
   }

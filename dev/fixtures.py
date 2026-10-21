@@ -25,7 +25,8 @@ import urllib.request
 from pathlib import Path
 
 KEY = 'AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE'  # öffentlicher Web-Schlüssel, steht auch in der App
-FS = 'https://firestore.googleapis.com/v1/projects/qmedata-7c79e/databases/(default)/documents'
+DOCS = 'projects/qmedata-7c79e/databases/(default)/documents'
+FS = f'https://firestore.googleapis.com/v1/{DOCS}'
 AUTH = 'https://identitytoolkit.googleapis.com/v1/accounts'
 REFERER = 'https://dranzeit.de/'
 FILE = Path(__file__).resolve().parent / '.local' / 'fixture.json'
@@ -69,6 +70,15 @@ def value(v):
 def create(collection, fields, token, doc_id=None):
     url = f'{FS}/{collection}' + (f'?documentId={doc_id}' if doc_id else '')
     return call('POST', url, {'fields': {k: value(v) for k, v in fields.items()}}, token)['name'].split('/documents/')[1]
+
+
+def delete_shop(shop_id, uid, token):
+    """Laden löschen – geht nur zusammen mit dem Vermerk in deleted_shops, in einem Schritt (firestore.rules)"""
+    now = dt.datetime.now(dt.timezone.utc)
+    call('POST', f'{FS}:commit', {'writes': [
+        {'update': {'name': f'{DOCS}/deleted_shops/{shop_id}', 'fields': {'owner': value(uid), 'deletedAt': value(now)}}},
+        {'delete': f'{DOCS}/shops/{shop_id}'},
+    ]}, token)
 
 
 def anlegen():
@@ -131,16 +141,21 @@ def loeschen():
     for collection in ('appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days'):
         extra += find(collection, 'shopId', fx['shopId'])
     # Läden, die Tests mit dem Testkonto angelegt haben, samt allem, was daran hängt
-    for shop in find('shops', 'owner', fx['uid']):
+    shops = find('shops', 'owner', fx['uid'])
+    for shop in shops:
         shop_id = shop.split('/')[1]
         if shop_id == fx['shopId']:
             continue
-        extra.append(shop)
-        for collection in ('services', 'staff', 'staff-invitations', 'recurring-breaks', 'breaks', 'appointments', 'customers', 'schedules', 'shop_days'):
+        for collection in ('services', 'staff', 'recurring-breaks', 'breaks', 'appointments', 'customers', 'schedules', 'shop_days'):
             extra += find(collection, 'shopId', shop_id)
     for doc in sorted(set(fx['docs'] + extra)):
+        if doc.startswith('shops/'):
+            continue  # Läden zuletzt, mit Vermerk
         call('DELETE', f'{FS}/{doc}', token=token)
         print('gelöscht', doc)
+    for shop in shops:
+        delete_shop(shop.split('/')[1], fx['uid'], token)
+        print('gelöscht', shop)
     call('POST', f'{AUTH}:delete?key={KEY}', {'idToken': token})
     print('Testkonto gelöscht')
     FILE.unlink()

@@ -1,21 +1,13 @@
-// Gesperrter Laden (Betreiber-Bereich → Laden sperren) im Testladen: nicht auffindbar, nichts buchbar, Hinweis am Tresen.
-// Setzt am Testladen kurz das Feld suspended (wie das Backend beim Sperren) und nimmt es am Ende wieder weg.
+// Gesperrter Laden (Betreiber-Bereich → Laden sperren): nicht auffindbar, nichts buchbar, Hinweis am Tresen.
+// Sperren darf nur das Backend (firestore.rules). Der Test legt deshalb einen Wegwerf-Laden an, der schon beim Anlegen
+// gesperrt ist (lib.cjs tempShop), und löscht ihn samt Konto am Ende. Gegenprobe: der Testladen aus fixtures.py.
 // Konten sperrt dieser Test nicht – das prüft backend/tests/test_betreiber.py.
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen).
-const { BASE, launch, newPage, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
+const { BASE, launch, newPage, collectErrors, fixture, tempShop, removeTempShop, report, run } = require('./lib.cjs');
 
-const setSuspended = (page, shopId, on) =>
-  page.evaluate(
-    async ({ shopId, on }) => {
-      const src = await (await fetch('/src/utils/firestore-client.ts')).text();
-      const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
-      const { firestore } = await import('/src/utils/firestore-client.ts');
-      await fs.updateDoc(fs.doc(firestore, 'shops', shopId), { suspended: on ? { at: fs.Timestamp.now(), accounts: [] } : null });
-    },
-    { shopId, on },
-  );
+const SUSPENDED_NAME = 'Testladen gesperrt (wird gleich gelöscht)';
 
-/** Termin im Testladen anlegen wie die App; Rückgabe: Fehlermeldung oder "angelegt" (dann gleich wieder gelöscht) */
+/** Termin anlegen wie die App; Rückgabe: Fehlermeldung oder "angelegt" (dann gleich wieder gelöscht) */
 const tryBooking = (page, fx) =>
   page.evaluate(async (fx) => {
     const { createAppointment } = await import('/src/utils/firestore/appointments.ts');
@@ -41,32 +33,31 @@ run(async () => {
   const rows = [];
   const owner = await newPage(browser, { viewport: { width: 1280, height: 900 } });
   const errors = collectErrors(owner);
-  await signIn(owner, fx);
+  const shop = await tempShop(owner, SUSPENDED_NAME, { suspended: true });
 
   try {
-    await setSuspended(owner, fx.shopId, true);
-
     const guest = await newPage(browser);
-    await guest.goto(`${BASE}/shop-details?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
+    await guest.goto(`${BASE}/shop-details?shopId=${shop.shopId}`, { waitUntil: 'domcontentloaded' });
     rows.push({ name: 'Laden-Seite: nicht erreichbar', pass: await guest.getByText('Dieser Laden ist gerade nicht erreichbar.').waitFor({ timeout: 30000 }).then(() => true).catch(() => false) });
-    await guest.goto(`${BASE}/public-join-queue?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
+    await guest.goto(`${BASE}/public-join-queue?shopId=${shop.shopId}`, { waitUntil: 'domcontentloaded' });
     rows.push({ name: 'QR-Link: keine Nummern', pass: await guest.getByText('Dieser Laden nimmt gerade keine Nummern an.').waitFor({ timeout: 30000 }).then(() => true).catch(() => false) });
     await guest.goto(`${BASE}/shop-map`, { waitUntil: 'domcontentloaded' });
     await guest.waitForTimeout(6000);
     const map = await guest.evaluate(() => document.body.innerText);
-    rows.push({ name: 'Läden finden: Testladen fehlt', pass: !map.includes('Testladen (wird gleich gelöscht)') });
+    rows.push({ name: 'Läden finden: gesperrter Laden fehlt', pass: !map.includes(SUSPENDED_NAME) });
 
-    const booking = await tryBooking(owner, fx);
+    const booking = await tryBooking(owner, shop);
     rows.push({ name: 'Buchen abgelehnt', pass: booking.includes('keine Buchungen'), detail: booking.slice(0, 90) });
     await owner.goto(`${BASE}/shop-dashboard`, { waitUntil: 'domcontentloaded' });
     rows.push({ name: 'Tresen: Hinweis gesperrt', pass: await owner.getByText(/Dein Laden ist gesperrt/).waitFor({ timeout: 30000 }).then(() => true).catch(() => false) });
   } finally {
-    await setSuspended(owner, fx.shopId, false);
+    await removeTempShop(owner, shop).catch((e) => console.log('Wegwerf-Laden nicht gelöscht:', shop.shopId, String(e).slice(0, 120)));
   }
 
+  // Gegenprobe: ein nicht gesperrter Laden ist erreichbar
   const guest = await newPage(browser);
   await guest.goto(`${BASE}/shop-details?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
-  rows.push({ name: 'Nach Freigabe: Laden-Seite wieder da', pass: await guest.getByRole('heading', { name: 'Testladen (wird gleich gelöscht)' }).waitFor({ timeout: 30000 }).then(() => true).catch(() => false) });
+  rows.push({ name: 'Nicht gesperrt: Laden-Seite da', pass: await guest.getByRole('heading', { name: 'Testladen (wird gleich gelöscht)' }).waitFor({ timeout: 30000 }).then(() => true).catch(() => false) });
   rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
   await browser.close();
   return report(rows);
