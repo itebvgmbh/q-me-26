@@ -142,13 +142,19 @@ footer{color:var(--muted);font-size:14px;padding-block:24px;display:flex;gap:16p
 """
 
 
-def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | None = None, extra_style: str = "") -> str:
-    ld = f'<script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False).replace("</", "<\\/")}</script>' if json_ld else ""
+def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | list | None = None,
+          extra_style: str = "", robots: str = "") -> str:
+    """robots z. B. "noindex,follow" für dünne Seiten; json_ld ein Block oder eine Liste"""
+    blocks = json_ld if isinstance(json_ld, list) else [json_ld] if json_ld else []
+    ld = "".join(
+        f'<script type="application/ld+json">{json.dumps(b, ensure_ascii=False).replace("</", "<\\/")}</script>' for b in blocks
+    )
     url = public_url() + canonical_path
     return (
         "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">"
         f"<title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
+        + (f"<meta name=\"robots\" content=\"{_e(robots)}\">" if robots else "") +
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
         f"<meta property=\"og:url\" content=\"{_e(url)}\"><meta property=\"og:site_name\" content=\"Dranzeit\">"
@@ -156,7 +162,8 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
         "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
         f"{body}"
-        "<footer><a href=\"/\">Startseite</a><a href=\"/friseur-ohne-termin\">Alle Städte</a><a href=\"/hilfe\">Hilfe</a>"
+        "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
+        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/hilfe\">Hilfe</a>"
         "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a></footer></div></body></html>"
     )
 
@@ -168,7 +175,11 @@ STEPS_HTML = (
 )
 
 
-def render_city(city_name: str, slug: str, shops: list[dict], waiting: dict[str, int], now: datetime | None = None) -> str:
+def render_city(city_name: str, slug: str, shops: list[dict], waiting: dict[str, int], now: datetime | None = None,
+                pages: dict[str, str] | None = None) -> str:
+    """pages: shopId → Seite im Salon-Verzeichnis (/friseur/…); ohne Seite die Ladenansicht der App"""
+    pages = pages or {}
+    detail = lambda shop_id: pages.get(shop_id) or f"/shop-details?shopId={shop_id}"  # noqa: E731
     items = []
     for shop in sorted(shops, key=lambda s: s["name"].lower()):
         w = waiting.get(shop["id"], 0)
@@ -179,7 +190,7 @@ def render_city(city_name: str, slug: str, shops: list[dict], waiting: dict[str,
             f"<li class=\"shop\"><div><h2>{_e(shop['name'])}</h2><div class=\"meta\">{_e(address)}"
             f"{' · ' + _e(hours) if hours else ''}</div><div class=\"live\">{_e(live)}</div></div>"
             f"<div class=\"btns\"><a class=\"btn main\" href=\"/public-join-queue?shopId={_e(shop['id'])}\">Nummer ziehen</a>"
-            f"<a class=\"btn\" href=\"/shop-details?shopId={_e(shop['id'])}\">Details</a></div></li>"
+            f"<a class=\"btn\" href=\"{_e(detail(shop['id']))}\">Details</a></div></li>"
         )
     count = len(shops)
     title = f"Friseur ohne Termin in {city_name} – Nummer ziehen | Dranzeit"
@@ -206,7 +217,7 @@ def render_city(city_name: str, slug: str, shops: list[dict], waiting: dict[str,
                 "item": {
                     "@type": "HairSalon",
                     "name": s["name"],
-                    "url": f"{public_url()}/shop-details?shopId={s['id']}",
+                    "url": public_url() + detail(s["id"]),
                     "address": {
                         "@type": "PostalAddress",
                         "streetAddress": s.get("street") or "",
@@ -256,13 +267,24 @@ def city_page(slug: str) -> HTMLResponse:
             waiting[shop["id"]] = waiting_now(shop["id"])
         except Exception as e:  # ohne Zahl lieber die Seite zeigen
             print(f"SEO: Wartende für {shop['id']} nicht lesbar: {e}")
-    return _html(render_city(city["name"], slug, city["shops"], waiting))
+    return _html(render_city(city["name"], slug, city["shops"], waiting, pages=_verzeichnis_pfade()))
 
 
 @router.get("/barbershop-ohne-termin")
 @router.get("/barbershop-ohne-termin/{slug}")
 def barbershop_alias(slug: str = "") -> RedirectResponse:
     return RedirectResponse(f"{BASE_PATH}/{slug}" if slug else BASE_PATH, status_code=301)
+
+
+def _verzeichnis_pfade() -> dict[str, str]:
+    """shopId → Seite im Salon-Verzeichnis (app/verzeichnis_seiten.py)"""
+    try:
+        from app import verzeichnis_seiten
+
+        return verzeichnis_seiten.laden_pfade()
+    except Exception as e:  # Stadtseite lieber mit alten Links als gar nicht
+        print(f"SEO: Verzeichnis nicht lesbar: {e}")
+        return {}
 
 
 @router.get("/sitemap.xml")
@@ -272,7 +294,14 @@ def sitemap() -> Response:
     paths = ["/", "/features", "/preise", "/shop-map", BASE_PATH]
     shops = load_shops()
     paths += [f"{BASE_PATH}/{slug}" for slug in cities(shops)]
-    paths += [f"/shop-details?shopId={s['id']}" for s in shops]
+    pages = _verzeichnis_pfade()
+    paths += [f"/shop-details?shopId={s['id']}" for s in shops if s["id"] not in pages]
+    try:
+        from app import verzeichnis_seiten
+
+        paths += verzeichnis_seiten.sitemap_pfade()
+    except Exception as e:  # Sitemap lieber ohne Verzeichnis als gar nicht
+        print(f"SEO: Verzeichnis nicht in der Sitemap: {e}")
 
     from app import hilfe
 

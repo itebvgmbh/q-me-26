@@ -676,4 +676,8 @@ def loeschen(body: DeleteRequest, user: AuthorizedUser) -> dict:
     return {"result": result, "left": left, "backup": backup.name}
 
 
+# Reiter Verzeichnis (Salons ohne Dranzeit, Seiten der Läden): eigene Datei, gleiche Prüfung
+from app.apis.betreiber import verzeichnis as _verzeichnis  # noqa: E402
+
+admin.include_router(_verzeichnis.router)
 router.include_router(admin)

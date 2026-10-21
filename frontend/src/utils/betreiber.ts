@@ -5,7 +5,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth, firebaseAuth, useCurrentUser } from 'app';
 import type { PlanId } from './plans';
 
-const send = async <T>(path: string, body?: unknown): Promise<T> => {
+export const send = async <T>(path: string, body?: unknown): Promise<T> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: await auth.getAuthHeaderValue() };
   let res: Response;
   try {

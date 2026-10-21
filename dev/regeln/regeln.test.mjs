@@ -293,7 +293,7 @@ describe('Offen wie bisher: Inhaber, Team, Kunden', () => {
 });
 
 describe('Nur das Backend', () => {
-  for (const path of ['meta/gruender', 'push_subscriptions/abc', 'staff-invitations/abc', 'unbekannt/abc']) {
+  for (const path of ['meta/gruender', 'push_subscriptions/abc', 'staff-invitations/abc', 'verzeichnis/abc', 'unbekannt/abc']) {
     test(`${path}: im Browser weder lesen noch schreiben`, async () => {
       await backend((db) => setDoc(doc(db, path), { count: 3 }));
       for (const db of [anon(), as(OWNER)]) {
