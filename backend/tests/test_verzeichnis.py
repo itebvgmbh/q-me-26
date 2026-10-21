@@ -73,7 +73,7 @@ def frisch(entries=(), shops=()):
 
 def test_slugs():
     assert vz.slugify("Salon Élan & Co.") == "salon-elan-co"
-    assert vz.slugify("Köln") == "koeln"
+    assert vz.slugify("Köln") == "koeln" and vz.slugify("Halit's Barber Shop") == "halits-barber-shop"
     assert vz.eindeutiger_slug("Salon Schnitt", set()) == "salon-schnitt"
     assert vz.eindeutiger_slug("Salon Schnitt", {"salon-schnitt"}, "Prenzlauer Berg") == "salon-schnitt-prenzlauer-berg"
     assert vz.eindeutiger_slug("Salon Schnitt", {"salon-schnitt", "salon-schnitt-prenzlauer-berg"}, "Prenzlauer Berg") == "salon-schnitt-2"
@@ -204,6 +204,8 @@ def test_profil_von_webseite():
         except HTTPException as e:
             assert e.status_code == 400
     assert imp.fremde_seite("booksy.com/de-de/123") and not imp.fremde_seite("https://haarwerk-berlin.de")
+    assert imp.fremde_seite("https://redbeard2.mytreatwell.de/") and imp.fremde_seite("https://barber.de.ivof.com/city/")
+    assert imp.fremde_seite("https://iboexecutivebarber.setmore.com/") and not imp.fremde_seite("https://salon-venezia.de")
 
 
 def test_google_treffer():
