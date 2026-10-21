@@ -210,12 +210,21 @@ run(async () => {
         entry.regelFrei = rules.findConflict(ctx, at(13, 30), at(14, 0));
       }
       out.shops[data.name] = entry;
-      for (const d of [...services, ...staff, s]) {
+      for (const d of [...services, ...staff]) {
         try {
           await fs.deleteDoc(d.ref);
         } catch (e) {
           out.notDeleted = (out.notDeleted || 0) + 1; // räumt dann python dev/fixtures.py loeschen weg
         }
+      }
+      try {
+        // Laden löschen nur zusammen mit dem Vermerk in deleted_shops (firestore.rules)
+        const batch = fs.writeBatch(firestore);
+        batch.set(fs.doc(firestore, 'deleted_shops', s.id), { owner: fx.uid, deletedAt: fs.Timestamp.now() });
+        batch.delete(s.ref);
+        await batch.commit();
+      } catch (e) {
+        out.notDeleted = (out.notDeleted || 0) + 1;
       }
     }
     out.left = (await byField('shops', 'owner', fx.uid)).filter((d) => d.id !== fx.shopId).length;

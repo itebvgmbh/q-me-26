@@ -137,9 +137,13 @@ run(async () => {
       owner,
       async (fs, firestore, s) => {
         await fs.deleteDoc(fs.doc(firestore, 'services', s.serviceId));
-        await fs.deleteDoc(fs.doc(firestore, 'shops', s.shopId));
+        // Laden löschen nur zusammen mit dem Vermerk in deleted_shops (firestore.rules)
+        const batch = fs.writeBatch(firestore);
+        batch.set(fs.doc(firestore, 'deleted_shops', s.shopId), { owner: s.uid, deletedAt: fs.Timestamp.now() });
+        batch.delete(fs.doc(firestore, 'shops', s.shopId));
+        await batch.commit();
       },
-      second,
+      { ...second, uid: fx.uid },
     );
   }
 

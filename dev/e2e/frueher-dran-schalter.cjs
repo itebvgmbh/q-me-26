@@ -2,11 +2,13 @@
 //  1. Termin, den der Laden für ein verbundenes Kundenkonto eingetragen hat (ohne Haken): Schalter steht aus,
 //     Einschalten speichert checkEarlierOptions samt Zeitpunkt, ein früherer Platz wird angeboten, bleibt nach
 //     Neuladen an; Ausschalten nimmt Haken und Angebot wieder weg
-//  2. Abgesagter Termin: kein Schalter. Gratis-Tarif: kein Schalter, das Backend lehnt Einschalten ab
+//  2. Abgesagter Termin: kein Schalter. Gratis-Tarif: kein Schalter, das Backend lehnt Einschalten ab – mit einem
+//     Termin in einem Wegwerf-Laden, dessen Testphase schon beim Anlegen vorbei ist (lib.cjs tempShop; die Testphase
+//     ändern darf nur das Backend, firestore.rules)
 //  3. Rechte: fremder Termin (403), ohne Anmeldung (401)
 // Braucht: Entwicklungsserver mit echtem Backend (QME_BACKEND=https://q-me.spielmacherei.de) ab diesem Stand und
-// Testdaten (python dev/fixtures.py anlegen). Räumt Kundenkonto, Termine, Angebote und Tarif-Änderung selbst weg.
-const { BASE, launch, newPage, collectErrors, fixture, signIn, report, run, shot } = require('./lib.cjs');
+// Testdaten (python dev/fixtures.py anlegen). Räumt Kundenkonto, Termine, Angebote und Wegwerf-Laden selbst weg.
+const { BASE, launch, newPage, collectErrors, fixture, signIn, tempShop, removeTempShop, report, run, shot } = require('./lib.cjs');
 
 /** fn(fs, firestore, arg) im Browser ausführen – fs = Firestore-Funktionen der App, firestore = ihre Datenbank */
 const db = (page, fn, arg) =>
@@ -79,6 +81,8 @@ run(async () => {
   const errors = collectErrors(kunde);
   let customerUid = null;
   const ids = [];
+  let gratisPage = null;
+  let gratis = null;
   const steps = async () => {
     // Kundenkonto (so, als hätte es sich über den Link aus "Kunde anlegen" verbunden)
     await kunde.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -161,15 +165,29 @@ run(async () => {
     });
 
     // ---------- 2. Gratis-Tarif (Testphase vorbei) ----------
-    await db(owner, async (fs, firestore, shopId) => fs.updateDoc(fs.doc(firestore, 'shops', shopId), { trialEndsAt: fs.Timestamp.fromMillis(Date.now() - 86400000) }), fx.shopId);
+    // Zweiter Termin der Kundin, Montag 14:00 in einem Laden ohne Testphase; der Termin im Testladen behält seinen Schalter
+    gratisPage = await newPage(browser, { viewport: { width: 1280, height: 800 } });
+    gratis = await tempShop(gratisPage, 'Testladen Gratis (wird gleich gelöscht)', { trialEndsAt: new Date(Date.now() - 86400000) });
+    const gratisId = await db(
+      gratisPage,
+      async (fs, firestore, { g, customerId }) => {
+        const [y, m, d] = g.monday.split('-').map(Number);
+        const start = new Date(y, m - 1, d, 14, 0);
+        const ref = fs.doc(fs.collection(firestore, 'appointments'));
+        const now = fs.Timestamp.now();
+        await fs.setDoc(ref, { id: ref.id, shopId: g.shopId, staffId: g.staffId, serviceId: g.serviceId, customerId, customerName: 'Früh Test', status: 'scheduled', type: 'booked', startTime: fs.Timestamp.fromDate(start), endTime: fs.Timestamp.fromDate(new Date(start.getTime() + 30 * 60000)), createdAt: now, updatedAt: now });
+        return ref.id;
+      },
+      { g: gratis, customerId: customerUid },
+    );
     await kunde.reload({ waitUntil: 'domcontentloaded' });
     await kunde.getByRole('heading', { name: 'Als Nächstes' }).waitFor({ timeout: 20000 }).catch(() => {});
+    await kunde.getByText('Testladen Gratis (wird gleich gelöscht)').first().waitFor({ timeout: 20000 }).catch(() => {});
     await kunde.waitForTimeout(1000);
     const gratisSwitches = await kunde.getByRole('switch', SWITCH).count();
-    const gratisApi = await callApi(kunde, scheduledId, true);
-    const gratisSaved = await appt(owner, scheduledId);
-    rows.push({ name: 'Gratis-Tarif: kein Schalter, Backend lehnt ab', pass: gratisSwitches === 0 && gratisApi === 403 && gratisSaved?.checkEarlierOptions === false, detail: `${gratisSwitches} Schalter, Status ${gratisApi}` });
-    await db(owner, async (fs, firestore, shopId) => fs.updateDoc(fs.doc(firestore, 'shops', shopId), { trialEndsAt: fs.deleteField() }), fx.shopId);
+    const gratisApi = await callApi(kunde, gratisId, true);
+    const gratisSaved = await appt(gratisPage, gratisId);
+    rows.push({ name: 'Gratis-Tarif: kein Schalter, Backend lehnt ab', pass: gratisSwitches === 1 && gratisApi === 403 && gratisSaved?.checkEarlierOptions === undefined, detail: `${gratisSwitches} Schalter (1 = nur Testladen), Status ${gratisApi}` });
 
     // ---------- 3. Rechte ----------
     const foreignId = fx.docs.find((d) => d.startsWith('appointments/')).split('/')[1]; // Termin Montag 10:00 aus fixtures.py
@@ -190,10 +208,10 @@ run(async () => {
         const offers = await fs.getDocs(fs.query(fs.collection(firestore, 'earlier_slot_notifications'), fs.where('shopId', '==', shopId)));
         for (const d of offers.docs) if (ids.includes(d.data().appointmentId)) await fs.deleteDoc(d.ref);
         for (const id of ids) await fs.deleteDoc(fs.doc(firestore, 'appointments', id));
-        await fs.updateDoc(fs.doc(firestore, 'shops', shopId), { trialEndsAt: fs.deleteField() });
       },
       { shopId: fx.shopId, ids },
     ).catch((e) => console.log('Aufräumen im Testladen unvollständig:', String(e).slice(0, 120)));
+    if (gratis) await removeTempShop(gratisPage, gratis).catch((e) => console.log('Wegwerf-Laden nicht gelöscht:', gratis.shopId, String(e).slice(0, 120)));
     if (customerUid) {
       // Testkonto der Kundin wieder löschen (Profil zuerst, dann das Konto)
       await kunde

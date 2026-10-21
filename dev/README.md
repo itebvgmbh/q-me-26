@@ -42,7 +42,8 @@ node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
-node dev/e2e/laden-gesperrt.cjs             # Testladen kurz gesperrt: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
+node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
+node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
@@ -90,6 +91,13 @@ von hier, nicht vom Server. Was der Server selbst gebraucht hat, steht im Caddy-
 Ein Lauf liest grob 8 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag), auch mit großem Verlauf:
 Eine Platzberechnung liest nur die Termine ihres Tages. Im Server-Log steht je Berechnung eine Zeile
 (`Freie Zeiten <laden>/<person> am <tag>: N Termine gelesen, …`).
+
+Tarif-Felder am Laden (`trialEndsAt`, `suspended`, `grant`, `billing` …) darf nur das Backend ändern
+(`firestore.rules`). Tests, die einen Laden nach der Testphase oder gesperrt brauchen, legen dafür einen eigenen
+Wegwerf-Laden mit eigenem Konto an, der den Stand schon beim Anlegen mitbringt (`lib.cjs` → `tempShop`,
+`removeTempShop`). Läden löschen geht nur zusammen mit einem Vermerk in `deleted_shops` (so machen es
+`fixtures.py`, `lasttest.cjs` und die Tests). Die Regeln selbst prüfen die Tests in `regeln/` im Emulator
+(Anleitung `regeln/README.md`).
 
 Jeder Test meldet je Prüfung `OK` oder `FEHL` und endet bei Fehlern mit Exit-Code 1.
 Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im Testladen:

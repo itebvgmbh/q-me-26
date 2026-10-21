@@ -297,7 +297,7 @@ async function loeschen() {
   for (const c of state.customers) customers.push(await signIn(c.email, c.pw).catch(() => null));
   let removed = 0;
   if (state.shopId) {
-    for (const collection of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'push_subscriptions', 'schedules', 'shop_days']) {
+    for (const collection of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days']) {
       for (;;) {
         let docs = [];
         try {
@@ -323,7 +323,8 @@ async function loeschen() {
       if (docs.length) await commit(docs.map((d) => delW(`earlier_slot_notifications/${d.id}`)), c.idToken).catch((e) => console.log(`  Angebote Kunde ${i + 1}: ${e.message.slice(0, 120)}`));
       removed += docs.length;
     }
-    await commit([delW(`shops/${state.shopId}`)], owner.idToken);
+    // Laden löschen nur zusammen mit dem Vermerk in deleted_shops (firestore.rules)
+    await commit([setW('deleted_shops', state.shopId, { owner: state.owner.uid, deletedAt: new Date() }), delW(`shops/${state.shopId}`)], owner.idToken);
   }
   for (const [i, c] of customers.entries()) {
     if (!c) continue;
