@@ -49,7 +49,7 @@ def now() -> datetime:
 
 def slugify(text: str, max_len: int = 0) -> str:
     """'Köln' → 'koeln', 'Salon Élan & Co.' → 'salon-elan-co'"""
-    s = (text or "").strip().lower()
+    s = re.sub(r"['’‘´`]", "", (text or "").strip().lower())  # "Halit's" → "halits"
     for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
         s = s.replace(a, b)
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")

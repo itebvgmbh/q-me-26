@@ -28,12 +28,16 @@ SEARCH_FIELDS = ",".join([
     "places.types", "places.businessStatus", "nextPageToken",
 ])
 
-# Keine eigene Webseite: Plattformen und soziale Netzwerke lesen wir nicht (deren Inhalte, deren Regeln)
+# Keine eigene Webseite: Plattformen, Buchungsdienste, Branchenbücher und soziale Netzwerke lesen wir nicht (deren
+# Inhalte, deren Regeln). Im Echttest Nordberlin (21.10.2026) u. a. mytreatwell.de, setmore.com, ivof.com.
 FREMDE_SEITEN = (
     "instagram.com", "facebook.com", "fb.com", "tiktok.com", "linktr.ee", "google.com", "goo.gl", "g.page",
-    "treatwell.de", "treatwell.com", "booksy.com", "fresha.com", "planity.com", "salonkee.de", "salonkee.com",
-    "studiobookr.com", "shore.com", "timify.com", "yelp.de", "yelp.com", "gelbeseiten.de", "dasoertliche.de",
-    "whatsapp.com", "wa.me", "jimdosite.com",
+    "whatsapp.com", "wa.me", "youtube.com", "x.com", "twitter.com",
+    "treatwell.de", "treatwell.com", "mytreatwell.de", "mytreatwell.com", "booksy.com", "fresha.com", "planity.com",
+    "salonkee.de", "salonkee.com", "studiobookr.com", "shore.com", "timify.com", "setmore.com", "vagaro.com",
+    "square.site", "simplybook.it", "simplybook.me", "calendly.com", "etermin.net", "terminland.de", "salonized.com",
+    "yelp.de", "yelp.com", "gelbeseiten.de", "dasoertliche.de", "11880.com", "golocal.de", "cylex.de",
+    "meinestadt.de", "werkenntdenbesten.de", "tripadvisor.de", "ivof.com", "jimdosite.com",
 )
 KONTAKT_LINK = re.compile(r"impressum|kontakt|contact|imprint|anfahrt|öffnungszeit|oeffnungszeit|über|ueber|about|team", re.I)
 

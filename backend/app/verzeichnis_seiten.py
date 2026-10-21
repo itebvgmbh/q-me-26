@@ -464,7 +464,7 @@ def render_ort(kat: str, slug: str, o: dict, d: dict, now: Optional[datetime] = 
         krumen.append((o["city"], f"/{kat}/{o['stadtSlug']}"))
     krumen.append((wo, f"/{kat}/{slug}"))
     n = len(seiten)
-    was = ("Barbershops" if n != 1 else "Barbershop") if kat == "barbershop" else ("Friseure und Barbershops" if n != 1 else "Friseur")
+    was = ("Barbershops" if n != 1 else "Barbershop") if kat == "barbershop" else ("Friseure und Barbershops" if n != 1 else "Salon")
     lead = f"{n} {was} in {o['voll']} – mit Adresse, Öffnungszeiten und Preisen."
     if laeden:
         lead += f" Bei {'einem davon' if len(laeden) == 1 else str(len(laeden)) + ' davon'} ziehst du online eine Nummer und wartest, wo du willst."
