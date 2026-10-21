@@ -155,9 +155,10 @@ run(async () => {
   // Läden: Filter und Testläden
   await tab(page, /^Läden/).click();
   const table = page.locator('table');
-  rows.push({ name: 'Läden: Testladen ausgeblendet', pass: !(await table.innerText()).includes('Testladen') });
-  await page.getByText(/Test- und eigene Läden zeigen/).click();
-  rows.push({ name: 'Läden: Testladen auf Wunsch da', pass: (await table.innerText()).includes('Testladen') });
+  rows.push({ name: 'Läden: alle da, Testladen mit Schild', pass: (await table.innerText()).includes('Testladen') && (await table.getByText('Test', { exact: true }).count()) === 1 });
+  await page.getByText(/Test- und eigene Läden ausblenden/).click();
+  rows.push({ name: 'Läden: Testladen auf Wunsch weg', pass: !(await table.innerText()).includes('Testladen') });
+  await page.getByText(/Test- und eigene Läden ausblenden/).click();
   await page.getByRole('button', { name: 'Zahlung offen', exact: true }).click();
   const filtered = await table.innerText();
   rows.push({ name: 'Läden: Filter Zahlung offen', pass: filtered.includes('Barber Offen') && !filtered.includes('Salon Schnitt') });

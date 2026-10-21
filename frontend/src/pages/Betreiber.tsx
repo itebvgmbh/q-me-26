@@ -72,6 +72,21 @@ const Tile = ({ label, value, hint, tone, onClick }: { label: string; value: Rea
   );
 };
 
+/** Schild für eigene Läden/Konten (ITEBV GmbH, Betreiber) und solche aus Testskripten; Grund im Tooltip */
+const KIND_LABEL = { intern: 'eigener', test: 'Test' } as const;
+const KindBadge = ({ kind, markers }: { kind: 'echt' | 'test' | 'intern'; markers: string[] }) =>
+  kind === 'echt' ? null : (
+    <span
+      title={`Zählt in der Übersicht nicht mit: ${markers.join(', ')}`}
+      className={cn(
+        'ml-2 rounded-full px-2 py-0.5 text-xs font-semibold',
+        kind === 'intern' ? 'bg-foreground text-background' : 'border border-border bg-muted text-muted-foreground',
+      )}
+    >
+      {KIND_LABEL[kind]}
+    </span>
+  );
+
 const matches = (q: string, ...values: (string | null | undefined)[]) => {
   const needle = q.trim().toLowerCase();
   return !needle || values.some((v) => (v || '').toLowerCase().includes(needle));
@@ -87,7 +102,8 @@ export default function Betreiber() {
   const [query, setQuery] = useState('');
   const [shopFilter, setShopFilter] = useState('alle');
   const [accountFilter, setAccountFilter] = useState('alle');
-  const [showTests, setShowTests] = useState(false);
+  // Verwalten heißt alle sehen; ausblenden nur auf Wunsch. Die Kennzahlen zählen Test- und eigene nie mit.
+  const [hideTests, setHideTests] = useState(false);
   const [log, setLog] = useState<LogEntry[] | null>(null);
 
   const reload = useCallback(async () => {
@@ -121,20 +137,20 @@ export default function Betreiber() {
   const shops = useMemo(() => {
     const f = SHOP_FILTERS.find((x) => x.id === shopFilter)!;
     return (data?.shops ?? [])
-      .filter((s) => showTests || s.kind === 'echt')
+      .filter((s) => !hideTests || s.kind === 'echt')
       .filter((s) => f.test(s, nowMs))
       .filter((s) => matches(query, s.name, s.city, s.email, s.id, accountsByUid.get(s.owner)?.email))
       .sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-  }, [data, shopFilter, showTests, query, nowMs, accountsByUid]);
+  }, [data, shopFilter, hideTests, query, nowMs, accountsByUid]);
 
   const accounts = useMemo(() => {
     const f = ACCOUNT_FILTERS.find((x) => x.id === accountFilter)!;
     return (data?.accounts ?? [])
-      .filter((a) => showTests || a.kind === 'echt')
+      .filter((a) => !hideTests || a.kind === 'echt')
       .filter(f.test)
       .filter((a) => matches(query, a.email, a.name, a.uid))
       .sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-  }, [data, accountFilter, showTests, query]);
+  }, [data, accountFilter, hideTests, query]);
 
   // Nach dem Löschen ist die Auswahl weg: Seitenleiste schließen
   const selectedShop = selected?.kind === 'shop' ? shopsById.get(selected.id) : undefined;
@@ -168,8 +184,8 @@ export default function Betreiber() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'uebersicht', label: 'Übersicht' },
-    { id: 'laeden', label: `Läden ${showTests ? data.shops.length : st.shops}` },
-    { id: 'konten', label: `Konten ${showTests ? data.accounts.length : st.accounts}` },
+    { id: 'laeden', label: `Läden ${hideTests ? st.shops : data.shops.length}` },
+    { id: 'konten', label: `Konten ${hideTests ? st.accounts : data.accounts.length}` },
     { id: 'betrieb', label: 'Betrieb' },
     { id: 'protokoll', label: 'Protokoll' },
   ];
@@ -304,8 +320,8 @@ export default function Betreiber() {
               />
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" className="h-4 w-4" checked={showTests} onChange={(e) => setShowTests(e.target.checked)} />
-              Test- und eigene {tab === 'laeden' ? 'Läden' : 'Konten'} zeigen
+              <input type="checkbox" className="h-4 w-4" checked={hideTests} onChange={(e) => setHideTests(e.target.checked)} />
+              Test- und eigene {tab === 'laeden' ? 'Läden' : 'Konten'} ausblenden
             </label>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -386,7 +402,7 @@ function ShopTable({ shops, owners, onOpen }: { shops: AdminShop[]; owners: Map<
                 <span className="font-semibold">{s.name}</span>
                 {s.suspended && <span className="ml-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
                 {s.founder && <span className="ml-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Gründer</span>}
-                {s.kind !== 'echt' && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{s.kind}</span>}
+                <KindBadge kind={s.kind} markers={s.markers} />
                 <span className="block text-xs text-muted-foreground">{s.city || '–'}</span>
               </td>
               <td className="col-span-2 truncate text-muted-foreground md:max-w-[14rem] md:px-4 md:py-3">{owners.get(s.owner)?.email || s.ownerLabel}</td>
@@ -436,7 +452,7 @@ function AccountTable({ accounts, shops, onOpen }: { accounts: AdminAccount[]; s
                 <td className="col-span-2 min-w-0 md:px-4 md:py-3">
                   <span className="break-all font-semibold">{a.email || '(ohne E-Mail)'}</span>
                   {a.disabled && <span className="ml-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
-                  {a.kind !== 'echt' && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{a.kind}</span>}
+                  <KindBadge kind={a.kind} markers={a.markers} />
                   {a.name && <span className="block text-xs text-muted-foreground">{a.name}</span>}
                 </td>
                 <td className="md:px-4 md:py-3">{ROLE_LABEL[a.role] || a.role}</td>
