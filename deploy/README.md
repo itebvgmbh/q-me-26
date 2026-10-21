@@ -219,9 +219,10 @@ Firestore-Transaktion zwei Hilfsdokumente fort (Erklärung: `frontend/src/utils/
 - `schedules/{staffId}_{YYYY-MM-DD}` – belegte Zeiten der Person an dem Tag (nur Termin-IDs und Uhrzeiten)
 - `shop_days/{shopId}_{YYYY-MM-DD}` – an dem Tag vergebene Nummern des Ladens
 
-Nichts einzurichten: Die Firestore-Regeln (Firebase Console) lassen beide Sammlungen schon zu – auch Nummer ziehen
-ohne Konto schreibt dort, geprüft am 20.10.2026. Werden die Regeln einmal verschärft, müssen beide für jeden
-schreibbar bleiben, der buchen darf (also auch ohne Anmeldung), sonst schlägt jede Buchung fehl. Ein Vorschlag:
+Nichts einzurichten: Die Firestore-Regeln (`firestore.rules`, Abschnitt „Firestore-Regeln“ unten) lassen beide
+Sammlungen für jeden zu – auch Nummer ziehen ohne Konto schreibt dort. Werden die Regeln einmal verschärft, müssen
+beide für jeden schreibbar bleiben, der buchen darf (also auch ohne Anmeldung), sonst schlägt jede Buchung fehl.
+Ein Vorschlag:
 
 ```
 match /schedules/{id} {
@@ -239,6 +240,53 @@ match /shop_days/{id} {
 Dokumente vergangener Tage löscht das Backend einmal am Tag (zusammen mit dem Datenschutz-Aufräumen). Termine von
 vor der Umstellung stehen nicht in der Belegung; die prüft die App wie bisher vor dem Speichern. Browserfenster,
 die schon vor dem Update offen waren, buchen bis zum Neuladen noch ohne Sperre.
+
+## Firestore-Regeln
+
+Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des Repos, mit Begründung je Regel).
+Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
+Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
+
+Fassung vom 21.10.2026: Tarif-Felder am Laden (`plan`, `billing`, `trialEndsAt`, `founder`, `founderSince`,
+`grant`, `suspended`) setzt nur noch das Backend; den Rest des Ladens ändert nur sein Inhaber; Läden löschen nur mit
+Vermerk in `deleted_shops`; `meta` (Gründer-Zähler), `push_subscriptions` und `staff-invitations` sind für den
+Browser zu. Alles andere bleibt offen wie bisher, Buchen und Nummer ziehen ohne Anmeldung gehen weiter.
+
+### Einspielen
+
+1. Firebase-Konsole öffnen: https://console.firebase.google.com/project/qmedata-7c79e/firestore/rules
+2. Im Regel-Editor **Strg+A, Strg+C** (die alten Regeln landen in der Zwischenablage).
+3. Diesen Block in PowerShell einfügen. Er sichert die alten Regeln nach `Downloads\firestore-regeln-alt-….txt`,
+   holt die neuen von GitHub (Branch `bildschirm`) und legt sie in die Zwischenablage:
+
+```powershell
+& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service cloud\.firestore') { Write-Host 'In der Zwischenablage stehen keine Firestore-Regeln. Im Regel-Editor erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; if ($alt -match 'deleted_shops') { Write-Host 'In der Zwischenablage stehen schon die neuen Regeln. Fuer die Sicherung erst im Regel-Editor Strg+A, Strg+C, dann diesen Block noch einmal. Sind die neuen schon veroeffentlicht, ist nichts mehr zu tun.' -ForegroundColor Yellow; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('firestore-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/firestore.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service cloud\.firestore' -or $neu -notmatch 'deleted_shops') { Write-Host 'Die geladene Datei sieht nicht wie die neuen Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $datei = Join-Path $downloads 'firestore-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
+```
+
+4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen**. Meldet der Editor einen Fehler, nicht
+   veröffentlichen (die alten Regeln gelten dann weiter). Bis die neuen überall wirken, kann es eine Minute dauern.
+
+### Prüfen
+
+- Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern; im privaten Fenster (ohne Anmeldung)
+  eine Nummer ziehen und auf der Nummernseite wieder absagen.
+- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL bei den Tarif-Feldern),
+  dazu `regeln.cjs`, `fruehester-platz.cjs`, `seiten.cjs`, `tarife.cjs`, `laden-gesperrt.cjs`.
+
+### Zurücknehmen
+
+Klemmt danach etwas (Speichern im Laden, Buchen, Nummer ziehen), die alten Regeln wieder einspielen. Der Block holt
+die gesicherte Datei aus `Downloads` (Vorschlag: die neueste) in die Zwischenablage:
+
+```powershell
+& { $downloads = Join-Path $env:USERPROFILE 'Downloads'; $vorschlag = Get-ChildItem -Path $downloads -Filter 'firestore-regeln-alt-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1; $hinweis = if ($vorschlag) { " [Enter = $($vorschlag.Name)]" } else { '' }; $eingabe = (Read-Host "Gesicherte Regeln (Datei, Drag & Drop geht)$hinweis").Trim().Trim('"').Trim("'"); $pfad = if ($eingabe) { $eingabe } elseif ($vorschlag) { $vorschlag.FullName } else { '' }; if (-not $pfad -or -not (Test-Path -LiteralPath $pfad)) { Write-Host "Datei nicht gefunden: $pfad" -ForegroundColor Red; return }; $alt = [IO.File]::ReadAllText($pfad, [Text.Encoding]::UTF8); if ($alt -notmatch 'service cloud\.firestore') { Write-Host 'Die Datei enthaelt keine Firestore-Regeln. Abgebrochen.' -ForegroundColor Red; return }; Set-Clipboard -Value $alt; Write-Host "Alte Regeln aus $pfad in der Zwischenablage." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
+```
+
+Dann im Regel-Editor **Strg+A, Strg+V, Veröffentlichen**. Die Konsole führt außerdem einen Verlauf der
+veröffentlichten Fassungen; auch daraus lässt sich die alte wieder veröffentlichen.
+
+Ändern sich die Regeln später: `firestore.rules` und die Tests in `dev/regeln` zusammen anpassen, auf GitHub grün
+werden lassen, dann wie oben einspielen.
 
 ## Hilfe-Bereich (/hilfe)
 
