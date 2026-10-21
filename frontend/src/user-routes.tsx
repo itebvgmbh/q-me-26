@@ -26,6 +26,7 @@ const CodeHealth = lazyPage(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazyPage(() => import("./pages/CustomerProfile.tsx"));
 const Datenschutz = lazyPage(() => import("./pages/Datenschutz.tsx"));
 const EmailBestaetigen = lazyPage(() => import("./pages/EmailBestaetigen.tsx"));
+const PasswortNeu = lazyPage(() => import("./pages/PasswortNeu.tsx"));
 const EmployeeDashboard = lazyPage(() => import("./pages/EmployeeDashboard.tsx"));
 const Features = lazyPage(() => import("./pages/Features.tsx"));
 const Impressum = lazyPage(() => import("./pages/Impressum.tsx"));
@@ -67,6 +68,8 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/customerprofile", element: <UserGuard><CustomerProfile /></UserGuard>},
 	// Link aus der Bestätigungs-Mail (utils/email-verification.ts)
 	{ path: "/email-bestaetigen", element: <EmailBestaetigen />},
+	// Link aus der Passwort-Mail (utils/password-reset.ts)
+	{ path: "/passwort-neu", element: <PasswortNeu />},
 	{ path: "/employee-dashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/employeedashboard", element: <UserGuard><EmployeeDashboard /></UserGuard>},
 	{ path: "/features", element: <Features />},

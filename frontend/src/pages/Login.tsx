@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseAuth, useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
 import { authErrorMessage, safeRedirect } from '../utils/auth-errors';
+import { requestPasswordReset } from '../utils/password-reset';
 import { getRedirectPath } from '../utils/user-profile-service';
 import { linkAnonymousBookingsToUser } from '../utils/AnonymousBookingLinker';
 
@@ -51,7 +52,7 @@ const Login = () => {
     }
     setResetting(true);
     try {
-      await sendPasswordResetEmail(firebaseAuth, email.trim());
+      await requestPasswordReset(email.trim());
       setError(null);
       toast.success('Wenn es ein Konto gibt, ist der Link unterwegs. Schau in dein Postfach.');
     } catch (err) {

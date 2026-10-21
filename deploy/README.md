@@ -204,12 +204,19 @@ Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schl
   selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
   der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
 - **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
-  `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar).
+  `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar), das Logo im Kopf
+  der Mails ebenso (`/img/mail/logo.png`, neu erzeugen mit `node dev/mail-logo.cjs`). Auch „Passwort vergessen“
+  läuft über Resend (`app/apis/password_reset`, Link auf `/passwort-neu`); ohne Schlüssel verschickt Firebase
+  seine eigene englische Mail von `…firebaseapp.com`, die bei Microsoft 365 gern im Spam landet.
+- **Postfach:** `hilfe@dranzeit.de` und `hallo@dranzeit.de` sind ein freigegebenes Postfach „Dranzeit“ in
+  Microsoft 365 (ITEBV GmbH). DNS dafür in der Hetzner-Zone `dranzeit.de`: MX auf
+  `dranzeit-de.mail.protection.outlook.com`, SPF `include:spf.protection.outlook.com` am Domain-Namen,
+  `autodiscover`. Die Resend-Einträge liegen getrennt davon auf `send.` und `resend._domainkey`.
 - Kunden schalten das auf ihrer Nummernseite `/nummer/<id>` ein; dorthin führt jetzt das Nummer-Ziehen.
 - **Start-Mails an Läden** (`app/libs/onboarding_mail.py`, im selben Dienst): Willkommen, eine Erinnerung zum
   Ausprobieren (2–7 Tage nach dem Anlegen, nur wenn noch nichts eingetragen ist) und „Testphase endet“ (5 Tage
   vorher, nicht bei laufendem Abo). Je Laden einmal, geprüft alle 15 Minuten, Testadressen (`@example.com`)
-  ausgenommen. Antworten gehen an `hilfe@dranzeit.de` – dieses Postfach (oder eine Weiterleitung) muss es geben.
+  ausgenommen. Antworten gehen an `hilfe@dranzeit.de` (Postfach siehe oben).
 
 ## Ein Platz nur einmal (Belegung je Person und Tag)
 
