@@ -64,6 +64,8 @@ node dev/e2e/seiten.cjs                     # alle Seiten Handy + Desktop: JS-Fe
 node dev/e2e/durchlauf-warteschlange.cjs    # QR-Link bis zur Bestätigung
 node dev/e2e/durchlauf-buchung.cjs          # Termin buchen bis zur Zusammenfassung
 node dev/e2e/ladezeit.cjs handy             # Ladezeit im langsamen Handynetz
+node dev/e2e/verbindung.cjs                 # Verbindungsart: iPhone/Safari gleich einfach (Long-Polling), Nummernseite lädt bei hängender Datenbank nach 8 s neu (nur lesend)
+node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die einfache Verbindungsart nehmen (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
 ```

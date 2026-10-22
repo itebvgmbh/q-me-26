@@ -29,6 +29,10 @@ import {
   type PushConfig,
 } from '../utils/push';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
+import { retryWithSimpleConnection } from '../utils/connection';
+
+// So lange darf die Nummer brauchen, bevor die Seite mit einfacher Verbindungsart neu lädt (utils/connection.ts)
+const SLOW_CONNECTION_MS = 8000;
 
 type Live = Appointment & { notifyEmail?: string | null };
 
@@ -66,6 +70,14 @@ export default function Nummer() {
       () => setMissing(true),
     );
   }, [id]);
+
+  // Hängt die Dauerverbindung zur Datenbank, kommt die Nummer nicht an: einmal mit einfacher Verbindungsart
+  // neu laden (in Safari ist sie schon an, dann bleibt es beim Warten)
+  useEffect(() => {
+    if (appt || missing) return;
+    const timer = window.setTimeout(() => retryWithSimpleConnection(), SLOW_CONNECTION_MS);
+    return () => window.clearTimeout(timer);
+  }, [appt, missing]);
 
   // Laden, Leistung, Person einmal nachladen
   useEffect(() => {
