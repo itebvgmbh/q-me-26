@@ -51,6 +51,7 @@ node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → 
 node dev/e2e/email-bestaetigen.cjs          # Registrieren → Profil „noch nicht bestätigt“ → noch mal schicken → /email-bestaetigen (ungültig, gültig nachgebildet); QME_RESEND_TEST=1: echter Versand an delivered+…@resend.dev (braucht das Backend ab diesem Stand)
 node dev/e2e/passwort-neu.cjs              # „Passwort vergessen?“ (Backend, ohne Resend Firebase, zu oft) und /passwort-neu (gültig, zu kurz, abgelaufen) – Backend und Firebase nachgebildet, keine Testdaten nötig
 node dev/e2e/frueher-dran-schalter.cjs      # Meine Termine: „Früher dran“ selbst ein-/ausschalten bei einem vom Laden eingetragenen Termin, Angebot kommt und geht, Gratis-Tarif, Rechte (braucht das Backend ab diesem Stand)
+node dev/e2e/mein-tag-zeitraum.cjs          # Mein Tag: neuer Zeitraum beginnt heute, Pfeile schieben um je einen Tag (Wegwerf-Laden, räumt sich selbst weg)
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
 # 4. Testladen wieder löschen
