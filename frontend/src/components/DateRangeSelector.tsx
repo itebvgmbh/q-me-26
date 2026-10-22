@@ -11,18 +11,21 @@ interface Props {
   onNumDaysChange: (days: number) => void;
 }
 
-/** Tag(e) blättern und Zeitraum wählen */
+/**
+ * Tag(e) blättern und Zeitraum wählen.
+ * Ein neuer Zeitraum beginnt heute; die Pfeile schieben ihn um je einen Tag.
+ */
 export const DateRangeSelector = ({ startDate, numDays, onDateChange, onNumDaysChange }: Props) => (
   <div className="flex flex-wrap items-center gap-2">
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" onClick={() => onDateChange(subDays(startDate, numDays))} aria-label="Zurück">
+      <Button variant="ghost" size="icon" onClick={() => onDateChange(subDays(startDate, 1))} aria-label="Einen Tag zurück">
         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
       </Button>
       <p className="min-w-[9.5rem] text-center font-display text-lg font-bold">
         {format(startDate, 'EEE d. MMM', { locale: de })}
         {numDays > 1 && ` – ${format(addDays(startDate, numDays - 1), 'EEE d. MMM', { locale: de })}`}
       </p>
-      <Button variant="ghost" size="icon" onClick={() => onDateChange(addDays(startDate, numDays))} aria-label="Weiter">
+      <Button variant="ghost" size="icon" onClick={() => onDateChange(addDays(startDate, 1))} aria-label="Einen Tag weiter">
         <ChevronRight className="h-5 w-5" aria-hidden="true" />
       </Button>
     </div>
@@ -31,7 +34,13 @@ export const DateRangeSelector = ({ startDate, numDays, onDateChange, onNumDaysC
         Heute
       </Button>
     )}
-    <Select value={numDays.toString()} onValueChange={(value) => onNumDaysChange(parseInt(value))}>
+    <Select
+      value={numDays.toString()}
+      onValueChange={(value) => {
+        onNumDaysChange(parseInt(value));
+        onDateChange(startOfDay(new Date()));
+      }}
+    >
       <SelectTrigger className="h-9 w-28" aria-label="Zeitraum">
         <SelectValue />
       </SelectTrigger>
