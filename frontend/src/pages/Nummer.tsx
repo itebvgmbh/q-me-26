@@ -29,7 +29,7 @@ import {
   type PushConfig,
 } from '../utils/push';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
-import { retryWithSimpleConnection } from '../utils/connection';
+import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 
 // So lange darf die Nummer brauchen, bevor die Seite mit einfacher Verbindungsart neu lädt (utils/connection.ts)
 const SLOW_CONNECTION_MS = 8000;
@@ -61,13 +61,19 @@ export default function Nummer() {
     return onSnapshot(
       doc(firestore, 'appointments', id),
       (snap) => {
+        // Ohne Verbindung meldet Firestore nach ~10 s „nicht da“ aus dem leeren Zwischenspeicher –
+        // dann weiter warten statt „Diese Nummer gibt es nicht“; das sagt nur der Server
+        const fromServer = !snap.metadata.fromCache;
         if (!snap.exists()) {
-          setMissing(true);
+          if (fromServer) setMissing(true);
           return;
         }
         setAppt({ id: snap.id, ...snap.data() } as Live);
       },
-      () => setMissing(true),
+      (error) => {
+        if (isConnectionError(error) && retryWithSimpleConnection()) return;
+        setMissing(true);
+      },
     );
   }, [id]);
 

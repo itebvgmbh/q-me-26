@@ -60,7 +60,8 @@ run(async () => {
   await chrome.ctx.close();
 
   const safari = await hang(IPHONE, () => true);
-  await safari.page.waitForTimeout(11000);
+  // Länger als Firestores 10 s bis „offline“: dann meldet es „nicht da“ aus dem Zwischenspeicher – kein 404 zeigen
+  await safari.page.waitForTimeout(14000);
   rows.push({ name: 'Safari: kein Neuladen im Kreis', pass: safari.docs() === 1, detail: `${safari.docs()} Ladevorgänge` });
   rows.push({ name: 'Safari: wartet sichtbar', pass: await safari.page.getByText('Deine Nummer wird geladen').isVisible() });
   await shot(safari.page, 'verbindung-safari-wartet', false);
