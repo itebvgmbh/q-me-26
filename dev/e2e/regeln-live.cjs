@@ -76,5 +76,43 @@ run(async () => {
     const r = await http('GET', `${FS}/${path}`);
     rows.push({ name: `Ohne Anmeldung: ${path.split('/')[0]} gesperrt`, pass: r.status === 403, detail: `Status ${r.status}` });
   }
+
+  // Fassung vom 23.10.2026: Profile, Kundenliste, Team, Termine. Nur Statuscodes – gefragt wird nach IDs, die es nicht
+  // gibt, oder im Testladen; was vor dem Einspielen doch geschrieben wird, nimmt das Skript sofort zurück.
+  const NONE = 'regelprobe-gibt-es-nicht';
+  const status = (r) => `Status ${r.status}`;
+  const byShop = (collectionId, shopId) => ({
+    structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: 'shopId' }, op: 'EQUAL', value: { stringValue: shopId } } } },
+  });
+
+  const anonProfile = await http('GET', `${FS}/users/${NONE}`);
+  rows.push({ name: 'Ohne Anmeldung: Profile gesperrt', pass: anonProfile.status === 403, detail: status(anonProfile) });
+  const otherProfile = await http('GET', `${FS}/users/${NONE}`, null, token);
+  rows.push({ name: 'Fremdes Profil: gesperrt', pass: otherProfile.status === 403, detail: status(otherProfile) });
+  const ownProfile = await http('GET', `${FS}/users/${fx.uid}`, null, token);
+  rows.push({ name: 'Eigenes Profil: lesbar', pass: ownProfile.status === 200, detail: status(ownProfile) });
+
+  const anonCustomers = await http('POST', `${FS}:runQuery`, byShop('customers', NONE));
+  rows.push({ name: 'Ohne Anmeldung: Kundenliste gesperrt', pass: anonCustomers.status === 403, detail: status(anonCustomers) });
+  const ownCustomers = await http('POST', `${FS}:runQuery`, byShop('customers', fx.shopId), token);
+  rows.push({ name: 'Inhaber: eigene Kundenliste lesbar', pass: ownCustomers.status === 200, detail: status(ownCustomers) });
+
+  // Ohne Anmeldung ein Konto mit einer Person im Testladen verbinden (ins Team schreiben)
+  const person = await http('GET', `${FS}/staff/${fx.staffId}`, null, token);
+  const join = await http('PATCH', `${FS}/staff/${fx.staffId}?updateMask.fieldPaths=userId`, { fields: { userId: { stringValue: NONE } } });
+  if (join.status === 200) {
+    await http('PATCH', `${FS}/staff/${fx.staffId}?updateMask.fieldPaths=userId`, { fields: person.data?.fields?.userId ? { userId: person.data.fields.userId } : {} }, token);
+  }
+  rows.push({ name: 'Ohne Anmeldung: nicht ins Team', pass: join.status === 403, detail: `${status(join)}${join.status === 200 ? ' – geschrieben und zurückgenommen' : ''}` });
+
+  // Ohne Anmeldung einen Termin auf ein fremdes Konto anlegen
+  const start = new Date(Date.now() + 40 * 86400000);
+  const foreign = await http('POST', `${FS}/appointments`, { fields: {
+    shopId: { stringValue: fx.shopId }, staffId: { stringValue: fx.staffId }, customerId: { stringValue: NONE },
+    customerName: { stringValue: 'Regelprobe' }, status: { stringValue: 'scheduled' }, type: { stringValue: 'queue' },
+    startTime: { timestampValue: start.toISOString() }, endTime: { timestampValue: new Date(start.getTime() + 1800000).toISOString() },
+  } });
+  if (foreign.status === 200) await http('DELETE', `${FS}/appointments/${foreign.data.name.split('/').pop()}`, null, token);
+  rows.push({ name: 'Ohne Anmeldung: Termin für fremdes Konto', pass: foreign.status === 403, detail: `${status(foreign)}${foreign.status === 200 ? ' – angelegt und gelöscht' : ''}` });
   return report(rows);
 });

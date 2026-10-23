@@ -43,6 +43,10 @@ class Ref:
     def update(self, values):
         self.db.data[self.coll][self.id].update(values)
 
+    def collection(self, name):
+        """Unter-Sammlung, z. B. shops/{id}/members"""
+        return self.db.collection(f"{self.coll}/{self.id}/{name}")
+
     def set(self, values, merge=False):
         doc = self.db.data[self.coll].setdefault(self.id, {})
         if not merge:

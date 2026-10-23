@@ -250,7 +250,9 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {shop['billing'].get('customerId') or '?'}, Abo {shop['billing'].get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
-        shops.append({"id": sid, "name": shop.get("name") or "", "data": shop, "founder": bool(shop.get("founder")), "related": related})
+        members = list(fs.collection("shops").document(sid).collection("members").stream())  # Team-Vermerke, app/libs/team.py
+        shops.append({"id": sid, "name": shop.get("name") or "", "data": shop, "founder": bool(shop.get("founder")), "related": related,
+                      "members": members})
 
     deleted_shops = set(shop_ids)
     users = []
@@ -320,6 +322,8 @@ def backup_data(plan: dict, selection: str, list_file: str) -> dict:
 
     for s in plan["shops"]:
         docs[f"shops/{s['id']}"] = _plain(s["data"])
+        for m in s.get("members", []):
+            docs[f"shops/{s['id']}/members/{m.id}"] = _plain(m.to_dict() or {})
         for name, snaps in s["related"].items():
             add(name, snaps)
     for u in plan["users"]:
@@ -353,7 +357,11 @@ def execute(fs, plan: dict, delete_auth_user) -> dict:
             for snap in snaps:
                 snap.reference.delete()
                 result["shopDocs"] += 1
+        for m in s.get("members", []):
+            m.reference.delete()
         fs.collection("shops").document(s["id"]).delete()
+        # Vermerk wie in firestore.rules: unter dieser ID legt niemand mehr einen Laden an (frische Testphase)
+        fs.collection("deleted_shops").document(s["id"]).set({"owner": s["data"].get("owner") or "", "deletedAt": now})
         result["shops"] += 1
     f = plan["founders"]
     if f["freed"]:
@@ -361,6 +369,9 @@ def execute(fs, plan: dict, delete_auth_user) -> dict:
     for u in plan["users"]:
         for snap in u["staff"]:
             snap.reference.update({"userId": "", "updatedAt": now})
+            shop_id = (snap.to_dict() or {}).get("shopId")
+            if shop_id:
+                fs.collection("shops").document(shop_id).collection("members").document(u["uid"]).delete()
             result["staffUnlinked"] += 1
         done = delete_account_data(fs, u["uid"], now)
         result["anonymized"] += done["anonymized"]
@@ -378,6 +389,8 @@ def verify(fs, plan: dict, auth_exists) -> list:
     for s in plan["shops"]:
         if fs.collection("shops").document(s["id"]).get().exists:
             left.append(f"Laden {s['id']} ist noch da")
+        if list(fs.collection("shops").document(s["id"]).collection("members").stream()):
+            left.append(f"Team-Vermerke von Laden {s['id']} sind noch da")
         for name in SHOP_COLLECTIONS:
             n = len(where(fs, name, "shopId", s["id"]))
             if n:

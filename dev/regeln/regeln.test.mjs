@@ -21,6 +21,8 @@ const TEAM = 'robin'; // Person im Team (staff.userId), nicht Inhaber
 const OTHER = 'fremd'; // irgendein anderes Konto
 const SHOP = 'laden1';
 const STAFF = 'person1';
+const SHOP2 = 'laden2'; // Laden eines anderen Kontos (OTHER)
+const STAFF2 = 'person2';
 
 let env;
 before(async () => {
@@ -45,7 +47,49 @@ const seedShop = (extra = {}) =>
       plan: 'gratis', trialEndsAt: inDays(30), createdAt: inDays(0), updatedAt: inDays(0), ...extra,
     });
     await setDoc(doc(db, 'staff', STAFF), { shopId: SHOP, name: 'Robin', userId: TEAM, isActive: true, workingHours: [] });
+    // Team-Vermerk, wie ihn das Backend beim Annehmen der Einladung setzt (app/libs/team.py)
+    await setDoc(doc(db, 'shops', SHOP, 'members', TEAM), { staffId: STAFF, at: Timestamp.now() });
     await setDoc(doc(db, 'services', 'leistung1'), { shopId: SHOP, name: 'Schnitt', duration: 30, price: 20 });
+    // Zweiter Laden eines anderen Kontos
+    await setDoc(doc(db, 'shops', SHOP2), { name: 'Anderer Laden', owner: OTHER, plan: 'gratis', createdAt: inDays(0), updatedAt: inDays(0) });
+    await setDoc(doc(db, 'staff', STAFF2), { shopId: SHOP2, name: 'Alex', userId: '', isActive: true, workingHours: [] });
+  });
+
+const TODAY = new Date().toISOString().slice(0, 10);
+const START = inDays(0.1);
+const END = Timestamp.fromMillis(START.toMillis() + 30 * 60000);
+
+/** Termin wie createAppointment (Felder je nach Ablauf), ohne Transaktion */
+const ticket = (extra = {}) => ({
+  shopId: SHOP, staffId: STAFF, serviceId: 'leistung1', startTime: START, endTime: END, status: 'scheduled',
+  type: 'queue', customerName: 'Gast', checkEarlierOptions: false, createdAt: Timestamp.now(), updatedAt: Timestamp.now(), ...extra,
+});
+
+/** Termin, den es schon gibt (vom Backend angelegt) */
+const seedAppointment = (id, extra = {}) => backend((db) => setDoc(doc(db, 'appointments', id), ticket(extra)));
+
+/** Nummer ziehen wie createAppointment: Termin, Belegung und Tagesnummer in einer Transaktion */
+const drawNumber = (db, data, code = 'A12') => {
+  const appointment = doc(collection(db, 'appointments'));
+  return runTransaction(db, async (tx) => {
+    const schedule = await tx.get(doc(db, 'schedules', `${data.staffId}_${TODAY}`));
+    const numbers = await tx.get(doc(db, 'shop_days', `${data.shopId}_${TODAY}`));
+    const now = Timestamp.now();
+    tx.set(appointment, { id: appointment.id, ...data, referenceCode: code, createdAt: now, updatedAt: now });
+    tx.set(schedule.ref, { shopId: data.shopId, staffId: data.staffId, day: TODAY, slots: { ...(schedule.data()?.slots || {}), [appointment.id]: { start: data.startTime, end: data.endTime } }, updatedAt: now });
+    tx.set(numbers.ref, { shopId: data.shopId, day: TODAY, codes: [...(numbers.data()?.codes || []), code], updatedAt: now });
+  }).then(() => appointment);
+};
+
+/** Absagen wie cancelAppointment: Status und Belegung in einer Transaktion */
+const cancel = (db, id, staffId = STAFF) =>
+  runTransaction(db, async (tx) => {
+    const snap = await tx.get(doc(db, 'appointments', id));
+    const schedule = await tx.get(doc(db, 'schedules', `${staffId}_${TODAY}`));
+    const slots = { ...(schedule.data()?.slots || {}) };
+    delete slots[id];
+    tx.set(snap.ref, { status: 'cancelled', updatedAt: Timestamp.now() }, { merge: true });
+    tx.set(schedule.ref, { shopId: snap.data().shopId, staffId, day: TODAY, slots, updatedAt: Timestamp.now() });
   });
 
 /** Neuer Laden wie utils/shop-setup.ts → createShop (Felder aus dem Assistenten, plans.ts newShopPlanFields) */
@@ -230,65 +274,269 @@ describe('Ohne Anmeldung: Läden finden, buchen, Nummer ziehen', () => {
     await assertSucceeds(getDocs(query(collection(db, 'appointments'), where('staffId', '==', STAFF), where('startTime', '>=', inDays(0)), where('startTime', '<', inDays(1)))));
   });
 
-  test('Nummer ziehen: Termin, Belegung und Tagesnummer in einer Transaktion (appointments.ts createAppointment)', async () => {
+  test('Nummer ziehen ohne Konto, zweite Nummer am Tag, Absagen auf /nummer/<id>', async () => {
     await seedShop();
     const db = anon();
-    const day = new Date().toISOString().slice(0, 10);
-    const appointment = doc(collection(db, 'appointments'));
-    const start = inDays(0.1);
-    const end = Timestamp.fromMillis(start.toMillis() + 30 * 60000);
-    await assertSucceeds(runTransaction(db, async (tx) => {
-      const schedule = await tx.get(doc(db, 'schedules', `${STAFF}_${day}`));
-      const numbers = await tx.get(doc(db, 'shop_days', `${SHOP}_${day}`));
-      const now = Timestamp.now();
-      tx.set(appointment, {
-        id: appointment.id, shopId: SHOP, staffId: STAFF, serviceId: 'leistung1', startTime: start, endTime: end, status: 'scheduled',
-        type: 'queue', isAnonymous: true, customerName: 'Gast', checkEarlierOptions: false, referenceCode: 'A12', createdAt: now, updatedAt: now,
-      });
-      tx.set(schedule.ref, { shopId: SHOP, staffId: STAFF, day, slots: { [appointment.id]: { start, end } }, updatedAt: now });
-      tx.set(numbers.ref, { shopId: SHOP, day, codes: [...(numbers.data()?.codes || []), 'A12'], updatedAt: now });
-    }));
-
-    // Absagen auf /nummer/<id> (cancelAppointment): Status und Belegung in einer Transaktion
-    await assertSucceeds(runTransaction(db, async (tx) => {
-      const snap = await tx.get(appointment);
-      const schedule = await tx.get(doc(db, 'schedules', `${STAFF}_${day}`));
-      tx.set(snap.ref, { status: 'cancelled', updatedAt: Timestamp.now() }, { merge: true });
-      tx.set(schedule.ref, { shopId: SHOP, staffId: STAFF, day, slots: {}, updatedAt: Timestamp.now() });
-    }));
+    const first = await assertSucceeds(drawNumber(db, ticket({ isAnonymous: true })));
+    await assertSucceeds(drawNumber(db, ticket({ isAnonymous: true, customerName: 'Gast 2' }), 'B07'));
+    await assertSucceeds(cancel(db, first.id));
   });
 
-  test('alte Warteschlange abfragen ja, schreiben nein', async () => {
+  test('alte Warteschlange: eigene abfragen ja, fremde und schreiben nein', async () => {
     const db = as(OTHER);
     await assertSucceeds(getDocs(query(collection(db, 'queue'), where('shopId', '==', SHOP), where('customerId', '==', OTHER), where('status', '==', 'waiting'))));
+    await assertFails(getDocs(query(collection(db, 'queue'), where('shopId', '==', SHOP))));
+    await assertFails(getDocs(query(collection(anon(), 'queue'), where('shopId', '==', SHOP))));
     await assertFails(addDoc(collection(db, 'queue'), { shopId: SHOP, customerId: OTHER, status: 'waiting' }));
   });
 });
 
-describe('Offen wie bisher: Inhaber, Team, Kunden', () => {
+describe('Termine: Nummer ziehen und buchen', () => {
+  test('mit Konto für sich selbst: Nummer (queue) und Termin (booked)', async () => {
+    await seedShop();
+    await assertSucceeds(drawNumber(as(OTHER), ticket({ customerId: OTHER, customerPhone: '0170', checkEarlierOptions: true, checkEarlierOptionsCreatedAt: Timestamp.now() })));
+    await assertSucceeds(addDoc(collection(as(OTHER), 'appointments'), ticket({ customerId: OTHER, type: 'booked' })));
+  });
+
+  for (const [what, db, data] of [
+    ['ohne Konto auf ein fremdes Konto', () => anon(), ticket({ isAnonymous: true, customerId: OTHER })],
+    ['mit Konto auf ein anderes Konto', () => as(OTHER), ticket({ customerId: TEAM })],
+    ['ohne Konto als Termin statt Nummer', () => anon(), ticket({ isAnonymous: true, type: 'booked' })],
+    ['gleich aufgerufen', () => anon(), ticket({ isAnonymous: true, status: 'in-progress' })],
+    ['mit Aufrufzeit', () => anon(), ticket({ isAnonymous: true, calledAt: Timestamp.now() })],
+    ['mit Nachricht an den Kunden', () => as(OTHER), ticket({ customerId: OTHER, customerNotice: 'moved' })],
+    ['bei einer Person eines anderen Ladens', () => anon(), ticket({ isAnonymous: true, staffId: STAFF2 })],
+    ['bei einer Person, die es nicht gibt', () => anon(), ticket({ isAnonymous: true, staffId: 'gibtsnicht' })],
+    ['ohne Laden', () => anon(), ticket({ isAnonymous: true, shopId: 'gibtsnicht' })],
+  ]) {
+    test(`${what}: abgelehnt`, async () => {
+      await seedShop();
+      await assertFails(addDoc(collection(db(), 'appointments'), data));
+    });
+  }
+
+  test('gesperrter Laden: Kunden ziehen keine Nummer, der Inhaber trägt weiter ein', async () => {
+    await seedShop({ suspended: { at: Timestamp.now(), accounts: [] } });
+    await assertFails(drawNumber(anon(), ticket({ isAnonymous: true })));
+    await assertFails(addDoc(collection(as(OTHER), 'appointments'), ticket({ customerId: OTHER })));
+    await assertSucceeds(addDoc(collection(as(OWNER), 'appointments'), ticket({ customerId: 'walk-in' })));
+  });
+
+  test('Belegung: falsche ID, fremde Felder oder Person eines anderen Ladens – abgelehnt', async () => {
+    await seedShop();
+    const db = anon();
+    const slots = { x: { start: START, end: END } };
+    await assertFails(setDoc(doc(db, 'schedules', `${STAFF}_2099-01-01`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now(), extra: 1 }));
+    await assertFails(setDoc(doc(db, 'schedules', `${STAFF2}_${TODAY}`), { shopId: SHOP, staffId: STAFF2, day: TODAY, slots, updatedAt: Timestamp.now() }));
+    await assertSucceeds(setDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP2, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now() }));
+    await assertFails(deleteDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`)));
+  });
+
+  test('Tagesnummern: nur genau eine dazu, keine weg', async () => {
+    await seedShop();
+    const db = anon();
+    const ref = doc(db, 'shop_days', `${SHOP}_${TODAY}`);
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now() }));
+    await assertSucceeds(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: [], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A2'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2', 'A3'], updatedAt: Timestamp.now() }));
+    await assertSucceeds(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(doc(db, 'shop_days', `${SHOP}_2099-01-01`), { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(doc(db, 'shop_days', `gibtsnicht_${TODAY}`), { shopId: 'gibtsnicht', day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
+  });
+});
+
+describe('Termine: absagen, übernehmen, ändern', () => {
+  test('ohne Konto: Nummer ohne Konto absagen ja, Termin eines Kontos oder Zeit ändern nein', async () => {
+    await seedShop();
+    await seedAppointment('ohne', { isAnonymous: true });
+    await seedAppointment('mit', { customerId: OTHER });
+    const db = anon();
+    await assertFails(cancel(db, 'mit'));
+    await assertFails(setDoc(doc(db, 'appointments', 'ohne'), { startTime: inDays(2), updatedAt: Timestamp.now() }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'appointments', 'ohne'), { status: 'completed', updatedAt: Timestamp.now() }, { merge: true }));
+    await assertSucceeds(cancel(db, 'ohne'));
+    await assertFails(setDoc(doc(db, 'appointments', 'ohne'), { status: 'scheduled', updatedAt: Timestamp.now() }, { merge: true }));
+  });
+
+  test('Kunde: eigenen Termin absagen ja, fremden nein', async () => {
+    await seedShop();
+    await seedAppointment('meins', { customerId: OTHER });
+    await seedAppointment('fremd', { customerId: 'jemand' });
+    await assertFails(cancel(as(OTHER), 'fremd'));
+    await assertSucceeds(cancel(as(OTHER), 'meins'));
+  });
+
+  test('Nummer ohne Konto ins eigene Konto übernehmen (AnonymousBookingLinker)', async () => {
+    await seedShop();
+    await seedAppointment('ohne', { isAnonymous: true });
+    await seedAppointment('tresen', { customerId: 'walk-in' });
+    const db = as(OTHER);
+    const claim = (id, uid = OTHER, extra = {}) =>
+      setDoc(doc(db, 'appointments', id), { customerId: uid, customerName: 'Kim', isAnonymous: false, updatedAt: Timestamp.now(), ...extra }, { merge: true });
+    await assertFails(claim('ohne', TEAM));
+    await assertFails(claim('ohne', OTHER, { startTime: inDays(3) }));
+    await assertFails(claim('tresen'));
+    await assertFails(setDoc(doc(anon(), 'appointments', 'ohne'), { customerName: 'Anders', updatedAt: Timestamp.now() }, { merge: true }));
+    await assertSucceeds(claim('ohne'));
+    await assertFails(claim('ohne', TEAM));
+  });
+
+  test('Inhaber und Team: aufrufen, verschieben, ändern; nie in einen anderen Laden', async () => {
+    await seedShop();
+    await seedAppointment('t1', { isAnonymous: true });
+    await assertSucceeds(setDoc(doc(as(OWNER), 'appointments', 't1'), { status: 'in-progress', calledAt: Timestamp.now(), lastCalledAt: Timestamp.now(), updatedAt: Timestamp.now() }, { merge: true }));
+    await assertSucceeds(setDoc(doc(as(TEAM), 'appointments', 't1'), { status: 'completed', completedAt: Timestamp.now(), updatedAt: Timestamp.now() }, { merge: true }));
+    await assertSucceeds(setDoc(doc(as(TEAM), 'appointments', 't1'), { startTime: inDays(1), endTime: inDays(1.02), customerNotice: 'moved', updatedAt: Timestamp.now() }, { merge: true }));
+    await assertFails(setDoc(doc(as(OWNER), 'appointments', 't1'), { shopId: SHOP2 }, { merge: true }));
+    await assertSucceeds(addDoc(collection(as(TEAM), 'appointments'), ticket({ customerId: 'walk-in', type: 'booked' })));
+  });
+
+  test('fremdes Konto: weder aufrufen noch verschieben noch löschen', async () => {
+    await seedShop();
+    await seedAppointment('t1', { customerId: 'jemand' });
+    for (const db of [as(OTHER), anon()]) {
+      await assertFails(setDoc(doc(db, 'appointments', 't1'), { status: 'in-progress', updatedAt: Timestamp.now() }, { merge: true }));
+      await assertFails(setDoc(doc(db, 'appointments', 't1'), { startTime: inDays(2), updatedAt: Timestamp.now() }, { merge: true }));
+      await assertFails(deleteDoc(doc(db, 'appointments', 't1')));
+    }
+    await assertSucceeds(deleteDoc(doc(as(OWNER), 'appointments', 't1')));
+  });
+});
+
+describe('Personen, Leistungen, Pausen', () => {
   test('Inhaber pflegt Leistungen, Personen und Pausen', async () => {
     await seedShop();
     const db = as(OWNER);
     await assertSucceeds(setDoc(doc(db, 'services', 'neu'), { id: 'neu', shopId: SHOP, name: 'Farbe', duration: 60, price: 50 }));
+    await assertSucceeds(setDoc(doc(db, 'services', 'neu'), { archived: true, archivedAt: Timestamp.now(), updatedAt: Timestamp.now() }, { merge: true }));
     await assertSucceeds(setDoc(doc(db, 'staff', 'neu'), { id: 'neu', shopId: SHOP, name: 'Kim', isActive: true, userId: '' }));
-    await assertSucceeds(addDoc(collection(db, 'recurring-breaks'), { shopId: SHOP, staffId: STAFF, dayOfWeek: 1, startTime: '12:00', endTime: '13:00', active: true }));
+    await assertSucceeds(setDoc(doc(db, 'staff', 'ich'), { id: 'ich', shopId: SHOP, name: 'Chefin', isActive: true, userId: OWNER }));
+    await assertSucceeds(updateDoc(doc(db, 'staff', 'neu'), { userId: OWNER }));
+    await assertSucceeds(setDoc(doc(db, 'staff', STAFF), { isActive: false, updatedAt: Timestamp.now() }, { merge: true }));
+    const rb = await assertSucceeds(addDoc(collection(db, 'recurring-breaks'), { shopId: SHOP, staffId: STAFF, dayOfWeek: 1, startTime: '12:00', endTime: '13:00', active: true }));
+    await assertSucceeds(updateDoc(rb, { active: false, updatedAt: Timestamp.now() }));
+    await assertSucceeds(deleteDoc(rb));
     await assertSucceeds(setDoc(doc(db, 'breaks', 'neu'), { id: 'neu', shopId: SHOP, staffId: STAFF, startTime: inDays(1), endTime: inDays(1.1) }));
+    await assertSucceeds(deleteDoc(doc(db, 'breaks', 'neu')));
   });
 
-  test('Team: eigene Arbeitszeiten, Kunden anlegen, Termin aufrufen', async () => {
+  test('Inhaber: kein fremdes Konto verbinden, keine Einladung schreiben, nichts in einen anderen Laden', async () => {
+    await seedShop();
+    const db = as(OWNER);
+    await assertFails(setDoc(doc(db, 'staff', 'neu'), { shopId: SHOP, name: 'Kim', isActive: true, userId: OTHER }));
+    await assertFails(setDoc(doc(db, 'staff', 'neu'), { shopId: SHOP, name: 'Kim', isActive: true, userId: '', inviteTokenHash: 'abc' }));
+    await assertFails(updateDoc(doc(db, 'staff', STAFF), { userId: OTHER }));
+    await assertFails(updateDoc(doc(db, 'staff', STAFF), { inviteExpires: inDays(30) }));
+    await assertFails(updateDoc(doc(db, 'staff', STAFF), { shopId: SHOP2 }));
+    await assertFails(setDoc(doc(db, 'staff', 'neu2'), { shopId: SHOP2, name: 'Kim', isActive: true, userId: '' }));
+    await assertFails(setDoc(doc(db, 'services', 'neu'), { shopId: SHOP2, name: 'Farbe' }));
+    await assertFails(updateDoc(doc(db, 'services', 'leistung1'), { shopId: SHOP2 }));
+    await assertFails(setDoc(doc(db, 'breaks', 'neu'), { shopId: SHOP, staffId: STAFF2, startTime: inDays(1), endTime: inDays(1.1) }));
+    await assertFails(addDoc(collection(db, 'recurring-breaks'), { shopId: SHOP, staffId: STAFF2, dayOfWeek: 1, startTime: '12:00', endTime: '13:00', active: true }));
+  });
+
+  test('Team: eigene Arbeitszeiten ja, sonst nichts an Personen, Leistungen, Pausen', async () => {
     await seedShop();
     const db = as(TEAM);
-    await assertSucceeds(setDoc(doc(db, 'staff', STAFF), { workingHours: [{ dayOfWeek: 1, startTime: '08:00', endTime: '16:00', isWorking: true }] }, { merge: true }));
-    await assertSucceeds(setDoc(doc(db, 'customers', 'kunde1'), { id: 'kunde1', shopId: SHOP, name: 'Kundin', email: 'k@example.com', phone: '', isActive: false }));
-    await backend((admin) => setDoc(doc(admin, 'appointments', 't1'), { shopId: SHOP, staffId: STAFF, status: 'scheduled' }));
-    await assertSucceeds(setDoc(doc(db, 'appointments', 't1'), { status: 'in-progress', calledAt: Timestamp.now() }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db, 'staff', STAFF), { workingHours: [{ dayOfWeek: 1, startTime: '08:00', endTime: '16:00', isWorking: true }], updatedAt: Timestamp.now() }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'staff', STAFF), { name: 'Chefin', updatedAt: Timestamp.now() }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'staff', STAFF), { isActive: false, workingHours: [] }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'staff', 'neu'), { shopId: SHOP, name: 'Kim', userId: '' }));
+    await assertFails(setDoc(doc(db, 'services', 'neu'), { shopId: SHOP, name: 'Farbe' }));
+    await assertFails(setDoc(doc(db, 'breaks', 'neu'), { shopId: SHOP, staffId: STAFF, startTime: inDays(1), endTime: inDays(1.1) }));
   });
 
-  test('Kunde: eigenes Profil anlegen und ändern, Angebote lesen', async () => {
+  test('fremdes Konto und ohne Anmeldung: nicht ins Team eintragen, nichts ändern', async () => {
+    await seedShop();
+    for (const db of [as(OTHER), anon()]) {
+      await assertFails(updateDoc(doc(db, 'staff', 'person1'), { userId: OTHER }));
+      await assertFails(setDoc(doc(db, 'staff', 'neu'), { shopId: SHOP, name: 'Ich', isActive: true, userId: OTHER }));
+      await assertFails(setDoc(doc(db, 'staff', STAFF), { workingHours: [] }, { merge: true }));
+      await assertFails(updateDoc(doc(db, 'services', 'leistung1'), { price: 1 }));
+      await assertFails(setDoc(doc(db, 'breaks', 'neu'), { shopId: SHOP, staffId: STAFF, startTime: inDays(1), endTime: inDays(1.1) }));
+      await assertFails(addDoc(collection(db, 'recurring-breaks'), { shopId: SHOP, staffId: STAFF, dayOfWeek: 1, startTime: '00:00', endTime: '23:59', active: true }));
+    }
+  });
+});
+
+describe('Team-Vermerk', () => {
+  test('Deaktivieren nimmt das Team-Recht, Zurückholen gibt es wieder', async () => {
+    await seedShop();
+    await backend((db) => setDoc(doc(db, 'customers', 'k1'), { shopId: SHOP, name: 'Kundin', isActive: false }));
+    const kunden = () => getDocs(query(collection(as(TEAM), 'customers'), where('shopId', '==', SHOP)));
+    await assertSucceeds(kunden());
+    await assertSucceeds(deleteDoc(doc(as(OWNER), 'shops', SHOP, 'members', TEAM)));
+    await assertFails(kunden());
+    await assertFails(setDoc(doc(as(TEAM), 'appointments', 'x'), ticket({ customerId: 'walk-in' })));
+    await assertSucceeds(setDoc(doc(as(OWNER), 'shops', SHOP, 'members', TEAM), { staffId: STAFF, at: Timestamp.now() }));
+    await assertSucceeds(kunden());
+  });
+
+  test('nur für eine Person dieses Ladens mit genau diesem Konto; sonst niemand', async () => {
+    await seedShop();
+    await assertFails(setDoc(doc(as(OWNER), 'shops', SHOP, 'members', OTHER), { staffId: STAFF, at: Timestamp.now() }));
+    await assertFails(setDoc(doc(as(OWNER), 'shops', SHOP, 'members', OTHER), { staffId: STAFF2, at: Timestamp.now() }));
+    await assertFails(setDoc(doc(as(OTHER), 'shops', SHOP, 'members', OTHER), { staffId: STAFF, at: Timestamp.now() }));
+    await assertFails(setDoc(doc(as(TEAM), 'shops', SHOP, 'members', TEAM), { staffId: STAFF, at: Timestamp.now(), role: 'chef' }));
+    await assertFails(deleteDoc(doc(as(TEAM), 'shops', SHOP, 'members', TEAM)));
+    await assertFails(getDoc(doc(anon(), 'shops', SHOP, 'members', TEAM)));
+  });
+});
+
+describe('Kundenliste, Profile, Angebote', () => {
+  test('Kundenliste: Inhaber und Team lesen und legen an; andere nicht', async () => {
+    await seedShop();
+    await backend((db) => setDoc(doc(db, 'customers', 'k1'), { shopId: SHOP, name: 'Kundin', email: 'k@example.com', isActive: false }));
+    for (const db of [as(OWNER), as(TEAM)]) {
+      await assertSucceeds(getDocs(query(collection(db, 'customers'), where('shopId', '==', SHOP))));
+      await assertSucceeds(getDocs(query(collection(db, 'customers'), where('email', '==', 'k@example.com'), where('shopId', '==', SHOP))));
+    }
+    await assertSucceeds(setDoc(doc(as(TEAM), 'customers', 'k2'), { id: 'k2', shopId: SHOP, name: 'Neu', email: '', phone: '', isActive: false, createdAt: Timestamp.now(), updatedAt: Timestamp.now() }));
+    for (const db of [as(OTHER), anon()]) {
+      await assertFails(getDocs(query(collection(db, 'customers'), where('shopId', '==', SHOP))));
+      await assertFails(getDoc(doc(db, 'customers', 'k1')));
+      await assertFails(setDoc(doc(db, 'customers', 'k3'), { shopId: SHOP, name: 'X', isActive: false }));
+    }
+  });
+
+  test('Kundenliste: kein Konto verbinden, nicht aktiv anlegen, nicht ändern', async () => {
+    await seedShop();
+    await backend((db) => setDoc(doc(db, 'customers', 'k1'), { shopId: SHOP, name: 'Kundin', isActive: false }));
+    await assertFails(setDoc(doc(as(OWNER), 'customers', 'k2'), { shopId: SHOP, name: 'X', isActive: false, userId: OTHER }));
+    await assertFails(setDoc(doc(as(OWNER), 'customers', 'k2'), { shopId: SHOP, name: 'X', isActive: true }));
+    await assertFails(setDoc(doc(as(OWNER), 'customers', 'k2'), { shopId: SHOP, name: 'X', isActive: false, activationTokenHash: 'x' }));
+    await assertFails(updateDoc(doc(as(OWNER), 'customers', 'k1'), { userId: OTHER }));
+    await assertFails(updateDoc(doc(as(TEAM), 'customers', 'k1'), { name: 'Anders' }));
+  });
+
+  test('Profil: eigenes anlegen, ändern, lesen; fremdes weder lesen noch ändern', async () => {
+    await backend((db) => setDoc(doc(db, 'users', TEAM), { uid: TEAM, email: 't@example.com', role: 'employee', phoneNumber: '0171' }));
     const db = as(OTHER);
     await assertSucceeds(setDoc(doc(db, 'users', OTHER), { uid: OTHER, email: 'k@example.com', role: 'customer', createdAt: Timestamp.now() }));
     await assertSucceeds(updateDoc(doc(db, 'users', OTHER), { displayName: 'Kim', phoneNumber: '0170', updatedAt: Timestamp.now() }));
-    await assertSucceeds(getDocs(query(collection(db, 'earlier_slot_notifications'), where('userId', '==', OTHER), where('isAccepted', '==', false))));
+    await assertSucceeds(getDoc(doc(db, 'users', OTHER)));
+    await assertFails(updateDoc(doc(db, 'users', OTHER), { role: 'admin' }));
+    await assertFails(getDoc(doc(db, 'users', TEAM)));
+    await assertFails(getDoc(doc(as(OWNER), 'users', OTHER)));
+    await assertFails(getDocs(collection(anon(), 'users')));
+    await assertFails(updateDoc(doc(db, 'users', TEAM), { role: 'customer' }));
+    await assertFails(setDoc(doc(anon(), 'users', OTHER), { role: 'shopOwner' }));
+  });
+
+  test('Angebote „Früher dran“: eigene lesen, der Laden räumt auf; fremde nicht, schreiben nur das Backend', async () => {
+    await seedShop();
+    await backend((db) => setDoc(doc(db, 'earlier_slot_notifications', 'n1'), { userId: OTHER, shopId: SHOP, isAccepted: false }));
+    await assertSucceeds(getDocs(query(collection(as(OTHER), 'earlier_slot_notifications'), where('userId', '==', OTHER), where('isAccepted', '==', false))));
+    await assertSucceeds(getDoc(doc(as(OTHER), 'earlier_slot_notifications', 'n1')));
+    await assertSucceeds(getDocs(query(collection(as(OWNER), 'earlier_slot_notifications'), where('shopId', '==', SHOP))));
+    await assertFails(getDocs(query(collection(as(TEAM), 'earlier_slot_notifications'), where('userId', '==', OTHER))));
+    await assertFails(getDoc(doc(anon(), 'earlier_slot_notifications', 'n1')));
+    await assertFails(setDoc(doc(as(OTHER), 'earlier_slot_notifications', 'n2'), { userId: OTHER, shopId: SHOP, isAccepted: true }));
+    await assertFails(updateDoc(doc(as(OTHER), 'earlier_slot_notifications', 'n1'), { isAccepted: true }));
   });
 });
 

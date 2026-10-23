@@ -254,10 +254,18 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung vom 21.10.2026: Tarif-Felder am Laden (`plan`, `billing`, `trialEndsAt`, `founder`, `founderSince`,
-`grant`, `suspended`) setzt nur noch das Backend; den Rest des Ladens ändert nur sein Inhaber; Läden löschen nur mit
-Vermerk in `deleted_shops`; `meta` (Gründer-Zähler), `push_subscriptions` und `staff-invitations` sind für den
-Browser zu. Alles andere bleibt offen wie bisher, Buchen und Nummer ziehen ohne Anmeldung gehen weiter.
+Fassung vom 23.10.2026 (Kopfzeile `// Fassung:` in `firestore.rules`):
+- Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen, Leistungen, Pausen,
+  Termine, Belegung, Tagesnummern).
+- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Ohne Anmeldung und als Kunde nur Nummer ziehen,
+  buchen, die eigene absagen und eine Nummer ohne Konto ins eigene Konto übernehmen.
+- Kundenliste nur für Inhaber und Team, Profile nur für das eigene Konto, Angebote „Früher dran“ nur für das eigene.
+- Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `staff-invitations`, `verzeichnis` sind zu.
+
+**Team** erkennen die Regeln an einem Vermerk `shops/{shopId}/members/{uid}`. Ihn setzt das Backend beim Annehmen
+einer Einladung und gleicht ihn bei jedem Start mit den Personen ab (`backend/app/libs/team.py`, im Log „Team-Vermerke
+abgeglichen“). Deshalb gilt: **erst ausrollen, dann einspielen** – sonst sehen Personen im Team die Kundenliste
+nicht. Ein `git pull` bringt die Vermerke nicht mit; sie entstehen beim ersten Start des Dienstes.
 
 ### Einspielen
 
@@ -267,7 +275,7 @@ Browser zu. Alles andere bleibt offen wie bisher, Buchen und Nummer ziehen ohne 
    holt die neuen von GitHub (Branch `bildschirm`) und legt sie in die Zwischenablage:
 
 ```powershell
-& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service cloud\.firestore') { Write-Host 'In der Zwischenablage stehen keine Firestore-Regeln. Im Regel-Editor erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; if ($alt -match 'deleted_shops') { Write-Host 'In der Zwischenablage stehen schon die neuen Regeln. Fuer die Sicherung erst im Regel-Editor Strg+A, Strg+C, dann diesen Block noch einmal. Sind die neuen schon veroeffentlicht, ist nichts mehr zu tun.' -ForegroundColor Yellow; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('firestore-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/firestore.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service cloud\.firestore' -or $neu -notmatch 'deleted_shops') { Write-Host 'Die geladene Datei sieht nicht wie die neuen Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $datei = Join-Path $downloads 'firestore-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
+& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service cloud\.firestore') { Write-Host 'In der Zwischenablage stehen keine Firestore-Regeln. Im Regel-Editor erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/firestore.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service cloud\.firestore' -or $neu -notmatch '// Fassung: (\S+)') { Write-Host 'Die geladene Datei sieht nicht wie die Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $fassung = $Matches[1]; if ($alt -match '// Fassung: (\S+)' -and $Matches[1] -eq $fassung) { Write-Host "Die Fassung $fassung ist schon eingespielt. Nichts zu tun." -ForegroundColor Green; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('firestore-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; $datei = Join-Path $downloads 'firestore-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Fassung $fassung, Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
 ```
 
 4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen**. Meldet der Editor einen Fehler, nicht
@@ -277,8 +285,10 @@ Browser zu. Alles andere bleibt offen wie bisher, Buchen und Nummer ziehen ohne 
 
 - Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern; im privaten Fenster (ohne Anmeldung)
   eine Nummer ziehen und auf der Nummernseite wieder absagen.
-- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL bei den Tarif-Feldern),
-  dazu `regeln.cjs`, `fruehester-platz.cjs`, `seiten.cjs`, `tarife.cjs`, `laden-gesperrt.cjs`.
+- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL), dazu `regeln.cjs`,
+  `fruehester-platz.cjs`, `schlange-tresen.cjs`, `gleichzeitig.cjs`, `seiten.cjs`, `tarife.cjs`, `laden-gesperrt.cjs`,
+  `leistungen-kunden.cjs` (Kundenliste), `team-einladen.cjs` (Team), `durchlauf-warteschlange.cjs`.
+- Der Block oben ist mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/regeln-einspielen.test.ps1`.
 
 ### Zurücknehmen
 
