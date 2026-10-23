@@ -32,7 +32,8 @@ export interface SetupProgress {
   serviceIds: Record<string, string>;
   /** Personen-Keys, die schon angelegt sind */
   staffKeys: string[];
-  invitations: { name: string; email: string; link: string }[];
+  /** emailSent: Einladung ging per E-Mail raus; sonst steht in emailProblem, warum nicht */
+  invitations: { name: string; email: string; link: string; emailSent?: boolean; emailProblem?: string }[];
 }
 
 export interface DraftPerson {
@@ -356,9 +357,15 @@ export const createFromDraft = async (
     save();
     if (!p.isOwner && email) {
       try {
-        // Link vom Backend (am Eintrag, nur als Hash gespeichert); E-Mail verschickt erst der Inhaber
-        const invitation = await createStaffInvite(staff.id);
-        progress.invitations.push({ name: p.name.trim(), email, link: invitation.link });
+        // Link vom Backend (am Eintrag, nur als Hash gespeichert), gleich per E-Mail an die Person
+        const invitation = await createStaffInvite(staff.id, true);
+        progress.invitations.push({
+          name: p.name.trim(),
+          email,
+          link: invitation.link,
+          emailSent: invitation.email_sent,
+          emailProblem: invitation.email_problem,
+        });
       } catch (error) {
         // Ohne Link trotzdem aufführen: Die Fertig-Seite sagt dann, wo es ihn gibt
         console.error('Einladung fehlgeschlagen:', error);

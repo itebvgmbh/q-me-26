@@ -19,7 +19,9 @@ Bedienst du selbst Kunden, leg dich mit deiner eigenen E-Mail-Adresse an. Dann s
 
 ## Einladen, damit die Person ihren Tag sieht
 
-Es gibt zwei Wege. Beide verbinden genau diesen Eintrag im Team mit dem Konto der Person.
+Hast du die Person schon im Einrichtungsassistenten mit E-Mail eingetragen, ist ihre Einladung beim Eröffnen per E-Mail rausgegangen. Auf der Fertig-Seite steht, bei wem es geklappt hat.
+
+Sonst gibt es zwei Wege. Beide verbinden genau diesen Eintrag im Team mit dem Konto der Person.
 
 - **Per E-Mail einladen:** Tipp im Team auf **„Per E-Mail einladen“**, trag Name und E-Mail ein und tipp auf **„Einladung senden“**. Die Person steht sofort im Team, mit allen Leistungen und deinen Öffnungszeiten als Arbeitszeiten. Pass beides danach unter **„Bearbeiten“** an.
 - **Link selbst schicken:** Direkt nach „Person anlegen“ oder später unter **„Bearbeiten“** im Reiter **„Profil“** bei „Einladung“: Tipp auf **„Einladungslink erstellen“** und dann auf **„Link kopieren“** (am Handy auch **„Teilen“**). Schick ihn per WhatsApp, SMS oder E-Mail. Dafür muss im Team keine E-Mail stehen.

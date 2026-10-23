@@ -20,7 +20,7 @@ Direkt danach startet der Einrichtungsassistent. Er stellt dir eine Frage pro Bi
 3. **Branche wählen:** Damit schlagen wir dir passende Leistungen vor.
 4. **Öffnungszeiten:** Wähle eine Vorlage oder stell jeden Tag einzeln ein, gern mit Mittagspause.
 5. **Leistungen:** Hak Vorschläge an oder leg eigene an. Wichtig ist die **Dauer** – daraus berechnet Dranzeit, wann jemand dran ist. Hast du eine Webseite mit Preisliste, kann Dranzeit sie auslesen.
-6. **Wer arbeitet mit?** Sag, ob du selbst Kunden bedienst und wer sonst noch. Für jede Person legst du fest, welche Leistungen sie macht und an welchen Tagen sie da ist.
+6. **Wer arbeitet mit?** Sag, ob du selbst Kunden bedienst und wer sonst noch. Für jede Person legst du fest, welche Leistungen sie macht und an welchen Tagen sie da ist. Wer eine E-Mail-Adresse bekommt, erhält beim Eröffnen automatisch seine Einladung.
 7. **Laden eröffnen:** Prüf die Zusammenfassung und tipp auf **„Laden eröffnen“**.
 
 > **Tipp:** Du musst nicht alles perfekt machen. Jede Angabe lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.

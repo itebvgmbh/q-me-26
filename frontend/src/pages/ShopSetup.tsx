@@ -220,25 +220,39 @@ const ShopSetup = () => {
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
             <h2 id="einladungen" className="font-display text-xl font-bold">Einladungen fürs Team</h2>
-            <p className="text-sm text-muted-foreground">Schick jedem seinen Link. Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.</p>
+            <p className="text-sm text-muted-foreground">
+              {invitations.every((inv) => inv.emailSent)
+                ? 'Jede Person hat ihren Einladungslink per E-Mail bekommen.'
+                : 'Wer keine E-Mail bekommen hat, dem schick den Link selbst, z. B. per WhatsApp.'}{' '}
+              Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.
+            </p>
             <ul className="flex flex-col gap-2">
               {invitations.map((inv) => (
-                <li key={`${inv.name}-${inv.email}`} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                <li key={`${inv.name}-${inv.email}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="flex min-w-0 flex-col">
                     <span className="font-semibold">{inv.name}</span>
                     <span className="truncate text-sm text-muted-foreground">{inv.email}</span>
+                    {inv.emailSent ? (
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        E-Mail verschickt
+                      </span>
+                    ) : (
+                      inv.link && <span className="text-sm text-destructive">{inv.emailProblem || 'Keine E-Mail verschickt.'} Schick den Link selbst.</span>
+                    )}
                   </span>
                   {inv.link ? (
                     <Button
                       variant="outline"
                       size="sm"
+                      className="self-start sm:self-auto"
                       onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
                     >
                       <Copy className="h-4 w-4" aria-hidden="true" />
                       Link kopieren
                     </Button>
                   ) : (
-                    <span className="max-w-[12rem] text-right text-sm text-destructive">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
+                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-right">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
                   )}
                 </li>
               ))}
@@ -458,7 +472,7 @@ const ShopSetup = () => {
     }
     case 'team': {
       title = draft.ownerWorks ? 'Wer arbeitet noch mit?' : 'Wer arbeitet bei dir?';
-      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person einen Einladungslink für ihren eigenen Tagesplan.';
+      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person beim Eröffnen automatisch eine Einladung für ihren eigenen Tagesplan.';
       const setPerson = (key: string, p: Partial<{ name: string; email: string }>) => patch({ team: draft.team.map((t) => (t.key === key ? { ...t, ...p } : t)) });
       body = (
         <div className="flex flex-col gap-3">
@@ -678,6 +692,12 @@ const ShopSetup = () => {
                 );
               })}
             </ul>
+            {people.some((p) => !p.isOwner && p.email.trim()) && (
+              <p className="text-sm text-muted-foreground">
+                Beim Eröffnen geht eine Einladung per E-Mail an{' '}
+                {people.filter((p) => !p.isOwner && p.email.trim()).map((p) => p.name).join(', ')}.
+              </p>
+            )}
           </Section>
         </div>
       );
