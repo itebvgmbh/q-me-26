@@ -57,6 +57,7 @@ def test_block_leitet_stadtseiten_ans_backend():
     assert "@backend path /routes/* /friseur-ohne-termin" in b and "/sitemap.xml" in b
     assert " /friseur /friseur/* /barbershop /barbershop/*" in b  # Salon-Verzeichnis
     assert "reverse_proxy 127.0.0.1:8091" in b
+    assert "try_files {path} {path}.html /app.html /index.html" in b  # /preise → preise.html mit eigenem Kopf
     assert "www.dranzeit.de {\n\tredir https://dranzeit.de{uri} permanent" in b
     assert b.count("{") == b.count("}")
 

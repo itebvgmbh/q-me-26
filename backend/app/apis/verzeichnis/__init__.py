@@ -1,6 +1,7 @@
 """Salon-Verzeichnis, öffentlicher Teil (ohne Anmeldung): Karte, „Wünsch ich mir“, Eintrag entfernen.
 
     GET  /routes/verzeichnis/karte           Salons ohne Dranzeit mit Lage, für die Karte (/shop-map)
+    GET  /routes/verzeichnis/laden/{shopId}  Seite eines Dranzeit-Ladens im Verzeichnis (Canonical der Ladenansicht)
     POST /routes/verzeichnis/{id}/wunsch     Kunde wünscht sich Online-Nummern bei diesem Salon (zählt nur)
     POST /routes/verzeichnis/{id}/entfernen  Jemand vom Salon nimmt den Eintrag offline (Formular auf der Seite)
 
@@ -86,6 +87,17 @@ def karte() -> JSONResponse:
         if s["typ"] == "eintrag" and s.get("coordinates")
     ]
     return JSONResponse({"salons": rows}, headers={"Cache-Control": "public, max-age=60"})
+
+
+@router.get("/verzeichnis/laden/{shop_id}")
+def laden_seite(shop_id: str) -> JSONResponse:
+    """Die Ladenansicht der App (/shop-details) zeigt per Canonical auf diese Seite, damit Google nur eine nimmt."""
+    from app import verzeichnis_seiten
+
+    pfad = verzeichnis_seiten.laden_pfade().get(shop_id) if ID_RE.fullmatch(shop_id or "") else None
+    if not pfad:
+        raise HTTPException(status_code=404, detail="Dieser Laden hat keine Seite im Verzeichnis.")
+    return JSONResponse({"pfad": pfad}, headers={"Cache-Control": "public, max-age=300"})
 
 
 @router.post("/verzeichnis/{entry_id}/wunsch")
