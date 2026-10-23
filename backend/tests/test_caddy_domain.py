@@ -62,6 +62,21 @@ def test_block_leitet_stadtseiten_ans_backend():
     assert b.count("{") == b.count("}")
 
 
+def test_bausteine_ehrlich_404_und_html_immer_frisch():
+    b = cd.block("dranzeit.de", "8091", [])
+    assets, rest = b.split("handle /assets/* {", 1)[1].split("\n\t}\n", 1)
+    # Fehlender Baustein: kein try_files, also 404 statt app.html; ewig cachen nur, was es wirklich gibt
+    assert "try_files" not in assets and "file_server" in assets
+    assert '@vorhanden file\n\t\theader @vorhanden Cache-Control "public, max-age=31536000, immutable"' in assets
+    # HTML (index.html, app.html, preise.html …) und sw.js immer nachfragen
+    app = rest.split("\n\thandle {", 1)[1].split("\n\t}\n", 1)[0]
+    assert 'header Cache-Control "no-cache"' in app
+    assert "try_files {path} {path}.html {path}index.html /app.html /index.html" in app
+    assert "immutable" not in app
+    # Reihenfolge: Backend, Bausteine, Rest
+    assert b.index("handle @backend") < b.index("handle /assets/*") < b.index("\n\thandle {")
+
+
 
 def test_schreiben_behaelt_rechte_der_datei():
     import stat

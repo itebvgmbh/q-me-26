@@ -362,6 +362,19 @@ die App korrigiert ihn, Google sieht also nach dem Rendern trotzdem das Richtige
 Prüfen: `curl -s https://dranzeit.de/preise | grep canonical` zeigt `https://dranzeit.de/preise`,
 `curl -s https://dranzeit.de/ | grep -c ld+json` zeigt `1` (Startseite aus index.html), `curl -s https://dranzeit.de/login | grep -c canonical` zeigt `0`.
 
+## Zwischenspeicher im Browser (Cache)
+
+Die Bausteine unter `/assets/` tragen ihren Inhalt-Hash im Namen und dürfen ein Jahr im Browser bleiben
+(`immutable`). Alles andere – vor allem die HTML-Dateien `index.html`, `app.html`, `preise.html` … – kommt mit
+`Cache-Control: no-cache`: Der Browser fragt jedes Mal nach (meist nur `304`), damit nach dem Ausrollen sofort die
+neuen Bausteine geladen werden. Fehlt ein Baustein (Seite vor dem Ausrollen geöffnet), antwortet Caddy ehrlich mit
+`404` statt mit `app.html`; die App lädt dann einmal neu. Beides stellt `caddy-domain.py` ein – nach diesem Update
+**einmal neu ausführen** (Adressen wie oben).
+
+Prüfen: `curl -sI https://dranzeit.de/preise | grep -i cache-control` zeigt `no-cache`,
+`curl -so /dev/null -w '%{http_code}' https://dranzeit.de/assets/gibts-nicht.js` zeigt `404`.
+Wie groß die Bausteine je Seite sind: `node dev/bundle-groesse.cjs` (Anleitung `dev/README.md`).
+
 ## Telefon-Assistent (Probelauf)
 
 Eine Sprach-KI nimmt Anrufe für einen Laden an. Sie nennt freie Termine und bucht sie, sagt die Wartezeit, zieht
