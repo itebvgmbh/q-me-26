@@ -97,9 +97,11 @@ const tempShop = async (page, name, state = {}) => {
         ...(suspended ? { suspended: { at: now } } : {}),
       });
       const service = await fs.addDoc(fs.collection(firestore, 'services'), { shopId: ref.id, name: 'Schnitt', duration: 30, price: 20, createdAt: now, updatedAt: now });
-      const staff = await fs.addDoc(fs.collection(firestore, 'staff'), {
+      // E-Mail der Person bei den Kontaktdaten des Ladens (nur Inhaber), wie createStaff in der App
+      const { createStaff } = await import('/src/utils/firestore/staff.ts');
+      const staff = await createStaff({
         shopId: ref.id, name: 'Robin', email: 'robin@example.com', phone: '', role: 'staff', serviceIds: [service.id], isActive: true,
-        status: 'available', userId: '', createdAt: now, updatedAt: now,
+        status: 'available', userId: '',
         workingHours: days.map((d) => ({ dayOfWeek: d, startTime: '08:00', endTime: '18:00', isWorking: d !== 0 })),
       });
       return { email, pw, uid, shopId: ref.id, staffId: staff.id, serviceId: service.id };
@@ -116,10 +118,12 @@ const removeTempShop = (page, shop) =>
     const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
     const { firestore } = await import('/src/utils/firestore-client.ts');
     const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    for (const coll of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'breaks', 'recurring-breaks', 'schedules', 'shop_days']) {
+    // Termine vor ihren Kurzfassungen: die darf erst weg, wenn der Termin weg ist (firestore.rules)
+    for (const coll of ['appointments', 'public_appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'breaks', 'recurring-breaks', 'schedules', 'shop_days']) {
       const snap = await fs.getDocs(fs.query(fs.collection(firestore, coll), fs.where('shopId', '==', shopId)));
       for (const d of snap.docs) await fs.deleteDoc(d.ref);
     }
+    for (const d of (await fs.getDocs(fs.collection(firestore, 'shops', shopId, 'staff_contacts'))).docs) await fs.deleteDoc(d.ref);
     // Laden löschen geht nur mit Vermerk in deleted_shops im selben Schritt (firestore.rules)
     const batch = fs.writeBatch(firestore);
     batch.set(fs.doc(firestore, 'deleted_shops', shopId), { owner: uid, deletedAt: fs.Timestamp.now() });

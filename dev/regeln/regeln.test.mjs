@@ -540,9 +540,10 @@ describe('Personen, Leistungen, Pausen', () => {
     const contact = (db, staffId = STAFF, data = { email: 'robin@example.com', phone: '0171', updatedAt: Timestamp.now() }) =>
       setDoc(doc(db, 'shops', SHOP, 'staff_contacts', staffId), data, { merge: true });
     // Neue Person wie createStaff: Eintrag und Kontaktdaten in einem Schritt
-    const batch = writeBatch(as(OWNER));
-    batch.set(doc(as(OWNER), 'staff', 'neu'), { id: 'neu', shopId: SHOP, name: 'Kim', isActive: true, userId: '' });
-    batch.set(doc(as(OWNER), 'shops', SHOP, 'staff_contacts', 'neu'), { email: 'kim@example.com', phone: '', updatedAt: Timestamp.now() });
+    const owner = as(OWNER);
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, 'staff', 'neu'), { id: 'neu', shopId: SHOP, name: 'Kim', isActive: true, userId: '' });
+    batch.set(doc(owner, 'shops', SHOP, 'staff_contacts', 'neu'), { email: 'kim@example.com', phone: '', updatedAt: Timestamp.now() });
     await assertSucceeds(batch.commit());
     await assertSucceeds(contact(as(OWNER)));
     await assertSucceeds(getDocs(collection(as(OWNER), 'shops', SHOP, 'staff_contacts')));
