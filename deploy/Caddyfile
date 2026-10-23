@@ -29,7 +29,8 @@ __DOMAIN__ {
 	handle {
 		root * __WEB_ROOT__
 		header Cache-Control "no-cache"
-		try_files {path} /index.html
+		# /preise → preise.html (eigener Titel und Canonical), sonst app.html (frontend/vite.config.ts, seitenKoepfe)
+		try_files {path} {path}.html /app.html /index.html
 		file_server
 	}
 

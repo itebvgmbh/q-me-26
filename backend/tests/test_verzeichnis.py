@@ -340,6 +340,17 @@ def test_karte_wunsch_entfernen():
     assert "kontakt" not in store.hole("e1")  # nicht in Firestore (dort ohne Anmeldung lesbar)
 
 
+def test_laden_seite_fuer_canonical():
+    frisch([eintrag("e1", "Haarwerk"), eintrag("laden-s1", "Kings Barber", shopId="s1", kategorie="barbershop", slug="kings-barber")],
+           [{"id": "s1", "name": "Kings Barber", "street": "Weg 1", "postalCode": "10115", "city": "Berlin"}])
+    app = FastAPI()
+    app.include_router(public_api.router, prefix="/routes")
+    c = TestClient(app)
+    assert c.get("/routes/verzeichnis/laden/s1").json() == {"pfad": "/barbershop/berlin/kings-barber"}
+    assert c.get("/routes/verzeichnis/laden/e1").status_code == 404  # Salon ohne Dranzeit ist kein Laden
+    assert c.get("/routes/verzeichnis/laden/gibt-es-nicht").status_code == 404
+
+
 # --- Betreiber -------------------------------------------------------------------------------------------------------
 
 
