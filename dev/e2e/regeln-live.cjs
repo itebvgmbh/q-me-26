@@ -3,6 +3,8 @@
 //  - Der Inhaber ändert seinen Laden, aber keine Tarif-Felder (trialEndsAt, grant, billing, suspended, founder, plan)
 //  - Löschen geht nur mit Vermerk in deleted_shops (geprüft wird nur, dass es ohne nicht geht)
 //  - Ohne Anmeldung: Läden lesen ja, Gründer-Zähler (meta) und Push-Adressen nein
+//  - Termine (Namen, Handynummern, E-Mails) nur Laden und eigenes Konto, ohne Anmeldung nur die Kurzfassung; Nummer
+//    ohne Konto nur mit Hash des Schlüssels, absagen nicht im Browser; Kontaktdaten des Teams nur der Inhaber
 // Vor dem Einspielen schlagen die Tarif-Prüfungen fehl (dann ist die Lücke noch offen); was dabei doch geschrieben
 // wurde, nimmt das Skript sofort wieder weg.
 // Braucht: Testdaten (python dev/fixtures.py anlegen), keinen Entwicklungsserver.
@@ -114,5 +116,61 @@ run(async () => {
   } });
   if (foreign.status === 200) await http('DELETE', `${FS}/appointments/${foreign.data.name.split('/').pop()}`, null, token);
   rows.push({ name: 'Ohne Anmeldung: Termin für fremdes Konto', pass: foreign.status === 403, detail: `${status(foreign)}${foreign.status === 200 ? ' – angelegt und gelöscht' : ''}` });
+
+  // Fassung 2026-10-23.2: Namen, Handynummern, E-Mails nur für Laden und eigenes Konto. Gefragt wird nach dem Termin aus
+  // fixtures.py (Montag 10:00) und der Person des Testladens; Inhalte liest das Skript nicht, nur die Statuscodes.
+  const apptId = (fx.docs || []).find((d) => d.startsWith('appointments/'))?.split('/')[1] || NONE;
+  const anonAppt = await http('GET', `${FS}/appointments/${apptId}`);
+  rows.push({ name: 'Ohne Anmeldung: Termin gesperrt', pass: anonAppt.status === 403, detail: status(anonAppt) });
+  const anonAppts = await http('POST', `${FS}:runQuery`, byShop('appointments', fx.shopId));
+  rows.push({ name: 'Ohne Anmeldung: Termine des Ladens gesperrt', pass: anonAppts.status === 403, detail: status(anonAppts) });
+  const ownAppts = await http('POST', `${FS}:runQuery`, byShop('appointments', fx.shopId), token);
+  rows.push({ name: 'Inhaber: Termine des Ladens lesbar', pass: ownAppts.status === 200, detail: status(ownAppts) });
+  const publicView = await http('GET', `${FS}/public_appointments/${apptId}`);
+  rows.push({ name: 'Ohne Anmeldung: Kurzfassung lesbar', pass: publicView.status === 200, detail: status(publicView) });
+  const forged = await http('PATCH', `${FS}/public_appointments/${apptId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'cancelled' } } });
+  if (forged.status === 200) {
+    await http('PATCH', `${FS}/public_appointments/${apptId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'scheduled' } } }, token);
+  }
+  rows.push({ name: 'Ohne Anmeldung: Kurzfassung verfälschen', pass: forged.status === 403, detail: `${status(forged)}${forged.status === 200 ? ' – geschrieben und zurückgenommen' : ''}` });
+
+  // Nummer ohne Konto weit in der Zukunft: ohne Hash des Schlüssels abgelehnt; mit Hash angelegt, dann ohne Anmeldung
+  // absagen abgelehnt (das geht nur übers Backend mit dem Schlüssel). Danach wieder weg.
+  const later = new Date(Date.now() + 41 * 86400000);
+  const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(later);
+  const draw = (id, extra) => {
+    const t = { timestampValue: later.toISOString() };
+    const e = { timestampValue: new Date(later.getTime() + 1800000).toISOString() };
+    const common = { shopId: { stringValue: fx.shopId }, staffId: { stringValue: fx.staffId }, serviceId: { stringValue: fx.serviceId },
+      status: { stringValue: 'scheduled' }, type: { stringValue: 'queue' }, isAnonymous: { booleanValue: true }, startTime: t, endTime: e };
+    return http('POST', `${FS}:commit`, { writes: [
+      { update: { name: `${DOCS}/appointments/${id}`, fields: { ...common, customerName: { stringValue: 'Regelprobe' }, ...extra } }, currentDocument: { exists: false } },
+      { update: { name: `${DOCS}/public_appointments/${id}`, fields: { ...common, shopDay: { stringValue: `${fx.shopId}_${day}` }, staffDay: { stringValue: `${fx.staffId}_${day}` } } } },
+    ] });
+  };
+  const removeProbe = (id) => http('POST', `${FS}:commit`, { writes: [{ delete: `${DOCS}/appointments/${id}` }, { delete: `${DOCS}/public_appointments/${id}` }] }, token);
+  const noKeyId = `regelprobe-${Date.now()}a`;
+  const noKey = await draw(noKeyId, {});
+  if (noKey.status === 200) await removeProbe(noKeyId);
+  rows.push({ name: 'Ohne Anmeldung: Nummer ohne Schlüssel', pass: noKey.status === 403, detail: `${status(noKey)}${noKey.status === 200 ? ' – angelegt und gelöscht' : ''}` });
+  const probeId = `regelprobe-${Date.now()}b`;
+  const withKey = await draw(probeId, { ticketKeyHash: { stringValue: 'f'.repeat(64) } });
+  rows.push({ name: 'Ohne Anmeldung: Nummer ziehen', pass: withKey.status === 200, detail: status(withKey) });
+  if (withKey.status === 200) {
+    const anonCancel = await http('PATCH', `${FS}/appointments/${probeId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'cancelled' } } });
+    rows.push({ name: 'Ohne Anmeldung: absagen ohne Backend', pass: anonCancel.status === 403, detail: status(anonCancel) });
+    const removed = await removeProbe(probeId);
+    rows.push({ name: 'Inhaber räumt die Probe-Nummer weg', pass: removed.status === 200, detail: status(removed) });
+  }
+
+  // Kontaktdaten der Personen: nur der Inhaber, nicht am öffentlichen Eintrag
+  const contactPath = `shops/${fx.shopId}/staff_contacts/${fx.staffId}`;
+  const anonContact = await http('GET', `${FS}/${contactPath}`);
+  rows.push({ name: 'Ohne Anmeldung: Kontaktdaten des Teams gesperrt', pass: anonContact.status === 403, detail: status(anonContact) });
+  const ownContact = await http('GET', `${FS}/${contactPath}`, null, token);
+  rows.push({ name: 'Inhaber: Kontaktdaten des Teams lesbar', pass: ownContact.status === 200, detail: status(ownContact) });
+  const staffMail = await http('PATCH', `${FS}/staff/${fx.staffId}?updateMask.fieldPaths=email`, { fields: { email: { stringValue: 'regelprobe@example.com' } } }, token);
+  if (staffMail.status === 200) await http('PATCH', `${FS}/staff/${fx.staffId}?updateMask.fieldPaths=email`, { fields: {} }, token);
+  rows.push({ name: 'E-Mail am öffentlichen Eintrag: abgelehnt', pass: staffMail.status === 403, detail: `${status(staffMail)}${staffMail.status === 200 ? ' – geschrieben und zurückgenommen' : ''}` });
   return report(rows);
 });

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { TimeSlot } from '../types';
 import { BookingResponse, QueueBookingService } from '../QueueBookingService';
 import { isSlotConflict } from '../booking-rules';
+import { ticketPath } from '../ticket-key';
 
 /**
  * Custom hook for managing the state of the booking process
@@ -72,7 +73,7 @@ export const useBookingState = () => {
       if (bookingResult.appointmentId) {
         // Eigene Seite je Nummer: live, mit Benachrichtigung (pages/Nummer.tsx). War der angezeigte Platz
         // schon weg, hat QueueBookingService gleich den nächsten genommen – die Seite sagt das dazu.
-        navigate(`/nummer/${bookingResult.appointmentId}?neu=1${bookingResult.moved ? '&verschoben=1' : ''}`);
+        navigate(ticketPath(bookingResult.appointmentId, bookingResult.ticketKey, `?neu=1${bookingResult.moved ? '&verschoben=1' : ''}`));
       } else if (bookingResult.isAnonymous) {
         setBookedSlot(bookingResult.bookedSlot ?? nextAvailableSlot);
         // Show successful anonymous booking with reference code

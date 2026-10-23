@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { collection, doc, getDoc, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Bell, BellRing, Check, Mail } from 'lucide-react';
@@ -14,7 +14,9 @@ import { HilfeLink } from '../components/HilfeLink';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
 import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
-import type { Appointment, Shop } from '../utils/firestore';
+import type { Shop } from '../utils/firestore';
+import { publicFromDoc, publicRef, staffDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
+import { cancelTicket, keyFromHash, rememberTicketKey, storedTicketKey } from '../utils/ticket-key';
 import { hasFeature } from '../utils/plans';
 import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
 import {
@@ -25,6 +27,7 @@ import {
   pushEnabledFor,
   pushSupported,
   rememberTicket,
+  savedNotifyEmail,
   setNotifyEmail,
   type PushConfig,
 } from '../utils/push';
@@ -34,32 +37,42 @@ import { isConnectionError, retryWithSimpleConnection } from '../utils/connectio
 // So lange darf die Nummer brauchen, bevor die Seite mit einfacher Verbindungsart neu lädt (utils/connection.ts)
 const SLOW_CONNECTION_MS = 8000;
 
-type Live = Appointment & { notifyEmail?: string | null };
-
 const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
 
-/** Eigene Seite je Nummer: aktualisiert sich live, von hier aus Benachrichtigung einschalten. */
+/**
+ * Eigene Seite je Nummer: aktualisiert sich live, von hier aus Benachrichtigung einschalten.
+ * Liest nur die öffentliche Kurzfassung (utils/firestore/public-appointments.ts – Zeit, Status, Nummer, keine
+ * Namen). Eine Nummer ohne Konto gibt zurück, wer ihren Schlüssel hat: im Link (#k=…) oder in diesem Browser.
+ */
 export default function Nummer() {
   const { id = '' } = useParams();
   const [params] = useSearchParams();
+  const { hash } = useLocation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const ticketKey = useMemo(() => keyFromHash(hash) || storedTicketKey(id), [hash, id]);
   const justJoined = params.get('neu') === '1';
   // Angezeigter Platz war beim Bestätigen schon weg, die Nummer hat gleich den nächsten bekommen (QueueBookingService)
   const movedOnJoin = justJoined && params.get('verschoben') === '1';
 
-  const [appt, setAppt] = useState<Live | null>(null);
+  const [appt, setAppt] = useState<PublicAppointment | null>(null);
   const [missing, setMissing] = useState(false);
   const [names, setNames] = useState<{ shop?: string; service?: string; staff?: string }>({});
   const [shopData, setShopData] = useState<Shop | null>(null);
-  const [lane, setLane] = useState<Appointment[]>([]);
+  const [lane, setLane] = useState<PublicAppointment[]>([]);
   const [now, setNow] = useState(() => Date.now());
+
+  // Schlüssel aus dem Link in diesem Browser merken: Startseite, „Konto anlegen“ und Absagen finden ihn dann auch so
+  useEffect(() => {
+    const fromLink = keyFromHash(hash);
+    if (id && fromLink) rememberTicketKey(id, fromLink);
+  }, [id, hash]);
 
   // Die Nummer selbst, live
   useEffect(() => {
     if (!id) return;
     return onSnapshot(
-      doc(firestore, 'appointments', id),
+      publicRef(firestore, id),
       (snap) => {
         // Ohne Verbindung meldet Firestore nach ~10 s „nicht da“ aus dem leeren Zwischenspeicher –
         // dann weiter warten statt „Diese Nummer gibt es nicht“; das sagt nur der Server
@@ -68,7 +81,7 @@ export default function Nummer() {
           if (fromServer) setMissing(true);
           return;
         }
-        setAppt({ id: snap.id, ...snap.data() } as Live);
+        setAppt({ id: snap.id, ...snap.data() } as PublicAppointment);
       },
       (error) => {
         if (isConnectionError(error) && retryWithSimpleConnection()) return;
@@ -107,21 +120,11 @@ export default function Nummer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
 
-  // Wer heute bei derselben Person ansteht, live (gleiche Abfrage wie utils/bookings.ts)
+  // Wer an dem Tag bei derselben Person ansteht, live (gleiche Abfrage wie utils/bookings.ts)
   useEffect(() => {
     if (!appt?.staffId || !appt.startTime) return;
-    const start = safelyConvertToDate(appt.startTime);
-    const dayStart = new Date(start);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const q = query(
-      collection(firestore, 'appointments'),
-      where('staffId', '==', appt.staffId),
-      where('startTime', '>=', Timestamp.fromDate(dayStart)),
-      where('startTime', '<', Timestamp.fromDate(dayEnd)),
-    );
-    return onSnapshot(q, (snap) => setLane(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment)), () => setLane([]));
+    const q = staffDayQuery(firestore, appt.staffId, safelyConvertToDate(appt.startTime));
+    return onSnapshot(q, (snap) => setLane(snap.docs.map(publicFromDoc)), () => setLane([]));
   }, [appt?.staffId, appt?.startTime?.seconds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -156,13 +159,16 @@ export default function Nummer() {
   }
 
   const open = appt.status === 'scheduled' || appt.status === 'in-progress';
-  const number = appt.referenceCode || (appt.customerName ? appt.customerName.split(' ')[0] : '—');
+  const number = appt.referenceCode || '—';
   const isQueue = appt.type !== 'booked';
+  // Ohne Konto mit dem Schlüssel über das Backend, mit Konto direkt (die Regeln lassen nur den eigenen Termin zu)
+  const canCancel = appt.isAnonymous ? Boolean(ticketKey) : Boolean(user);
 
   const cancel = async () => {
     try {
-      await cancelAppointment(appt.id);
-      toast.success('Deine Nummer ist zurückgegeben.');
+      if (appt.isAnonymous && ticketKey) await cancelTicket(appt.id, ticketKey);
+      else await cancelAppointment(appt.id);
+      toast.success(isQueue ? 'Deine Nummer ist zurückgegeben.' : 'Dein Termin ist abgesagt.');
     } catch {
       toast.error('Das hat nicht geklappt. Sag bitte am Tresen Bescheid.');
     }
@@ -218,7 +224,7 @@ export default function Nummer() {
       {appt.status === 'cancelled' && <p className="text-lg font-semibold">{isQueue ? 'Diese Nummer ist abgesagt.' : 'Dieser Termin ist abgesagt.'}</p>}
 
       {appt.status === 'scheduled' && shopData && hasFeature(shopData, 'benachrichtigung') && (
-        <NotifyCard appt={appt} userEmail={user?.email ?? ''} />
+        <NotifyCard appt={appt} ticketKey={ticketKey} userEmail={user?.email ?? ''} />
       )}
 
       {appt.status === 'scheduled' && (
@@ -228,23 +234,30 @@ export default function Nummer() {
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        {appt.isAnonymous && open && !user && (
+        {appt.isAnonymous && open && !user && ticketKey && (
           <Button
             size="lg"
             className="sm:flex-1"
             onClick={() =>
               navigate('/register-customer', {
-                state: { redirectAfterLogin: `/nummer/${appt.id}`, linkAnonymousBooking: true, shopId: appt.shopId, referenceCode: appt.referenceCode },
+                state: { redirectAfterLogin: `/nummer/${appt.id}`, linkAnonymousBooking: true, shopId: appt.shopId, appointmentId: appt.id, ticketKey },
               })
             }
           >
             Konto anlegen und Nummer behalten
           </Button>
         )}
-        {appt.status === 'scheduled' && (
+        {appt.status === 'scheduled' && canCancel && (
           <CancelButton onConfirm={cancel} label={isQueue ? 'Nummer zurückgeben' : 'Termin absagen'} confirmLabel={isQueue ? 'Ja, zurückgeben' : 'Ja, absagen'} />
         )}
       </div>
+      {appt.status === 'scheduled' && !canCancel && (
+        <p className="text-sm text-muted-foreground">
+          {appt.isAnonymous
+            ? `${isQueue ? 'Zurückgeben' : 'Absagen'} geht auf dem Handy, mit dem du ${isQueue ? 'die Nummer gezogen' : 'gebucht'} hast, oder am Tresen.`
+            : 'Zum Absagen melde dich mit deinem Konto an – oder sag am Tresen Bescheid.'}
+        </p>
+      )}
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         <Link to={`/shop-details?shopId=${appt.shopId}`} className="font-semibold underline underline-offset-2">
           Zum Laden
@@ -280,11 +293,12 @@ function CancelButton({ onConfirm, label, confirmLabel }: { onConfirm: () => voi
 }
 
 /** Benachrichtigung einschalten: Push, wo der Browser es kann, sonst E-Mail. */
-function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
+function NotifyCard({ appt, ticketKey, userEmail }: { appt: PublicAppointment; ticketKey: string | null; userEmail: string }) {
   const [config, setConfig] = useState<PushConfig | null>(null);
   const [pushOn, setPushOn] = useState(() => pushEnabledFor(appt.id));
   const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState(appt.notifyEmail || userEmail);
+  const [savedEmail, setSavedEmail] = useState(() => savedNotifyEmail(appt.id));
+  const [email, setEmail] = useState(savedEmail || userEmail);
 
   useEffect(() => {
     getPushConfig().then(setConfig);
@@ -298,7 +312,7 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
   const turnOnPush = async () => {
     setBusy(true);
     try {
-      const result = await enablePush(appt.id, config.publicKey);
+      const result = await enablePush(appt.id, config.publicKey, ticketKey);
       if (result === 'ok') {
         setPushOn(true);
         toast.success('Wir sagen dir Bescheid, kurz bevor du dran bist.');
@@ -318,7 +332,8 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
     event.preventDefault();
     setBusy(true);
     try {
-      await setNotifyEmail(appt.id, email.trim());
+      await setNotifyEmail(appt.id, email.trim(), ticketKey);
+      setSavedEmail(email.trim());
       toast.success('Wir schicken dir eine E-Mail, kurz bevor du dran bist.');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
@@ -327,7 +342,7 @@ function NotifyCard({ appt, userEmail }: { appt: Live; userEmail: string }) {
     }
   };
 
-  const emailSaved = Boolean(appt.notifyEmail);
+  const emailSaved = Boolean(savedEmail);
 
   return (
     <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-labelledby="bescheid">

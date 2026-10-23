@@ -1,10 +1,11 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, runTransaction, deleteField } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, Timestamp, runTransaction, deleteField, FieldValue } from 'firebase/firestore';
 import { assertBookable, bookableOf, SlotConflictError } from '../booking-rules';
 import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp, firebaseAuth } from 'app';
 import { Appointment } from './types';
 import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef, type PlacementChange } from './schedule';
+import { shopDayQuery, writePublic } from './public-appointments';
 
 // Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
 // braucht die letzte mehrere Anläufe
@@ -362,6 +363,7 @@ export const createAppointment = async (
       const now = Timestamp.now();
       const created = { ...chosen, ...(referenceCode ? { referenceCode } : {}), createdAt: now, updatedAt: now };
       tx.set(appointmentRef, created);
+      writePublic(tx, db, appointmentRef.id, created);
       placement?.write();
       if (numbersRef && referenceCode) {
         tx.set(numbersRef, { shopId: baseData.shopId, day: dayKey(codeDay), codes: [...codes, referenceCode], updatedAt: now });
@@ -423,15 +425,23 @@ export const createAppointment = async (
   }
 };
 
-// Nummern, die an diesem Tag im Laden schon an Termine vergeben sind (auch abgesagte)
+// Nummern, die an diesem Tag im Laden schon an Termine vergeben sind (auch abgesagte) – aus den öffentlichen
+// Kurzfassungen, damit es auch ohne Anmeldung geht (public-appointments.ts)
 async function referenceCodesOfDay(shopId: string, day: Date): Promise<string[]> {
-  const dayStart = new Date(day);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-  const todays = await getAppointmentsInRange(shopId, dayStart, dayEnd);
-  return todays.map((a) => a.referenceCode).filter((c): c is string => Boolean(c));
+  const db = getFirestore(firebaseApp);
+  const snap = await getDocs(shopDayQuery(db, shopId, day));
+  return snap.docs.map((d) => d.data().referenceCode as string | undefined).filter((c): c is string => Boolean(c));
 }
+
+// Termin nach einem Schreibschritt mit merge: Felder überschrieben, deleteField() entfernt
+const applyUpdate = (current: Record<string, any>, update: Record<string, unknown>): Record<string, any> => {
+  const after = { ...current };
+  for (const [key, value] of Object.entries(update)) {
+    if (value instanceof FieldValue && value.isEqual(deleteField())) delete after[key];
+    else after[key] = value;
+  }
+  return after;
+};
 
 export const cancelAppointment = async (appointmentId: string): Promise<Appointment> => {
   console.log('Cancelling appointment...', { appointmentId });
@@ -446,7 +456,9 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
       const current = snap.data() as Appointment;
       const release = placementOf(current);
       const placement = release ? await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release }) : null;
-      tx.set(appointmentRef, { status: 'cancelled', updatedAt: Timestamp.now() }, { merge: true });
+      const update = { status: 'cancelled', updatedAt: Timestamp.now() };
+      tx.set(appointmentRef, update, { merge: true });
+      writePublic(tx, db, appointmentId, { ...current, ...update });
       placement?.write();
     }, TRANSACTION_OPTIONS);
     console.log('Appointment cancelled successfully');
@@ -542,23 +554,25 @@ export const updateAppointment = async (
     // Belegte Zeit ändert sich (Verschieben, Absagen, Wiederaufnehmen, aber auch Aufrufen und Fertig – wer
     // früher fertig ist, gibt den Rest frei): alten Platz in der Belegung freigeben, neuen eintragen – in einer
     // Transaktion. Geprüft wird nur, was wie eine Buchung ist; Aufrufen und Fertig passieren im Laden.
+    // Die öffentliche Kurzfassung (public-appointments.ts) schreibt jede Änderung mit, aus dem Stand in der Transaktion.
     const bookingChange = (timeOrStaffChanged || reactivated) && merged.status !== 'cancelled';
     const placementChanges = cancelling || !samePlacement(placementOf(originalAppointment), placementOf({ ...merged, ...updateData } as Appointment));
-    if (bookingChange || placementChanges) {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(appointmentRef);
-        if (!snap.exists()) throw new Error('Appointment not found for update');
-        const current = snap.data() as Appointment;
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(appointmentRef);
+      if (!snap.exists()) throw new Error('Appointment not found for update');
+      const current = snap.data() as Appointment;
+      const after = applyUpdate(current, updateData);
+      let placement: PlacementChange | null = null;
+      if (bookingChange || placementChanges) {
         const release = placementOf(current);
-        const occupy = placementOf({ ...current, ...updateData } as Appointment);
-        const placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy, check: bookingChange });
+        const occupy = placementOf(after as Appointment);
+        placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy, check: bookingChange });
         if (bookingChange && occupy && placement.conflict) throw new SlotConflictError(placement.conflict);
-        tx.set(appointmentRef, updateData, { merge: true });
-        placement.write();
-      }, TRANSACTION_OPTIONS);
-    } else {
-      await setDoc(appointmentRef, updateData, { merge: true });
-    }
+      }
+      tx.set(appointmentRef, updateData, { merge: true });
+      writePublic(tx, db, appointmentId, after);
+      placement?.write();
+    }, TRANSACTION_OPTIONS);
     console.log('Appointment updated successfully');
 
     // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten.

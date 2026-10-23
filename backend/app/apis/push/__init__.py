@@ -1,13 +1,11 @@
 """Benachrichtigungen für eine Nummer an- und abmelden. Öffentlich (ohne Konto), wie das Nummer-Ziehen selbst.
 
-Geschützt wird über die Termin-ID: Sie ist zufällig (20 Zeichen) und nur dem bekannt, der die Nummer gezogen
-hat. Zusätzlich nur für Termine, die heute oder später anstehen, und mit einer Bremse je Absender.
+Anmelden darf, wer den Schlüssel der Nummer hat (Nummer ohne Konto, app/libs/ticket.py) oder mit dem Konto des
+Termins angemeldet ist. Zusätzlich nur für Termine, die heute oder später anstehen, und mit einer Bremse je Absender.
 Versand: app/libs/notify_worker.py.
 """
 
 import hashlib
-import time
-from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -17,25 +15,17 @@ from app.apis.firebase_utils import get_firestore_db
 from app.libs.mail import mail_configured
 from app.libs.notify_worker import wake
 from app.libs.plans import has_feature
+from app.libs.throttle import throttle
+from app.libs.ticket import may_manage, request_uid
 from app.libs.webpush import public_key, push_configured
 
 router = APIRouter()
 
 MAX_SUBSCRIPTIONS_PER_APPOINTMENT = 5
-_RATE_WINDOW_SECONDS = 60
-_RATE_MAX = 30
-_hits: dict[str, deque] = defaultdict(deque)
 
 
 def _throttle(request: Request) -> None:
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
-    now = time.monotonic()
-    q = _hits[ip]
-    while q and now - q[0] > _RATE_WINDOW_SECONDS:
-        q.popleft()
-    if len(q) >= _RATE_MAX:
-        raise HTTPException(status_code=429, detail="Zu viele Anfragen. Versuch es gleich noch einmal.")
-    q.append(now)
+    throttle(request, "push")
 
 
 def _require_notifications(shop_id: str | None) -> None:
@@ -45,14 +35,19 @@ def _require_notifications(shop_id: str | None) -> None:
         raise HTTPException(status_code=403, detail="Dieser Laden bietet keine Benachrichtigungen an.")
 
 
-def _open_appointment(appointment_id: str) -> dict:
-    """Termin laden, der noch ansteht – sonst 404/409 mit verständlicher Meldung."""
+def _open_appointment(appointment_id: str, key: str | None, request: Request) -> dict:
+    """Termin laden, der noch ansteht und den der Absender verwalten darf – sonst 404/403/409 mit verständlicher Meldung."""
     if not appointment_id or len(appointment_id) > 64 or "/" in appointment_id:
         raise HTTPException(status_code=404, detail="Diese Nummer gibt es nicht.")
     doc = get_firestore_db().collection("appointments").document(appointment_id).get()
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Diese Nummer gibt es nicht.")
     appt = doc.to_dict() or {}
+    if not may_manage(appt, key, request_uid(request)):
+        raise HTTPException(
+            status_code=403,
+            detail="Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.",
+        )
     if appt.get("status") not in ("scheduled", "in-progress"):
         raise HTTPException(status_code=409, detail="Diese Nummer ist schon erledigt oder abgesagt.")
     start = appt.get("startTime")
@@ -75,6 +70,7 @@ def push_config() -> PushConfig:
 
 class SubscribeRequest(BaseModel):
     appointment_id: str
+    key: str | None = Field(default=None, max_length=64)
     endpoint: str = Field(min_length=10, max_length=1000)
     p256dh: str = Field(min_length=10, max_length=200)
     auth: str = Field(min_length=5, max_length=100)
@@ -87,7 +83,7 @@ def subscribe(body: SubscribeRequest, request: Request) -> dict:
         raise HTTPException(status_code=503, detail="Benachrichtigungen sind gerade nicht eingerichtet.")
     if not body.endpoint.startswith("https://"):
         raise HTTPException(status_code=400, detail="Ungültige Push-Adresse.")
-    appt = _open_appointment(body.appointment_id)
+    appt = _open_appointment(body.appointment_id, body.key, request)
     _require_notifications(appt.get("shopId"))
     db = get_firestore_db()
     existing = list(db.collection("push_subscriptions").where("appointmentId", "==", body.appointment_id).limit(MAX_SUBSCRIPTIONS_PER_APPOINTMENT + 1).stream())
@@ -124,6 +120,7 @@ def unsubscribe(body: UnsubscribeRequest, request: Request) -> dict:
 class NotifyEmailRequest(BaseModel):
     appointment_id: str
     email: EmailStr | None = None
+    key: str | None = Field(default=None, max_length=64)
 
 
 @router.post("/push/notify-email")
@@ -132,7 +129,7 @@ def notify_email(body: NotifyEmailRequest, request: Request) -> dict:
     _throttle(request)
     if body.email and not mail_configured():
         raise HTTPException(status_code=503, detail="E-Mails sind gerade nicht eingerichtet.")
-    appt = _open_appointment(body.appointment_id)
+    appt = _open_appointment(body.appointment_id, body.key, request)
     if body.email:
         _require_notifications(appt.get("shopId"))
     get_firestore_db().collection("appointments").document(body.appointment_id).update({"notifyEmail": str(body.email) if body.email else None})

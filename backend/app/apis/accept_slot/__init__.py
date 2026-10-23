@@ -23,6 +23,7 @@ from app.apis.cache import invalidate_shop_date_cache
 from app.apis.check_slots import _check_lock, trigger_check_in_background
 from app.apis.firebase_utils import get_firestore_db
 from app.libs.schedule import BERLIN, Placement, aware, day_key, placement_of, read_placement
+from app.libs.public_appointments import write_public
 
 router = APIRouter()
 
@@ -184,6 +185,8 @@ def _accept(db, notification_id: str, user_id: Optional[str]) -> Dict:
             "staffId": staff_id,
             "updatedAt": firestore.SERVER_TIMESTAMP,
         })
+        # Öffentliche Kurzfassung (Nummernseite, Bildschirm, Platzsuche) im selben Schritt
+        write_public(tx, db, appointment_id, {**current, "startTime": earlier_start, "endTime": earlier_end, "staffId": staff_id})
         tx.update(notification_ref, {"isAccepted": True, "isRead": True, "acceptedAt": firestore.SERVER_TIMESTAMP})
         change.write()
         return "moved"

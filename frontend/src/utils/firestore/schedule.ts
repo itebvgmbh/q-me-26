@@ -1,5 +1,6 @@
 import { doc, DocumentReference, DocumentSnapshot, Firestore, Timestamp, Transaction } from 'firebase/firestore';
 import { occupiedWindow } from '../queue-lane';
+import { PUBLIC_APPOINTMENTS } from './public-appointments';
 
 /**
  * Belegung je Person und Tag – damit ein Platz nur einmal vergeben wird.
@@ -13,10 +14,11 @@ import { occupiedWindow } from '../queue-lane';
  * Inhalt: slots = { [Termin-ID]: { start, end } } mit der Zeit, die jeder Termin der Person an dem Tag belegt
  * (dieselbe Regel wie die Platzsuche: occupiedWindow in queue-lane.ts – wer früher fertig ist, gibt den Rest frei;
  * Tag nach deutscher Zeit, gleich im Backend: app/libs/schedule.py). Die Einträge sind nur Sperre und
- * Hinweis – die Wahrheit bleibt der Termin: Überschneidet sich ein Eintrag, wird der Termin selbst in der
- * Transaktion gelesen. Ist er abgesagt, gelöscht oder woanders hin verschoben (z. B. über einen Weg, der
- * das Dokument nicht kennt), fliegt der Eintrag raus. Termine von vor dieser Umstellung stehen nicht darin;
- * die findet weiterhin assertBookable (booking-rules.ts) vor der Transaktion.
+ * Hinweis – die Wahrheit bleibt der Termin: Überschneidet sich ein Eintrag, wird der Termin in der Transaktion
+ * gelesen (seine öffentliche Kurzfassung, public-appointments.ts – den Termin selbst darf ohne Anmeldung niemand
+ * lesen; sie wird mit jedem Termin in derselben Transaktion geschrieben). Ist er abgesagt, gelöscht oder woanders
+ * hin verschoben (z. B. über einen Weg, der das Dokument nicht kennt), fliegt der Eintrag raus. Termine von vor
+ * dieser Umstellung stehen nicht darin; die findet weiterhin assertBookable (booking-rules.ts) vor der Transaktion.
  */
 
 export const SCHEDULES = 'schedules';
@@ -114,7 +116,7 @@ export async function readPlacement(
   let conflict: string | null = null;
   // Korrekturen je Eintrag: null = raus, Placement = auf den echten Stand setzen
   const fixes = new Map<string, Placement | null>();
-  const checked = await Promise.all([...suspects].map(async (id) => ({ id, snap: await tx.get(doc(db, 'appointments', id)) })));
+  const checked = await Promise.all([...suspects].map(async (id) => ({ id, snap: await tx.get(doc(db, PUBLIC_APPOINTMENTS, id)) })));
   for (const { id, snap } of checked) {
     const actual = snap.exists() ? placementOf(snap.data() as any) : null;
     if (actual && occupy && actual.staffId === occupy.staffId && actual.start < occupy.end && occupy.start < actual.end) {

@@ -138,6 +138,17 @@ const commit = async (writes, token) => {
   }
 };
 const setW = (collection, id, fields) => ({ update: { name: `${DOCS}/${collection}/${id}`, fields: encFields(fields) } });
+// Öffentliche Kurzfassung eines Termins wie publicViewOf (frontend/src/utils/firestore/public-appointments.ts): Ohne
+// Anmeldung liest die App nur sie (Platzsuche, Nummernseite, Bildschirm); die Regeln lassen nur eine genaue Kopie zu
+const PUBLIC_FIELDS = ['shopId', 'staffId', 'serviceId', 'type', 'status', 'startTime', 'endTime', 'referenceCode', 'isAnonymous', 'calledAt', 'lastCalledAt', 'completedAt'];
+const publicW = (id, appt) => {
+  const view = Object.fromEntries(PUBLIC_FIELDS.filter((f) => appt[f] !== undefined && appt[f] !== null).map((f) => [f, appt[f]]));
+  view.shopDay = `${appt.shopId}_${ymd(appt.startTime)}`;
+  if (appt.staffId) view.staffDay = `${appt.staffId}_${ymd(appt.startTime)}`;
+  return setW('public_appointments', id, view);
+};
+/** Termin mit Kurzfassung anlegen (zwei Schreibvorgänge im selben commit) */
+const appointmentW = (id, fields) => [setW('appointments', id, fields), publicW(id, fields)];
 const delW = (name) => ({ delete: name.startsWith('projects/') ? name : `${DOCS}/${name}` });
 const patch = (collection, id, fields, token) =>
   http('PATCH', `${FS}/${collection}/${id}?${Object.keys(fields).map((k) => `updateMask.fieldPaths=${k}`).join('&')}`, { body: { fields: encFields(fields) }, token });
@@ -232,7 +243,7 @@ async function anlegen(history) {
       ? { dayOfWeek: d, startTime: '07:00', endTime: '22:00', isWorking: true }
       : { dayOfWeek: d, startTime: '08:00', endTime: '16:00', isWorking: d === d1Day });
     writes.push(setW('staff', state.staff[key], {
-      shopId: state.shopId, name, email: `${key}@example.com`, phone: '', role: 'staff', serviceIds: [state.services.schnitt, state.services.kurz],
+      shopId: state.shopId, name, role: 'staff', serviceIds: [state.services.schnitt, state.services.kurz], // ohne Kontaktdaten (staff_contacts)
       isActive: true, status: 'available', userId: '', workingHours: working, createdAt: now, updatedAt: now,
     }));
   };
@@ -260,14 +271,14 @@ async function anlegen(history) {
         ? { customerId: state.customers[k].uid, customerName: state.customers[k].name, isAnonymous: false, checkEarlierOptions: true, checkEarlierOptionsCreatedAt: now }
         : { customerName: `Laufkunde ${i}`, isAnonymous: true, checkEarlierOptions: false }),
     };
-    (candidate ? customerWrites[k] : ownerWrites).push(setW('appointments', id, fields));
+    (candidate ? customerWrites[k] : ownerWrites).push(...appointmentW(id, fields));
     state.plan.push({ id, staff, start: start.toISOString(), end: end.toISOString(), duration, candidate, customer: candidate ? k : null });
   });
   // Verlauf: alte, erledigte Termine bei Alex (las vor PR #23 jede Platzberechnung für Alex mit)
   for (let i = 0; i < history; i++) {
     const day = addDays(today, -1 - Math.floor(i / 16));
     const minute = 8 * 60 + (i % 16) * 30;
-    ownerWrites.push(setW('appointments', newId(), {
+    ownerWrites.push(...appointmentW(newId(), {
       shopId: state.shopId, staffId: state.staff.alex, serviceId: state.services.schnitt, customerName: 'Verlauf', status: 'completed', type: 'booked',
       startTime: at(day, minute), endTime: at(day, minute + 30), isAnonymous: true, createdAt: now, updatedAt: now,
     }));
@@ -297,7 +308,8 @@ async function loeschen() {
   for (const c of state.customers) customers.push(await signIn(c.email, c.pw).catch(() => null));
   let removed = 0;
   if (state.shopId) {
-    for (const collection of ['appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days']) {
+    // Termine vor ihren Kurzfassungen: die darf erst weg, wenn der Termin weg ist (firestore.rules)
+    for (const collection of ['appointments', 'public_appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days']) {
       for (;;) {
         let docs = [];
         try {
@@ -409,7 +421,11 @@ async function lauf(only) {
   const offersOf = async (c) => (await query('earlier_slot_notifications', [['userId', '==', c.uid], ['isAccepted', '==', false]], c.token))
     .filter((n) => n.status !== 'expired' && (!n.expiresAt || n.expiresAt > new Date()));
   const allOffers = async () => (await Promise.all(customers.map(async (c, i) => (await offersOf(c)).map((n) => ({ ...n, customer: i }))))).flat();
-  const cancel = (id, token = owner.idToken) => patch('appointments', id, { status: 'cancelled', updatedAt: new Date() }, token);
+  // Absagen wie der Tresen: Status am Termin und an der Kurzfassung in einem Schritt
+  const cancel = (id, token = owner.idToken) => http('POST', `${FS}:commit`, { token, body: { writes: [
+    { ...setW('appointments', id, { status: 'cancelled', updatedAt: new Date() }), updateMask: { fieldPaths: ['status', 'updatedAt'] } },
+    { ...setW('public_appointments', id, { status: 'cancelled' }), updateMask: { fieldPaths: ['status'] } },
+  ] } });
   const waitOffer = async (predicate, seconds = 45) => {
     const end = Date.now() + seconds * 1000;
     while (Date.now() < end) {
@@ -444,11 +460,13 @@ async function lauf(only) {
       }
       slots[id] = { start, end };
       const now = new Date();
+      const fields = {
+        id, shopId: state.shopId, staffId: S[staffKey], serviceId: minutes === 15 ? state.services.kurz : state.services.schnitt, startTime: start, endTime: end,
+        status: 'scheduled', type: 'queue', customerName: 'Tresen', isAnonymous: true, createdAt: now, updatedAt: now,
+      };
       const res = await http('POST', `${FS}:commit`, { token: owner.idToken, body: { writes: [
-        { ...setW('appointments', id, {
-          id, shopId: state.shopId, staffId: S[staffKey], serviceId: minutes === 15 ? state.services.kurz : state.services.schnitt, startTime: start, endTime: end,
-          status: 'scheduled', type: 'queue', customerName: 'Tresen', isAnonymous: true, createdAt: now, updatedAt: now,
-        }), currentDocument: { exists: false } },
+        { ...setW('appointments', id, fields), currentDocument: { exists: false } },
+        publicW(id, fields),
         { ...setW('schedules', scheduleId, { shopId: state.shopId, staffId: S[staffKey], day: ymd(start), slots, updatedAt: now }),
           currentDocument: got.ok ? { updateTime: got.data.updateTime } : { exists: false } },
       ] } });

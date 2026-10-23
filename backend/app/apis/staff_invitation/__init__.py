@@ -4,7 +4,8 @@ und wird mit genau diesem Eintrag verbunden. Danach sieht sie unter "Mein Tag" i
 
 Der Link hängt am Eintrag in der Sammlung staff, nicht an der E-Mail-Adresse. Gespeichert wird nur der
 SHA-256-Hash des Tokens (inviteTokenHash): Die Sammlung ist für die Buchung lesbar, das Token selbst kennt nur,
-wer den Link bekommen hat. Ein neuer Link ersetzt den alten.
+wer den Link bekommen hat. Ein neuer Link ersetzt den alten. Die E-Mail der Person und die Adresse, an die die
+Einladung ging, stehen bei den Kontaktdaten des Ladens, die nur der Inhaber liest (app/libs/staff_contacts.py).
 
 Öffentlich ist nur, ob der Link gilt, von welchem Laden er ist und für wen. Annehmen geht nur angemeldet und nur
 einmal: Ist der Eintrag schon mit einem Konto verbunden, kann ihn kein anderes Konto mehr übernehmen.
@@ -23,6 +24,7 @@ from app.auth.access import require_shop_of_owner
 from app.libs.links import new_token, public_origin, token_hash
 from app.libs.mail import MailError, branded_html, esc, send_mail
 from app.libs.onboarding_mail import is_test_address
+from app.libs.staff_contacts import contact_ref, email_of
 from app.libs.team import set_member
 
 router = APIRouter()
@@ -110,7 +112,7 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
         raise HTTPException(status_code=409, detail=f"{name} hat schon ein Konto und sieht „Mein Tag“.")
     if staff.get("isActive") is False:
         raise HTTPException(status_code=409, detail=f"{name} ist deaktiviert. Hol sie zuerst zurück ins Team.")
-    email = (staff.get("email") or "").strip()
+    email = email_of(db, body.staff_id, staff)
     if body.send_email and not email:
         raise HTTPException(status_code=400, detail="Für die E-Mail fehlt die Adresse. Trag sie unter „Bearbeiten“ ein und speichere.")
 
@@ -127,6 +129,8 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
             "updatedAt": gcf.SERVER_TIMESTAMP,
         }
     )
+    contacts = contact_ref(db, staff.get("shopId", ""), body.staff_id)
+    contacts.set({"inviteEmailTo": gcf.DELETE_FIELD}, merge=True)
 
     email_sent, email_problem = False, ""
     if body.send_email and is_test_address(email):
@@ -143,7 +147,8 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
             print(f"Team-Einladung an {email} nicht verschickt: {e}")
             email_problem = "Die E-Mail konnte nicht verschickt werden."
         if email_sent:
-            ref.update({"inviteEmailSentAt": gcf.SERVER_TIMESTAMP, "inviteEmailTo": email})
+            ref.update({"inviteEmailSentAt": gcf.SERVER_TIMESTAMP})
+            contacts.set({"inviteEmailTo": email, "updatedAt": gcf.SERVER_TIMESTAMP}, merge=True)
 
     return {"link": link, "expires": expires.isoformat(), "email_sent": email_sent, "email_problem": email_problem}
 
@@ -151,13 +156,13 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
 @router.get("/staff-invitation/{token}")
 def invitation_info(token: str) -> dict:
     """Für die Seite /staff-registration vor dem Anmelden: gilt der Link, von welchem Laden, für wen?"""
-    _, data = _staff_by_token(token)
+    doc, data = _staff_by_token(token)
     shop = _shop(data.get("shopId", ""))
     return {
         "status": _status(data, datetime.now(timezone.utc)),
         "shopName": shop.get("name") or "Dein Laden",
         "name": data.get("name") or "",
-        "email": data.get("email") or "",
+        "email": email_of(get_firestore_db(), doc.id, data),
     }
 
 
@@ -199,10 +204,10 @@ def accept_invitation(token: str, user: AuthorizedUser) -> dict:
         # Kundenkonto: wird Mitarbeiterkonto, "Meine Termine" bleibt erreichbar
         users.update({"role": "employee", "updatedAt": gcf.SERVER_TIMESTAMP})
 
-    update = {"userId": user.sub, "inviteAcceptedAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP}
-    if not (data.get("email") or "").strip() and email:
-        update["email"] = email
-    doc.reference.update(update)
+    if email and not email_of(db, doc.id, data):
+        # Leere Adresse beim Eintrag: die des Kontos (steht bei den Kontaktdaten, die nur der Inhaber liest)
+        contact_ref(db, shop_id, doc.id).set({"email": email, "updatedAt": gcf.SERVER_TIMESTAMP}, merge=True)
+    doc.reference.update({"userId": user.sub, "inviteAcceptedAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP})
     # Team-Vermerk für die Firestore-Regeln (Kundenliste, Termine im Laden), app/libs/team.py
     set_member(db, shop_id, user.sub, doc.id)
     return result
