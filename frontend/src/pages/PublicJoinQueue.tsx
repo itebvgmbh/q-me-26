@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { isSlotConflict } from '../utils/booking-rules';
@@ -23,6 +23,8 @@ import { StepIndicator } from '../components/StepIndicator';
 import type { QueueContact } from '../components/QueueConfirmationStep';
 import { Spinner } from '../components/queue/SlotStatus';
 import { ConnectionProblem } from '../components/ConnectionProblem';
+import { QueueStepShell } from '../components/queue/QueueStepShell';
+import { Button } from '@/components/ui/button';
 
 /**
  * Consolidated Queue Join component
@@ -60,6 +62,7 @@ const PublicJoinQueue = () => {
     setSelectedShop, 
     loading, 
     loadError,
+    unavailable,
     arrivedFromQR, 
     setArrivedFromQR 
   } = useShopData(shopIdFromQR);
@@ -189,6 +192,17 @@ const PublicJoinQueue = () => {
           <Spinner className="h-9 w-9 border-4" />
           <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Läden' : 'die Leistungen'} …</span>
         </div>
+      );
+    }
+
+    // Laden aus dem QR-Code gesperrt: nicht die (leere) Ladenauswahl zeigen, sondern warum es nicht geht
+    if (unavailable) {
+      return (
+        <QueueStepShell title="Dieser Laden nimmt gerade keine Nummern an." description="Online geht im Moment weder Nummer ziehen noch Termin buchen.">
+          <Button asChild className="self-start">
+            <Link to="/shop-map">Läden finden</Link>
+          </Button>
+        </QueueStepShell>
       );
     }
 
