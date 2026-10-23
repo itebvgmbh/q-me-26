@@ -362,6 +362,7 @@ service cloud.firestore {
     //   push_subscriptions   Push-Adressen der Geräte (anmelden über /routes/push)
     //   staff-invitations    alt; Einladungen stehen gehasht am staff-Eintrag
     //   verzeichnis          Salon-Verzeichnis (/friseur/…); Seiten und Karte liefert das Backend
+    //   telefon_leitungen    Rufnummer des Telefon-Assistenten → Laden (vergibt der Betreiber-Bereich)
     //   und jede Sammlung, die hier nicht steht.
   }
 }

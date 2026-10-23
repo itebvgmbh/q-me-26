@@ -58,6 +58,7 @@ const DETAIL = (id) => ({
   effectivePlan: 'laden', trialEnd: iso(-1),
   staff: [{ id: 's1', name: 'Kim', email: 'kim@salon.de', role: 'staff', userId: 'kim', active: true }],
   owner: { uid: `${id}-inhaber`, email: 'ina@salon.de', emailVerified: false, disabled: false, lastSignIn: iso(-1) },
+  telefon: id === 'salon' ? ['+49301234567'] : [],
   protokoll: [{ at: iso(-2), by: 'chef@dranzeit.de', action: 'Testphase', target: { shopId: id }, reason: 'Messe' }],
 });
 
@@ -188,6 +189,17 @@ run(async () => {
   await page.getByText('Team freigeschaltet.').waitFor({ timeout: 10000 });
   const grant = posted(calls, '/laden/salon/freischaltung')[0];
   rows.push({ name: 'Freischalten: Tarif, Datum, Grund', pass: grant?.body.plan === 'team' && /^\d{4}-\d{2}-\d{2}$/.test(grant.body.until) && grant.body.reason === 'Partner Messe', detail: JSON.stringify(grant?.body) });
+
+  // Telefon-Assistent: Nummer sehen, ändern, entfernen
+  rows.push({ name: 'Telefon: zugeordnete Nummer sichtbar', pass: await page.getByText('+49301234567').isVisible() });
+  rows.push({ name: 'Telefon: Feld mit der Nummer vorbelegt', pass: (await page.getByLabel('Rufnummer').inputValue()) === '+49301234567' });
+  await page.getByLabel('Rufnummer').fill('030 7654321');
+  await page.getByRole('button', { name: 'Zuordnen' }).click();
+  await page.getByText('Nummer zugeordnet.').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Entfernen', exact: true }).click();
+  await page.getByText('Nummer entfernt.').waitFor({ timeout: 10000 });
+  const tel = posted(calls, '/laden/salon/telefon').map((c) => c.body.nummer);
+  rows.push({ name: 'Telefon: Zuordnen und Entfernen ans Backend', pass: tel.join('|') === '030 7654321|', detail: JSON.stringify(tel) });
 
   // Löschen mit laufendem Abo: verweigert
   await page.getByRole('button', { name: 'Laden löschen …' }).click();

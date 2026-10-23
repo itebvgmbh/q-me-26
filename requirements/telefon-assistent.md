@@ -2,7 +2,7 @@
 
 - **ID:** telefon-assistent
 - **Stand:** 23.10.2026, mit Stefan abgestimmt
-- **Status:** Entwurf – Anbieter und endgültige Preise erst nach dem Probelauf (siehe „Offen“)
+- **Status:** Entwurf – Anbieter und endgültige Preise erst nach dem Probelauf (siehe „Offen“). Für den Probelauf gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer) und Rufnummer im Betreiber-Bereich, Anleitung in `deploy/telefon-assistent.md`
 
 ## Worum es geht
 

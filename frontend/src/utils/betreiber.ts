@@ -153,6 +153,8 @@ export interface ShopDetail {
   trialEnd: string;
   staff: { id: string; name: string; email: string; role: string; userId: string; active: boolean }[];
   owner: { uid: string; email: string; emailVerified: boolean; disabled: boolean; lastSignIn: string | null } | null;
+  /** Rufnummer des Telefon-Assistenten (höchstens eine) */
+  telefon: string[];
   protokoll: LogEntry[];
 }
 
@@ -189,6 +191,8 @@ export const unlinkStripe = (id: string, reason: string) => send(shopPath(id, 's
 export const suspendShop = (id: string, reason: string) =>
   send<{ changed: boolean; accounts?: number; skipped?: string[] }>(shopPath(id, 'sperren'), { reason });
 export const unsuspendShop = (id: string, reason = '') => send<{ changed: boolean; accounts?: number; kept?: number }>(shopPath(id, 'entsperren'), { reason });
+/** Rufnummer des Telefon-Assistenten zuordnen; leer = Zuordnung aufheben */
+export const setPhoneLine = (id: string, nummer: string, reason = '') => send<{ telefon: string[] }>(shopPath(id, 'telefon'), { nummer, reason });
 
 export const blockAccount = (uid: string, reason: string) => send(accountPath(uid, 'sperren'), { reason });
 export const unblockAccount = (uid: string, reason = '') => send(accountPath(uid, 'entsperren'), { reason });
