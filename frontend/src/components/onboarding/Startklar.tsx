@@ -150,7 +150,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
         key: 'team',
         title: 'Team einladen',
         done: staff.every((s) => Boolean(s.userId)),
-        body: 'Schick jeder Person ihren Einladungslink. Damit legt sie ein Passwort fest und sieht ihren eigenen Tag.',
+        body: 'Wen du beim Einrichten mit E-Mail eingetragen hast, der hat seine Einladung schon bekommen. Allen anderen schick ihren Link unter „Team“. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag.',
         action: (
           <Button asChild>
             <Link to="/staff-management">Zum Team</Link>
