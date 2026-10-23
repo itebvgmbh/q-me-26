@@ -85,6 +85,8 @@ export interface Staff {
   shopId: string;
   userId: string;
   name: string;
+  /** E-Mail, Telefon und Einladungsadresse stehen nicht am Eintrag, sondern bei den Kontakten des Ladens, die nur der
+   *  Inhaber liest (utils/firestore/staff-contacts.ts); hier nur, wenn sie für den Inhaber dazugeladen wurden */
   email: string;
   phone: string;
   role: string;
@@ -139,6 +141,8 @@ export interface Appointment {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   isAnonymous?: boolean;
+  /** Nummer ohne Konto: SHA-256 des Schlüssels im Link der Nummernseite (utils/ticket-key.ts) – absagen, übernehmen */
+  ticketKeyHash?: string;
   referenceCode?: string;
   /** Aufgerufen am Tresen (Status "in-progress"), für die Auswertung – nur der erste Aufruf */
   calledAt?: Timestamp;

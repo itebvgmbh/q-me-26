@@ -1,10 +1,12 @@
-"""Links mit Token (Team-Einladung, Kunden-Link): Token erzeugen, nur den Hash speichern, Adresse für den Link.
+"""Links mit Token (Team-Einladung, Kunden-Link, Nummer ohne Konto): Token erzeugen, nur den Hash speichern, prüfen,
+Adresse für den Link.
 
 Firestore ist für Buchung und Nummer ziehen ohne Anmeldung lesbar. Ein Token im Klartext dort könnte jeder lesen
 und benutzen – deshalb steht am Eintrag nur sein SHA-256-Hash, und das Backend prüft.
 """
 
 import hashlib
+import hmac
 import os
 import secrets
 
@@ -20,6 +22,13 @@ def new_token() -> str:
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def token_matches(stored_hash: str | None, token: str | None) -> bool:
+    """Passt das Token zum gespeicherten Hash? Zeitkonstant verglichen."""
+    if not stored_hash or not token or not isinstance(stored_hash, str):
+        return False
+    return hmac.compare_digest(stored_hash, token_hash(token))
 
 
 def public_origin(request: Request) -> str:

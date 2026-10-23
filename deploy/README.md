@@ -226,6 +226,12 @@ Firestore-Transaktion zwei Hilfsdokumente fort (Erklärung: `frontend/src/utils/
 - `schedules/{staffId}_{YYYY-MM-DD}` – belegte Zeiten der Person an dem Tag (nur Termin-IDs und Uhrzeiten)
 - `shop_days/{shopId}_{YYYY-MM-DD}` – an dem Tag vergebene Nummern des Ladens
 
+Seit 23.10.2026 dazu je Termin seine öffentliche Kurzfassung `public_appointments/{Termin-ID}` (Zeit, Person,
+Leistung, Status, Nummer – keine Namen, Kontakte, Konten; `frontend/src/utils/firestore/public-appointments.ts`).
+Platzsuche, Nummernseite und Wartezimmer-Bildschirm lesen ohne Anmeldung nur sie. Das Backend legt sie beim ersten
+Start für alle Termine an (Log „Kurzfassungen der Termine angelegt“, danach Vermerk `meta/public_appointments`) und
+gleicht sie laufend ab (Log „Kurzfassungen der Termine: … angeglichen“, `backend/app/libs/public_appointments.py`).
+
 Nichts einzurichten: Die Firestore-Regeln (`firestore.rules`, Abschnitt „Firestore-Regeln“ unten) lassen beide
 Sammlungen für jeden zu – auch Nummer ziehen ohne Konto schreibt dort. Werden die Regeln einmal verschärft, müssen
 beide für jeden schreibbar bleiben, der buchen darf (also auch ohne Anmeldung), sonst schlägt jede Buchung fehl.
@@ -254,18 +260,25 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung vom 23.10.2026 (Kopfzeile `// Fassung:` in `firestore.rules`):
-- Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen, Leistungen, Pausen,
-  Termine, Belegung, Tagesnummern).
-- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Ohne Anmeldung und als Kunde nur Nummer ziehen,
-  buchen, die eigene absagen und eine Nummer ohne Konto ins eigene Konto übernehmen.
+Fassung 2026-10-23.2 (Kopfzeile `// Fassung:` in `firestore.rules`):
+- Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen ohne Kontaktdaten,
+  Leistungen, Pausen, Kurzfassung der Termine, Belegung, Tagesnummern).
+- Termine selbst (Name, Handynummer, E-Mail, Konto) lesen nur Inhaber, Team und das eigene Konto; E-Mail und Telefon
+  der Personen im Team (`shops/{id}/staff_contacts`) nur der Inhaber.
+- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Ohne Anmeldung/als Kunde nur Nummer ziehen,
+  buchen und den eigenen Termin absagen. Eine Nummer ohne Konto zurückgeben oder übernehmen geht über das Backend,
+  mit dem Schlüssel aus dem Link der Nummernseite.
 - Kundenliste nur für Inhaber und Team, Profile nur für das eigene Konto, Angebote „Früher dran“ nur für das eigene.
 - Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `staff-invitations`, `verzeichnis` sind zu.
 
 **Team** erkennen die Regeln an einem Vermerk `shops/{shopId}/members/{uid}`. Ihn setzt das Backend beim Annehmen
 einer Einladung und gleicht ihn bei jedem Start mit den Personen ab (`backend/app/libs/team.py`, im Log „Team-Vermerke
 abgeglichen“). Deshalb gilt: **erst ausrollen, dann einspielen** – sonst sehen Personen im Team die Kundenliste
-nicht. Ein `git pull` bringt die Vermerke nicht mit; sie entstehen beim ersten Start des Dienstes.
+nicht. Ein `git pull` bringt die Vermerke nicht mit; sie entstehen beim ersten Start des Dienstes. Ebenso beim ersten
+Start mit Fassung 2026-10-23.2: die Kurzfassungen der Termine (Log „Kurzfassungen der Termine angelegt“) und der
+Umzug von E-Mail und Telefon der Personen zu den Kontaktdaten des Ladens (Log „Kontaktdaten des Teams umgezogen“).
+Fehlen sie, sieht die Nummernseite ältere Nummern nicht. Browserfenster, die seit vor dem Ausrollen offen sind (etwa
+der Tresen), nach dem Einspielen einmal neu laden.
 
 ### Einspielen
 
@@ -285,6 +298,8 @@ nicht. Ein `git pull` bringt die Vermerke nicht mit; sie entstehen beim ersten S
 
 - Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern; im privaten Fenster (ohne Anmeldung)
   eine Nummer ziehen und auf der Nummernseite wieder absagen.
+- Im privaten Fenster: Nummer ziehen, Seite schließen, über den Link wieder öffnen und zurückgeben; am Tresen
+  stehen Name und Handynummer, auf dem Wartezimmer-Bildschirm nur Nummern.
 - Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL), dazu `regeln.cjs`,
   `fruehester-platz.cjs`, `schlange-tresen.cjs`, `gleichzeitig.cjs`, `seiten.cjs`, `tarife.cjs`, `laden-gesperrt.cjs`,
   `leistungen-kunden.cjs` (Kundenliste), `team-einladen.cjs` (Team), `durchlauf-warteschlange.cjs`.

@@ -1,47 +1,40 @@
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { firestore } from './firestore-client';
-import { updateAppointment } from './firestore';
-import { getAnonymousBookingCodes, removeAnonymousBookingCode } from './localStorageUtils';
+import { getAnonymousBookingCodes, removeAnonymousBookingCode, saveAnonymousBookingCode } from './localStorageUtils';
+import { claimTicket, rememberTicketKey, storedTicketKey } from './ticket-key';
 import { toast } from 'sonner';
-
-// Firestore-Dokument-IDs sind 20 Zeichen lang, Wartenummern nur zwei Stellen
-const isAppointmentId = (value: string) => value.length >= 15;
 
 // Login, Registrierung und Startseite können gleichzeitig verknüpfen – nur ein Lauf auf einmal
 let running: Promise<void> | null = null;
 
+/** Nummer, die gerade auf der Nummernseite offen war („Konto anlegen und Nummer behalten“) */
+export type TicketToLink = { shopId?: string; appointmentId?: string; ticketKey?: string };
+
 /**
- * Verknüpft die in diesem Browser gezogenen Nummern mit dem Konto.
- * @param userId User-ID des angemeldeten Benutzers
- * @param specificShopId Optional: nur Buchungen dieses Shops
- * @param specificReferenceCode Optional: Wartenummer, falls im Browser nichts gespeichert ist
+ * Übernimmt die in diesem Browser ohne Konto gezogenen Nummern ins angemeldete Konto.
+ * Das Backend prüft dabei den Schlüssel der Nummer (utils/ticket-key.ts): Wer nur die Termin-ID kennt, übernimmt
+ * nichts. Einträge ohne Schlüssel (Nummern von vor dieser Umstellung, alte Wartenummern) lassen sich nicht mehr
+ * übernehmen und fallen aus der Liste.
  */
-export const linkAnonymousBookingsToUser = (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+export const linkAnonymousBookingsToUser = (ticket: TicketToLink = {}): Promise<void> => {
   if (!running) {
-    running = linkAll(userId, specificShopId, specificReferenceCode).finally(() => {
+    running = linkAll(ticket).finally(() => {
       running = null;
     });
   }
   return running;
 };
 
-const linkAll = async (userId: string, specificShopId?: string, specificReferenceCode?: string): Promise<void> => {
+const linkAll = async ({ shopId, appointmentId, ticketKey }: TicketToLink): Promise<void> => {
   try {
+    if (shopId && appointmentId && ticketKey) {
+      rememberTicketKey(appointmentId, ticketKey);
+      saveAnonymousBookingCode(shopId, appointmentId);
+    }
     let linkedCount = 0;
-    const stored = getAnonymousBookingCodes();
-    const shops = specificShopId ? { [specificShopId]: stored[specificShopId] || [] } : stored;
-
-    for (const [shopId, values] of Object.entries(shops)) {
+    for (const [shop, values] of Object.entries(getAnonymousBookingCodes())) {
       for (const value of values) {
-        if (await linkSingleAnonymousBooking(shopId, value, userId)) linkedCount++;
+        if (await linkSingleAnonymousBooking(shop, value)) linkedCount++;
       }
     }
-
-    // Nichts im Browser gespeichert: nur die angegebene Nummer versuchen
-    if (linkedCount === 0 && specificShopId && specificReferenceCode && !(stored[specificShopId] || []).length) {
-      if (await linkSingleAnonymousBooking(specificShopId, specificReferenceCode, userId)) linkedCount++;
-    }
-
     if (linkedCount > 0) {
       toast.success(linkedCount === 1 ? 'Deine Nummer ist jetzt in deinem Konto.' : `${linkedCount} Nummern sind jetzt in deinem Konto.`);
     }
@@ -50,51 +43,22 @@ const linkAll = async (userId: string, specificShopId?: string, specificReferenc
   }
 };
 
-/**
- * Verknüpft eine einzelne anonyme Buchung mit einem Benutzer.
- * Über die Termin-ID eindeutig; alte Einträge mit Wartenummer nur, wenn die Nummer im Shop eindeutig ist –
- * sonst könnte die Buchung einer fremden Person übernommen werden.
- */
-const linkSingleAnonymousBooking = async (shopId: string, value: string, userId: string): Promise<boolean> => {
+/** Eine Nummer übernehmen; true, wenn sie jetzt im Konto ist. Ohne Verbindung bleibt sie für den nächsten Versuch. */
+const linkSingleAnonymousBooking = async (shopId: string, appointmentId: string): Promise<boolean> => {
+  const key = storedTicketKey(appointmentId);
+  if (!key) {
+    removeAnonymousBookingCode(shopId, appointmentId);
+    return false;
+  }
   try {
-    let appointmentId: string | null = null;
-
-    if (isAppointmentId(value)) {
-      const snap = await getDoc(doc(firestore, 'appointments', value));
-      const data = snap.data();
-      if (snap.exists() && data?.shopId === shopId && data?.isAnonymous === true) appointmentId = snap.id;
-    } else {
-      const snapshot = await getDocs(
-        query(
-          collection(firestore, 'appointments'),
-          where('shopId', '==', shopId),
-          where('referenceCode', '==', value),
-          where('isAnonymous', '==', true)
-        )
-      );
-      if (snapshot.size === 1) appointmentId = snapshot.docs[0].id;
-      else if (snapshot.size > 1) console.warn(`Wartenummer ${value} ist nicht eindeutig – keine Verknüpfung`);
-    }
-
-    if (!appointmentId) {
-      removeAnonymousBookingCode(shopId, value);
-      return false;
-    }
-
-    // Name aus dem Profil übernehmen
-    const userData = (await getDoc(doc(firestore, 'users', userId))).data();
-    const customerName = userData?.displayName || userData?.email?.split('@')[0] || 'Unbekannt';
-
-    await updateAppointment(appointmentId, {
-      customerId: userId,
-      customerName,
-      isAnonymous: false,
-    });
-
-    removeAnonymousBookingCode(shopId, value);
+    await claimTicket(appointmentId, key);
+    removeAnonymousBookingCode(shopId, appointmentId);
     return true;
   } catch (error) {
-    console.error(`Fehler beim Verknüpfen der anonymen Buchung (${value}):`, error);
+    const status = (error as { status?: number }).status;
+    // Gibt es nicht, schon übernommen, abgesagt oder falscher Schlüssel: nicht noch einmal versuchen
+    if (status && status >= 400 && status < 500 && status !== 429) removeAnonymousBookingCode(shopId, appointmentId);
+    console.error(`Nummer ${appointmentId} nicht übernommen:`, error);
     return false;
   }
 };

@@ -89,8 +89,10 @@ def customer_expired(customer: dict, last_appointment: Optional[datetime], now: 
     return last is None or last < now - timedelta(days=CUSTOMER_RETENTION_DAYS)
 
 
-def _forget_appointments(appointments, now: datetime) -> dict:
+def _forget_appointments(firestore_db, appointments, now: datetime) -> dict:
     """Name und Kontaktdaten sofort entfernen, kommende Termine absagen (Kunde oder Konto gelöscht)"""
+    from app.libs.public_appointments import write_public
+
     anonymized = cancelled = 0
     for doc in appointments:
         appt = doc.to_dict() or {}
@@ -100,6 +102,8 @@ def _forget_appointments(appointments, now: datetime) -> dict:
             update.update({"status": "cancelled", "updatedAt": now})
             cancelled += 1
         doc.reference.update(update)
+        if update.get("status"):
+            write_public(None, firestore_db, doc.id, {**appt, **update})  # Platz ist auf Nummernseite und Bildschirm frei
         anonymized += 1
     return {"anonymized": anonymized, "cancelled": cancelled}
 
@@ -110,7 +114,7 @@ def forget_customer(firestore_db, customer_ref, customer: dict, now: Optional[da
     now = now or datetime.now(timezone.utc)
     result = {"anonymized": 0, "cancelled": 0}
     if not customer.get("userId"):
-        result = _forget_appointments(firestore_db.collection("appointments").where("customerId", "==", customer_ref.id).stream(), now)
+        result = _forget_appointments(firestore_db, firestore_db.collection("appointments").where("customerId", "==", customer_ref.id).stream(), now)
     customer_ref.delete()
     return result
 
@@ -120,7 +124,7 @@ def delete_account_data(firestore_db, uid: str, now: Optional[datetime] = None) 
     Termine bleiben für die Auswertung des Ladens, ohne Namen und Kontaktdaten; kommende werden abgesagt."""
     now = now or datetime.now(timezone.utc)
     appointments = list(firestore_db.collection("appointments").where("customerId", "==", uid).stream())
-    result = _forget_appointments(appointments, now)
+    result = _forget_appointments(firestore_db, appointments, now)
     for appt in appointments:
         for sub in firestore_db.collection("push_subscriptions").where("appointmentId", "==", appt.id).stream():
             sub.reference.delete()

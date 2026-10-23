@@ -5,7 +5,7 @@ Termin oder Nummer im Backend anlegen – Gegenstück zur Transaktion in createA
 Für Wege ohne Browser (Telefon-Assistent, app/apis/telefon). In einer Transaktion:
   1. Platz belegen (Belegung je Person und Tag, app/libs/schedule.py): der erste noch freie aus den Kandidaten,
   2. Tagesnummer ziehen (shop_days/{shopId}_{Tag}), wenn der Termin eine braucht (ohne Konto oder Nummer),
-  3. Termin speichern.
+  3. Termin speichern, dazu seine öffentliche Kurzfassung (app/libs/public_appointments.py).
 Bucht im selben Moment die Online-Buchung oder der Tresen denselben Platz, kommt nur einer durch.
 Ob ein Kandidat nach den Regeln (Öffnungs- und Arbeitszeiten, Pausen) überhaupt geht, prüft der Aufrufer vorher.
 """
@@ -15,6 +15,7 @@ from typing import List
 
 from google.cloud import firestore
 
+from app.libs.public_appointments import write_public
 from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, read_placement
 
 # Gleichzeitige Buchungen derselben Person laufen nacheinander; im Ansturm braucht die letzte mehrere Anläufe
@@ -84,6 +85,7 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
         if code:
             created["referenceCode"] = code
         tx.set(ref, created)
+        write_public(tx, db, ref.id, created)
         change.write()
         if numbers_ref is not None:
             tx.set(numbers_ref, {"shopId": shop_id, "day": day_key(code_day), "codes": codes + [code], "updatedAt": now})

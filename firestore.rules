@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
-// Fassung: 2026-10-23 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+// Fassung: 2026-10-23.2 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
 //
 // Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
 // Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
@@ -11,13 +11,16 @@ rules_version = '2';
 // Betreiber-Bereich, Benachrichtigungen und Aufräumen dürfen weiter alles.
 //
 // Grundsatz (Stand 23.10.2026, wer was liest und schreibt: dev/regeln/README.md):
-//  - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen: Läden, Personen, Leistungen,
-//    Pausen, Termine (freie Plätze, Schlange, Wartezimmer-Bildschirm), Belegung und Tagesnummern.
+//  - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen: Läden, Personen (ohne Kontaktdaten),
+//    Leistungen, Pausen, die öffentliche Kurzfassung der Termine (freie Plätze, Schlange, Wartezimmer-Bildschirm),
+//    Belegung und Tagesnummern.
+//  - Personendaten nur für die, die sie brauchen: Termine (Name, Handynummer, E-Mail, Konto) lesen Laden und eigenes
+//    Konto, die Kundenliste Inhaber und Team, Kontaktdaten der Personen nur der Inhaber, Profile nur das eigene Konto.
 //  - Schreiben darf nur, wer zum Laden gehört: der Inhaber (shops.owner) oder eine Person im Team. Team heißt:
 //    Vermerk shops/{shopId}/members/{uid}, den das Backend beim Annehmen der Einladung setzt.
-//  - Ohne Anmeldung und als Kunde nur, was die App dort tut: eine Nummer ziehen oder buchen, die eigene absagen,
-//    eine Nummer ohne Konto ins eigene Konto übernehmen – und dabei Belegung und Tagesnummern fortschreiben.
-//  - Kundenliste nur für Inhaber und Team, Profile (users) nur für das eigene Konto.
+//  - Ohne Anmeldung und als Kunde nur, was die App dort tut: eine Nummer ziehen oder buchen, als Kunde den eigenen
+//    Termin absagen – und dabei Kurzfassung, Belegung und Tagesnummern fortschreiben. Eine Nummer ohne Konto
+//    zurückgeben oder ins Konto übernehmen geht über das Backend, mit dem Schlüssel aus dem Link der Nummernseite.
 //  - Die Tarif-Felder am Laden setzt nur das Backend. Sammlungen, die nur das Backend braucht, sind zu.
 
 service cloud.firestore {
@@ -128,6 +131,17 @@ service cloud.firestore {
           && get(docPath('staff', request.resource.data.staffId)).data.userId == memberUid;
         allow delete: if isOwner(get(docPath('shops', shopId)).data);
       }
+
+      // Kontaktdaten der Personen (shops/{shopId}/staff_contacts/{staffId}: email, phone, inviteEmailTo): nur der
+      // Inhaber, nur für Personen dieses Ladens (utils/firestore/staff-contacts.ts). Die Adresse, an die die Einladung
+      // ging (inviteEmailTo), schreibt nur das Backend.
+      match /staff_contacts/{staffId} {
+        allow read, delete: if isOwner(get(docPath('shops', shopId)).data);
+        allow create, update: if isOwner(get(docPath('shops', shopId)).data)
+          && getAfter(docPath('staff', staffId)).data.shopId == shopId
+          && request.resource.data.keys().hasOnly(['email', 'phone', 'inviteEmailTo', 'updatedAt'])
+          && request.resource.data.get('inviteEmailTo', null) == (resource == null ? null : resource.data.get('inviteEmailTo', null));
+      }
     }
 
     // Vermerk „diese Laden-ID ist verbraucht“. Nur anlegen, im selben Schritt, in dem der eigene Laden gelöscht wird;
@@ -141,8 +155,10 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // Termine. Lesen für alle: Nummer ziehen und Buchen ohne Anmeldung suchen freie Plätze in den Terminen der Person
-    // (staffId + Tag), /nummer/<id> und der Wartezimmer-Bildschirm zeigen die Schlange.
+    // Termine. Am Termin stehen Name, Handynummer, E-Mail für Benachrichtigungen und Konto – lesen dürfen ihn nur der
+    // Laden (Inhaber, Team) und das eigene Konto. Was Nummer ziehen und Buchen ohne Anmeldung (freie Plätze),
+    // /nummer/<id> und der Wartezimmer-Bildschirm (Schlange) brauchen, steht in der öffentlichen Kurzfassung
+    // public_appointments (unten).
     // ------------------------------------------------------------------------------------------------------------
 
     // Was nur Laden und Backend an einen Termin schreiben (Aufrufen, Fertig, Nachricht an den Kunden …)
@@ -151,10 +167,13 @@ service cloud.firestore {
               'customerNotice', 'customerNoticeAt', 'customerNoticePreviousStart'];
     }
 
-    // Nummer ohne Konto (Nummer ziehen ohne Anmeldung, QueueBookingService)
+    // Nummer ohne Konto (Nummer ziehen ohne Anmeldung, QueueBookingService) – mit dem Hash ihres Schlüssels, den nur
+    // der Browser und der Link der Nummernseite kennen (utils/ticket-key.ts). Mit ihm gibt das Backend die Nummer
+    // zurück oder übernimmt sie ins Konto (app/apis/nummer).
     function anonymousTicket(d) {
       return d.get('isAnonymous', false) == true && !('customerId' in d)
-        && d.type == 'queue' && d.status == 'scheduled';
+        && d.type == 'queue' && d.status == 'scheduled'
+        && d.get('ticketKeyHash', null) is string && d.ticketKeyHash.matches('[0-9a-f]{64}');
     }
 
     // Nummer oder Termin für das eigene Konto (Nummer ziehen, Termin buchen)
@@ -163,21 +182,18 @@ service cloud.firestore {
         && d.type in ['queue', 'booked'] && d.status == 'scheduled';
     }
 
-    // Absagen: nur der Status, von wartend auf abgesagt (Nummernseite ohne Anmeldung, Meine Termine)
+    // Absagen: nur der Status, von wartend auf abgesagt (eigener Termin: Nummernseite, Meine Termine)
     function cancelOnly() {
       return changed().hasOnly(['status', 'updatedAt'])
         && resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled';
     }
 
-    // Nummer ohne Konto nach dem Anmelden ins eigene Konto übernehmen (AnonymousBookingLinker)
-    function claimAnonymous() {
-      return signedIn() && resource.data.get('isAnonymous', false) == true && !('customerId' in resource.data)
-        && changed().hasOnly(['customerId', 'customerName', 'isAnonymous', 'updatedAt'])
-        && request.resource.data.customerId == request.auth.uid && request.resource.data.isAnonymous == false;
+    function ownAppointment() {
+      return signedIn() && resource.data.get('customerId', '') == request.auth.uid;
     }
 
     match /appointments/{id} {
-      allow read: if true;
+      allow read: if ownAppointment() || isTeam(resource.data.shopId);
 
       allow create: if request.resource.data.shopId is string && (
           isTeam(request.resource.data.shopId)
@@ -187,13 +203,43 @@ service cloud.firestore {
               && notSuspended(request.resource.data.shopId)));
 
       allow update: if request.resource.data.shopId == resource.data.shopId && (
-          isTeam(resource.data.shopId)
-          || (cancelOnly() && (resource.data.get('isAnonymous', false) == true
-                               || (signedIn() && resource.data.get('customerId', '') == request.auth.uid)))
-          || claimAnonymous());
+          isTeam(resource.data.shopId) || (cancelOnly() && ownAppointment()));
 
       // Die App löscht keine Termine (Absagen ist ein Status); Testskripte räumen ihren Laden auf
       allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Öffentliche Kurzfassung eines Termins (public_appointments/{Termin-ID}): Zeit, Person, Leistung, Status, Nummer,
+    // Aufrufe – keine Namen, Kontakte oder Konten (utils/firestore/public-appointments.ts, im Backend
+    // app/libs/public_appointments.py). Lesen alle. Schreiben darf sie, wer den Termin schreibt, im selben Schritt,
+    // und nur als genaue Kopie des Termins danach; staffDay/shopDay ({Person}_{Tag}, {Laden}_{Tag}) für die Abfragen.
+    function publicFields() {
+      return ['shopId', 'staffId', 'serviceId', 'type', 'status', 'startTime', 'endTime', 'referenceCode', 'isAnonymous',
+              'calledAt', 'lastCalledAt', 'completedAt'];
+    }
+
+    function same(d, a, field) {
+      return d.get(field, null) == a.get(field, null);
+    }
+
+    function dayOf(prefix, key) {
+      return key is string && key.matches(prefix + '_[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+
+    function publicCopy(id, d) {
+      let a = getAfter(docPath('appointments', id)).data;
+      return d.keys().hasOnly(publicFields().concat(['staffDay', 'shopDay']))
+        && same(d, a, 'shopId') && same(d, a, 'staffId') && same(d, a, 'serviceId') && same(d, a, 'type')
+        && same(d, a, 'status') && same(d, a, 'startTime') && same(d, a, 'endTime') && same(d, a, 'referenceCode')
+        && same(d, a, 'isAnonymous') && same(d, a, 'calledAt') && same(d, a, 'lastCalledAt') && same(d, a, 'completedAt')
+        && dayOf(a.shopId, d.get('shopDay', null))
+        && (a.get('staffId', null) == null ? !('staffDay' in d) : dayOf(a.staffId, d.get('staffDay', null)));
+    }
+
+    match /public_appointments/{id} {
+      allow read: if true;
+      allow create, update: if existsAfter(docPath('appointments', id)) && publicCopy(id, request.resource.data);
+      allow delete: if !existsAfter(docPath('appointments', id));
     }
 
     // Belegung je Person und Tag (schedules/{staffId}_{Tag}): wird in jeder Buchung, Absage und Änderung in derselben
@@ -231,22 +277,28 @@ service cloud.firestore {
     // ------------------------------------------------------------------------------------------------------------
     // Personen, Leistungen, Pausen: lesen alle (freie Plätze), pflegen der Inhaber. Die Verbindung einer Person mit
     // einem Konto (userId) und die Einladung setzt das Backend; der Inhaber nur sich selbst (Assistent, Inhaber im
-    // Team). Die Person selbst ändert nur ihre Arbeitszeiten (Mein Tag).
+    // Team). Die Person selbst ändert nur ihre Arbeitszeiten (Mein Tag). E-Mail, Telefon und Einladungsadresse stehen
+    // nicht am öffentlichen Eintrag, sondern bei den Kontaktdaten des Ladens (shops/{shopId}/staff_contacts, oben).
     // ------------------------------------------------------------------------------------------------------------
     function inviteFields() {
       return ['inviteTokenHash', 'inviteExpires', 'inviteCreatedAt', 'inviteEmailTo', 'inviteEmailSentAt', 'inviteAcceptedAt'];
+    }
+
+    function staffContactFields() {
+      return ['email', 'phone', 'inviteEmailTo'];
     }
 
     match /staff/{id} {
       allow read: if true;
       allow create: if ownsShop(request.resource.data.shopId)
         && request.resource.data.get('userId', '') in ['', request.auth.uid]
-        && !request.resource.data.keys().hasAny(inviteFields());
-      allow update: if (ownsShop(resource.data.shopId)
+        && !request.resource.data.keys().hasAny(inviteFields().concat(staffContactFields()));
+      allow update: if !request.resource.data.keys().hasAny(staffContactFields()) && (
+          (ownsShop(resource.data.shopId)
             && !changed().hasAny(['shopId'].concat(inviteFields()))
             && (!changed().hasAny(['userId']) || request.resource.data.userId == request.auth.uid))
         || (signedIn() && resource.data.get('userId', '') == request.auth.uid
-            && changed().hasOnly(['workingHours', 'updatedAt']));
+            && changed().hasOnly(['workingHours', 'updatedAt'])));
       allow delete: if ownsShop(resource.data.shopId);
     }
 

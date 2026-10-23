@@ -21,9 +21,11 @@ ITEBV_SHOP = "zNS505OFvKZpFaR1vTdN"  # Standardladen von seiten.cjs, durchlauf-*
 FOUNDERS_DOC = ("meta", "gruender")  # wie app/apis/billing
 # Was an einem Laden hängt: wie dev/fixtures.py loeschen, dazu Angebote, alte Warteschlange und Push-Abos
 SHOP_COLLECTIONS = (
-    "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "customers",
+    "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "public_appointments", "customers",
     "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen",
 )
+# Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py)
+SHOP_SUBCOLLECTIONS = ("members", "staff_contacts")
 TEST_SCRIPTS = (
     (re.compile(r"^q-me-test-\d+@example\.com$"), "FIXTURE"),  # dev/fixtures.py
     (re.compile(r"^q-me-last-\d+(-k\d+)?@example\.com$"), "LASTTEST"),  # dev/e2e/lasttest.cjs
@@ -250,9 +252,9 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {shop['billing'].get('customerId') or '?'}, Abo {shop['billing'].get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
-        members = list(fs.collection("shops").document(sid).collection("members").stream())  # Team-Vermerke, app/libs/team.py
+        sub = {name: list(fs.collection("shops").document(sid).collection(name).stream()) for name in SHOP_SUBCOLLECTIONS}
         shops.append({"id": sid, "name": shop.get("name") or "", "data": shop, "founder": bool(shop.get("founder")), "related": related,
-                      "members": members})
+                      "members": sub["members"], "sub": sub})
 
     deleted_shops = set(shop_ids)
     users = []
@@ -322,8 +324,9 @@ def backup_data(plan: dict, selection: str, list_file: str) -> dict:
 
     for s in plan["shops"]:
         docs[f"shops/{s['id']}"] = _plain(s["data"])
-        for m in s.get("members", []):
-            docs[f"shops/{s['id']}/members/{m.id}"] = _plain(m.to_dict() or {})
+        for name, snaps in s.get("sub", {"members": s.get("members", [])}).items():
+            for m in snaps:
+                docs[f"shops/{s['id']}/{name}/{m.id}"] = _plain(m.to_dict() or {})
         for name, snaps in s["related"].items():
             add(name, snaps)
     for u in plan["users"]:
@@ -357,8 +360,9 @@ def execute(fs, plan: dict, delete_auth_user) -> dict:
             for snap in snaps:
                 snap.reference.delete()
                 result["shopDocs"] += 1
-        for m in s.get("members", []):
-            m.reference.delete()
+        for snaps in s.get("sub", {"members": s.get("members", [])}).values():
+            for m in snaps:
+                m.reference.delete()
         fs.collection("shops").document(s["id"]).delete()
         # Vermerk wie in firestore.rules: unter dieser ID legt niemand mehr einen Laden an (frische Testphase)
         fs.collection("deleted_shops").document(s["id"]).set({"owner": s["data"].get("owner") or "", "deletedAt": now})
@@ -391,6 +395,8 @@ def verify(fs, plan: dict, auth_exists) -> list:
             left.append(f"Laden {s['id']} ist noch da")
         if list(fs.collection("shops").document(s["id"]).collection("members").stream()):
             left.append(f"Team-Vermerke von Laden {s['id']} sind noch da")
+        if list(fs.collection("shops").document(s["id"]).collection("staff_contacts").stream()):
+            left.append(f"Kontaktdaten des Teams von Laden {s['id']} sind noch da")
         for name in SHOP_COLLECTIONS:
             n = len(where(fs, name, "shopId", s["id"]))
             if n:

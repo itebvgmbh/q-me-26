@@ -287,6 +287,9 @@ def test_buchen_wie_ohne_konto_mit_tagesnummer_und_belegung():
     assert 10 <= int(code) <= 99 and r["nummer"] == code
     assert store["shop_days"][f"laden_{TAG}"]["codes"] == [code]
     assert r["termin_id"] in store["schedules"][f"robin_{TAG}"]["slots"]
+    kurz = store["public_appointments"][r["termin_id"]]
+    assert kurz["referenceCode"] == code and kurz["shopDay"] == f"laden_{TAG}" and kurz["startTime"] == at("10:30"), kurz
+    assert "customerName" not in kurz and "customerPhone" not in kurz, "Name und Nummer nicht öffentlich"
     assert r["ansage"] == f"Gebucht: heute um 10:30 Uhr bei Robin, Herrenschnitt. Die Nummer für den Aufruf ist {code}."
 
 
