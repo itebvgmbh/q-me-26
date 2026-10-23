@@ -22,7 +22,7 @@ FOUNDERS_DOC = ("meta", "gruender")  # wie app/apis/billing
 # Was an einem Laden hängt: wie dev/fixtures.py loeschen, dazu Angebote, alte Warteschlange und Push-Abos
 SHOP_COLLECTIONS = (
     "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "customers",
-    "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions",
+    "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen",
 )
 TEST_SCRIPTS = (
     (re.compile(r"^q-me-test-\d+@example\.com$"), "FIXTURE"),  # dev/fixtures.py

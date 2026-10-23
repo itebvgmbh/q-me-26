@@ -347,6 +347,59 @@ die App korrigiert ihn, Google sieht also nach dem Rendern trotzdem das Richtige
 Prüfen: `curl -s https://dranzeit.de/preise | grep canonical` zeigt `https://dranzeit.de/preise`,
 `curl -s https://dranzeit.de/ | grep -c ld+json` zeigt `1` (Startseite aus index.html), `curl -s https://dranzeit.de/login | grep -c canonical` zeigt `0`.
 
+## Telefon-Assistent (Probelauf)
+
+Eine Sprach-KI nimmt Anrufe für einen Laden an. Sie nennt freie Termine und bucht sie, sagt die Wartezeit, zieht
+Nummern und beantwortet Fragen. Die Anforderung steht in `requirements/telefon-assistent.md`, Konten und
+Einrichtung der Plattform in [telefon-assistent.md](telefon-assistent.md). Das Backend stellt dafür
+`/routes/telefon/…` bereit (`backend/app/apis/telefon`). Die Plattform meldet sich mit einem Zugangsschlüssel
+an, der in `/etc/q-me.env` als `QME_TELEFON_TOKEN` steht. Ohne Schlüssel antwortet die Schnittstelle mit 503.
+
+**Zugangsschlüssel erzeugen:** Den Block in PowerShell einfügen. Er erzeugt einen zufälligen Schlüssel, schreibt
+ihn über die Standardeingabe auf den Server und legt ihn in die Zwischenablage. Von dort fügst du ihn bei der
+Sprach-KI-Plattform als Geheimnis ein. Im Fenster und in der History steht er nie.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $skript = ssh -o BatchMode=yes $server 'grep -c QME_TELEFON_TOKEN /opt/q-me/deploy/set-secret.sh' 2>&1 | Out-String
+  if ($skript -notmatch '^\s*[1-9]') { Write-Host 'Abbruch: Der Server kennt den Telefon-Assistenten noch nicht. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
+  $schon = ssh -o BatchMode=yes $server 'grep -c ^QME_TELEFON_TOKEN= /etc/q-me.env' 2>&1 | Out-String
+  if ($schon -match '^\s*1') { $neu = Read-Host 'Es gibt schon einen Zugangsschluessel. Neuen erzeugen? Der alte gilt dann sofort nicht mehr (j/n)'; if ($neu -ne 'j') { Write-Host 'Nichts geaendert.' -ForegroundColor Yellow; return } }
+  $bytes = New-Object byte[] 32
+  $zufall = [Security.Cryptography.RandomNumberGenerator]::Create()
+  $zufall.GetBytes($bytes)
+  $zufall.Dispose()
+  $wert = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+  Write-Host '1/3 Schluessel auf den Server schreiben und Backend neu starten ...' -ForegroundColor Cyan
+  $wert | ssh -o BatchMode=yes $server 'bash /opt/q-me/deploy/set-secret.sh QME_TELEFON_TOKEN'
+  if ($LASTEXITCODE -ne 0) { $wert = $null; Write-Host 'Abbruch: Schluessel konnte nicht gesetzt werden, Meldung oben.' -ForegroundColor Red; return }
+  Write-Host '2/3 Pruefen, ob die Schnittstelle antwortet ...' -ForegroundColor Cyan
+  $status = ''
+  for ($i = 0; $i -lt 10 -and $status -ne '401'; $i++) { Start-Sleep -Seconds 3; $status = (curl.exe -s -o NUL -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{}' https://dranzeit.de/routes/telefon/laden | Out-String).Trim() }
+  Set-Clipboard -Value $wert
+  $wert = $null
+  if ($status -eq '401') { Write-Host '3/3 Fertig: Der Schluessel ist eingetragen und liegt in der Zwischenablage. Jetzt bei der Plattform als Geheimnis einfuegen (Strg+V), danach etwas anderes kopieren.' -ForegroundColor Green } else { Write-Host "Eingetragen und in der Zwischenablage, aber die Schnittstelle antwortet mit Status '$status' statt 401. Ausgabe vom Server:" -ForegroundColor Yellow; ssh -o BatchMode=yes $server 'journalctl -u q-me -n 30 --no-pager' }
+}
+```
+
+Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^QME_TELEFON_TOKEN= /etc/q-me.env`. Ein neuer Lauf
+erzeugt einen neuen Schlüssel, und der alte gilt dann sofort nicht mehr. Dann muss der neue Schlüssel auch bei
+der Plattform eingetragen werden.
+
+**Rufnummer zuordnen:** Im Betreiber-Bereich den Laden öffnen. Im Abschnitt „Telefon-Assistent“ die Nummer
+eintragen, die bei der Plattform ankommt. Pro Laden gibt es eine Nummer. Gespeichert wird sie in
+`telefon_leitungen/{+49…}`, nur das Backend liest das. Wird der Laden gelöscht, wird seine Nummer wieder frei.
+Ohne Telefon (Probe im Browser der Plattform) geht statt der Nummer die Laden-ID, aber nur für Läden mit
+zugeordneter Nummer.
+
+**Was ein Anruf anlegt:** Termine und Nummern wie bei einer Buchung ohne Konto, also mit Tagesnummer, Name und
+Telefonnummer des Anrufers, gekennzeichnet mit `source: "telefon"`. Sie stehen ganz normal im Kalender, in der
+Schlange und auf dem Bildschirm. Ein Platz geht dabei nur einmal weg, auch wenn gleichzeitig online oder am
+Tresen gebucht wird (`backend/app/libs/buchung.py`).
+
 ## Abo-Abrechnung (Stripe)
 
 Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird über Stripe Checkout, verwaltet und

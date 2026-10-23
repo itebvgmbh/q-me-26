@@ -342,6 +342,22 @@ def test_passwort_mail_ueber_resend_sonst_firebase_im_browser():
 # --- Löschen ------------------------------------------------------------------------------------------------------
 
 
+def test_telefon_nummer_zuordnen_wechseln_entfernen():
+    client, store, _ = setup()
+    assert client.post("/routes/betreiber/laden/neu/telefon", json={"nummer": "12ab"}).status_code == 400
+    r = client.post("/routes/betreiber/laden/neu/telefon", json={"nummer": "030 1234567", "reason": "Probelauf"})
+    assert r.status_code == 200 and r.json()["telefon"] == ["+49301234567"], r.text
+    assert store["telefon_leitungen"]["+49301234567"]["shopId"] == "neu"
+    assert client.get("/routes/betreiber/laden/neu").json()["telefon"] == ["+49301234567"]
+    assert protokoll_zeilen()[-1]["action"] == "Telefon-Nummer zugeordnet"
+    besetzt = client.post("/routes/betreiber/laden/laden/telefon", json={"nummer": "+49 30 1234567"})
+    assert besetzt.status_code == 409 and "neu" in besetzt.json()["detail"]
+    client.post("/routes/betreiber/laden/neu/telefon", json={"nummer": "+49 30 7654321"})
+    assert sorted(store["telefon_leitungen"]) == ["+49307654321"], "eine Nummer je Laden, die alte ist frei"
+    client.post("/routes/betreiber/laden/neu/telefon", json={"nummer": ""})
+    assert store["telefon_leitungen"] == {} and protokoll_zeilen()[-1]["action"] == "Telefon-Nummer entfernt"
+
+
 def test_loeschen_erst_mit_dem_namen_dann_mit_sicherung():
     client, store, auth = setup()
     probe = client.post("/routes/betreiber/loeschen/probe", json={"shopIds": ["neu"], "uids": ["neuling"]}).json()

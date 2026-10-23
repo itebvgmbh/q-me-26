@@ -29,6 +29,7 @@ from app.auth.access import admin_lists, is_admin, is_admin_account, require_adm
 from app.libs import konten, protokoll
 from app.libs.konten import BERLIN, ITEBV_SHOP, utc
 from app.libs.plans import ACTIVE_BILLING, FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, PLANS, effective_plan, trial_end
+from app.libs.telefon import LEITUNGEN, e164
 
 router = APIRouter()
 admin = APIRouter(dependencies=[Depends(require_admin)])
@@ -250,6 +251,7 @@ def laden(shop_id: str) -> dict:
         "trialEnd": trial_end(shop),
         "staff": staff,
         "owner": owner,
+        "telefon": _telefon_nummern(shop_id),
         "protokoll": protokoll.read(100, shop_id=shop_id),
     })
 
@@ -407,6 +409,41 @@ def stripe_loesen(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
     protokoll.write(user, "Stripe gelöst", {"shopId": shop_id, "name": shop.get("name")}, reason,
                     {"billing": billing})
     return {"changed": True}
+
+
+def _telefon_nummern(shop_id: str) -> list:
+    return sorted(snap.id for snap in get_firestore_db().collection(LEITUNGEN).where("shopId", "==", shop_id).stream())
+
+
+class TelefonRequest(BaseModel):
+    nummer: str = ""  # leer = Zuordnung aufheben
+    reason: str = ""
+
+
+@admin.post("/betreiber/laden/{shop_id}/telefon")
+def telefon_zuordnen(shop_id: str, body: TelefonRequest, user: AuthorizedUser) -> dict:
+    """Rufnummer des Telefon-Assistenten für diesen Laden (eine je Laden): Anrufe darauf gehören zu ihm (app/apis/telefon)"""
+    _, shop = _shop(shop_id)
+    fs = get_firestore_db()
+    wanted = body.nummer.strip()
+    nummer = e164(wanted)
+    if wanted and not nummer:
+        raise HTTPException(status_code=400, detail="Das ist keine Rufnummer (z. B. +49 30 1234567).")
+    if nummer:
+        snap = fs.collection(LEITUNGEN).document(nummer).get()
+        other = (snap.to_dict() or {}).get("shopId") if snap.exists else None
+        if other and other != shop_id:
+            raise HTTPException(status_code=409, detail=f"Die Nummer gehört schon zu einem anderen Laden ({other}).")
+    before = _telefon_nummern(shop_id)
+    for old in before:
+        if old != nummer:
+            fs.collection(LEITUNGEN).document(old).delete()
+    if nummer and nummer not in before:
+        fs.collection(LEITUNGEN).document(nummer).set({"shopId": shop_id, "nummer": nummer, "createdAt": _now()})
+    protokoll.write(user, "Telefon-Nummer zugeordnet" if nummer else "Telefon-Nummer entfernt",
+                    {"shopId": shop_id, "name": shop.get("name")}, body.reason.strip(), {"telefon": before},
+                    {"telefon": [nummer] if nummer else []})
+    return {"telefon": [nummer] if nummer else []}
 
 
 def _shop_accounts(shop_id: str, shop: dict) -> list:

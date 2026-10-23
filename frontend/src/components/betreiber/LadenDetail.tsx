@@ -11,6 +11,7 @@ import {
   grantPlan,
   loadShop,
   setFounder,
+  setPhoneLine,
   setTrial,
   suspendShop,
   syncStripe,
@@ -69,6 +70,9 @@ export function LadenDetail({
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Laden konnte nicht geladen werden.'));
   }, [shop.id]);
   useEffect(reload, [reload]);
+  const phoneLines = detail?.telefon ?? [];
+  const [phone, setPhone] = useState('');
+  useEffect(() => setPhone(detail?.telefon?.[0] ?? ''), [detail]);
 
   const changed = () => {
     reload();
@@ -299,6 +303,42 @@ export function LadenDetail({
           <Button type="submit" size="sm" disabled={busy !== ''}>
             Freischalten
           </Button>
+        </form>
+      </Section>
+
+      <Section title="Telefon-Assistent">
+        <p className="text-sm text-muted-foreground">
+          Anrufe auf diese Nummer nimmt der KI-Assistent für diesen Laden an (eine Nummer je Laden). Einrichtung der Sprach-KI:
+          deploy/telefon-assistent.md.
+        </p>
+        <p className="text-sm">
+          {phoneLines.length ? (
+            <>
+              Zugeordnet: <strong className="font-mono">{phoneLines[0]}</strong>
+            </>
+          ) : (
+            'Keine Nummer zugeordnet.'
+          )}
+        </p>
+        <form
+          className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run('telefon', () => setPhoneLine(shop.id, phone), 'Nummer zugeordnet.');
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="telefon-nummer">Rufnummer</Label>
+            <Input id="telefon-nummer" type="tel" inputMode="tel" placeholder="+49 30 1234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <Button type="submit" size="sm" disabled={busy !== '' || !phone.trim()}>
+            Zuordnen
+          </Button>
+          {phoneLines.length > 0 && (
+            <Button type="button" size="sm" variant="ghost" disabled={busy !== ''} onClick={() => run('telefon', () => setPhoneLine(shop.id, ''), 'Nummer entfernt.')}>
+              Entfernen
+            </Button>
+          )}
         </form>
       </Section>
 
