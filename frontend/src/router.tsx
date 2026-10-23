@@ -7,6 +7,7 @@ import SomethingWentWrongPage from "./pages/SomethingWentWrongPage";
 import { AppProvider } from "./components/AppProvider";
 import { Navigation } from "./components/Navigation";
 import { SiteFooter } from "./components/brand/SiteFooter";
+import { SeitenKopf } from "./components/SeitenKopf";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
   return (
@@ -37,6 +38,7 @@ export const router = createBrowserRouter(
     {
       element: (
         <AppProvider>
+          <SeitenKopf />
           <div className="flex min-h-screen flex-col">
             <Navigation />
             <main id="inhalt" className="flex-1">
@@ -64,6 +66,7 @@ export const router = createBrowserRouter(
       path: "*",
       element: (
         <div className="flex min-h-screen flex-col">
+          <SeitenKopf />
           <Navigation />
           <main id="inhalt" className="flex-1">
             <SuspenseWrapper>

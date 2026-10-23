@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MapPin, Phone } from 'lucide-react';
 import { ShopLogo } from '../components/brand/ShopLogo';
@@ -6,6 +7,8 @@ import { useShopDetails } from '../utils/hooks/useShopDetails';
 import { getIndustryNameById } from '../utils/industries';
 import { ConnectionProblem } from '../components/ConnectionProblem';
 import { formatDayHours } from '../utils/opening-hours';
+import { canonicalUrl, setzeKopf, STANDARD_KOPF } from '../utils/seiten-kopf';
+import { loadLadenSeite } from '../utils/verzeichnis';
 
 const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -16,6 +19,34 @@ const ShopDetails = () => {
   const [searchParams] = useSearchParams();
   const shopId = searchParams.get('shopId');
   const { shop, services, staff, loading, loadError } = useShopDetails(shopId);
+  // undefined = wird noch geladen
+  const [ladenSeite, setLadenSeite] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!shopId) return;
+    let aktiv = true;
+    loadLadenSeite(shopId).then((pfad) => aktiv && setLadenSeite(pfad));
+    return () => {
+      aktiv = false;
+    };
+  }, [shopId]);
+
+  // Kopf für Suchmaschinen: Canonical auf die Seite im Salon-Verzeichnis, falls es eine gibt (gleicher Laden, mehr Text)
+  useEffect(() => {
+    if (loading || loadError) return;
+    if (!shop || shop.suspended) {
+      setzeKopf({ ...STANDARD_KOPF, title: 'Laden nicht gefunden | Dranzeit', canonical: null, robots: 'noindex' });
+      return;
+    }
+    if (ladenSeite === undefined) return;
+    const ort = [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    setzeKopf({
+      title: `${shop.name}${shop.city ? ` in ${shop.city}` : ''}: Nummer ziehen oder Termin buchen | Dranzeit`,
+      description: `${shop.name}${ort ? `, ${ort}` : ''}: online eine Nummer ziehen oder einen Termin buchen. Leistungen, Preise und Öffnungszeiten.`,
+      canonical: canonicalUrl(ladenSeite ?? `/shop-details?shopId=${encodeURIComponent(shopId || '')}`),
+      robots: null,
+    });
+  }, [shop, loading, loadError, ladenSeite, shopId]);
 
   if (loadError) {
     return (

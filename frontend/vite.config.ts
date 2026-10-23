@@ -1,9 +1,10 @@
 import react from "@vitejs/plugin-react";
 import "dotenv/config";
 import path from "node:path";
-import { defineConfig, splitVendorChunkPlugin } from "vite";
+import { defineConfig, type Plugin, splitVendorChunkPlugin } from "vite";
 import injectHTML from "vite-plugin-html-inject";
 import tsConfigPaths from "vite-tsconfig-paths";
+import { kopfHtml, OEFFENTLICHE_SEITEN } from "./src/utils/seiten-kopf";
 
 type Extension = {
 	name: string;
@@ -93,10 +94,30 @@ const buildVariables = () => {
 	return defines;
 };
 
+const KOPF = /<!-- seiten-kopf[^>]*-->[\s\S]*?<!-- \/seiten-kopf -->/;
+const kopfBlock = (pfad: string | null) => `<!-- seiten-kopf -->\n  ${kopfHtml(pfad)}\n  <!-- /seiten-kopf -->`;
+
+// Eigene HTML-Datei je öffentlicher Seite (preise.html …) mit fertigem Kopf für Suchmaschinen und Link-Vorschauen,
+// dazu app.html ohne Canonical für alle übrigen Adressen. Caddy: try_files {path} {path}.html /app.html (deploy/caddy-domain.py)
+const seitenKoepfe = (): Plugin => ({
+	name: "seiten-koepfe",
+	enforce: "post",
+	transformIndexHtml: (html) => html.replace(KOPF, kopfBlock("/")),
+	generateBundle(_, bundle) {
+		const index = bundle["index.html"];
+		if (!index || index.type !== "asset") return;
+		const html = String(index.source);
+		for (const pfad of Object.keys(OEFFENTLICHE_SEITEN).filter((p) => p !== "/")) {
+			this.emitFile({ type: "asset", fileName: `${pfad.slice(1)}.html`, source: html.replace(KOPF, kopfBlock(pfad)) });
+		}
+		this.emitFile({ type: "asset", fileName: "app.html", source: html.replace(KOPF, kopfBlock(null)) });
+	},
+});
+
 // https://vite.dev/config/
 export default defineConfig({
 	define: buildVariables(),
-	plugins: [react(), splitVendorChunkPlugin(), tsConfigPaths(), injectHTML()],
+	plugins: [react(), splitVendorChunkPlugin(), tsConfigPaths(), injectHTML(), seitenKoepfe()],
 	server: {
 		proxy: {
 			// QME_BACKEND=https://dranzeit.de: lokales Frontend gegen das Backend auf dem Server testen

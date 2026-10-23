@@ -331,6 +331,22 @@ Bis dahin leitet die App `/einbau/…` auf `/routes/seo/einbau/…` weiter (geht
 Prüfen: `curl -sI https://dranzeit.de/ | grep -i frame` zeigt beide Kopfzeilen, `curl -sI https://dranzeit.de/einbau/<Laden-ID>`
 keine davon.
 
+## Suchmaschinen (Search Console, Seitenköpfe)
+
+Die Domain `dranzeit.de` ist in der Google Search Console als Domain-Property per DNS bestätigt (TXT-Eintrag
+`google-site-verification=…` am Apex der Hetzner-Zone; nicht löschen, sonst verliert das Konto den Zugriff).
+Sitemap: `https://dranzeit.de/sitemap.xml` (Backend, `app/seo.py`), steht auch in `robots.txt`.
+
+Die öffentlichen Seiten der App (`/`, `/features`, `/preise`, `/shop-map`, Rechtliches) bekommen beim Bauen je eine
+eigene HTML-Datei mit Titel, Beschreibung, Canonical und Vorschaubild (`frontend/src/utils/seiten-kopf.ts`), alle
+übrigen Adressen `app.html` ohne Canonical; in der App sind sie `noindex`. Caddy liefert sie per
+`try_files {path} {path}.html {path}index.html /app.html /index.html` aus – das stellt `caddy-domain.py` ein, nach diesem Update
+**einmal neu ausführen** (Adressen wie oben). Bis dahin bekommt jede Adresse `index.html` mit dem Kopf der Startseite;
+die App korrigiert ihn, Google sieht also nach dem Rendern trotzdem das Richtige.
+
+Prüfen: `curl -s https://dranzeit.de/preise | grep canonical` zeigt `https://dranzeit.de/preise`,
+`curl -s https://dranzeit.de/ | grep -c ld+json` zeigt `1` (Startseite aus index.html), `curl -s https://dranzeit.de/login | grep -c canonical` zeigt `0`.
+
 ## Abo-Abrechnung (Stripe)
 
 Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird über Stripe Checkout, verwaltet und
