@@ -444,7 +444,7 @@ describe('Personen, Leistungen, Pausen', () => {
     const db = as(TEAM);
     await assertSucceeds(setDoc(doc(db, 'staff', STAFF), { workingHours: [{ dayOfWeek: 1, startTime: '08:00', endTime: '16:00', isWorking: true }], updatedAt: Timestamp.now() }, { merge: true }));
     await assertFails(setDoc(doc(db, 'staff', STAFF), { name: 'Chefin', updatedAt: Timestamp.now() }, { merge: true }));
-    await assertFails(setDoc(doc(db, 'staff', STAFF), { isActive: true, workingHours: [] }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'staff', STAFF), { isActive: false, workingHours: [] }, { merge: true }));
     await assertFails(setDoc(doc(db, 'staff', 'neu'), { shopId: SHOP, name: 'Kim', userId: '' }));
     await assertFails(setDoc(doc(db, 'services', 'neu'), { shopId: SHOP, name: 'Farbe' }));
     await assertFails(setDoc(doc(db, 'breaks', 'neu'), { shopId: SHOP, staffId: STAFF, startTime: inDays(1), endTime: inDays(1.1) }));
