@@ -5,6 +5,7 @@ import { ShopLogo } from '../components/brand/ShopLogo';
 import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { ShopSwitcher } from '../components/ShopSwitcher';
+import { WebseiteEinbau } from '../components/WebseiteEinbau';
 import { useOwnedShops } from '../utils/hooks/useOwnedShops';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
   </div>
 );
 
-/** Mein Laden: so sehen Kunden den Laden, plus QR-Code zum Aufhängen; bei mehreren Läden mit Ladenauswahl */
+/** Mein Laden: so sehen Kunden den Laden, plus QR-Code zum Aufhängen und Einbau auf der eigenen Webseite; bei mehreren Läden mit Ladenauswahl */
 const ShopProfile = () => {
   const { user } = useUserGuardContext();
   const { shops, shop, selectShop, replaceShop, failed } = useOwnedShops(user.uid);
@@ -107,6 +108,8 @@ const ShopProfile = () => {
         </section>
         <QRCodeDisplay shopId={shop.id} shopName={shop.name} />
       </div>
+
+      <WebseiteEinbau key={shop.id} shop={shop} />
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-xl">

@@ -316,6 +316,21 @@ Caddy muss `/hilfe` ans Backend geben. Das stellt `caddy-domain.py` ein, aber nu
 `python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de`.
 Bis dahin leitet die App `/hilfe` auf `/routes/seo/hilfe` weiter; es funktioniert also auch vorher.
 
+## Kasten für Webseiten der Läden (/einbau)
+
+Läden bauen unter „Mein Laden“ → „Auf deiner Webseite“ einen Kasten (iframe auf `/einbau/<Laden-ID>`), einen Knopf
+oder den QR-Code als Bild auf ihrer eigenen Webseite ein (`backend/app/einbau.py`, QR-Code mit dem Paket `segno` aus
+`requirements.txt`; kommt mit dem normalen Update).
+
+Caddy muss `/einbau/*` ans Backend geben und das Einbetten aller anderen Seiten verbieten
+(`Content-Security-Policy: frame-ancestors 'self'` und `X-Frame-Options: SAMEORIGIN`, Schutz vor Clickjacking). Beides
+stellt `caddy-domain.py` ein – nach diesem Update **einmal neu ausführen**, mit denselben Adressen wie zuletzt, z. B.
+`python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de dranzeit.com www.dranzeit.com`.
+Bis dahin leitet die App `/einbau/…` auf `/routes/seo/einbau/…` weiter (geht, lädt aber erst die ganze App).
+
+Prüfen: `curl -sI https://dranzeit.de/ | grep -i frame` zeigt beide Kopfzeilen, `curl -sI https://dranzeit.de/einbau/<Laden-ID>`
+keine davon.
+
 ## Abo-Abrechnung (Stripe)
 
 Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird über Stripe Checkout, verwaltet und

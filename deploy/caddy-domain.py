@@ -29,7 +29,10 @@ BEGIN, END = "# >>> dranzeit", "# <<< dranzeit"
 BACKEND_PATHS = (
     "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
     " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
+    " /einbau/*"  # Kasten für Webseiten der Läden (backend/app/einbau.py)
 )
+# Nur diese Pfade dürfen fremde Seiten einbetten (iframe); alles andere nur Dranzeit selbst (Schutz vor Clickjacking)
+EMBEDDABLE_PATHS = "/einbau/* /routes/seo/einbau/*"
 
 
 def block(domain: str, port: str, redirects: list[str]) -> str:
@@ -38,7 +41,7 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 {domain} {{
 	encode zstd gzip
 
-	# API, Stadtseiten, Salon-Verzeichnis, Hilfe und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
+	# API, Stadtseiten, Salon-Verzeichnis, Hilfe, Einbau-Kasten und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
 	@backend path {BACKEND_PATHS}
 	handle @backend {{
 		reverse_proxy 127.0.0.1:{port}
@@ -57,6 +60,13 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
+	}}
+
+	# Einbetten nur für den Kasten auf Webseiten der Läden
+	@nicht_einbettbar not path {EMBEDDABLE_PATHS}
+	header @nicht_einbettbar {{
+		Content-Security-Policy "frame-ancestors 'self'"
+		X-Frame-Options "SAMEORIGIN"
 	}}
 
 	log {{

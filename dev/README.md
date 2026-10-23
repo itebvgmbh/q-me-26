@@ -52,6 +52,7 @@ node dev/e2e/email-bestaetigen.cjs          # Registrieren → Profil „noch ni
 node dev/e2e/passwort-neu.cjs              # „Passwort vergessen?“ (Backend, ohne Resend Firebase, zu oft) und /passwort-neu (gültig, zu kurz, abgelaufen) – Backend und Firebase nachgebildet, keine Testdaten nötig
 node dev/e2e/frueher-dran-schalter.cjs      # Meine Termine: „Früher dran“ selbst ein-/ausschalten bei einem vom Laden eingetragenen Termin, Angebot kommt und geht, Gratis-Tarif, Rechte (braucht das Backend ab diesem Stand)
 node dev/e2e/mein-tag-zeitraum.cjs          # Mein Tag: neuer Zeitraum beginnt heute, Pfeile schieben um je einen Tag (Wegwerf-Laden, räumt sich selbst weg)
+node dev/e2e/webseite-einbau.cjs            # Mein Laden → Auf deiner Webseite: Kasten, Knopf, QR-Code (Wegwerf-Laden); Backend ab diesem Stand nötig, QME_EINBAU_LIVE=1 prüft Einbetten auf fremden Seiten
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 
 # 4. Testladen wieder löschen

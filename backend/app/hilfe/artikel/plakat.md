@@ -35,6 +35,6 @@ Der QR-Code bleibt gleich, auch wenn du Adresse, Öffnungszeiten oder Leistungen
 
 ## Link zusätzlich teilen
 
-Am Tresen in der Box **„Einreihen per QR-Code“** steht **„Link kopieren“**. Der Link führt zum selben Ziel wie der QR-Code. Stell ihn in dein Google-Unternehmensprofil, deine Instagram-Bio oder deinen WhatsApp-Status. Mehr dazu: [Damit Kunden dich finden](/hilfe/gefunden-werden).
+Am Tresen in der Box **„Einreihen per QR-Code“** steht **„Link kopieren“**. Der Link führt zum selben Ziel wie der QR-Code. Stell ihn in dein Google-Unternehmensprofil, deine Instagram-Bio oder deinen WhatsApp-Status. Mehr dazu: [Damit Kunden dich finden](/hilfe/gefunden-werden). Für deine eigene Webseite gibt es einen fertigen Kasten: [Dranzeit auf deiner Webseite](/hilfe/auf-der-webseite).
 
 [Plakat öffnen](/plakat){knopf}

@@ -26,3 +26,5 @@ tzdata
 stripe
 # E-Rechnung (XRechnung) zu den Abo-Rechnungen (app/libs/invoices.py); feste Version, damit das XML gleich bleibt
 drafthorse==2025.2.0
+# QR-Code im Einbau-Kasten und zum Herunterladen (app/einbau.py); nur Standardbibliothek
+segno
