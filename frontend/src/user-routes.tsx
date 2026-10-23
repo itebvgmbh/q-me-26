@@ -90,6 +90,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/barbershop/*", element: <StadtWeiterleitung />},
 	{ path: "/barbershop", element: <StadtWeiterleitung />},
 	{ path: "/hilfe", element: <StadtWeiterleitung />},
+	{ path: "/einbau/*", element: <StadtWeiterleitung />},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueue", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},

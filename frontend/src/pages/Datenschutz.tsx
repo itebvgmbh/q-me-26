@@ -64,6 +64,11 @@ export default function Datenschutz() {
             Arbeitsspeicher, nicht die Adresse selbst.
           </li>
           <li>
+            <strong>Dranzeit-Kasten auf Webseiten von Läden:</strong> Bindet ein Laden unseren Kasten auf seiner Webseite ein,
+            lädt dein Browser ihn von dranzeit.de. Dabei fallen nur die Server-Protokolle an (siehe unten). Der Kasten setzt
+            keine Cookies und speichert nichts in deinem Browser (Art. 6 Abs. 1 lit. f DSGVO).
+          </li>
+          <li>
             <strong>Server-Protokolle:</strong> IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browser-Kennung, um den
             Betrieb zu sichern und Angriffe zu erkennen (Art. 6 Abs. 1 lit. f DSGVO).
           </li>
