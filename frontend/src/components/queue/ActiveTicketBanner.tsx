@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { getDoc } from 'firebase/firestore';
 import { ArrowRight } from 'lucide-react';
 import { firestore } from '../../utils/firestore-client';
+import { publicRef } from '../../utils/firestore/public-appointments';
 import { getRememberedTickets } from '../../utils/push';
 
 interface OpenTicket {
@@ -22,7 +23,7 @@ export const ActiveTicketBanner = () => {
     (async () => {
       for (const t of candidates) {
         try {
-          const snap = await getDoc(doc(firestore, 'appointments', t.id));
+          const snap = await getDoc(publicRef(firestore, t.id));
           const data = snap.data();
           if (snap.exists() && (data?.status === 'scheduled' || data?.status === 'in-progress')) {
             if (alive) setTicket({ id: t.id, label: data?.referenceCode ? `Nummer ${data.referenceCode}` : 'Deine Nummer' });

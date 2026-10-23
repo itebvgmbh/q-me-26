@@ -1,5 +1,8 @@
+import { auth } from 'app';
+
 // Benachrichtigungen für eine Nummer: Web-Push oder E-Mail.
 // Backend: backend/app/apis/push (Anmelden), backend/app/libs/notify_worker.py (Versand).
+// Eine Nummer ohne Konto meldet sich mit ihrem Schlüssel an (utils/ticket-key.ts), eine mit Konto mit der Anmeldung.
 
 export interface PushConfig {
   push: boolean;
@@ -10,7 +13,10 @@ export interface PushConfig {
 const NO_CHANNELS: PushConfig = { push: false, email: false, publicKey: '' };
 
 const post = async (path: string, body: unknown) => {
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = await auth.getAuthToken().catch(() => null);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) {
     let detail = 'Das hat nicht geklappt. Versuch es gleich noch einmal.';
     try {
@@ -63,7 +69,7 @@ const urlBase64ToUint8Array = (base64: string) => {
 
 export type EnablePushResult = 'ok' | 'denied' | 'unsupported';
 
-export const enablePush = async (appointmentId: string, publicKey: string): Promise<EnablePushResult> => {
+export const enablePush = async (appointmentId: string, publicKey: string, ticketKey?: string | null): Promise<EnablePushResult> => {
   if (!pushSupported() || !publicKey) return 'unsupported';
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return 'denied';
@@ -82,6 +88,7 @@ export const enablePush = async (appointmentId: string, publicKey: string): Prom
   const json = subscription.toJSON();
   await post('/routes/push/subscribe', {
     appointment_id: appointmentId,
+    key: ticketKey || null,
     endpoint: json.endpoint,
     p256dh: json.keys?.p256dh,
     auth: json.keys?.auth,
@@ -94,8 +101,27 @@ export const enablePush = async (appointmentId: string, publicKey: string): Prom
   return 'ok';
 };
 
-export const setNotifyEmail = (appointmentId: string, email: string | null) =>
-  post('/routes/push/notify-email', { appointment_id: appointmentId, email: email || null });
+const mailKey = (appointmentId: string) => `dranzeit-mail-${appointmentId}`;
+
+export const setNotifyEmail = async (appointmentId: string, email: string | null, ticketKey?: string | null) => {
+  await post('/routes/push/notify-email', { appointment_id: appointmentId, email: email || null, key: ticketKey || null });
+  // Die Adresse steht nur am Termin, den ohne Anmeldung niemand lesen kann – für die Anzeige hier merken
+  try {
+    if (email) localStorage.setItem(mailKey(appointmentId), email);
+    else localStorage.removeItem(mailKey(appointmentId));
+  } catch {
+    /* privater Modus */
+  }
+};
+
+/** In diesem Browser hinterlegte E-Mail für die Nummer (setNotifyEmail) */
+export const savedNotifyEmail = (appointmentId: string): string => {
+  try {
+    return localStorage.getItem(mailKey(appointmentId)) || '';
+  } catch {
+    return '';
+  }
+};
 
 // Zuletzt gezogene Nummern auf diesem Gerät, damit man sie von der Startseite wiederfindet
 const TICKETS_KEY = 'dranzeit-nummern';

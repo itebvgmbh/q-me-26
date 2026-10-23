@@ -4,7 +4,7 @@ import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Staff, Shop, Service, getStaffByShopId, getShopsByOwnerId, getServicesByShopId, offeredServices, reactivateStaff } from '../utils/firestore';
+import { Staff, Shop, Service, getStaffWithContacts, getShopsByOwnerId, getServicesByShopId, offeredServices, reactivateStaff } from '../utils/firestore';
 import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
@@ -22,7 +22,7 @@ const StaffManagement = () => {
 
   const loadShopData = async (shopId: string) => {
     try {
-      const [staffList, servicesList] = await Promise.all([getStaffByShopId(shopId), getServicesByShopId(shopId)]);
+      const [staffList, servicesList] = await Promise.all([getStaffWithContacts(shopId), getServicesByShopId(shopId)]);
       setStaff(staffList.filter((s) => s.isActive !== false));
       setInactive(staffList.filter((s) => s.isActive === false));
       setServices(offeredServices(servicesList));
