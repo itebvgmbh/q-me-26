@@ -74,6 +74,8 @@ export const CreateAppointmentDialog = ({
       
       let customerId = selectedCustomerId;
       let finalCustomerName = customerName;
+      // Handynummer aus der Kundenliste (das Profil eines Kundenkontos liest der Laden nicht, firestore.rules)
+      let finalCustomerPhone = customerPhone;
 
       console.log('Creating appointment, isNewCustomer:', isNewCustomer);
       if (isNewCustomer) {
@@ -91,6 +93,7 @@ export const CreateAppointmentDialog = ({
         if (!customer) throw new Error('Selected customer not found');
         customerId = appointmentCustomerId(customer);
         finalCustomerName = customer.name;
+        finalCustomerPhone = customer.phone;
       }
 
       console.log('Creating appointment with customer:', { customerId, finalCustomerName });
@@ -104,6 +107,7 @@ export const CreateAppointmentDialog = ({
         shopId: employee.shopId,
         customerId,
         customerName: finalCustomerName,
+        customerPhone: finalCustomerPhone || undefined,
         serviceId,
         staffId: employee.id,
         status: 'scheduled',

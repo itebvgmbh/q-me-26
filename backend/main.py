@@ -136,6 +136,20 @@ def create_app() -> FastAPI:
             start_notify_worker()
             print("Notify worker autostarted")
 
+            # Team-Vermerke für die Firestore-Regeln an die Personen angleichen (app/libs/team.py)
+            import threading
+
+            def sync_team() -> None:
+                try:
+                    from app.apis.firebase_utils import get_firestore_db
+                    from app.libs.team import sync_members
+
+                    print(f"Team-Vermerke abgeglichen: {sync_members(get_firestore_db())}")
+                except Exception as e:  # Start des Dienstes nie daran scheitern lassen
+                    print(f"Team-Vermerke nicht abgeglichen: {e}")
+
+            threading.Thread(target=sync_team, daemon=True).start()
+
     return app
 
 

@@ -24,44 +24,60 @@ aus `fixtures.py`, ohne Entwicklungsserver).
 
 ## Was die Regeln schützen
 
+Grundsatz: **Lesen** bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen. **Schreiben** darf nur,
+wer zum Laden gehört – der Inhaber (`shops.owner`) oder eine Person im Team (Vermerk `shops/{shopId}/members/{uid}`,
+setzt das Backend: `backend/app/libs/team.py`). Ohne Anmeldung und als Kunde nur genau das, was die App dort tut.
+
 **Tarif-Felder am Laden** (`shops`): `plan`, `billing`, `trialEndsAt`, `founder`, `founderSince`, `grant`,
-`suspended` setzt nur noch das Backend (Stripe-Webhook, `/billing/claim-founder`, Betreiber-Bereich). Wer sie im
-Browser schreiben kann, nutzt bezahlte Tarife umsonst oder hebt eine Sperre auf. Dazu `owner` und `createdAt`
-(ohne `trialEndsAt` zählt die Testphase ab `createdAt`).
+`suspended` setzt nur das Backend (Stripe-Webhook, `/billing/claim-founder`, Betreiber-Bereich). Dazu `owner` und
+`createdAt` (ohne `trialEndsAt` zählt die Testphase ab `createdAt`).
 
 - Beim **Anlegen** darf ein Laden sie nur zum eigenen Nachteil mitbringen: `plan: 'gratis'`, Testphase höchstens
   30 Tage (+1 Tag Spielraum für falsche Uhren), gerne schon abgelaufen, oder gleich gesperrt (`suspended: { at }`).
   So legen Testskripte Läden mit beendeter Testphase oder gesperrt an (`dev/e2e/lib.cjs` → `tempShop`).
 - **Ändern** darf den Laden nur der Inhaber, und nie diese Felder. Unverändert mitgeschickte Werte stören nicht.
-  Das Team ändert den Laden nicht (die Startklar-Liste merkt sich dann im Browser).
-- **Löschen** (macht nur ein Testskript, die App nicht) geht nur zusammen mit einem Vermerk
-  `deleted_shops/{id}` im selben Schritt; unter dieser ID lässt sich danach kein Laden mehr anlegen. Sonst brächte
-  Löschen und Neuanlegen mit derselben ID (QR-Plakate gelten weiter) eine frische Testphase.
+- **Löschen** (macht nur ein Testskript und das Backend, die App nicht) geht nur zusammen mit einem Vermerk
+  `deleted_shops/{id}` im selben Schritt; unter dieser ID lässt sich danach kein Laden mehr anlegen.
 
-**Nur Backend**, im Browser weder lesbar noch schreibbar: `meta` (Zähler der Gründerplätze – zurückgesetzt gäbe es
-Gründerpreise über die 100 hinaus), `push_subscriptions`, `staff-invitations`, `verzeichnis` (Salon-Verzeichnis; Seiten
-und Karte liefert das Backend) und jede Sammlung, die in den Regeln nicht vorkommt.
+**Termine** (`appointments`): anlegen darf das Team alles im eigenen Laden; ohne Anmeldung nur eine Nummer ohne Konto
+(`isAnonymous`, `type: 'queue'`), mit Konto nur für sich selbst (`customerId` = eigenes Konto) – beides nur wartend,
+ohne Aufruf- oder Nachrichtenfelder, bei einer Person dieses Ladens und nicht in einem gesperrten Laden. Ändern darf
+das Team; absagen (nur der Status, wartend → abgesagt) die Nummer ohne Konto und das eigene Konto; übernehmen nur eine
+Nummer ohne Konto ins eigene Konto.
 
-**Offen wie bisher**: alle übrigen Sammlungen (siehe unten). Das ist bewusst ein eigener, späterer Schritt.
+**Belegung** (`schedules/{staffId}_{Tag}`) und **Tagesnummern** (`shop_days/{shopId}_{Tag}`) schreibt jede Buchung in
+derselben Transaktion mit, auch ohne Anmeldung: nur in der festen Form, nur für eine Person dieses Ladens; Nummern
+kommen genau eine je Schritt dazu und fallen nie weg.
 
-## Wer liest und schreibt was (Stand 21.10.2026)
+**Personen, Leistungen, Pausen**: pflegt der Inhaber, nur im eigenen Laden. Ein Konto verbindet mit einer Person nur
+das Backend (Einladung); der Inhaber nur sich selbst. Die Person selbst ändert nur ihre Arbeitszeiten.
+
+**Kundenliste** (`customers`): lesen und anlegen nur Inhaber und Team, ohne Konto-Verbindung; verbinden, Link und
+Löschen macht das Backend. **Profile** (`users`): nur das eigene. **Angebote „Früher dran“**: lesen das eigene Konto.
+
+**Nur Backend**, im Browser weder lesbar noch schreibbar: `meta` (Zähler der Gründerplätze), `push_subscriptions`,
+`staff-invitations`, `verzeichnis` und jede Sammlung, die in den Regeln nicht vorkommt.
+
+## Wer liest und schreibt was (Stand 23.10.2026)
 
 | Sammlung | Ohne Anmeldung | Kunde | Inhaber | Team |
 |---|---|---|---|---|
-| `shops` | lesen (alle: Läden finden, Karte; einzeln: Buchen, QR, Wartezimmer-Bildschirm) | lesen | anlegen, ändern | lesen |
-| `appointments` | anlegen (Buchen, Nummer ziehen), lesen (Tagesplan der Person, `/nummer/<id>`), absagen | anlegen, eigene lesen, absagen, anonyme übernehmen | alles im Laden | aufrufen, verschieben |
-| `schedules`, `shop_days` | in jeder Buchung/Absage mitgeschrieben (Transaktion) | ebenso | ebenso | ebenso |
-| `staff`, `services`, `breaks`, `recurring-breaks` | lesen | lesen | anlegen, ändern | eigene Arbeitszeiten |
-| `customers` | – | – | lesen | anlegen, lesen |
-| `users` | – | eigenes Profil | Profil verbundener Kunden lesen (Name, Telefon) | ebenso |
-| `earlier_slot_notifications` | – | eigene lesen (schreibt das Backend) | – | – |
-| `queue` (alt) | – | abfragen | – | – |
+| `shops` | lesen | lesen | anlegen, ändern (ohne Tarif-Felder) | lesen |
+| `shops/{id}/members` | – | – | wegnehmen, zurückholen | – |
+| `appointments` | lesen, Nummer ohne Konto ziehen und absagen | lesen, für sich buchen, eigene absagen, Nummer ohne Konto übernehmen | alles im Laden | alles im Laden |
+| `schedules`, `shop_days` | in der Buchung mitschreiben | ebenso | ebenso | ebenso |
+| `staff` | lesen | lesen | anlegen, ändern | eigene Arbeitszeiten |
+| `services`, `breaks`, `recurring-breaks` | lesen | lesen | anlegen, ändern, löschen | lesen |
+| `customers` | – | – | lesen, anlegen | lesen, anlegen |
+| `users` | – | eigenes Profil | eigenes Profil | eigenes Profil |
+| `earlier_slot_notifications` | – | eigene lesen | aufräumen | – |
+| `queue` (alt) | – | eigene abfragen | – | – |
 
 Schreibvorgänge der Testskripte (`fixtures.py`, `lasttest.cjs` über REST mit dem Testkonto, die anderen über die
 App-Module im Browser) laufen unter denselben Regeln.
 
-## Als Nächstes
+## Ändern
 
-Die übrigen Sammlungen zu verschärfen ist ein eigener Schritt; die Tabelle oben zeigt, was dabei weiter gehen muss
-(vor allem Buchen und Nummer ziehen ohne Anmeldung). Einzelheiten dazu bitte nicht hier eintragen: Das Repository
-ist öffentlich.
+Regeln und `regeln.test.mjs` immer zusammen ändern und die Kopfzeile `// Fassung:` neu setzen. Neue Sammlungen im
+Frontend brauchen eine Regel, sonst sind sie nach dem Einspielen zu. Schwachstellen bitte nicht hier eintragen:
+Das Repository ist öffentlich.

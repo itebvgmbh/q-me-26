@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { Staff, WorkingHours } from './types';
@@ -88,11 +88,31 @@ export const updateStaffWorkingHours = async (staffId: string, workingHours: Wor
   }
 };
 
+/**
+ * Team-Vermerk shops/{shopId}/members/{uid} für die Firestore-Regeln (firestore.rules, isMember; backend/app/libs/team.py):
+ * Ohne ihn sieht eine Person mit Konto die Kundenliste nicht und trägt keine Termine ein. Das Backend setzt ihn beim
+ * Annehmen der Einladung und gleicht beim Start ab; hier pflegt ihn der Inhaber beim Deaktivieren und Zurückholen.
+ */
+const syncTeamMember = async (staffId: string, active: boolean): Promise<void> => {
+  const db = getFirestore(firebaseApp);
+  const staff = (await getDoc(doc(db, 'staff', staffId))).data();
+  if (!staff?.userId || !staff?.shopId) return;
+  const ref = doc(db, 'shops', staff.shopId, 'members', staff.userId);
+  try {
+    if (active) await setDoc(ref, { staffId, at: Timestamp.now() });
+    else await deleteDoc(ref);
+  } catch (error) {
+    // Das Backend gleicht beim nächsten Start ab; die Person selbst ist schon geändert
+    console.warn('Team-Vermerk nicht geändert:', error);
+  }
+};
+
 export const deleteStaff = async (staffId: string): Promise<void> => {
   try {
     const db = getFirestore(firebaseApp);
     const staffRef = doc(db, 'staff', staffId);
     await setDoc(staffRef, { isActive: false, updatedAt: Timestamp.now() }, { merge: true });
+    await syncTeamMember(staffId, false);
   } catch (error) {
     console.error('Error deleting staff:', error);
     throw error;
@@ -119,6 +139,7 @@ export const getStaffByShopId = async (shopId: string): Promise<Staff[]> => {
 export const reactivateStaff = async (staffId: string): Promise<void> => {
   const db = getFirestore(firebaseApp);
   await setDoc(doc(db, 'staff', staffId), { isActive: true, updatedAt: Timestamp.now() }, { merge: true });
+  await syncTeamMember(staffId, true);
 };
 
 /** Aktive Einträge eines Kontos – in mehreren Läden kann es mehrere geben. Deaktivierte sehen "Mein Tag" nicht mehr. */

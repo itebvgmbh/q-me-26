@@ -23,6 +23,7 @@ from app.auth.access import require_shop_of_owner
 from app.libs.links import new_token, public_origin, token_hash
 from app.libs.mail import MailError, branded_html, esc, send_mail
 from app.libs.onboarding_mail import is_test_address
+from app.libs.team import set_member
 
 router = APIRouter()
 
@@ -171,6 +172,7 @@ def accept_invitation(token: str, user: AuthorizedUser) -> dict:
 
     if data.get("userId"):
         if data["userId"] == user.sub:
+            set_member(get_firestore_db(), shop_id, user.sub, doc.id)  # zweiter Klick holt einen fehlenden Vermerk nach
             return result
         raise HTTPException(status_code=409, detail="Diese Einladung wurde schon mit einem anderen Konto angenommen.")
     if _status(data, datetime.now(timezone.utc)) == "abgelaufen":
@@ -201,4 +203,6 @@ def accept_invitation(token: str, user: AuthorizedUser) -> dict:
     if not (data.get("email") or "").strip() and email:
         update["email"] = email
     doc.reference.update(update)
+    # Team-Vermerk für die Firestore-Regeln (Kundenliste, Termine im Laden), app/libs/team.py
+    set_member(db, shop_id, user.sub, doc.id)
     return result
