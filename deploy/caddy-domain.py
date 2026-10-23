@@ -47,12 +47,22 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 		reverse_proxy 127.0.0.1:{port}
 	}}
 
+	# Bausteine der React-App: Name enthält den Inhalt-Hash, also ewig gültig. Fehlt einer (Seite vor dem
+	# Ausrollen geöffnet), ehrlich 404 statt app.html – sonst merkt sich der Browser die HTML-Seite ein Jahr als
+	# Skript. Die App lädt dann einmal neu (frontend/src/utils/lazy-page.ts).
+	handle /assets/* {{
+		root * {WEB_ROOT}
+		@vorhanden file
+		header @vorhanden Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}}
+
 	# Alles andere ist die gebaute React-App. Öffentliche Seiten haben eine eigene Datei mit Titel und Canonical
-	# (/preise → preise.html, / → index.html), der Rest bekommt app.html ohne Canonical (frontend/vite.config.ts, seitenKoepfe)
+	# (/preise → preise.html, / → index.html), der Rest bekommt app.html ohne Canonical (frontend/vite.config.ts, seitenKoepfe).
+	# Immer nachfragen (no-cache, Antwort meist 304), damit nach dem Ausrollen sofort die neuen Bausteine kommen.
 	handle {{
 		root * {WEB_ROOT}
-		header /assets/* Cache-Control "public, max-age=31536000, immutable"
-		header /sw.js Cache-Control "no-cache"
+		header Cache-Control "no-cache"
 		try_files {{path}} {{path}}.html {{path}}index.html /app.html /index.html
 		file_server
 	}}
