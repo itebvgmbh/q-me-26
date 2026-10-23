@@ -140,6 +140,17 @@ export const loadKartenSalons = async (): Promise<KartenSalon[]> => {
   }
 };
 
+/** Seite eines Dranzeit-Ladens im Verzeichnis (/barbershop/berlin/…); null = keine. Canonical der Ladenansicht. */
+export const loadLadenSeite = async (shopId: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`/routes/verzeichnis/laden/${encodeURIComponent(shopId)}`);
+    if (!res.ok) return null;
+    return ((await res.json()) as { pfad?: string }).pfad ?? null;
+  } catch {
+    return null;
+  }
+};
+
 // --- Öffnungszeiten als Text: "09:00–12:00, 13:00–18:00" je Tag, leer = geschlossen -------------------------------
 
 export const TAGE_REIHE = [1, 2, 3, 4, 5, 6, 0];

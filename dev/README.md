@@ -50,6 +50,7 @@ node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, La
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
 node dev/e2e/email-bestaetigen.cjs          # Registrieren → Profil „noch nicht bestätigt“ → noch mal schicken → /email-bestaetigen (ungültig, gültig nachgebildet); QME_RESEND_TEST=1: echter Versand an delivered+…@resend.dev (braucht das Backend ab diesem Stand)
 node dev/e2e/passwort-neu.cjs              # „Passwort vergessen?“ (Backend, ohne Resend Firebase, zu oft) und /passwort-neu (gültig, zu kurz, abgelaufen) – Backend und Firebase nachgebildet, keine Testdaten nötig
+node dev/e2e/passwort-aendern.cjs           # Mein Profil → Passwort ändern: falsches/gleiches abgelehnt, danach nur neues gültig, „vergessen?“ (Wegwerf-Konto, Mail nachgebildet)
 node dev/e2e/frueher-dran-schalter.cjs      # Meine Termine: „Früher dran“ selbst ein-/ausschalten bei einem vom Laden eingetragenen Termin, Angebot kommt und geht, Gratis-Tarif, Rechte (braucht das Backend ab diesem Stand)
 node dev/e2e/mein-tag-zeitraum.cjs          # Mein Tag: neuer Zeitraum beginnt heute, Pfeile schieben um je einen Tag (Wegwerf-Laden, räumt sich selbst weg)
 node dev/e2e/webseite-einbau.cjs            # Mein Laden → Auf deiner Webseite: Kasten, Knopf, QR-Code (Wegwerf-Laden); Backend ab diesem Stand nötig, QME_EINBAU_LIVE=1 prüft Einbetten auf fremden Seiten

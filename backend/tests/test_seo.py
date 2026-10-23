@@ -62,6 +62,9 @@ def test_routen_alias_404_und_sitemap():
     assert r.status_code == 301 and r.headers["location"] == "/friseur-ohne-termin/koeln"
     xml = c.get("/sitemap.xml").text
     assert "/friseur-ohne-termin/koeln</loc>" in xml and "shopId=c3" in xml
+    assert "<lastmod>" not in xml  # jeden Tag "heute" wäre unzuverlässig
+    page = c.get("/friseur-ohne-termin/koeln").text
+    assert 'property="og:image" content="https://dranzeit.de/og-bild.png"' in page and "summary_large_image" in page
 
 
 if __name__ == "__main__":

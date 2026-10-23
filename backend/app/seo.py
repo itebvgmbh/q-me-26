@@ -158,6 +158,9 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
         f"<meta property=\"og:url\" content=\"{_e(url)}\"><meta property=\"og:site_name\" content=\"Dranzeit\">"
+        "<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"de_DE\">"
+        f"<meta property=\"og:image\" content=\"{_e(public_url())}/og-bild.png\"><meta property=\"og:image:width\" content=\"1200\">"
+        "<meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\">"
         f"<style>{STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
         "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
         "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
@@ -290,7 +293,6 @@ def _verzeichnis_pfade() -> dict[str, str]:
 @router.get("/sitemap.xml")
 def sitemap() -> Response:
     base = public_url()
-    today = datetime.now(BERLIN).date().isoformat()
     paths = ["/", "/features", "/preise", "/shop-map", BASE_PATH]
     shops = load_shops()
     paths += [f"{BASE_PATH}/{slug}" for slug in cities(shops)]
@@ -306,6 +308,7 @@ def sitemap() -> Response:
     from app import hilfe
 
     paths += hilfe.sitemap_paths()
-    urls = "".join(f"<url><loc>{html.escape(base + p)}</loc><lastmod>{today}</lastmod></url>" for p in paths)
+    # Ohne lastmod: Ein Datum, das jeden Tag "heute" ist, wertet Google als unzuverlässig und übergeht es
+    urls = "".join(f"<url><loc>{html.escape(base + p)}</loc></url>" for p in dict.fromkeys(paths))
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})

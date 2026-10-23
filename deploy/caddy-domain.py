@@ -47,12 +47,13 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 		reverse_proxy 127.0.0.1:{port}
 	}}
 
-	# Alles andere ist die gebaute React-App
+	# Alles andere ist die gebaute React-App. Öffentliche Seiten haben eine eigene Datei mit Titel und Canonical
+	# (/preise → preise.html, / → index.html), der Rest bekommt app.html ohne Canonical (frontend/vite.config.ts, seitenKoepfe)
 	handle {{
 		root * {WEB_ROOT}
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
 		header /sw.js Cache-Control "no-cache"
-		try_files {{path}} /index.html
+		try_files {{path}} {{path}}.html {{path}}index.html /app.html /index.html
 		file_server
 	}}
 
