@@ -1,9 +1,9 @@
 ---
 titel: Konto, Anmeldung und Passwort
-kurz: Konto für deinen Laden anlegen, E-Mail bestätigen, anmelden, Passwort zurücksetzen, Profil ändern, abmelden und Konto löschen.
+kurz: Konto für deinen Laden anlegen, E-Mail bestätigen, anmelden, Passwort ändern oder zurücksetzen, Profil ändern, abmelden und Konto löschen.
 thema: konto
 reihenfolge: 1
-stichworte: konto, registrieren, registrierung, anmelden, login, einloggen, passwort, vergessen, zurücksetzen, profil, name, handynummer, abmelden, logout, löschen, e-mail, rolle, bestätigen, bestätigung, bestätigungs-mail, verifizieren
+stichworte: konto, registrieren, registrierung, anmelden, login, einloggen, passwort, passwort ändern, neues passwort, vergessen, zurücksetzen, profil, name, handynummer, abmelden, logout, löschen, e-mail, rolle, bestätigen, bestätigung, bestätigungs-mail, verifizieren
 ---
 Für deinen Laden brauchst du ein Konto mit E-Mail-Adresse und Passwort. Deine Kunden brauchen zum Nummer ziehen keins.
 
@@ -39,6 +39,14 @@ Steht da „E-Mail oder Passwort stimmen nicht.“, prüf die Schreibweise oder 
 3. Du bekommst eine E-Mail mit einem Link, über den du ein neues Passwort festlegst.
 
 Keine E-Mail da? Schau im Spam-Ordner nach und prüf, ob die Adresse richtig geschrieben war.
+
+## Passwort ändern
+
+1. Öffne [Mein Profil](/profile): oben rechts auf den Kreis mit deinem Anfangsbuchstaben tippen (am Handy im Menü).
+2. Gib unter **„Passwort ändern“** dein **aktuelles Passwort** und ein **neues** mit mindestens 6 Zeichen ein.
+3. Tipp auf **„Passwort ändern“**.
+
+Auf deinen anderen Geräten musst du dich danach mit dem neuen Passwort neu anmelden. Weißt du das aktuelle Passwort nicht mehr, tipp dort auf **„Aktuelles Passwort vergessen?“**. Du bekommst dann dieselbe E-Mail wie bei „Passwort vergessen“.
 
 ## Profil ändern und abmelden
 

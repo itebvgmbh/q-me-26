@@ -9,6 +9,7 @@ import { UserProfile, USER_ROLES } from '../utils/types';
 import { toast } from 'sonner';
 import { DeleteAccountCard } from './DeleteAccountCard';
 import { EmailVerificationNote } from './EmailVerificationNote';
+import { PasswordChangeCard } from './PasswordChangeCard';
 
 interface ProfileFormProps {
   userId: string;
@@ -71,7 +72,12 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
   }
 
   if (!profile) {
-    return <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Zu deinem Konto gibt es noch kein Profil.</p>;
+    return (
+      <>
+        <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Zu deinem Konto gibt es noch kein Profil.</p>
+        <PasswordChangeCard />
+      </>
+    );
   }
 
   return (
@@ -100,6 +106,7 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
           {updating ? 'Wird gespeichert …' : 'Speichern'}
         </Button>
       </form>
+      <PasswordChangeCard />
       <DeleteAccountCard role={profile.role} />
     </>
   );
