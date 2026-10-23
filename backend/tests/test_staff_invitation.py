@@ -30,6 +30,9 @@ class Ref:
     def get(self):
         return Snap(self, self.db.data[self.coll].get(self.id))
 
+    def collection(self, name):
+        return self.db.collection(f"{self.coll}/{self.id}/{name}")
+
     def set(self, values):
         self.db.data[self.coll][self.id] = {k: _value(v) for k, v in values.items()}
 
@@ -226,6 +229,8 @@ def test_annehmen_verbindet_genau_diesen_eintrag():
     assert r.json() == {"shopName": "Barbershop Kaya", "staffId": "p1"}
     assert store["staff"]["p1"]["userId"] == "kontoRobin"
     assert store["users"]["kontoRobin"]["role"] == "employee"
+    # Team-Vermerk für die Firestore-Regeln (app/libs/team.py)
+    assert store["shops/laden1/members"]["kontoRobin"]["staffId"] == "p1"
     assert client(store, uid=None).get(f"/routes/staff-invitation/{token}").json()["status"] == "verbunden"
     # zweimal annehmen schadet nicht, ein anderes Konto kann nicht übernehmen
     assert client(store).post(f"/routes/staff-invitation/{token}").status_code == 200

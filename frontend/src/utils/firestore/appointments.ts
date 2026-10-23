@@ -2,7 +2,7 @@ import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, runT
 import { assertBookable, bookableOf, SlotConflictError } from '../booking-rules';
 import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
+import { firebaseApp, firebaseAuth } from 'app';
 import { Appointment } from './types';
 import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef, type PlacementChange } from './schedule';
 
@@ -288,8 +288,9 @@ export const createAppointment = async (
     const codeDay = toDateValue(processedData.startTime) ?? new Date();
     const earlierCodes = needsCode ? await referenceCodesOfDay(processedData.shopId, codeDay) : [];
 
-    // Verbessere die Namenshandhabung für Kunden - IMMER den Namen aus der user-Collection holen, wenn customerId vorhanden ist
-    if (processedData.customerId && processedData.customerId !== 'walk-in') {
+    // Name und Handynummer aus dem eigenen Profil, wenn jemand für sich selbst bucht. Profile anderer Konten liest
+    // der Browser nicht (firestore.rules); bucht der Laden für einen Kunden, gilt der Name aus der Kundenliste.
+    if (processedData.customerId && processedData.customerId !== 'walk-in' && processedData.customerId === firebaseAuth.currentUser?.uid) {
       try {
         console.log(`Looking up customer name for user ID: ${processedData.customerId}`);
         // Die customerId ist die uid des Users, daher direkt in der users-Collection nachschauen

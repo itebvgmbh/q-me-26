@@ -1,6 +1,7 @@
 rules_version = '2';
 
 // Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
+// Fassung: 2026-10-23 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
 //
 // Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
 // Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
@@ -9,11 +10,15 @@ rules_version = '2';
 // arbeitet mit dem Admin SDK (Dienstkonto) und ist von ihnen nicht betroffen: Stripe-Webhook, Gründerplatz,
 // Betreiber-Bereich, Benachrichtigungen und Aufräumen dürfen weiter alles.
 //
-// Stand 21.10.2026:
-//  - shops: Die Tarif-Felder setzt nur noch das Backend. Den Rest des Ladens ändert nur noch sein Inhaber.
-//  - Sammlungen, die nur das Backend braucht, sind für den Browser zu (keine Regel = kein Zugriff).
-//  - Alle übrigen Sammlungen bleiben offen wie bisher. Buchen und Nummer ziehen gehen ohne Anmeldung und schreiben
-//    dort; wer was liest und schreibt, steht in dev/regeln/README.md. Sie zu verschärfen ist ein eigener Schritt.
+// Grundsatz (Stand 23.10.2026, wer was liest und schreibt: dev/regeln/README.md):
+//  - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen: Läden, Personen, Leistungen,
+//    Pausen, Termine (freie Plätze, Schlange, Wartezimmer-Bildschirm), Belegung und Tagesnummern.
+//  - Schreiben darf nur, wer zum Laden gehört: der Inhaber (shops.owner) oder eine Person im Team. Team heißt:
+//    Vermerk shops/{shopId}/members/{uid}, den das Backend beim Annehmen der Einladung setzt.
+//  - Ohne Anmeldung und als Kunde nur, was die App dort tut: eine Nummer ziehen oder buchen, die eigene absagen,
+//    eine Nummer ohne Konto ins eigene Konto übernehmen – und dabei Belegung und Tagesnummern fortschreiben.
+//  - Kundenliste nur für Inhaber und Team, Profile (users) nur für das eigene Konto.
+//  - Die Tarif-Felder am Laden setzt nur das Backend. Sammlungen, die nur das Backend braucht, sind zu.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,6 +29,40 @@ service cloud.firestore {
 
     function isOwner(shop) {
       return signedIn() && shop.owner == request.auth.uid;
+    }
+
+    function docPath(coll, id) {
+      return /databases/$(database)/documents/$(coll)/$(id);
+    }
+
+    // Inhaber des Ladens mit dieser ID (fehlt der Laden, gilt das als nein)
+    function ownsShop(shopId) {
+      return signedIn() && shopId is string && get(docPath('shops', shopId)).data.owner == request.auth.uid;
+    }
+
+    // Person im Team: Vermerk, den das Backend beim Annehmen der Einladung setzt (backend/app/libs/team.py)
+    function isMember(shopId) {
+      return signedIn() && shopId is string
+        && exists(/databases/$(database)/documents/shops/$(shopId)/members/$(request.auth.uid));
+    }
+
+    function isTeam(shopId) {
+      return ownsShop(shopId) || isMember(shopId);
+    }
+
+    // Die Person gehört zu diesem Laden. Freie Plätze werden je Person gesucht (staffId), deshalb hängt niemand
+    // Termine, Pausen oder Belegung an eine Person eines anderen Ladens.
+    function staffInShop(staffId, shopId) {
+      return staffId is string && get(docPath('staff', staffId)).data.shopId == shopId;
+    }
+
+    // Laden nicht gesperrt (Betreiber-Bereich): für Kunden nichts mehr buchbar
+    function notSuspended(shopId) {
+      return get(docPath('shops', shopId)).data.get('suspended', null) == null;
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
     }
 
     // Tarif-Felder am Laden. Wer sie schreiben kann, nutzt bezahlte Tarife umsonst oder hebt eine Sperre auf.
@@ -78,6 +117,17 @@ service cloud.firestore {
       // commit). Die App selbst löscht keine Läden; das tun nur Testskripte und das Backend (Betreiber-Bereich).
       allow delete: if isOwner(resource.data)
         && existsAfter(deletedShop(shopId));
+
+      // Team-Vermerk shops/{shopId}/members/{uid} ({staffId, at}): setzt das Backend beim Annehmen der Einladung.
+      // Der Inhaber nimmt ihn beim Deaktivieren einer Person weg und beim Zurückholen wieder auf – nur für eine Person
+      // dieses Ladens, die schon mit genau diesem Konto verbunden ist. Lesen braucht ihn niemand (die Regeln sehen ihn).
+      match /members/{memberUid} {
+        allow create: if isOwner(get(docPath('shops', shopId)).data)
+          && request.resource.data.keys().hasOnly(['staffId', 'at'])
+          && get(docPath('staff', request.resource.data.staffId)).data.shopId == shopId
+          && get(docPath('staff', request.resource.data.staffId)).data.userId == memberUid;
+        allow delete: if isOwner(get(docPath('shops', shopId)).data);
+      }
     }
 
     // Vermerk „diese Laden-ID ist verbraucht“. Nur anlegen, im selben Schritt, in dem der eigene Laden gelöscht wird;
@@ -91,44 +141,168 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // Offen wie bisher. Buchen und Nummer ziehen ohne Anmeldung legen Termine an und schreiben in derselben
-    // Transaktion die Belegung (schedules) und die Tagesnummern (shop_days); Absagen auf /nummer/<id> geht ohne
-    // Anmeldung. Inhaber und Team pflegen Leistungen, Personen, Pausen und Kunden; Kunden ihr Profil.
+    // Termine. Lesen für alle: Nummer ziehen und Buchen ohne Anmeldung suchen freie Plätze in den Terminen der Person
+    // (staffId + Tag), /nummer/<id> und der Wartezimmer-Bildschirm zeigen die Schlange.
     // ------------------------------------------------------------------------------------------------------------
-    match /appointments/{id} {
-      allow read, write: if true;
-    }
-    match /schedules/{id} {
-      allow read, write: if true;
-    }
-    match /shop_days/{id} {
-      allow read, write: if true;
-    }
-    match /staff/{id} {
-      allow read, write: if true;
-    }
-    match /services/{id} {
-      allow read, write: if true;
-    }
-    match /breaks/{id} {
-      allow read, write: if true;
-    }
-    match /recurring-breaks/{id} {
-      allow read, write: if true;
-    }
-    match /customers/{id} {
-      allow read, write: if true;
-    }
-    match /users/{id} {
-      allow read, write: if true;
-    }
-    match /earlier_slot_notifications/{id} {
-      allow read, write: if true;
+
+    // Was nur Laden und Backend an einen Termin schreiben (Aufrufen, Fertig, Nachricht an den Kunden …)
+    function shopOnlyFields() {
+      return ['calledAt', 'lastCalledAt', 'completedAt', 'noShow', 'notifiedCalledAt', 'notifyEmail',
+              'customerNotice', 'customerNoticeAt', 'customerNoticePreviousStart'];
     }
 
-    // Alte Warteschlange: die App fragt sie beim Nummer ziehen noch ab, schreibt sie aber nicht mehr.
-    match /queue/{id} {
+    // Nummer ohne Konto (Nummer ziehen ohne Anmeldung, QueueBookingService)
+    function anonymousTicket(d) {
+      return d.get('isAnonymous', false) == true && !('customerId' in d)
+        && d.type == 'queue' && d.status == 'scheduled';
+    }
+
+    // Nummer oder Termin für das eigene Konto (Nummer ziehen, Termin buchen)
+    function ownBooking(d) {
+      return signedIn() && d.get('customerId', '') == request.auth.uid && d.get('isAnonymous', false) == false
+        && d.type in ['queue', 'booked'] && d.status == 'scheduled';
+    }
+
+    // Absagen: nur der Status, von wartend auf abgesagt (Nummernseite ohne Anmeldung, Meine Termine)
+    function cancelOnly() {
+      return changed().hasOnly(['status', 'updatedAt'])
+        && resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled';
+    }
+
+    // Nummer ohne Konto nach dem Anmelden ins eigene Konto übernehmen (AnonymousBookingLinker)
+    function claimAnonymous() {
+      return signedIn() && resource.data.get('isAnonymous', false) == true && !('customerId' in resource.data)
+        && changed().hasOnly(['customerId', 'customerName', 'isAnonymous', 'updatedAt'])
+        && request.resource.data.customerId == request.auth.uid && request.resource.data.isAnonymous == false;
+    }
+
+    match /appointments/{id} {
       allow read: if true;
+
+      allow create: if request.resource.data.shopId is string && (
+          isTeam(request.resource.data.shopId)
+          || ((anonymousTicket(request.resource.data) || ownBooking(request.resource.data))
+              && !request.resource.data.keys().hasAny(shopOnlyFields())
+              && staffInShop(request.resource.data.staffId, request.resource.data.shopId)
+              && notSuspended(request.resource.data.shopId)));
+
+      allow update: if request.resource.data.shopId == resource.data.shopId && (
+          isTeam(resource.data.shopId)
+          || (cancelOnly() && (resource.data.get('isAnonymous', false) == true
+                               || (signedIn() && resource.data.get('customerId', '') == request.auth.uid)))
+          || claimAnonymous());
+
+      // Die App löscht keine Termine (Absagen ist ein Status); Testskripte räumen ihren Laden auf
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Belegung je Person und Tag (schedules/{staffId}_{Tag}): wird in jeder Buchung, Absage und Änderung in derselben
+    // Transaktion mitgeschrieben, auch ohne Anmeldung. Nur in der festen Form und nur für eine Person dieses Ladens.
+    function validSchedule(id, d) {
+      return d.keys().hasOnly(['shopId', 'staffId', 'day', 'slots', 'updatedAt'])
+        && d.day is string && d.slots is map && id == d.staffId + '_' + d.day
+        && staffInShop(d.staffId, d.shopId);
+    }
+
+    match /schedules/{id} {
+      allow read: if true;
+      allow create: if validSchedule(id, request.resource.data);
+      allow update: if validSchedule(id, request.resource.data)
+        && request.resource.data.shopId == resource.data.shopId && request.resource.data.staffId == resource.data.staffId;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer hängt genau eine an, keine fällt weg
+    function validShopDay(id, d) {
+      return d.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
+        && d.day is string && d.codes is list && id == d.shopId + '_' + d.day
+        && exists(docPath('shops', d.shopId));
+    }
+
+    match /shop_days/{id} {
+      allow read: if true;
+      allow create: if validShopDay(id, request.resource.data) && request.resource.data.codes.size() == 1;
+      allow update: if validShopDay(id, request.resource.data) && request.resource.data.shopId == resource.data.shopId
+        && request.resource.data.codes.hasAll(resource.data.codes)
+        && request.resource.data.codes.size() == resource.data.codes.size() + 1;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Personen, Leistungen, Pausen: lesen alle (freie Plätze), pflegen der Inhaber. Die Verbindung einer Person mit
+    // einem Konto (userId) und die Einladung setzt das Backend; der Inhaber nur sich selbst (Assistent, Inhaber im
+    // Team). Die Person selbst ändert nur ihre Arbeitszeiten (Mein Tag).
+    // ------------------------------------------------------------------------------------------------------------
+    function inviteFields() {
+      return ['inviteTokenHash', 'inviteExpires', 'inviteCreatedAt', 'inviteEmailTo', 'inviteEmailSentAt', 'inviteAcceptedAt'];
+    }
+
+    match /staff/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && request.resource.data.get('userId', '') in ['', request.auth.uid]
+        && !request.resource.data.keys().hasAny(inviteFields());
+      allow update: if (ownsShop(resource.data.shopId)
+            && !changed().hasAny(['shopId'].concat(inviteFields()))
+            && (!changed().hasAny(['userId']) || request.resource.data.userId == request.auth.uid))
+        || (signedIn() && resource.data.get('userId', '') == request.auth.uid
+            && changed().hasOnly(['workingHours', 'updatedAt']));
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /services/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /breaks/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /recurring-breaks/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Kundenliste des Ladens: nur Inhaber und Team. Anlegen ohne Konto-Verbindung; verbinden, Link und Löschen
+    // macht das Backend (/routes/customer-activation, /routes/datenschutz).
+    // ------------------------------------------------------------------------------------------------------------
+    match /customers/{id} {
+      allow read: if isTeam(resource.data.shopId);
+      allow create: if isTeam(request.resource.data.shopId)
+        && request.resource.data.get('isActive', false) == false
+        && !request.resource.data.keys().hasAny(['userId', 'activationToken', 'activationTokenHash', 'activationExpires']);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Profil eines Kontos: nur das eigene. Die Rolle steuert nur, was die App zeigt; Rechte hängen am Laden.
+    match /users/{userId} {
+      allow read, delete: if signedIn() && request.auth.uid == userId;
+      allow create, update: if signedIn() && request.auth.uid == userId
+        && request.resource.data.get('role', 'customer') in ['customer', 'shopOwner', 'employee'];
+    }
+
+    // Angebote „Früher dran“: schreibt das Backend; lesen darf das eigene Konto, aufräumen auch der Laden (Testskripte)
+    match /earlier_slot_notifications/{id} {
+      allow read, delete: if signedIn()
+        && (resource.data.get('userId', '') == request.auth.uid || ownsShop(resource.data.get('shopId', '')));
+    }
+
+    // Alte Warteschlange: die App fragt beim Nummer ziehen nur die eigenen Einträge ab und schreibt sie nicht mehr
+    match /queue/{id} {
+      allow read: if signedIn() && resource.data.get('customerId', '') == request.auth.uid;
     }
 
     // Keine Regel, also für den Browser zu – nur das Backend:
