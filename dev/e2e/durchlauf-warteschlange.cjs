@@ -8,7 +8,13 @@ run(async () => {
   const errors = collectErrors(page);
   await page.goto(`${BASE}/public-join-queue?shopId=${SHOP_ID}`, { waitUntil: 'domcontentloaded' });
   const firstService = page.locator('section button[aria-pressed]').first();
-  await firstService.waitFor({ timeout: 60000 });
+  // Gesperrter Laden (Betreiber-Bereich): gleich mit Grund abbrechen statt nach einer Minute ohne Leistungen
+  const suspended = page.getByText('Dieser Laden nimmt gerade keine Nummern an.').first();
+  await firstService.or(suspended).first().waitFor({ timeout: 60000 });
+  if (await suspended.isVisible()) {
+    await browser.close();
+    return report([{ name: 'Laden nimmt Nummern an', pass: false, detail: `${SHOP_ID} ist gesperrt – im Betreiber-Bereich entsperren oder QME_SHOP_ID setzen` }]);
+  }
   await shot(page, 'warteschlange-1-leistung');
   await firstService.click();
   await page.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });

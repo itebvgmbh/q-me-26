@@ -18,12 +18,15 @@ export const useShopData = (shopIdFromQR: string | null) => {
   const [arrivedFromQR, setArrivedFromQR] = useState(!!shopIdFromQR);
   // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
   const [loadError, setLoadError] = useState<unknown>(null);
+  // Laden aus dem QR-Code vom Betreiber gesperrt: eigener Hinweis statt leerer Ladenliste
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadShops = async () => {
       setLoading(true);
       setLoadError(null);
+      setUnavailable(false);
       try {
         // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
         // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
@@ -31,8 +34,8 @@ export const useShopData = (shopIdFromQR: string | null) => {
           const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
           if (!active) return;
           if (snap.exists() && snap.data().suspended) {
-            // Vom Betreiber gesperrt: wie nicht gefunden, mit eigenem Hinweis
-            toast.error('Dieser Laden nimmt gerade keine Nummern an.');
+            // Vom Betreiber gesperrt: PublicJoinQueue zeigt den Hinweis an Stelle der Ladenauswahl
+            setUnavailable(true);
             setShops([]);
             setSelectedShop('');
             setArrivedFromQR(false);
@@ -73,6 +76,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
     setSelectedShop,
     loading,
     loadError,
+    unavailable,
     arrivedFromQR,
     setArrivedFromQR
   };
