@@ -1,14 +1,11 @@
 import {
   type AuthCredential,
-  GoogleAuthProvider,
   type User,
-  type UserCredential,
   type UserInfo,
   sendEmailVerification as firebaseSendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut as firebaseSignOut,
   reauthenticateWithCredential,
-  signInWithPopup,
   updateEmail,
   updatePassword,
   updateProfile,
@@ -17,18 +14,6 @@ import { firebaseAuth } from "./firebase";
 
 const validateConfig = () => {
   console.log("Firebase auth extension enabled");
-};
-
-/**
- * Sign in with Google popup.
- *
- * TODO: Set providers based on config
- */
-const signInWithGoogle = async (): Promise<UserCredential | null> => {
-  const provider = new GoogleAuthProvider();
-  provider.addScope("https://www.googleapis.com/auth/userinfo.profile");
-
-  return signInWithPopup(firebaseAuth, provider);
 };
 
 /**
@@ -109,7 +94,6 @@ export const auth = {
   reauthenticateUser,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signInWithGoogle,
   signOut,
   updateCurrentUser,
   updateCurrentUserEmail,
