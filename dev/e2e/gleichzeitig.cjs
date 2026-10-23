@@ -9,7 +9,9 @@
 //                                                       → alle eingereiht, wer zu spät war, gleich auf den nächsten Platz
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Bucht Donnerstag/Freitag der
 // Testwoche und den Dienstag danach (6.) und sagt am Ende alles wieder ab.
-const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+// 1.–5. buchen wie der Tresen (als Inhaber des Testladens angemeldet – Termine ändern darf nur der Laden),
+// 6. ohne Anmeldung wie die Nummernseite.
+const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, signIn } = require('./lib.cjs');
 
 const N = Number(process.env.QME_GERAETE || 10);
 
@@ -19,7 +21,7 @@ run(async () => {
   const devices = await Promise.all(Array.from({ length: N }, async () => {
     const page = await newPage(browser);
     const errors = collectErrors(page);
-    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+    await signIn(page, fx);
     await page.evaluate(async () => {
       window.__appts = await import('/src/utils/firestore/appointments.ts');
     });
@@ -104,7 +106,11 @@ run(async () => {
   const tueText = `${tue[0]}-${String(tue[1] + 1).padStart(2, '0')}-${String(tue[2]).padStart(2, '0')}`;
   await Promise.all(devices.map(async ({ page }) => {
     await page.clock.setFixedTime(berlin(`${tueText}T08:00:00`));
-    await page.evaluate(async () => { window.__queue = await import('/src/utils/QueueBookingService.ts'); });
+    await page.evaluate(async () => {
+      window.__queue = await import('/src/utils/QueueBookingService.ts');
+      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      await firebaseAuth.signOut(); // Nummer ziehen ohne Konto
+    });
   }));
   const queue = await together(N, async (appts, a, i) => {
     const r = await window.__queue.QueueBookingService.processBooking({
@@ -130,7 +136,10 @@ run(async () => {
     detail: `${placed.filter((r) => r.moved).length} verschoben` });
   rows.push({ name: 'Nummer ziehen: jede Nummer nur einmal', pass: queueCodes.every(Boolean) && new Set(queueCodes).size === placed.length, detail: queueCodes.join(', ') });
 
-  // Aufräumen: alles absagen, was dieser Test gebucht hat
+  // Aufräumen: alles absagen, was dieser Test gebucht hat (wieder als Inhaber)
+  await devices[0].page.clock.setFixedTime(new Date());
+  await signIn(devices[0].page, fx);
+  await devices[0].page.evaluate(async () => { window.__appts = await import('/src/utils/firestore/appointments.ts'); });
   const [cleanup] = await together(1, async (appts, a) => { for (const id of a.ids) await appts.cancelAppointment(id); }, { ids: [...new Set(created)] });
   rows.push({ name: 'Aufräumen', pass: cleanup.ok, detail: cleanup.ok ? `${new Set(created).size} abgesagt` : cleanup.message });
   const errors = devices.flatMap((d) => d.errors);

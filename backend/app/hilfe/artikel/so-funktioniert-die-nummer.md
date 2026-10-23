@@ -21,7 +21,7 @@ Kein QR-Code zur Hand? Tipp auf dranzeit.de im Menü auf **„Nummer ziehen“**
 
 ## Während du wartest
 
-Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran um ca.“** mit der Uhrzeit. Sie aktualisiert sich von selbst. Ruft der Laden dich auf, steht dort **„Du bist dran. Komm rein.“** Seite geschlossen? Auf der Startseite von Dranzeit findest du sie am selben Tag wieder, auf demselben Handy.
+Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran um ca.“** mit der Uhrzeit. Sie aktualisiert sich von selbst. Ruft der Laden dich auf, steht dort **„Du bist dran. Komm rein.“** Seite geschlossen? Auf der Startseite von Dranzeit findest du sie am selben Tag wieder, auf demselben Handy. Oder du merkst dir den Link der Seite (Lesezeichen oder Home-Bildschirm): Mit ihm kannst du die Nummer auch zurückgeben.
 
 ![Deine Nummer: wie viele vor dir sind und wann du ungefähr dran bist.](/img/hilfe/kunde-nummer.jpg)
 
@@ -49,11 +49,11 @@ Deine Nummer verfällt nicht von selbst. Ruft der Laden dich auf und du bist nic
 
 ### Kann ich meine Nummer zurückgeben?
 
-Ja. Tipp auf deiner Nummernseite auf **„Nummer zurückgeben“** und bestätige mit **„Ja, zurückgeben“**. Dein Platz wird damit frei. Mit Konto geht das auch unter „Meine Termine“ mit **„Termin absagen“**.
+Ja. Tipp auf deiner Nummernseite auf **„Nummer zurückgeben“** und bestätige mit **„Ja, zurückgeben“**. Dein Platz wird damit frei. Ohne Konto geht das auf dem Handy, mit dem du die Nummer gezogen hast, oder über den Link deiner Nummernseite – ein Link aus einer Benachrichtigungs-Mail zeigt nur, wann du dran bist. Sonst sag am Tresen Bescheid. Mit Konto geht es auch unter „Meine Termine“ mit **„Termin absagen“**.
 
 ### Was passiert mit meinen Daten?
 
-Ohne Konto speichert Dranzeit Leistung, Person, Uhrzeit und deinen Vornamen, dazu Handynummer, E-Mail-Adresse oder Push-Anmeldung, wenn du sie angibst. Deine Handynummer sieht der Laden, damit er dich anrufen kann, falls du beim Aufrufen nicht da bist. Namen und Kontaktdaten werden 90 Tage nach dem Termin entfernt, die Push-Anmeldung nach 3 Tagen.
+Ohne Konto speichert Dranzeit Leistung, Person, Uhrzeit und deinen Vornamen, dazu Handynummer, E-Mail-Adresse oder Push-Anmeldung, wenn du sie angibst. Deinen Namen und deine Handynummer sieht nur der Laden, damit er dich anrufen kann, falls du beim Aufrufen nicht da bist. Andere Kunden und der Wartezimmer-Bildschirm sehen nur deine Nummer. Namen und Kontaktdaten werden 90 Tage nach dem Termin entfernt, die Push-Anmeldung nach 3 Tagen.
 
 Mit Konto bleibt dein Name in deinen Terminen, Handynummer und E-Mail-Adresse am Termin werden ebenfalls nach 90 Tagen entfernt. Dein Konto löschst du unter **„Mein Profil“** → **„Konto löschen“**. Werbe-Cookies gibt es nicht. Mehr dazu in der [Datenschutzerklärung](/datenschutz).
 
