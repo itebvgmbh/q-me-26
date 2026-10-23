@@ -340,12 +340,12 @@ Sitemap: `https://dranzeit.de/sitemap.xml` (Backend, `app/seo.py`), steht auch i
 Die öffentlichen Seiten der App (`/`, `/features`, `/preise`, `/shop-map`, Rechtliches) bekommen beim Bauen je eine
 eigene HTML-Datei mit Titel, Beschreibung, Canonical und Vorschaubild (`frontend/src/utils/seiten-kopf.ts`), alle
 übrigen Adressen `app.html` ohne Canonical; in der App sind sie `noindex`. Caddy liefert sie per
-`try_files {path} {path}.html /app.html /index.html` aus – das stellt `caddy-domain.py` ein, nach diesem Update
+`try_files {path} {path}.html {path}index.html /app.html /index.html` aus – das stellt `caddy-domain.py` ein, nach diesem Update
 **einmal neu ausführen** (Adressen wie oben). Bis dahin bekommt jede Adresse `index.html` mit dem Kopf der Startseite;
 die App korrigiert ihn, Google sieht also nach dem Rendern trotzdem das Richtige.
 
 Prüfen: `curl -s https://dranzeit.de/preise | grep canonical` zeigt `https://dranzeit.de/preise`,
-`curl -s https://dranzeit.de/login | grep -c canonical` zeigt `0`.
+`curl -s https://dranzeit.de/ | grep -c ld+json` zeigt `1` (Startseite aus index.html), `curl -s https://dranzeit.de/login | grep -c canonical` zeigt `0`.
 
 ## Abo-Abrechnung (Stripe)
 
