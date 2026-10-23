@@ -3,13 +3,13 @@
 # und Node 22 sind dort schon installiert). Einmalig als root ausführen, nachdem
 # das Repository nach /opt/q-me geklont wurde (siehe deploy/README.md):
 #
-#   bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de
+#   bash /opt/q-me/deploy/setup-server.sh dranzeit.de
 #
 # Q-ME läuft neben den anderen Projekten: eigener Dienst auf 127.0.0.1:$PORT und
 # ein zusätzlicher Block in /etc/caddy/Caddyfile. Bestehendes wird nicht verändert.
 set -euo pipefail
 
-DOMAIN=${1:-q-me.spielmacherei.de}
+DOMAIN=${1:-dranzeit.de}
 # Leer: erster freier Port ab 8090
 PORT=${PORT:-}
 APP_DIR=/opt/q-me

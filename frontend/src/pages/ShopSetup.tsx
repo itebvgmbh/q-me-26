@@ -13,9 +13,10 @@ import { OpeningHoursEditor } from '../components/OpeningHoursEditor';
 import { PlaceSearch } from '../components/setup/PlaceSearch';
 import { ServicePicker } from '../components/setup/ServicePicker';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
+import { HilfeLink } from '../components/HilfeLink';
 import { INDUSTRIES, getIndustryById } from '../utils/industries';
 import { getUserProfile } from '../utils/user-profile-service';
-import { isEmailInUse } from '../utils/auth-helpers';
+import { isEmail } from '../utils/auth-helpers';
 import { DAY_SHORT, formatDayHours, hoursProblem, normalizeHours, WEEK_ORDER } from '../utils/opening-hours';
 import {
   applyPlace,
@@ -55,7 +56,6 @@ const GROUPS: { label: string; steps: Step[] }[] = [
   { label: 'Fertig', steps: ['summary'] },
 ];
 
-const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const host = (url: string) => {
   try {
     return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '');
@@ -212,26 +212,48 @@ const ShopSetup = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Fertig</p>
           <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{shop.name} ist startklar.</h1>
           <p className="text-muted-foreground">Ab jetzt können Kunden eine Nummer ziehen und Termine buchen. Alles lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.</p>
+          <p className="text-muted-foreground">
+            Am Tresen zeigt dir eine kurze Liste, was als Nächstes kommt: einmal selbst ausprobieren, Plakat aufhängen, fertig.{' '}
+            <HilfeLink hilfe="in-10-minuten-startklar">Anleitung</HilfeLink>
+          </p>
         </div>
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
             <h2 id="einladungen" className="font-display text-xl font-bold">Einladungen fürs Team</h2>
-            <p className="text-sm text-muted-foreground">Schick jedem seinen Link. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag. Die Links gelten 7 Tage.</p>
+            <p className="text-sm text-muted-foreground">
+              {invitations.every((inv) => inv.emailSent)
+                ? 'Jede Person hat ihren Einladungslink per E-Mail bekommen.'
+                : 'Wer keine E-Mail bekommen hat, dem schick den Link selbst, z. B. per WhatsApp.'}{' '}
+              Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.
+            </p>
             <ul className="flex flex-col gap-2">
               {invitations.map((inv) => (
-                <li key={inv.link} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                <li key={`${inv.name}-${inv.email}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="flex min-w-0 flex-col">
                     <span className="font-semibold">{inv.name}</span>
                     <span className="truncate text-sm text-muted-foreground">{inv.email}</span>
+                    {inv.emailSent ? (
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        E-Mail verschickt
+                      </span>
+                    ) : (
+                      inv.link && <span className="text-sm text-destructive">{inv.emailProblem || 'Keine E-Mail verschickt.'} Schick den Link selbst.</span>
+                    )}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
-                  >
-                    <Copy className="h-4 w-4" aria-hidden="true" />
-                    Link kopieren
-                  </Button>
+                  {inv.link ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="self-start sm:self-auto"
+                      onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                      Link kopieren
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-right">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -281,7 +303,7 @@ const ShopSetup = () => {
     case 'find': {
       title = 'Wie heißt dein Laden?';
       intro = status.google
-        ? 'Tipp den Namen und den Ort. Findest du deinen Laden, übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google.'
+        ? 'Tipp den Namen und den Ort und wähl deinen Laden aus der Liste. Dann übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google. Nicht dabei? Einfach „Weiter“.'
         : 'Wie er draußen am Schild steht.';
       body = status.google ? (
         <div className="flex flex-col gap-4">
@@ -304,13 +326,12 @@ const ShopSetup = () => {
       ) : (
         <Field id="laden-name" label="Name des Ladens" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
       );
-      primary = status.google
-        ? null
-        : {
-            label: 'Weiter',
-            disabled: !query.trim(),
-            onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
-          };
+      // Auch mit Google-Suche ein „Weiter“: wer keinen Vorschlag antippt, trägt selbst ein
+      primary = {
+        label: 'Weiter',
+        disabled: !query.trim(),
+        onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
+      };
       break;
     }
     case 'check': {
@@ -328,7 +349,7 @@ const ShopSetup = () => {
             <Field id="plz" label="PLZ" inputMode="numeric" autoComplete="postal-code" value={draft.postalCode} onChange={(e) => patch({ postalCode: e.target.value })} />
           </div>
           <div className="sm:col-span-4">
-            <Field id="ort" label="Ort" autoComplete="address-level2" value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
+            <Field id="ort" label="Ort" autoComplete="address-level2" hint="Mit Adresse findet man dich auf der Karte." value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
           </div>
           <div className="sm:col-span-3">
             <Field id="telefon" label="Telefon" type="tel" autoComplete="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} />
@@ -343,7 +364,7 @@ const ShopSetup = () => {
               type="url"
               inputMode="url"
               placeholder="www.dein-laden.de"
-              hint={status.ai ? 'Steht hier eine Webseite, lese ich gleich deine Preisliste aus.' : undefined}
+              hint={status.ai ? 'Steht hier eine Webseite, liest eine KI gleich deine Preisliste aus. Du prüfst die Vorschläge.' : undefined}
               value={draft.website}
               onChange={(e) => patch({ website: e.target.value })}
             />
@@ -439,7 +460,7 @@ const ShopSetup = () => {
     }
     case 'owner': {
       title = 'Nimmst du selbst Kundschaft an?';
-      intro = 'Dann bekommst du eigene Termine und eine eigene Spur am Tresen.';
+      intro = 'Dann bekommst du eigene Termine und eine eigene Schlange am Tresen.';
       body = (
         <div className="flex flex-col gap-2">
           <QueueOption selected={draft.ownerWorks === true} title="Ja, ich arbeite selbst mit" onClick={() => next({ ...draft, ownerWorks: true })} />
@@ -451,7 +472,7 @@ const ShopSetup = () => {
     }
     case 'team': {
       title = draft.ownerWorks ? 'Wer arbeitet noch mit?' : 'Wer arbeitet bei dir?';
-      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person einen Einladungslink für ihren eigenen Tagesplan.';
+      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person beim Eröffnen automatisch eine Einladung für ihren eigenen Tagesplan.';
       const setPerson = (key: string, p: Partial<{ name: string; email: string }>) => patch({ team: draft.team.map((t) => (t.key === key ? { ...t, ...p } : t)) });
       body = (
         <div className="flex flex-col gap-3">
@@ -492,12 +513,7 @@ const ShopSetup = () => {
           if (new Set(emails).size !== emails.length || (draft.ownerWorks && emails.includes(draft.email.trim().toLowerCase()))) {
             return setProblem('Jede E-Mail darf nur einmal vorkommen.');
           }
-          // Hat jemand mit dieser E-Mail schon ein Konto oder ist eingeladen, scheitert der Einladungslink später
-          for (const t of others.filter((x) => x.email.trim() && !draft.progress?.staffKeys.includes(x.key))) {
-            if (await isEmailInUse(t.email.trim()).catch(() => false)) {
-              return setProblem(`${t.email.trim()} hat schon ein Konto oder ist eingeladen. Lass die E-Mail bei ${t.name} leer und lade später unter „Team“ ein.`);
-            }
-          }
+          // Hat jemand schon ein Konto (z. B. als Kunde), meldet er sich beim Einladungslink damit an – kein Hindernis
           next({ ...draft, team: draft.team.filter((t) => t.name.trim()) });
         },
       };
@@ -676,6 +692,12 @@ const ShopSetup = () => {
                 );
               })}
             </ul>
+            {people.some((p) => !p.isOwner && p.email.trim()) && (
+              <p className="text-sm text-muted-foreground">
+                Beim Eröffnen geht eine Einladung per E-Mail an{' '}
+                {people.filter((p) => !p.isOwner && p.email.trim()).map((p) => p.name).join(', ')}.
+              </p>
+            )}
           </Section>
         </div>
       );
@@ -720,7 +742,12 @@ const ShopSetup = () => {
           )}
         </div>
       </section>
-      <p className="text-center text-xs text-muted-foreground">Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist.</p>
+      <p className="text-center text-xs text-muted-foreground">
+        Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist. Unsicher?{' '}
+        <HilfeLink hilfe="in-10-minuten-startklar" className="text-xs">
+          Schritt für Schritt erklärt
+        </HilfeLink>
+      </p>
     </div>
   );
 };
@@ -751,7 +778,9 @@ const WebsiteBox = ({
     return (
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4" role="status">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-sm">{state.text}</p>
+        <p className="text-sm">
+          {state.text} <span className="text-muted-foreground">Automatisch per KI ausgelesen – bitte Dauer und Preise prüfen.</span>
+        </p>
       </div>
     );
   }
@@ -762,7 +791,7 @@ const WebsiteBox = ({
         <div>
           <p className="font-semibold">Preisliste von deiner Webseite holen</p>
           <p className="text-sm text-muted-foreground">
-            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, lese ich Leistungen, Dauer und Preise automatisch aus.'}
+            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, liest eine KI Leistungen, Dauer und Preise aus. Prüf die Vorschläge, bevor du weitergehst.'}
           </p>
         </div>
       </div>

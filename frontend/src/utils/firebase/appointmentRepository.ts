@@ -1,9 +1,17 @@
-import { doc, getDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { firestore } from '../firestore-client';
 import { AppEventType, emitAppointmentUpdated, useEventStore } from './event-system';
 import useTimeSlotStore from '../timeSlotStore';
 import { safelyConvertToDate } from '../datetime';
 import brain from 'brain';
+
+/** Server hat die Annahme abgelehnt; message ist für den Kunden */
+export class EarlierSlotRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EarlierSlotRefused';
+  }
+}
 
 /**
  * Accept an earlier appointment slot from a notification.
@@ -64,15 +72,13 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       throw new Error(`Failed to accept earlier slot: ${errorDetail}`);
     }
     
-    // Parse the successful response
-    let responseData;
-    try {
-      responseData = await response.json();
-      console.log('Successfully accepted earlier slot:', responseData);
-    } catch (parseError) {
-      console.error('Error parsing success response:', parseError);
-      // Continue even if we can't parse the response - the operation might have succeeded
+    // Der Server antwortet auch bei Ablehnung mit 200: {status: "error", message: "Der frühere Platz ist inzwischen vergeben."}
+    // Vorher galt jede 200 als Erfolg – der Kunde sah "Du hast den früheren Platz", der Termin blieb aber, wo er war.
+    const responseData = await response.json().catch(() => null);
+    if (responseData?.status !== 'success') {
+      throw new EarlierSlotRefused(responseData?.message || 'Der Platz ist leider schon weg.');
     }
+    console.log('Successfully accepted earlier slot:', responseData);
     
     // Comprehensive cache invalidation
     if (notificationData && notificationData.shopId) {
@@ -137,18 +143,7 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       });
     }
     
-    // Mark notification as accepted locally
-    try {
-      await updateDoc(notificationRef, {
-        isAccepted: true,
-        isRead: true,
-        acceptedAt: Timestamp.now()
-      });
-    } catch (updateError) {
-      console.error('Error updating notification state:', updateError);
-      // Continue since the backend already processed the acceptance
-    }
-    
+    // Als angenommen markiert der Server das Angebot selbst (in derselben Transaktion wie die Verschiebung)
     return true;
   } catch (error) {
     console.error('Error accepting earlier slot:', error);

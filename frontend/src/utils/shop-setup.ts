@@ -1,7 +1,7 @@
-import { APP_BASE_PATH } from 'app';
 import brain from 'brain';
 import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteServicesData } from '../brain/data-contracts';
-import { createService, createShop, createStaff, createStaffInvitation, updateShop } from './firestore';
+import { createService, createShop, createStaff, updateShop } from './firestore';
+import { createStaffInvite } from './staff-invitation';
 import type { BusinessHoursDay } from './firestore/types';
 import { defaultHours, normalizeHours, workingHoursFromOpening } from './opening-hours';
 import { templatesFor } from './service-templates';
@@ -32,7 +32,8 @@ export interface SetupProgress {
   serviceIds: Record<string, string>;
   /** Personen-Keys, die schon angelegt sind */
   staffKeys: string[];
-  invitations: { name: string; email: string; link: string }[];
+  /** emailSent: Einladung ging per E-Mail raus; sonst steht in emailProblem, warum nicht */
+  invitations: { name: string; email: string; link: string; emailSent?: boolean; emailProblem?: string }[];
 }
 
 export interface DraftPerson {
@@ -340,7 +341,7 @@ export const createFromDraft = async (
     if (progress.staffKeys.includes(p.key)) continue;
     const { serviceKeys, days } = effectiveAssignment(draft, p.key);
     const email = p.email.trim();
-    await createStaff({
+    const staff = await createStaff({
       shopId,
       userId: p.isOwner ? uid : '',
       name: p.name.trim(),
@@ -356,10 +357,19 @@ export const createFromDraft = async (
     save();
     if (!p.isOwner && email) {
       try {
-        const invitation = await createStaffInvitation(shopId, email, false);
-        progress.invitations.push({ name: p.name.trim(), email, link: `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}` });
+        // Link vom Backend (am Eintrag, nur als Hash gespeichert), gleich per E-Mail an die Person
+        const invitation = await createStaffInvite(staff.id, true);
+        progress.invitations.push({
+          name: p.name.trim(),
+          email,
+          link: invitation.link,
+          emailSent: invitation.email_sent,
+          emailProblem: invitation.email_problem,
+        });
       } catch (error) {
+        // Ohne Link trotzdem aufführen: Die Fertig-Seite sagt dann, wo es ihn gibt
         console.error('Einladung fehlgeschlagen:', error);
+        progress.invitations.push({ name: p.name.trim(), email, link: '' });
       }
     }
     save();

@@ -29,9 +29,10 @@ export const loadUserNotifications = async (userId: string): Promise<EarlierSlot
           
           // Check if this appointment belongs to the current user using Firestore query
           const appointmentRef = doc(firestore, 'appointments', appointmentId);
-          const appointmentDoc = await getDoc(appointmentRef);
-          
-          if (appointmentDoc.exists()) {
+          // Fremde Termine darf der Browser nicht lesen (firestore.rules): die gehören dann auch nicht zu diesem Konto
+          const appointmentDoc = await getDoc(appointmentRef).catch(() => null);
+
+          if (appointmentDoc?.exists()) {
             const appointmentData = appointmentDoc.data();
             if (appointmentData.customerId === userId) {
               // This appointment belongs to the current user, update the notification
@@ -115,7 +116,7 @@ export const loadUserNotifications = async (userId: string): Promise<EarlierSlot
     // Show toast if active notifications are available
     const activeNotifications = parsedNotifications.filter(n => !n.isAccepted);
     if (activeNotifications.length > 0) {
-      toast.info(`${activeNotifications.length} frühere Terminoptionen verfügbar!`, {
+      toast.info(activeNotifications.length === 1 ? 'Ein früherer Platz ist frei geworden.' : `${activeNotifications.length} frühere Plätze sind frei geworden.`, {
         duration: 5000,
         id: 'earlier-slots-notification' // Prevent duplicate toasts
       });

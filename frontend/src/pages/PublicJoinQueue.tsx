@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { isSlotConflict } from '../utils/booking-rules';
@@ -23,6 +23,8 @@ import { StepIndicator } from '../components/StepIndicator';
 import type { QueueContact } from '../components/QueueConfirmationStep';
 import { Spinner } from '../components/queue/SlotStatus';
 import { ConnectionProblem } from '../components/ConnectionProblem';
+import { QueueStepShell } from '../components/queue/QueueStepShell';
+import { Button } from '@/components/ui/button';
 
 /**
  * Consolidated Queue Join component
@@ -60,6 +62,7 @@ const PublicJoinQueue = () => {
     setSelectedShop, 
     loading, 
     loadError,
+    unavailable,
     arrivedFromQR, 
     setArrivedFromQR 
   } = useShopData(shopIdFromQR);
@@ -157,13 +160,19 @@ const PublicJoinQueue = () => {
       refreshSlots();
       return;
     }
+    // Ist der Platz beim Bestätigen schon weg, nimmt QueueBookingService gleich den nächsten: bei derselben
+    // Person oder bei „Egal wer“ den der schnellsten (gleiche Personen wie die Suche oben)
+    const staffChoices = useAnyStaff
+      ? serviceStaff.filter((s) => s.isActive !== false).map((s) => s.id)
+      : [selectedStaffForSlot];
     const result = await handleJoinQueue(
       selectedShop,
       selectedService,
       selectedStaffForSlot,
       nextAvailableSlot,
       user,
-      contact
+      contact,
+      staffChoices
     );
     if (result && !result.success && isSlotConflict(result.error)) refreshSlots();
   };
@@ -181,8 +190,19 @@ const PublicJoinQueue = () => {
       return (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card" role="status" aria-live="polite">
           <Spinner className="h-9 w-9 border-4" />
-          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Shops' : 'die Leistungen'} …</span>
+          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Läden' : 'die Leistungen'} …</span>
         </div>
+      );
+    }
+
+    // Laden aus dem QR-Code gesperrt: nicht die (leere) Ladenauswahl zeigen, sondern warum es nicht geht
+    if (unavailable) {
+      return (
+        <QueueStepShell title="Dieser Laden nimmt gerade keine Nummern an." description="Online geht im Moment weder Nummer ziehen noch Termin buchen.">
+          <Button asChild className="self-start">
+            <Link to="/shop-map">Läden finden</Link>
+          </Button>
+        </QueueStepShell>
       );
     }
 
@@ -313,7 +333,7 @@ const PublicJoinQueue = () => {
       </div>
 
       {currentStep !== 5 && (
-        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Shop', 'Leistung', 'Person', 'Bestätigen']} />
+        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Laden', 'Leistung', 'Person', 'Bestätigen']} />
       )}
 
       {renderContent()}

@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { registerWithRole } from '../../utils/auth-helpers';
 import { authErrorMessage, safeRedirect } from '../../utils/auth-errors';
-import { linkAnonymousBookingsToUser } from '../../utils/AnonymousBookingLinker';
+import { linkAnonymousBookingsToUser, type TicketToLink } from '../../utils/AnonymousBookingLinker';
+import { sendVerificationMailAfterSignUp } from '../../utils/email-verification';
 import { UserRole } from '../../utils/types';
 import { AuthShell, EmailField, FormError, PasswordField } from './AuthShell';
 
@@ -17,15 +18,15 @@ const COPY = {
     title: 'Konto anlegen',
     intro: 'Deine Nummern und Termine an einem Ort. Und wir bieten dir frühere Plätze an, wenn etwas frei wird.',
     submit: 'Konto anlegen',
-    switchText: 'Du hast einen Betrieb?',
+    switchText: 'Du hast einen Laden?',
     switchLink: '/register-shop-owner',
-    switchLabel: 'Als Betrieb registrieren',
+    switchLabel: 'Als Laden registrieren',
     home: '/my-bookings',
   },
   shopOwner: {
-    title: 'Betrieb anmelden',
+    title: 'Laden anmelden',
     intro: 'Leg dein Konto an. Danach führe ich dich in ein paar Fragen durch Laden, Öffnungszeiten, Leistungen und Team.',
-    submit: 'Konto für Betrieb anlegen',
+    submit: 'Konto für deinen Laden anlegen',
     switchText: 'Du willst nur buchen?',
     switchLink: '/register-customer',
     switchLabel: 'Als Kunde registrieren',
@@ -39,7 +40,7 @@ export const RegisterForm = ({ role }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const state = (location.state || {}) as { redirectAfterLogin?: string; linkAnonymousBooking?: boolean; shopId?: string; referenceCode?: string };
+  const state = (location.state || {}) as { redirectAfterLogin?: string; linkAnonymousBooking?: boolean } & TicketToLink;
   const next = safeRedirect(state.redirectAfterLogin) || safeRedirect(searchParams.get('next'));
 
   const [email, setEmail] = useState('');
@@ -55,9 +56,10 @@ export const RegisterForm = ({ role }: Props) => {
       const user = await registerWithRole(email.trim(), password, role);
       if (role === 'customer') {
         // Nummern, die in diesem Browser ohne Konto gezogen wurden, übernehmen
-        await linkAnonymousBookingsToUser(user.uid, state.shopId, state.referenceCode);
+        await linkAnonymousBookingsToUser(state);
       }
       toast.success('Dein Konto ist angelegt.');
+      sendVerificationMailAfterSignUp();
       navigate(next || copy.home, { replace: true });
     } catch (err) {
       console.error('Registration error:', err);

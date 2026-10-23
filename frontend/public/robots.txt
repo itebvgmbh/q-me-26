@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /routes/
+# Braucht Google beim Darstellen der Karte und der Ladenansicht (frontend/src/utils/verzeichnis.ts)
+Allow: /routes/verzeichnis/
+Disallow: /nummer/
+Disallow: /bildschirm/
+
+Sitemap: https://dranzeit.de/sitemap.xml

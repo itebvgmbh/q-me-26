@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Service, getServicesByShopId } from '../firestore';
+import { Service, getServicesByShopId, offeredServices } from '../firestore';
 
 /**
  * Hook to fetch and manage services for a selected shop
@@ -20,7 +20,7 @@ export const useServices = (selectedShop: string) => {
       setLoading(true);
       try {
         const servicesData = await getServicesByShopId(selectedShop);
-        setServices(servicesData);
+        setServices(offeredServices(servicesData));
         setLoading(false);
       } catch (error) {
         console.error('Error loading services:', error);

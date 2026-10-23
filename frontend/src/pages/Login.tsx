@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseAuth, useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
 import { authErrorMessage, safeRedirect } from '../utils/auth-errors';
+import { requestPasswordReset } from '../utils/password-reset';
 import { getRedirectPath } from '../utils/user-profile-service';
-import { linkAnonymousBookingsToUser } from '../utils/AnonymousBookingLinker';
+import { linkAnonymousBookingsToUser, type TicketToLink } from '../utils/AnonymousBookingLinker';
 
-type LoginState = { redirectAfterLogin?: string; linkAnonymousBooking?: boolean; shopId?: string; referenceCode?: string };
+type LoginState = { redirectAfterLogin?: string; linkAnonymousBooking?: boolean } & TicketToLink;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ const Login = () => {
     setSubmitting(true);
     try {
       const { user: signedIn } = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
-      const linking = linkAnonymousBookingsToUser(signedIn.uid, state.shopId, state.referenceCode);
+      const linking = linkAnonymousBookingsToUser(state);
       // Nach "Nummer behalten" erst verknüpfen, damit sie in "Meine Termine" schon auftaucht
       if (state.linkAnonymousBooking) await linking;
       navigate(next || (await getRedirectPath(signedIn.uid)), { replace: true });
@@ -51,7 +52,7 @@ const Login = () => {
     }
     setResetting(true);
     try {
-      await sendPasswordResetEmail(firebaseAuth, email.trim());
+      await requestPasswordReset(email.trim());
       setError(null);
       toast.success('Wenn es ein Konto gibt, ist der Link unterwegs. Schau in dein Postfach.');
     } catch (err) {

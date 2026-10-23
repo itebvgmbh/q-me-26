@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { createAppointment } from '../firestore';
-import { isSlotConflict } from '../booking-rules';
+import { assertOnlineLead, isSlotConflict } from '../booking-rules';
 import { toast } from 'sonner';
 import useTimeSlotStore from '../timeSlotStore';
 import { CalendarTimeSlot } from '../types';
@@ -30,6 +30,8 @@ export const useAppointmentBooking = () => {
       const startTime = selectedTimeSlot.start;
       const endTime = selectedTimeSlot.end;
       
+      // Vorlaufzeit des Ladens für Online-Termine (Mein Laden → Bearbeiten)
+      await assertOnlineLead(shopId, startTime);
       // Speichern über createAppointment: prüft Öffnungs- und Arbeitszeiten, Pausen und andere Termine.
       // Vorher wurde direkt geschrieben und nur gegen die (zwischengespeicherte) Slot-Liste geprüft.
       const created = await createAppointment({

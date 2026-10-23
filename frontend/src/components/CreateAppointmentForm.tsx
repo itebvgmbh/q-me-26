@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Service, Staff, Customer, Appointment } from '../utils/firestore';
+import { Service, Staff, Customer, Appointment, appointmentCustomerId, offeredServices } from '../utils/firestore';
 import { findEarliestSlots } from '../utils/firestore/timeslots';
 
 interface CreateAppointmentFormProps {
@@ -50,7 +50,8 @@ export const CreateAppointmentForm = ({
   createAppointment,
 }: CreateAppointmentFormProps) => {
   const active = useMemo(() => staff.filter((s) => s.isActive !== false), [staff]);
-  const [serviceId, setServiceId] = useState(services.length === 1 ? services[0].id : '');
+  const offered = useMemo(() => offeredServices(services), [services]);
+  const [serviceId, setServiceId] = useState(offered.length === 1 ? offered[0].id : '');
   const [staffId, setStaffId] = useState<string>('any');
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -64,6 +65,8 @@ export const CreateAppointmentForm = ({
   const [slots, setSlots] = useState<Record<string, Slot | null> | null>(null);
   const [searching, setSearching] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  // Vergebene Nummer: bleibt stehen, bis der Kunde sie kennt (er hat keine Nummernseite)
+  const [issued, setIssued] = useState<{ appointment: Appointment; person: string } | null>(null);
 
   const service = services.find((s) => s.id === serviceId);
   const eligible = useMemo(
@@ -106,12 +109,13 @@ export const CreateAppointmentForm = ({
     return candidates[0] ?? null;
   }, [slots, staffId, eligible]);
 
-  const save = async (data: Record<string, unknown>, label: string) => {
+  const save = async (data: Record<string, unknown>, label: (created: Appointment) => string, keepOpen?: (created: Appointment) => void) => {
     setSaving(true);
     try {
       const created = await createAppointment(data);
-      toast.success(label);
-      onCreateAppointment(created);
+      toast.success(label(created));
+      if (keepOpen) keepOpen(created);
+      else onCreateAppointment(created);
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       toast.error(`${appointmentType === 'booked' ? 'Termin' : 'Nummer'} nicht angelegt: ${error?.message || 'unbekannter Fehler'}`);
@@ -136,7 +140,8 @@ export const CreateAppointmentForm = ({
         status: 'scheduled',
         type: 'queue',
       },
-      `Nummer vergeben: ${format(pick.slot.start, 'HH:mm')} bei ${pick.person.name}.`,
+      (created) => `Nummer ${created.referenceCode ? `${created.referenceCode} ` : ''}vergeben: ${format(pick.slot.start, 'HH:mm')} bei ${pick.person.name}.`,
+      (created) => setIssued({ appointment: created, person: pick.person.name }),
     );
   };
 
@@ -158,15 +163,48 @@ export const CreateAppointmentForm = ({
         status: 'scheduled',
         type: 'booked',
       },
-      `Termin eingetragen: ${format(start, 'dd.MM.')} um ${time}.`,
+      () => `Termin eingetragen: ${format(start, 'dd.MM.')} um ${time}.`,
     );
   };
 
   const customerOptions = useMemo(() => {
+    // Wert = customerId des Termins: bei verbundenem Konto das Konto (utils/firestore/customers.ts)
     const seen = new Map<string, Customer>();
-    customers.forEach((c) => !seen.has(c.id) && seen.set(c.id, c));
+    customers.forEach((c) => !seen.has(appointmentCustomerId(c)) && seen.set(appointmentCustomerId(c), c));
     return [...seen.values()];
   }, [customers]);
+
+  if (issued) {
+    const start = issued.appointment.startTime instanceof Date ? issued.appointment.startTime : issued.appointment.startTime.toDate();
+    return (
+      <div className="flex flex-col gap-4 py-2" role="status" aria-live="polite">
+        <div className="flex flex-col items-center gap-1 rounded-3xl bg-signal p-6 text-center text-signal-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em]">Nummer</p>
+          <p className="font-mono text-6xl font-bold leading-none tracking-[-0.04em]">{issued.appointment.referenceCode ?? '—'}</p>
+          <p className="mt-2 font-display text-xl font-bold">{when(start)}</p>
+          <p className="text-sm">bei {issued.person}</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Sag dem Kunden seine Nummer und die Uhrzeit, am besten auf einen Zettel. Am Tresen und auf dem Wartezimmer-Bildschirm steht er unter dieser Nummer.
+        </p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIssued(null);
+              setCustomerName('');
+              setRefresh((n) => n + 1);
+            }}
+          >
+            Noch eine Nummer
+          </Button>
+          <Button variant="signal" onClick={() => onCreateAppointment(issued.appointment)}>
+            Fertig
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 py-2">
@@ -195,7 +233,7 @@ export const CreateAppointmentForm = ({
             <SelectValue placeholder="Leistung wählen" />
           </SelectTrigger>
           <SelectContent>
-            {services.map((s) => (
+            {offered.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name} · {s.duration} Min.
               </SelectItem>
@@ -256,7 +294,7 @@ export const CreateAppointmentForm = ({
                 value={customerId}
                 onValueChange={(value) => {
                   setCustomerId(value);
-                  const c = customerOptions.find((x) => x.id === value);
+                  const c = customerOptions.find((x) => appointmentCustomerId(x) === value);
                   if (c && !customerName.trim()) setCustomerName(c.name);
                 }}
               >
@@ -265,7 +303,7 @@ export const CreateAppointmentForm = ({
                 </SelectTrigger>
                 <SelectContent>
                   {customerOptions.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={appointmentCustomerId(c)}>
                       {c.name} {c.email ? `(${c.email})` : ''}
                     </SelectItem>
                   ))}

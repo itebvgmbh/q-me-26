@@ -13,14 +13,16 @@ import { safelyConvertToDate } from '../utils/datetime';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
 import { loadUserNotifications } from '../utils/notifications';
+import { setFrueherDran } from '../utils/frueher-dran';
 import { AppointmentCard, AppointmentWithDetails } from '../components/AppointmentCard';
 import { CancelAppointmentDialog } from '../components/CancelAppointmentDialog';
 import { Ticket } from '../components/brand/Ticket';
 
 const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
 
+// Offen bleibt, was dran ist oder heute noch wartet – auch wenn der Laden hinterherhängt und die Zeit vorbei ist
 const isUpcoming = (a: AppointmentWithDetails) =>
-  (a.status === 'scheduled' || a.status === 'in-progress') && safelyConvertToDate(a.endTime) > new Date();
+  a.status === 'in-progress' || (a.status === 'scheduled' && (safelyConvertToDate(a.endTime) > new Date() || isToday(safelyConvertToDate(a.startTime))));
 
 /** Meine Termine: nächster Termin als Wartemarke, danach Kommendes und Vergangenes */
 const MyBookings = () => {
@@ -69,9 +71,29 @@ const MyBookings = () => {
       return true;
     } catch (error) {
       console.error('Error accepting earlier slot:', error);
-      toast.error('Der Platz ist leider schon weg.');
+      toast.error((error as Error)?.name === 'EarlierSlotRefused' ? (error as Error).message : 'Der Platz ist leider schon weg.');
       await fetchNotifications();
       return false;
+    }
+  };
+
+  const handleToggleEarlier = async (appointmentId: string, on: boolean) => {
+    try {
+      const now = await setFrueherDran(appointmentId, on);
+      setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? { ...a, checkEarlierOptions: now } : a)));
+      if (now) {
+        toast.success('Früher dran ist an. Wird ein Platz frei, siehst du ihn hier.');
+        // Das Backend sucht sofort; ein Angebot ist meist nach wenigen Sekunden da
+        setTimeout(fetchNotifications, 4000);
+      } else {
+        toast.success('Früher dran ist aus.');
+        // Ein offenes Angebot gibt das Backend frei, hier verschwindet es gleich
+        setNotifications((prev) => prev.filter((n) => n.appointmentId !== appointmentId));
+      }
+    } catch (error) {
+      console.error('Error toggling earlier slot option:', error);
+      toast.error(error instanceof Error ? error.message : 'Das hat nicht geklappt. Versuch es noch einmal.');
+      throw error;
     }
   };
 
@@ -118,7 +140,7 @@ const MyBookings = () => {
           <p className="text-muted-foreground">Zieh eine Nummer für sofort oder buch eine feste Uhrzeit.</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="signal" asChild>
-              <Link to="/public-join-queue">In die Schlange</Link>
+              <Link to="/public-join-queue">Nummer ziehen</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/book-appointment">Termin buchen</Link>
@@ -149,6 +171,7 @@ const MyBookings = () => {
                 notification={offerFor(next)}
                 onCancelClick={setAppointmentToCancel}
                 onAcceptEarlierSlot={handleAcceptEarlierSlot}
+                onToggleEarlier={handleToggleEarlier}
                 actionsOnly
               />
             </section>
@@ -166,6 +189,7 @@ const MyBookings = () => {
                   notification={offerFor(a)}
                   onCancelClick={setAppointmentToCancel}
                   onAcceptEarlierSlot={handleAcceptEarlierSlot}
+                  onToggleEarlier={handleToggleEarlier}
                 />
               ))}
             </section>

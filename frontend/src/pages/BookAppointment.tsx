@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
-import { createCustomer } from '../utils/firestore';
+import { linkOwnCustomerEntry } from '../utils/firestore';
 import { BookingForm } from '../components/BookingForm';
 import { useShops } from '../utils/hooks/useShops';
 import { useShopServices } from '../utils/hooks/useShopServices';
@@ -10,6 +10,8 @@ import { useShopStaff } from '../utils/hooks/useShopStaff';
 import { useAppointmentBooking } from '../utils/hooks/useAppointmentBooking';
 import { useBookingForm } from '../utils/hooks/useBookingForm';
 import { useBookingValidation } from '../utils/hooks/useBookingValidation';
+import { Link } from 'react-router-dom';
+import { hasFeature } from '../utils/plans';
 
 const BookAppointment = () => {
   const navigate = useNavigate();
@@ -32,8 +34,16 @@ const BookAppointment = () => {
     setCheckEarlierOptions,
   } = useBookingForm(shops);
 
+  // Online-Termine gibt es ab dem Solo-Tarif (utils/plans.ts); sonst nur Nummer ziehen
+  const shopData = shops.find((s) => s.id === selectedShop);
+  const termineAllowed = !shopData || hasFeature(shopData, 'termine');
+
   const { staff: allStaff } = useShopStaff(selectedShop);
-  const { services } = useShopServices(selectedShop);
+  const { services, loading: servicesLoading } = useShopServices(selectedShop);
+  // Alter Link auf eine gelöschte Leistung: nicht damit buchen lassen
+  useEffect(() => {
+    if (!servicesLoading && selectedService && services.length > 0 && !services.some((s) => s.id === selectedService)) setSelectedService('');
+  }, [servicesLoading, services, selectedService, setSelectedService]);
   // Nur wer die Leistung anbietet; sind keine Leistungen zugeordnet, alle zeigen
   const eligible = allStaff.filter((s) => s.serviceIds?.includes(selectedService));
   const staff = selectedService && eligible.length > 0 ? eligible : allStaff;
@@ -72,18 +82,6 @@ const BookAppointment = () => {
     if (!validateBookingForm({ selectedShop, selectedStaff, selectedService, selectedTimeSlot })) return;
 
     try {
-      try {
-        await createCustomer({
-          shopId: selectedShop,
-          name: user.displayName || user.email?.split('@')[0] || 'Unbekannt',
-          email: user.email || '',
-          phone: '',
-          userId: user.uid,
-        });
-      } catch (err) {
-        console.error('Error with customer record, but continuing...', err);
-      }
-
       const result = await bookAppointment(
         selectedShop,
         selectedStaff,
@@ -94,7 +92,11 @@ const BookAppointment = () => {
         selectedTimeSlot!,
         checkEarlierOptions,
       );
-      if (result.success) navigate('/my-bookings');
+      if (result.success) {
+        // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+        void linkOwnCustomerEntry(selectedShop);
+        navigate('/my-bookings');
+      }
     } catch (error) {
       console.error('Error in booking process:', error);
       toast.error('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.');
@@ -112,6 +114,18 @@ const BookAppointment = () => {
         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Shops werden geladen">
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
+        </div>
+      ) : !termineAllowed ? (
+        <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6">
+          <p className="font-semibold">{shopData?.name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/public-join-queue?shopId=${selectedShop}`} className="inline-flex min-h-11 items-center rounded-xl bg-foreground px-5 font-semibold text-background">
+              Nummer ziehen
+            </Link>
+            <button type="button" className="min-h-11 rounded-xl border border-border px-5 font-semibold" onClick={() => setSelectedShop('')}>
+              Anderen Laden wählen
+            </button>
+          </div>
         </div>
       ) : (
         <BookingForm

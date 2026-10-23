@@ -1,8 +1,9 @@
-import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs } from 'firebase/firestore';
 import { firestore } from './firestore-client';
 import { safelyConvertToDate } from './datetime';
 import { getAppointmentsByCustomerId, getServiceByIdLegacy, getShopByOwner } from './firestore';
 import type { Appointment, Service, Shop, Staff } from './firestore';
+import { publicFromDoc, staffDayQuery } from './firestore/public-appointments';
 
 /**
  * Calculate queue position for an appointment
@@ -16,29 +17,21 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
   }
   
   try {
-    const appointmentsRef = collection(firestore, 'appointments');
-    
     // Eine Schlangenposition gibt es nur am Tag selbst
     const start = safelyConvertToDate(appointment.startTime);
     const dayStart = new Date(start);
     dayStart.setHours(0, 0, 0, 0);
     if (dayStart.getTime() !== new Date().setHours(0, 0, 0, 0)) return 0;
 
-    // Wer heute bei derselben Person vorher dran ist und noch nicht fertig ist.
-    // Vorher zählten auch alle alten, nie abgeschlossenen Termine mit ("Platz 60").
-    const q = query(
-      appointmentsRef,
-      where('staffId', '==', appointment.staffId),
-      where('startTime', '>=', Timestamp.fromDate(dayStart)),
-      where('startTime', '<', appointment.startTime)
-    );
-    
-    const now = Date.now();
-    const snapshot = await getDocs(q);
+    // Wer heute bei derselben Person vorher dran ist und noch nicht fertig ist – auch wenn dessen
+    // geplante Zeit vorbei ist (utils/queue-lane.ts). Vorher zählten auch alle alten, nie
+    // abgeschlossenen Termine anderer Tage mit ("Platz 60"); der Tag ist deshalb begrenzt.
+    // Die anderen Termine nur als öffentliche Kurzfassung (public-appointments.ts) – fremde Termine liest kein Kunde.
+    const snapshot = await getDocs(staffDayQuery(firestore, appointment.staffId, start));
     const earlierAppointments = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }) as Appointment)
-      .filter(apt => apt.status !== 'completed' && apt.status !== 'cancelled')
-      .filter(apt => !apt.endTime || safelyConvertToDate(apt.endTime).getTime() > now);
+      .map(publicFromDoc)
+      .filter(apt => apt.id !== appointment.id && start.getTime() > safelyConvertToDate(apt.startTime).getTime()
+        && (apt.status === 'scheduled' || apt.status === 'in-progress'));
     
     return earlierAppointments.length + 1; // +1 to count from 1 instead of 0
   } catch (error) {

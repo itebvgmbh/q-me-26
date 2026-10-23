@@ -26,6 +26,8 @@ export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCar
   const [confirmOpen, setConfirmOpen] = useState(false);
   const offered = (employee.serviceIds || []).map((id) => services.find((s) => s.id === id)?.name).filter(Boolean);
   const workingDays = (employee.workingHours || []).filter((h) => h.isWorking).length;
+  const inviteOpen = !employee.userId && employee.inviteExpires && employee.inviteExpires.toDate() > new Date();
+  const access = employee.userId ? 'Hat Zugang' : inviteOpen ? 'Eingeladen' : '';
 
   const handleDeactivate = async () => {
     try {
@@ -49,7 +51,10 @@ export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCar
           </span>
         )}
         <div className="min-w-0">
-          <h3 className="truncate font-display text-lg font-bold">{employee.name}</h3>
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate font-display text-lg font-bold">{employee.name}</h3>
+            {access && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{access}</span>}
+          </div>
           <p className="truncate text-sm text-muted-foreground">{employee.email}{employee.email && ' · '}{workingDays ? `${workingDays} Tage pro Woche` : <span className="text-destructive">keine Arbeitszeiten</span>}</p>
           <p className="mt-1 text-sm">
             {offered.length ? offered.join(', ') : <span className="text-destructive">Keine Leistung zugeordnet – taucht bei der Buchung nicht auf.</span>}
@@ -67,7 +72,9 @@ export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCar
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">{employee.name} deaktivieren?</AlertDialogTitle>
-            <AlertDialogDescription>Für {employee.name} kann dann niemand mehr buchen. Bestehende Termine bleiben.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Für {employee.name} kann dann niemand mehr buchen, bestehende Termine bleiben.{employee.userId ? ` ${employee.name} sieht „Mein Tag“ nicht mehr.` : ''} Unter „Deaktiviert“ holst du die Person jederzeit zurück.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-full">Abbrechen</AlertDialogCancel>

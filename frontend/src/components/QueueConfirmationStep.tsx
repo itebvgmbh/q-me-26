@@ -9,6 +9,8 @@ import { TimeSlot } from '../utils/types';
 import { Shop, Service, Staff } from '../utils/firestore/types';
 import { QueueStepShell } from './queue/QueueStepShell';
 import { slotDayLabel } from './queue/SlotStatus';
+import { hasFeature } from '../utils/plans';
+import { useMonthlyUsage } from '../utils/plan-usage';
 
 export interface QueueContact {
   name: string;
@@ -65,7 +67,11 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
   const service = services.find((s) => s.id === selectedService);
   const person = staff.find((s) => s.id === selectedStaffForSlot);
   const anonymous = !user && !authLoading;
-  const canConfirm = !!nextAvailableSlot && !searchingForSlot && !submitting && (!anonymous || contact.name.trim().length > 0);
+  // Tarif des Ladens: "Früher dran" ab Solo, im Gratis-Tarif höchstens 100 Kunden im Monat (utils/plans.ts)
+  const earlierAllowed = hasFeature(shop, 'frueherDran');
+  const usage = useMonthlyUsage(shop?.id, shop);
+  const canConfirm =
+    !!nextAvailableSlot && !searchingForSlot && !submitting && !usage.full && (!anonymous || contact.name.trim().length > 0);
 
   return (
     <QueueStepShell title="Passt das so?" onBack={onBack} backLabel="Andere Person wählen">
@@ -99,7 +105,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
       </div>
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
-        <div><dt className="text-muted-foreground">Shop</dt><dd className="font-semibold">{shop?.name}</dd></div>
+        <div><dt className="text-muted-foreground">Laden</dt><dd className="font-semibold">{shop?.name}</dd></div>
         <div><dt className="text-muted-foreground">Leistung</dt><dd className="font-semibold">{service?.name}</dd></div>
         <div><dt className="text-muted-foreground">Bei</dt><dd className="font-semibold">{person?.name ?? (searchingForSlot ? '…' : '–')}</dd></div>
       </dl>
@@ -118,7 +124,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
         </fieldset>
       )}
 
-      {user && (
+      {user && earlierAllowed && (
         <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-sm">
           <Checkbox checked={checkEarlierOptions} onCheckedChange={(v) => onCheckEarlierOptionsChange(v === true)} className="mt-0.5" />
           <span>
@@ -128,9 +134,15 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
         </label>
       )}
 
-      <Button size="lg" onClick={onConfirm} disabled={!canConfirm}>
-        {submitting ? 'Wird eingereiht …' : 'Nummer ziehen'}
-      </Button>
+      {usage.full ? (
+        <p role="status" className="rounded-2xl border border-border p-4 font-semibold">
+          Online sind bei {shop?.name ?? 'diesem Laden'} gerade keine Nummern mehr frei. Frag bitte direkt im Laden.
+        </p>
+      ) : (
+        <Button size="lg" onClick={onConfirm} disabled={!canConfirm}>
+          {submitting ? 'Wird eingereiht …' : 'Nummer ziehen'}
+        </Button>
+      )}
     </QueueStepShell>
   );
 };

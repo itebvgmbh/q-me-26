@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format, addMinutes } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { de } from 'date-fns/locale';
-import { Appointment, Service, Staff, Customer, updateAppointment, getUniqueCustomers } from '../utils/firestore';
+import { Appointment, Service, Staff, Customer, updateAppointment, getUniqueCustomers, appointmentCustomerId, isOffered } from '../utils/firestore';
 import { customerLabel } from './counter/CounterLane';
 
 export const STATUS_LABEL: Record<Appointment['status'], string> = {
@@ -53,7 +53,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
     if (!selectedAppointment) return;
 
     try {
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status });
+      // Sagt der Laden ab, bekommt der Kunde Bescheid (Push/E-Mail, siehe updateAppointment)
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status }, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       toast.success(`Status: ${STATUS_LABEL[status]}`);
       setShowStatusDialog(false);
@@ -89,7 +90,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
         updatedData.price = parseFloat(updatedData.price as unknown as string);
       }
       
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData);
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       toast.success('Termin gespeichert.');
       setShowEditDialog(false);
@@ -128,7 +129,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
 
   const handleInputChange = (field: string, value: any) => {
     if (field === 'customerId' && value !== 'walk-in') {
-      const customer = customers.find(c => c.id === value);
+      const customer = customers.find(c => appointmentCustomerId(c) === value);
       if (customer) {
         setAppointmentFormData(prev => ({
           ...prev,
@@ -226,10 +227,10 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Kunde auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="walk-in">Kein Bestandskunde / Walk-In</SelectItem>
+                  <SelectItem value="walk-in">Kein Bestandskunde</SelectItem>
                   {/* Robuste Deduplizierung von Kunden */}
                   {getUniqueCustomers(customers).map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
+                      <SelectItem key={customer.id} value={appointmentCustomerId(customer)}>
                         {customer.name} {customer.email ? `(${customer.email})` : ''}
                       </SelectItem>
                     ))}
@@ -256,7 +257,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Leistung wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {services.map((service) => (
+                  {services.filter((s) => isOffered(s) || s.id === appointmentFormData.serviceId).map((service) => (
                     <SelectItem key={service.id} value={service.id}>
                       {service.name} ({service.duration} Min, {Number(service.price || 0).toFixed(2)} €)
                     </SelectItem>
@@ -349,8 +350,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   <SelectValue placeholder="Termintyp auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="booked">Regulärer Termin</SelectItem>
-                  <SelectItem value="queue">Warteschlangen-Eintrag</SelectItem>
+                  <SelectItem value="booked">Termin</SelectItem>
+                  <SelectItem value="queue">Nummer</SelectItem>
                 </SelectContent>
               </Select>
             </div>

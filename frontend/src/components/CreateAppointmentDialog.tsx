@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers } from '../utils/firestore';
+import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers, appointmentCustomerId, offeredServices } from '../utils/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -74,6 +74,8 @@ export const CreateAppointmentDialog = ({
       
       let customerId = selectedCustomerId;
       let finalCustomerName = customerName;
+      // Handynummer aus der Kundenliste (das Profil eines Kundenkontos liest der Laden nicht, firestore.rules)
+      let finalCustomerPhone = customerPhone;
 
       console.log('Creating appointment, isNewCustomer:', isNewCustomer);
       if (isNewCustomer) {
@@ -84,12 +86,14 @@ export const CreateAppointmentDialog = ({
           email: customerEmail,
           phone: customerPhone,
         });
-        customerId = newCustomer.id;
+        customerId = appointmentCustomerId(newCustomer);
         finalCustomerName = newCustomer.name;
       } else {
         const customer = customers.find(c => c.id === selectedCustomerId);
         if (!customer) throw new Error('Selected customer not found');
+        customerId = appointmentCustomerId(customer);
         finalCustomerName = customer.name;
+        finalCustomerPhone = customer.phone;
       }
 
       console.log('Creating appointment with customer:', { customerId, finalCustomerName });
@@ -103,6 +107,7 @@ export const CreateAppointmentDialog = ({
         shopId: employee.shopId,
         customerId,
         customerName: finalCustomerName,
+        customerPhone: finalCustomerPhone || undefined,
         serviceId,
         staffId: employee.id,
         status: 'scheduled',
@@ -131,7 +136,7 @@ export const CreateAppointmentDialog = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Termin anlegen</DialogTitle>
+          <DialogTitle>Termin eintragen</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 p-4">
           <div className="space-y-4">
@@ -255,7 +260,7 @@ export const CreateAppointmentDialog = ({
                   <SelectValue placeholder="Leistung wählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  {services.map((service) => (
+                  {offeredServices(services).map((service) => (
                     <SelectItem key={service.id} value={service.id}>
                       {service.name} ({service.duration} Min.)
                     </SelectItem>
@@ -288,7 +293,7 @@ export const CreateAppointmentDialog = ({
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Speichern...' : 'Termin anlegen'}
+              {isSubmitting ? 'Wird eingetragen …' : 'Termin eintragen'}
             </Button>
           </div>
         </form>

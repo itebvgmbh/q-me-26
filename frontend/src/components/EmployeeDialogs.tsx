@@ -66,15 +66,13 @@ export const CreateCustomerDialog = ({
         <DialogHeader>
           <DialogTitle>Neuen Kunden anlegen</DialogTitle>
           <DialogDescription>
-            Die Person bekommt einen Link, um ihr Konto zu aktivieren.
+            Für deine Kundenliste beim Eintragen von Terminen. Danach bekommst du einen Link, den du der Person schickst.
           </DialogDescription>
         </DialogHeader>
         <CreateCustomerForm
           shopId={shopId}
-          onCustomerCreated={() => {
-            onCustomerCreated();
-            onOpenChange(false);
-          }}
+          onCustomerCreated={onCustomerCreated}
+          onDone={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>

@@ -1,28 +1,13 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp, firebaseAuth } from 'app';
+import { firebaseAuth } from 'app';
 import { createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { createUserProfile } from './user-profile-service';
 import { UserRole } from './types';
 
-/**
- * Prüft, ob eine E-Mail schon als Mitarbeiter, Einladung oder Profil hinterlegt ist
- * (für die Mitarbeiterverwaltung). Kann Firestore nicht gelesen werden, gilt die
- * E-Mail als frei – vorher blockierte jeder Lesefehler das Anlegen komplett.
- */
-export const isEmailInUse = async (email: string): Promise<boolean> => {
-  const db = getFirestore(firebaseApp);
-  try {
-    for (const name of ['users', 'staff', 'staff-invitations']) {
-      const snapshot = await getDocs(query(collection(db, name), where('email', '==', email)));
-      if (!snapshot.empty) return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error checking email uniqueness:', error);
-    return false;
-  }
-};
+// Ob eine E-Mail im Team schon vorkommt, prüft findTeamMemberByEmail (utils/firestore/staff.ts) –
+// nur im eigenen Laden. Kundenkonten und andere Läden sperren eine Einladung nicht mehr.
+
+/** Grobe Prüfung, ob etwas wie eine E-Mail-Adresse aussieht */
+export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 /**
  * Legt das Firebase-Konto an. Ob die E-Mail schon vergeben ist, entscheidet Firebase Auth

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ActiveTicketBanner } from '../components/queue/ActiveTicketBanner';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnonymousBookingHandler } from '../components/AnonymousBookingHandler';
@@ -29,6 +30,7 @@ export default function App() {
     <div>
       {/* Verknüpft anonyme Buchungen nach dem Anmelden */}
       <AnonymousBookingHandler />
+      <ActiveTicketBanner />
 
       <section className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-14 gap-y-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-6">
@@ -41,7 +43,7 @@ export default function App() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Button size="lg" asChild>
-              <Link to="/public-join-queue">In die Schlange</Link>
+              <Link to="/public-join-queue">Nummer ziehen</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
               <Link to="/book-appointment?fromMarketplace=true">Termin buchen</Link>
@@ -54,7 +56,7 @@ export default function App() {
             className="w-[320px] max-w-full -rotate-3 shadow-[0_30px_60px_-30px_rgba(20,20,20,0.45)]"
             eyebrow="Deine Nummer"
             eyebrowRight="Herrenschnitt"
-            number="A14"
+            number="14"
             stats={[
               { label: 'Vor dir', value: '3' },
               { label: 'Dran um ca.', value: '11:52' },

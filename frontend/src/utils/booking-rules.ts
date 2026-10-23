@@ -1,5 +1,7 @@
-import { collection, doc, DocumentData, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
+import { collection, doc, DocumentData, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { firestore as db } from './firestore-client';
+import { occupiedWindow, projectLane } from './queue-lane';
+import { publicOfStaffBetween } from './firestore/public-appointments';
 
 /**
  * Eine Regel für alle Termine: Was hier nicht frei ist, darf weder angezeigt noch gespeichert werden.
@@ -11,7 +13,11 @@ import { firestore as db } from './firestore-client';
  *     (businessHoursByDay[].breaks, z. B. mittags geschlossen) – gelten für alle Personen
  *  2. Arbeitszeiten der Person (ohne Arbeitszeiten ist nichts buchbar)
  *  3. Wiederkehrende Pausen (recurring-breaks) und einzelne Pausen (breaks) der Person
- *  4. Andere Termine der Person (abgesagte zählen nicht)
+ *  4. Andere Termine der Person (abgesagte zählen nicht): Wartende mit ihrer geplanten Zeit, wer dran ist ab
+ *     Aufruf, wer fertig ist nur bis "Fertig" – wer früher fertig ist, gibt den Rest seiner Zeit frei (queue-lane.ts)
+ *  5. Nur bei der Platzsuche für Nummern (projectAt): die Prognose der heutigen Schlange – hängt der Laden
+ *     hinterher, bekommt eine neue Nummer eine Zeit nach den Wartenden statt einer, die schon überholt ist.
+ *     Beim Speichern zählt die Prognose nicht, sonst scheiterte ein eben gefundener Platz an einer Minute Uhrzeit.
  * Alle Uhrzeiten sind Ortszeit des Ladens (Browserzeit).
  */
 
@@ -95,9 +101,10 @@ export const loadShopData = async (shopId: string): Promise<DocumentData | null>
  * Lädt alles, was die Tage einer Person zwischen from und to einschränkt – alle Abfragen gleichzeitig,
  * also eine Rundreise zum Server. Vorher lud die Platzsuche das für jeden Tag einzeln und nacheinander
  * (bis zu 14 Tage × 3 Rundreisen) und jedes Mal alle Termine der Person seit Anbeginn.
- * Termine nur im Zeitraum (Index staffId + startTime ist vorhanden), mit einem Tag Vorlauf für
- * Termine, die vor Mitternacht beginnen. Einzelne Pausen nur nach Person, den Tag filtert
- * buildDayContext – eine Abfrage mit Datumsbereich bräuchte einen eigenen Index.
+ * Termine nur im Zeitraum, mit einem Tag Vorlauf für Termine, die vor Mitternacht beginnen – aus den öffentlichen
+ * Kurzfassungen (public-appointments.ts: Zeit, Status, Aufrufe, keine Namen), damit es auch ohne Anmeldung geht.
+ * Einzelne Pausen nur nach Person, den Tag filtert buildDayContext – eine Abfrage mit Datumsbereich bräuchte einen
+ * eigenen Index.
  */
 export const loadStaffRange = async (
   shopId: string,
@@ -115,14 +122,7 @@ export const loadStaffRange = async (
     getDoc(doc(db, 'staff', staffId)),
     getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId))),
     getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
-    getDocs(
-      query(
-        collection(db, 'appointments'),
-        where('staffId', '==', staffId),
-        where('startTime', '>=', Timestamp.fromMillis(from.getTime() - DAY_MS)),
-        where('startTime', '<', Timestamp.fromDate(to)),
-      ),
-    ),
+    publicOfStaffBetween(db, staffId, new Date(from.getTime() - DAY_MS), to),
   ]);
   return {
     shop: shopData,
@@ -130,12 +130,17 @@ export const loadStaffRange = async (
     staff: staffSnap.exists() ? staffSnap.data() : null,
     recurringBreaks: recurringSnap.docs.map((d) => d.data()),
     breaks: breaksSnap.docs.map((d) => d.data()),
-    appointments: apptSnap.docs.filter((d) => d.data().shopId === shopId).map((d) => ({ id: d.id, data: d.data() })),
+    appointments: apptSnap.filter((a) => a.shopId === shopId).map(({ id, ...data }) => ({ id, data })),
   };
 };
 
 /** Rechnet aus den geladenen Daten, was an einem Tag buchbar ist – ohne Netz */
-export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointmentId?: string): StaffDayContext => {
+export const buildDayContext = (
+  data: StaffRangeData,
+  day: Date,
+  excludeAppointmentId?: string,
+  options: { projectAt?: number } = {},
+): StaffDayContext => {
   const midnight = new Date(day);
   midnight.setHours(0, 0, 0, 0);
   const dayStart = midnight.getTime();
@@ -143,6 +148,8 @@ export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointm
   const dayOfWeek = midnight.getDay();
   const at = (minutes: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate(), Math.floor(minutes / 60), minutes % 60).getTime();
 
+  // Vom Betreiber gesperrt (Betreiber-Bereich): nichts buchbar, auch nicht vom Tresen
+  if (data.shop?.suspended) return { open: null, closedReason: 'Dieser Laden nimmt gerade keine Buchungen an.', blocked: [] };
   const shopWin = shopWindowForDay(data.shop, dayOfWeek);
   if (shopWin === 'closed') return { open: null, closedReason: `Der Laden hat ${WEEKDAYS[dayOfWeek]} geschlossen.`, blocked: [] };
 
@@ -182,14 +189,24 @@ export const buildDayContext = (data: StaffRangeData, day: Date, excludeAppointm
       if (s === null || e === null || e <= s || e <= dayStart || s >= dayEnd) return;
       blocked.push({ start: s, end: e, reason: `Pause von ${hhmm(s)} bis ${hhmm(e)}.` });
     });
-    data.appointments.forEach(({ id, data: a }) => {
-      if (id === excludeAppointmentId) return;
-      if (a.status === 'cancelled') return;
-      const s = toMs(a.startTime);
-      const e = toMs(a.endTime);
-      if (s === null || e === null || e <= dayStart || s >= dayEnd) return;
-      blocked.push({ start: s, end: e, reason: `Da ist schon ein Termin (${hhmm(s)}–${hhmm(e)}).` });
+    const others = data.appointments.filter(({ id }) => id !== excludeAppointmentId);
+    others.forEach(({ id, data: a }) => {
+      const w = occupiedWindow({ ...a, id });
+      if (!w || w.end <= dayStart || w.start >= dayEnd) return;
+      blocked.push({ ...w, reason: `Da ist schon ein Termin (${hhmm(w.start)}–${hhmm(w.end)}).` });
     });
+    const now = options.projectAt;
+    if (now !== undefined && now >= dayStart && now < dayEnd) {
+      const lane = others
+        .filter(({ data: a }) => {
+          const s = toMs(a.startTime);
+          return s !== null && s >= dayStart && s < dayEnd;
+        })
+        .map(({ id, data: a }) => ({ ...a, id }));
+      projectLane(lane, now).forEach((w) => {
+        blocked.push({ ...w, reason: `Die Schlange ist bis ca. ${hhmm(w.end)} belegt.` });
+      });
+    }
   }
 
   if (window.end <= window.start) {
@@ -243,4 +260,51 @@ export const assertBookable = async (params: {
   const ctx = await loadStaffDayContext(params.shopId, params.staffId, params.start, params.excludeAppointmentId);
   const conflict = findConflict(ctx, params.start.getTime(), params.end.getTime());
   if (conflict) throw new SlotConflictError(conflict);
+};
+
+/**
+ * Wie assertBookable, aber für mehrere mögliche Plätze eines neuen Termins (Nummer ziehen im Ansturm):
+ * gibt die erlaubten in derselben Reihenfolge zurück; je Person und Tag wird nur einmal geladen.
+ * Ist keiner erlaubt, SlotConflictError mit dem Grund des ersten.
+ */
+export const bookableOf = async <T extends { staffId?: string | null; start: Date; end: Date }>(shopId: string, slots: T[]): Promise<T[]> => {
+  const contexts = new Map<string, Promise<StaffDayContext>>();
+  const contextOf = (slot: T) => {
+    const key = `${slot.staffId ?? ''}|${slot.start.toDateString()}`;
+    if (!contexts.has(key)) contexts.set(key, loadStaffDayContext(shopId, slot.staffId, slot.start));
+    return contexts.get(key)!;
+  };
+  const reasons = await Promise.all(slots.map(async (slot) => findConflict(await contextOf(slot), slot.start.getTime(), slot.end.getTime())));
+  const allowed = slots.filter((_, i) => !reasons[i]);
+  if (allowed.length === 0) throw new SlotConflictError(reasons[0] || 'An diesem Tag ist nichts buchbar.');
+  return allowed;
+};
+
+/** Höchste Vorlaufzeit für Online-Termine in Minuten (ein Tag) */
+export const MAX_ONLINE_LEAD_MINUTES = 24 * 60;
+
+/**
+ * Vorlaufzeit für Online-Termine in Minuten (Mein Laden → Bearbeiten): Online buchbar ist frühestens
+ * so weit ab jetzt. Gespeichert in shops.timeSlotBuffer als Millisekunden, ältere Einträge als Text.
+ * Gilt nur für die Kundenbuchung – Nummer ziehen und Termine vom Tresen oder aus "Mein Tag" gehen sofort.
+ */
+export const onlineLeadMinutes = (shop: { timeSlotBuffer?: unknown } | null | undefined): number => {
+  const ms = Number(shop?.timeSlotBuffer ?? 0);
+  return Number.isFinite(ms) && ms > 0 ? Math.min(MAX_ONLINE_LEAD_MINUTES, Math.round(ms / 60000)) : 0;
+};
+
+/** Frühester Beginn eines Online-Termins als Zeitstempel (ms) */
+export const earliestOnlineStart = (shop: { timeSlotBuffer?: unknown } | null | undefined, now = Date.now()): number =>
+  now + onlineLeadMinutes(shop) * 60000;
+
+const leadText = (minutes: number) =>
+  minutes % 60 === 0 ? (minutes === 60 ? 'eine Stunde' : `${minutes / 60} Stunden`) : `${minutes} Minuten`;
+
+/** Wirft SlotConflictError, wenn ein Online-Termin zu kurzfristig ist (vor dem Speichern der Kundenbuchung) */
+export const assertOnlineLead = async (shopId: string, start: Date): Promise<void> => {
+  const shop = await loadShopData(shopId);
+  const minutes = onlineLeadMinutes(shop);
+  if (minutes > 0 && start.getTime() < earliestOnlineStart(shop)) {
+    throw new SlotConflictError(`Online geht es hier frühestens ${leadText(minutes)} im Voraus.`);
+  }
 };

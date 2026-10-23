@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -12,6 +13,7 @@ import { EditShopForm } from '../components/EditShopForm';
 import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { CounterLane } from '../components/counter/CounterLane';
+import { Startklar } from '../components/onboarding/Startklar';
 import {
   listShopsOfOwner,
   getShopById,
@@ -27,7 +29,6 @@ import {
   Customer,
 } from '../utils/firestore';
 import { getUserProfile } from '../utils/user-profile-service';
-import { safelyConvertToDate } from '../utils/datetime';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -61,7 +62,7 @@ const ShopDashboard = () => {
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentType, setAppointmentType] = useState<'booked' | 'queue'>('queue');
 
-  // Uhr für "wartet noch" – alle 30 Sekunden
+  // Uhr für Aufruf und Verzug am Tresen – alle 30 Sekunden
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
@@ -144,13 +145,14 @@ const ShopDashboard = () => {
   const stats = useMemo(() => {
     const priceOf = (a: Appointment) => a.price ?? services.find((s) => s.id === a.serviceId)?.price ?? 0;
     const active = appointments.filter((a) => a.status !== 'cancelled');
+    // Wer wartet, wartet, bis er aufgerufen oder abgesagt wird – auch wenn seine geplante Zeit vorbei ist
     return {
-      waiting: active.filter((a) => a.status === 'scheduled' && (!live || safelyConvertToDate(a.endTime) > now)).length,
+      waiting: active.filter((a) => a.status === 'scheduled').length,
       running: active.filter((a) => a.status === 'in-progress').length,
       done: active.filter((a) => a.status === 'completed').length,
       revenue: active.filter((a) => a.status === 'completed').reduce((sum, a) => sum + Number(priceOf(a) || 0), 0),
     };
-  }, [appointments, services, now, live]);
+  }, [appointments, services]);
 
   // Spuren: je aktive Person, dazu Termine ohne (bekannte) Person
   const lanes = useMemo(() => {
@@ -209,6 +211,8 @@ const ShopDashboard = () => {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
+      <PlanBanner shop={shop} />
+      <Startklar key={shop.id} shop={shop} staff={staff} appointments={live ? appointments : []} onEditShop={() => setShowEditShop(true)} />
 
       {/* Kopf: Laden, Tag, Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -270,10 +274,16 @@ const ShopDashboard = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => window.open(`/bildschirm/${shop.id}`, '_blank', 'noopener')}>
+                Wartezimmer-Bildschirm öffnen
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/auswertung')}>Auswertung</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/plakat')}>QR-Plakat drucken</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setShowEditShop(true)}>Laden bearbeiten</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/staff-management')}>Team</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/service-management')}>Leistungen</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>Weiteren Laden einrichten</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => window.open('/hilfe', '_blank', 'noopener')}>Hilfe und Anleitungen</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -321,7 +331,7 @@ const ShopDashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Laden bearbeiten</DialogTitle>
-            <DialogDescription>Änderungen gelten sofort, auch für die Shop-Suche.</DialogDescription>
+            <DialogDescription>Änderungen gelten sofort.</DialogDescription>
           </DialogHeader>
           <EditShopForm
             shop={shop}

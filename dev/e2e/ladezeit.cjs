@@ -1,6 +1,7 @@
 // Ladezeit "Nummer ziehen": QR-Link öffnen → Leistungen sichtbar; "Egal wer" tippen → Uhrzeit sichtbar.
 //   node dev/e2e/ladezeit.cjs           normales Netz
 //   node dev/e2e/ladezeit.cjs handy     langsames Handynetz (150 ms, 1,6 MBit/s, 4× langsamere CPU)
+//   QME_EINFACH=1                       mit einfacher Verbindungsart (wie Safari/iPhone, utils/connection.ts)
 // Für echte Werte gegen den Build messen: npm run build && npm run preview, dann QME_URL=http://localhost:4173
 const { BASE, SHOP_ID, launch, newPage, run } = require('./lib.cjs');
 
@@ -17,7 +18,7 @@ run(async () => {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   }
   const t0 = Date.now();
-  await page.goto(`${BASE}/public-join-queue?shopId=${SHOP_ID}`, { waitUntil: 'commit' });
+  await page.goto(`${BASE}/public-join-queue?shopId=${SHOP_ID}${process.env.QME_EINFACH ? '&einfach' : ''}`, { waitUntil: 'commit' });
   const firstService = page.locator('section button[aria-pressed]').first();
   await firstService.waitFor({ timeout: 90000 });
   const servicesMs = Date.now() - t0;

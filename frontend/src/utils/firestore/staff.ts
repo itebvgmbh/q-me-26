@@ -1,9 +1,9 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc, updateDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, where, Timestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp, APP_BASE_PATH } from 'app';
-import { Staff, StaffInvitation, WorkingHours } from './types';
-import brain from 'brain';
+import { firebaseApp, firebaseAuth } from 'app';
+import { Staff, WorkingHours } from './types';
 import { createUserProfile } from '../user-profile-service';
+import { contactRef, splitContact, withContacts } from './staff-contacts';
 
 export const getShopStaff = async (shopId: string): Promise<Staff[]> => {
   const db = getFirestore(firebaseApp);
@@ -14,22 +14,26 @@ export const getShopStaff = async (shopId: string): Promise<Staff[]> => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Staff));
 };
 
+// E-Mail und Telefon gehen nicht an den öffentlichen Eintrag, sondern zu den Kontaktdaten des Ladens (staff-contacts.ts)
 export const createStaff = async (staffData: Omit<Staff, 'id' | 'createdAt' | 'updatedAt'>): Promise<Staff> => {
   try {
     const db = getFirestore(firebaseApp);
     const staffRef = doc(collection(db, 'staff'));
     
     const now = Timestamp.now();
-    const newStaff: Staff = {
+    const { rest, contact } = splitContact(staffData);
+    const entry = {
       id: staffRef.id,
-      ...staffData,
+      ...rest,
       createdAt: now,
       updatedAt: now,
-      status: 'available',
+      status: 'available' as const,
     };
-    
-    await setDoc(staffRef, newStaff);
-    return newStaff;
+    const batch = writeBatch(db);
+    batch.set(staffRef, entry);
+    if (contact) batch.set(contactRef(db, staffData.shopId, staffRef.id), { ...contact, updatedAt: now });
+    await batch.commit();
+    return { ...entry, email: contact?.email ?? '', phone: contact?.phone ?? '' } as Staff;
   } catch (error) {
     console.error('Error creating staff:', error);
     throw error;
@@ -42,19 +46,25 @@ export const updateStaff = async (staffId: string, updates: Partial<Omit<Staff, 
     const staffRef = doc(db, 'staff', staffId);
     
     const now = Timestamp.now();
-    const updateData = {
-      ...updates,
-      updatedAt: now
-    };
-
-    await setDoc(staffRef, updateData, { merge: true });
+    const { rest, contact } = splitContact(updates);
+    const batch = writeBatch(db);
+    if (contact) {
+      const shopId = updates.shopId ?? (await getDoc(staffRef)).data()?.shopId;
+      if (!shopId) throw new Error('Staff not found for update');
+      batch.set(contactRef(db, shopId, staffId), { ...contact, updatedAt: now }, { merge: true });
+      // Kontaktdaten von früher am öffentlichen Eintrag gleich mit entfernen
+      batch.set(staffRef, { ...rest, email: deleteField(), phone: deleteField(), updatedAt: now }, { merge: true });
+    } else {
+      batch.set(staffRef, { ...rest, updatedAt: now }, { merge: true });
+    }
+    await batch.commit();
 
     const updatedDoc = await getDoc(staffRef);
     if (!updatedDoc.exists()) {
       throw new Error('Staff not found after update');
     }
 
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Staff;
+    return { id: updatedDoc.id, ...updatedDoc.data(), ...(contact ?? {}) } as Staff;
   } catch (error) {
     console.error('Error updating staff:', error);
     throw error;
@@ -89,11 +99,31 @@ export const updateStaffWorkingHours = async (staffId: string, workingHours: Wor
   }
 };
 
+/**
+ * Team-Vermerk shops/{shopId}/members/{uid} für die Firestore-Regeln (firestore.rules, isMember; backend/app/libs/team.py):
+ * Ohne ihn sieht eine Person mit Konto die Kundenliste nicht und trägt keine Termine ein. Das Backend setzt ihn beim
+ * Annehmen der Einladung und gleicht beim Start ab; hier pflegt ihn der Inhaber beim Deaktivieren und Zurückholen.
+ */
+const syncTeamMember = async (staffId: string, active: boolean): Promise<void> => {
+  const db = getFirestore(firebaseApp);
+  const staff = (await getDoc(doc(db, 'staff', staffId))).data();
+  if (!staff?.userId || !staff?.shopId) return;
+  const ref = doc(db, 'shops', staff.shopId, 'members', staff.userId);
+  try {
+    if (active) await setDoc(ref, { staffId, at: Timestamp.now() });
+    else await deleteDoc(ref);
+  } catch (error) {
+    // Das Backend gleicht beim nächsten Start ab; die Person selbst ist schon geändert
+    console.warn('Team-Vermerk nicht geändert:', error);
+  }
+};
+
 export const deleteStaff = async (staffId: string): Promise<void> => {
   try {
     const db = getFirestore(firebaseApp);
     const staffRef = doc(db, 'staff', staffId);
     await setDoc(staffRef, { isActive: false, updatedAt: Timestamp.now() }, { merge: true });
+    await syncTeamMember(staffId, false);
   } catch (error) {
     console.error('Error deleting staff:', error);
     throw error;
@@ -116,48 +146,49 @@ export const getStaffByShopId = async (shopId: string): Promise<Staff[]> => {
   }
 };
 
+/** Deaktivierte Person wieder ins Team holen (Konto und Termine sind noch verbunden) */
+export const reactivateStaff = async (staffId: string): Promise<void> => {
+  const db = getFirestore(firebaseApp);
+  await setDoc(doc(db, 'staff', staffId), { isActive: true, updatedAt: Timestamp.now() }, { merge: true });
+  await syncTeamMember(staffId, true);
+};
+
+/** Aktive Einträge eines Kontos – in mehreren Läden kann es mehrere geben. Deaktivierte sehen "Mein Tag" nicht mehr. */
+export const getStaffEntriesByUserId = async (userId: string): Promise<Staff[]> => {
+  const db = getFirestore(firebaseApp);
+  const snapshot = await getDocs(query(collection(db, 'staff'), where('userId', '==', userId)));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Staff)).filter((s) => s.isActive !== false);
+};
+
 export const getStaffByUserId = async (userId: string): Promise<Staff | null> => {
   try {
-    const db = getFirestore(firebaseApp);
-    const staffRef = collection(db, 'staff');
-    const q = query(staffRef, where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const staffDoc = querySnapshot.docs[0];
-    return { id: staffDoc.id, ...staffDoc.data() } as Staff;
+    return (await getStaffEntriesByUserId(userId))[0] ?? null;
   } catch (error) {
     console.error('Error getting staff by user ID:', error);
     return null;
   }
 };
 
-// New function to update staff with user ID after authentication
-export const updateStaffWithUserId = async (email: string, userId: string): Promise<void> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const staffRef = collection(db, 'staff');
-    const q = query(staffRef, where('email', '==', email));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const staffDoc = querySnapshot.docs[0];
-      await updateDoc(doc(db, 'staff', staffDoc.id), {
-        userId: userId,
-        updatedAt: Timestamp.now()
-      });
-      console.log('Staff record updated with user ID');
-    } else {
-      console.error('No staff record found with email:', email);
-    }
-  } catch (error) {
-    console.error('Error updating staff with user ID:', error);
-    throw error;
-  }
+/**
+ * Gibt es diese E-Mail im Team dieses Ladens schon (auch deaktiviert)? Groß-/Kleinschreibung zählt nicht.
+ * Andere Läden und Kundenkonten spielen keine Rolle: Wer schon ein Konto hat, meldet sich beim Einladungslink damit an.
+ */
+export const findTeamMemberByEmail = async (shopId: string, email: string, exceptStaffId?: string): Promise<Staff | null> => {
+  const wanted = email.trim().toLowerCase();
+  if (!wanted) return null;
+  const team = await getStaffWithContacts(shopId);
+  return team.find((s) => s.id !== exceptStaffId && (s.email || '').trim().toLowerCase() === wanted) ?? null;
 };
+
+/** Personen eines Ladens mit E-Mail und Telefon – nur für den Inhaber (Team verwalten) */
+export const getStaffWithContacts = async (shopId: string): Promise<Staff[]> =>
+  withContacts(getFirestore(firebaseApp), shopId, await getStaffByShopId(shopId));
+
+/** Meldung, wenn findTeamMemberByEmail jemanden findet */
+export const teamEmailMessage = (existing: Staff) =>
+  existing.isActive === false
+    ? `${existing.name} mit dieser E-Mail ist deaktiviert. Hol sie unten unter „Deaktiviert“ zurück ins Team.`
+    : `${existing.name} hat diese E-Mail schon im Team.`;
 
 // Utility function to ensure staff has a user profile
 export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {
@@ -174,7 +205,8 @@ export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {
     if (!userDoc.exists()) {
       console.log('Creating missing user profile for staff member:', staff.name);
       // Create the user profile with employee role
-      await createUserProfile(staff.userId, staff.email, 'employee');
+      // Das eigene Profil: die E-Mail kommt aus der Anmeldung (die Kontaktdaten der Person liest nur der Inhaber)
+      await createUserProfile(staff.userId, staff.email || firebaseAuth.currentUser?.email || '', 'employee');
       console.log('User profile created successfully for staff ID:', staff.id);
     } else {
       console.log('User profile already exists for staff member:', staff.name);
@@ -210,130 +242,5 @@ export const ensureAllStaffUserProfiles = async (): Promise<{ success: boolean, 
   } catch (error) {
     console.error('Error ensuring all staff user profiles:', error);
     return { success: false, created: 0, errors: 1 };
-  }
-};
-
-// Staff Invitation Functions
-export const createStaffInvitation = async (shopId: string, email: string, sendEmail: boolean = true): Promise<StaffInvitation> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const invitationRef = doc(collection(db, 'staff-invitations'));
-    
-    // Generate a unique token
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    
-    const now = Timestamp.now();
-    // Set expiration to 7 days from now
-    const expiresAt = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-    
-    const invitationData: StaffInvitation = {
-      id: invitationRef.id,
-      shopId,
-      email,
-      token,
-      status: 'pending',
-      expiresAt,
-      createdAt: now,
-      updatedAt: now,
-      emailSent: false
-    };
-    
-    await setDoc(invitationRef, invitationData);
-    
-    // Stellen Sie sicher, dass der Link domainunabhängig funktioniert
-    // Prüfe, ob APP_BASE_PATH definiert und nicht leer ist
-    let basePath = APP_BASE_PATH && APP_BASE_PATH !== '/' ? APP_BASE_PATH : '';
-    
-    // Stelle sicher, dass keine doppelten Slashes entstehen
-    if (basePath && !basePath.endsWith('/')) {
-      basePath += '/';
-    } else if (!basePath) {
-      basePath = '/';
-    }
-    
-    const registrationLink = `${window.location.origin}${basePath}staff-registration?token=${token}`;
-    console.log('Generated registration link:', registrationLink);
-    
-    // Send invitation email if requested
-    if (sendEmail) {
-      try {
-        // Verwende den brain-Client anstelle von fetch
-        const response = await brain.send_staff_invitation({
-          invitation_id: invitationRef.id,
-          shop_id: shopId,
-          email: email,
-          invitation_link: registrationLink
-        });
-        
-        if (!response.ok) {
-          console.error('Failed to send invitation email:', await response.text());
-        } else {
-          console.log('Invitation email sent successfully');
-          
-          // Aktualisiere den Einladungsdatensatz, um zu speichern, dass die E-Mail gesendet wurde
-          // Überspringe das Update, wenn eine Platzhalter-ID verwendet wird (beginnt mit "temp-")
-          if (!invitationRef.id.startsWith('temp-')) {
-            await setDoc(invitationRef, {
-              emailSent: true,
-              emailSentAt: Timestamp.now()
-            }, { merge: true });
-          }
-        }
-      } catch (emailError) {
-        console.error('Error sending invitation email:', emailError);
-        // Continue even if email sending fails
-      }
-    }
-    
-    return invitationData;
-  } catch (error) {
-    console.error('Error creating staff invitation:', error);
-    throw error;
-  }
-};
-
-export const getStaffInvitation = async (token: string): Promise<StaffInvitation | null> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const invitationsRef = collection(db, 'staff-invitations');
-    const q = query(invitationsRef, where('token', '==', token));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const doc = querySnapshot.docs[0];
-    const invitation = { id: doc.id, ...doc.data() } as StaffInvitation;
-
-    // Check if invitation is expired
-    if (invitation.expiresAt.toDate() < new Date()) {
-      return null;
-    }
-
-    // Check if invitation is already used
-    if (invitation.status === 'used') {
-      return null;
-    }
-
-    return invitation;
-  } catch (error) {
-    console.error('Error getting staff invitation:', error);
-    return null;
-  }
-};
-
-export const useStaffInvitation = async (invitationId: string): Promise<void> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const invitationRef = doc(db, 'staff-invitations', invitationId);
-    
-    await setDoc(invitationRef, {
-      status: 'used',
-      updatedAt: Timestamp.now()
-    }, { merge: true });
-  } catch (error) {
-    console.error('Error using staff invitation:', error);
-    throw error;
   }
 };

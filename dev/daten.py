@@ -25,7 +25,7 @@ except Exception:
 
 def run_query(query):
     request = urllib.request.Request(URL, data=json.dumps({'structuredQuery': query}).encode(),
-                                     headers={'Content-Type': 'application/json', 'Referer': 'https://q-me.spielmacherei.de/'})
+                                     headers={'Content-Type': 'application/json', 'Referer': 'https://dranzeit.de/'})
     with urllib.request.urlopen(request, timeout=30) as response:
         return [row['document'] for row in json.loads(response.read()) if 'document' in row]
 

@@ -12,7 +12,7 @@ export const ROLE_CHOICES = [
   {
     role: 'shopOwner' as const,
     icon: Store,
-    title: 'Ich habe einen Betrieb',
+    title: 'Ich habe einen Laden',
     text: 'Schlange und Termine am Tresen steuern, Leistungen und Team pflegen, Kunden per QR-Code einreihen lassen.',
   },
 ];

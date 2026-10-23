@@ -37,22 +37,34 @@ export const EmailField = ({ value, onChange, invalid }: { value: string; onChan
   </div>
 );
 
-/** Passwortfeld mit Anzeigen-Schalter statt zweitem Bestätigungsfeld */
-export const PasswordField = ({ value, onChange, isNew = false }: { value: string; onChange: (v: string) => void; isNew?: boolean }) => {
+/** Passwortfeld mit Anzeigen-Schalter statt zweitem Bestätigungsfeld; id nur nötig, wenn zwei auf einer Seite stehen */
+export const PasswordField = ({
+  value,
+  onChange,
+  isNew = false,
+  label = 'Passwort',
+  id = 'password',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  isNew?: boolean;
+  label?: string;
+  id?: string;
+}) => {
   const [visible, setVisible] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor="password">Passwort</Label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative">
         <Input
-          id="password"
+          id={id}
           type={visible ? 'text' : 'password'}
           autoComplete={isNew ? 'new-password' : 'current-password'}
           minLength={isNew ? 6 : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="pr-12"
-          aria-describedby={isNew ? 'password-hint' : undefined}
+          aria-describedby={isNew ? `${id}-hint` : undefined}
           required
         />
         <button
@@ -66,7 +78,7 @@ export const PasswordField = ({ value, onChange, isNew = false }: { value: strin
         </button>
       </div>
       {isNew && (
-        <p id="password-hint" className="text-xs text-muted-foreground">
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
           Mindestens 6 Zeichen.
         </p>
       )}

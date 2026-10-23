@@ -13,8 +13,8 @@ export interface UserProfile {
 }
 
 export const USER_ROLES: { [key in UserRole]: string } = {
-  shopOwner: 'Shop-Betreiber',
-  employee: 'Mitarbeiter',
+  shopOwner: 'Inhaber eines Ladens',
+  employee: 'Im Team eines Ladens',
   customer: 'Kunde'
 };
 

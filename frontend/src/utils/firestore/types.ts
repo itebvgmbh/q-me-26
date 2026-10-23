@@ -32,7 +32,27 @@ export interface Shop {
     latitude: number;
     longitude: number;
   }; // Gespeicherte Koordinaten für Kartenansicht
-  timeSlotBuffer?: number; // Puffer in Millisekunden für die Zeitslot-Suche (Standard: 60000 = 1 Minute)  
+  /** Vorlaufzeit für Online-Termine in Millisekunden (utils/booking-rules.ts onlineLeadMinutes); ältere Läden: Text */
+  timeSlotBuffer?: number;  
+  /** Tarif (utils/plans.ts); das bezahlte Abo steht in billing und wird nur vom Backend geschrieben */
+  plan?: 'gratis' | 'solo' | 'laden' | 'team';
+  trialEndsAt?: Timestamp;
+  founder?: boolean;
+  billing?: {
+    plan?: 'gratis' | 'solo' | 'laden' | 'team';
+    status?: string;
+    interval?: 'monat' | 'jahr';
+    currentPeriodEnd?: Timestamp;
+    cancelAtPeriodEnd?: boolean;
+    /** Stripe-Kunde; gibt es, sobald einmal ein Abo begonnen wurde (dann auch Rechnungen) */
+    customerId?: string;
+  };
+  /** Tarif vom Betreiber ohne Stripe freigeschaltet (utils/plans.ts activeGrant); schreibt nur das Backend */
+  grant?: { plan?: 'solo' | 'laden' | 'team'; until?: Timestamp } | null;
+  /** Vom Betreiber gesperrt (utils/plans.ts isSuspended): nicht buchbar, nicht auffindbar */
+  suspended?: { at?: Timestamp } | null;
+  /** Merker der Startklar-Liste am Tresen (components/onboarding/Startklar.tsx) */
+  onboarding?: { testlaufAt?: Timestamp; plakatAt?: Timestamp; dismissedAt?: Timestamp };
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -53,21 +73,11 @@ export interface Service {
   setupTime?: number; // in minutes - Rüstzeit
   price: number;
   category?: string;
+  /** Gelöscht: nicht mehr buchbar, bleibt aber für bestehende Termine erhalten (utils/firestore/services.ts) */
+  archived?: boolean;
+  archivedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-}
-
-export interface StaffInvitation {
-  id: string;
-  shopId: string;
-  email: string;
-  token: string;
-  status: 'pending' | 'used';
-  expiresAt: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  emailSent?: boolean;
-  emailSentAt?: Timestamp;
 }
 
 export interface Staff {
@@ -75,6 +85,8 @@ export interface Staff {
   shopId: string;
   userId: string;
   name: string;
+  /** E-Mail, Telefon und Einladungsadresse stehen nicht am Eintrag, sondern bei den Kontakten des Ladens, die nur der
+   *  Inhaber liest (utils/firestore/staff-contacts.ts); hier nur, wenn sie für den Inhaber dazugeladen wurden */
   email: string;
   phone: string;
   role: string;
@@ -84,6 +96,13 @@ export interface Staff {
   status: 'available' | 'busy' | 'break' | 'off';
   currentCustomer?: string;
   profileImageUrl?: string;
+  // Einladung (setzt nur das Backend, app/apis/staff_invitation): Hash des Tokens, nie das Token selbst
+  inviteTokenHash?: string;
+  inviteCreatedAt?: Timestamp;
+  inviteExpires?: Timestamp;
+  inviteEmailSentAt?: Timestamp;
+  inviteEmailTo?: string;
+  inviteAcceptedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -95,7 +114,8 @@ export interface Customer {
   email: string;
   phone?: string;
   userId?: string;
-  activationToken?: string;
+  /** SHA-256 des Tokens im Kunden-Link /activate – das Token selbst kennt nur, wer den Link bekommen hat */
+  activationTokenHash?: string;
   activationExpires?: Timestamp;
   isActive: boolean;
   createdAt: Timestamp;
@@ -121,7 +141,23 @@ export interface Appointment {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   isAnonymous?: boolean;
+  /** Nummer ohne Konto: SHA-256 des Schlüssels im Link der Nummernseite (utils/ticket-key.ts) – absagen, übernehmen */
+  ticketKeyHash?: string;
   referenceCode?: string;
+  /** Aufgerufen am Tresen (Status "in-progress"), für die Auswertung – nur der erste Aufruf */
+  calledAt?: Timestamp;
+  /** Letzter Aufruf (auch nach "zurück auf Wartet"), für die Prognose der Schlange */
+  lastCalledAt?: Timestamp;
+  /** Fertig (Status "completed") */
+  completedAt?: Timestamp;
+  /** "Du bist dran" ist raus (setzt der Benachrichtigungsdienst) */
+  notifiedCalledAt?: Timestamp | null;
+  /** Nicht gekommen (vom Tresen abgesagt) */
+  noShow?: boolean;
+  /** Offene Nachricht an den Kunden: Laden hat abgesagt oder verschoben (schickt der Benachrichtigungsdienst) */
+  customerNotice?: 'cancelled' | 'moved' | null;
+  customerNoticePreviousStart?: Timestamp | null;
+  customerNoticeAt?: Timestamp;
 }
 
 export interface QueueEntry {

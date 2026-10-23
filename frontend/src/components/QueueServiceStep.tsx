@@ -21,10 +21,10 @@ export const QueueServiceStep: React.FC<QueueServiceStepProps> = ({ services, se
     title="Was soll gemacht werden?"
     description={shopName ? <>bei <strong className="text-foreground">{shopName}</strong></> : undefined}
     onBack={onBack}
-    backLabel={arrivedFromQR ? 'Auswahl zurücksetzen' : 'Anderen Shop wählen'}
+    backLabel={arrivedFromQR ? 'Auswahl zurücksetzen' : 'Anderen Laden wählen'}
   >
     {services.length === 0 ? (
-      <p className="text-muted-foreground">Dieser Shop hat noch keine Leistungen eingetragen.</p>
+      <p className="text-muted-foreground">Dieser Laden hat noch keine Leistungen eingetragen.</p>
     ) : (
       <div className="grid gap-2 sm:grid-cols-2">
         {services.map((s) => (

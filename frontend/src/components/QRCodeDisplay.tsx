@@ -31,6 +31,7 @@ export const QRCodeDisplay = ({ shopId, shopName }: QRCodeDisplayProps) => {
       <div className="self-center rounded-2xl bg-white p-4">
         <QRCodeSVG value={url} size={176} level="M" title={`QR-Code zum Einreihen bei ${shopName || 'deinem Laden'}`} />
       </div>
+      <p className="break-all text-xs text-background/60">{url}</p>
       <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
         <Button variant="signal" onClick={copy} className="sm:flex-1 lg:flex-none">
           Link kopieren
