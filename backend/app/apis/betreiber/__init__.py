@@ -29,6 +29,7 @@ from app.auth.access import admin_lists, is_admin, is_admin_account, require_adm
 from app.libs import konten, protokoll
 from app.libs.konten import BERLIN, ITEBV_SHOP, utc
 from app.libs.plans import ACTIVE_BILLING, FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, PLANS, effective_plan, trial_end
+from app.libs.staff_contacts import contacts_of_shop
 
 router = APIRouter()
 admin = APIRouter(dependencies=[Depends(require_admin)])
@@ -228,10 +229,12 @@ def laden(shop_id: str) -> dict:
     _, shop = _shop(shop_id)
     fs = get_firestore_db()
     staff = []
+    contacts = contacts_of_shop(fs, shop_id)  # E-Mail der Personen steht dort (app/libs/staff_contacts.py)
     for snap in fs.collection("staff").where("shopId", "==", shop_id).stream():
         m = snap.to_dict() or {}
+        email = (contacts.get(snap.id) or {}).get("email") or m.get("email") or ""
         staff.append({
-            "id": snap.id, "name": m.get("name") or "", "email": m.get("email") or "", "role": m.get("role") or "",
+            "id": snap.id, "name": m.get("name") or "", "email": email, "role": m.get("role") or "",
             "userId": m.get("userId") or "", "active": m.get("isActive", True) is not False,
         })
     owner = None

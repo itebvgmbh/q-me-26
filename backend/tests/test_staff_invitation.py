@@ -33,8 +33,15 @@ class Ref:
     def collection(self, name):
         return self.db.collection(f"{self.coll}/{self.id}/{name}")
 
-    def set(self, values):
-        self.db.data[self.coll][self.id] = {k: _value(v) for k, v in values.items()}
+    def set(self, values, merge=False):
+        doc = self.db.data[self.coll].get(self.id) if merge else None
+        doc = dict(doc or {})
+        for k, v in values.items():
+            if v is gcf.DELETE_FIELD:
+                doc.pop(k, None)
+            else:
+                doc[k] = _value(v)
+        self.db.data[self.coll][self.id] = doc
 
     def update(self, values):
         doc = self.db.data[self.coll][self.id]
@@ -180,7 +187,20 @@ def test_email_wird_verschickt_und_vermerkt():
     assert body["email_sent"] is True and body["email_problem"] == ""
     assert len(mails) == 1 and mails[0]["to"] == "robin@salon-kaya.de"
     assert "Barbershop Kaya" in mails[0]["subject"] and token in mails[0]["html"] and token in mails[0]["text"]
-    assert store["staff"]["p1"]["inviteEmailTo"] == "robin@salon-kaya.de"
+    # Die Adresse steht bei den Kontaktdaten des Ladens (nur Inhaber), nicht am öffentlichen Eintrag
+    assert store["shops/laden1/staff_contacts"]["p1"]["inviteEmailTo"] == "robin@salon-kaya.de"
+    assert "inviteEmailTo" not in store["staff"]["p1"] and store["staff"]["p1"]["inviteEmailSentAt"] == "ZEIT"
+
+
+def test_email_aus_den_kontaktdaten():
+    """Neuer Aufbau: E-Mail nur bei den Kontaktdaten (app/libs/staff_contacts.py), nicht am Eintrag"""
+    store, mails = data(), []
+    del store["staff"]["p1"]["email"]
+    store["shops/laden1/staff_contacts"] = {"p1": {"email": "robin@salon-kaya.de"}}
+    body, token = invite(store, send_email=True, mails=mails)
+    assert body["email_sent"] is True and mails[0]["to"] == "robin@salon-kaya.de"
+    assert client(store, uid=None).get(f"/routes/staff-invitation/{token}").json()["email"] == "robin@salon-kaya.de"
+    assert "email" not in store["staff"]["p1"]
 
 
 def test_email_ohne_versand_ist_ehrlich():
@@ -244,7 +264,9 @@ def test_andere_email_beim_konto_ist_erlaubt():
     _, token = invite(store)
     assert client(store, uid="robinPrivat").post(f"/routes/staff-invitation/{token}").status_code == 200
     assert store["staff"]["p1"]["userId"] == "robinPrivat"
-    assert store["staff"]["p1"]["email"] == "robinPrivat@example.com"  # leere Adresse wird ergänzt
+    # leere Adresse wird ergänzt – bei den Kontaktdaten, nicht am öffentlichen Eintrag
+    assert store["shops/laden1/staff_contacts"]["p1"]["email"] == "robinPrivat@example.com"
+    assert store["staff"]["p1"]["email"] == ""
 
 
 def test_kundenkonto_wird_mitarbeiterkonto():

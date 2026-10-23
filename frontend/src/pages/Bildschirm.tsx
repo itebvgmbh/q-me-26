@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, doc, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { APP_BASE_PATH } from 'app';
@@ -10,20 +10,22 @@ import { ShopLogo } from '../components/brand/ShopLogo';
 import { firestore } from '../utils/firestore-client';
 import { hasFeature } from '../utils/plans';
 import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane';
-import type { Appointment, Shop, Staff } from '../utils/firestore';
+import type { Shop, Staff } from '../utils/firestore';
+import { publicFromDoc, shopDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
 /**
  * Wartezimmer-Bildschirm für einen Fernseher im Laden: wer ist dran, wer kommt als Nächstes,
- * QR-Code zum Nummer-Ziehen. Öffentlich (der Fernseher meldet sich nicht an), zeigt nur Nummern.
+ * QR-Code zum Nummer-Ziehen. Öffentlich (der Fernseher meldet sich nicht an), zeigt nur Nummern – und liest auch nur
+ * die öffentlichen Kurzfassungen der Termine (utils/firestore/public-appointments.ts).
  * Gehört zum Tarif Laden (utils/plans.ts).
  */
 export default function Bildschirm() {
   const { shopId = '' } = useParams();
   const [shop, setShop] = useState<Shop | null | undefined>(undefined);
   const [staff, setStaff] = useState<Staff[]>([]);
-  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [appts, setAppts] = useState<PublicAppointment[]>([]);
   const [now, setNow] = useState(() => new Date());
   const today = dayKey(now);
 
@@ -57,16 +59,8 @@ export default function Bildschirm() {
   // Heutige Termine, live; um Mitternacht neu
   useEffect(() => {
     if (!shopId) return;
-    const start = new Date(`${today}T00:00:00`);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    const q = query(
-      collection(firestore, 'appointments'),
-      where('shopId', '==', shopId),
-      where('startTime', '>=', Timestamp.fromDate(start)),
-      where('startTime', '<', Timestamp.fromDate(end)),
-    );
-    return onSnapshot(q, (snap) => setAppts(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment)));
+    const q = shopDayQuery(firestore, shopId, new Date(`${today}T12:00:00`));
+    return onSnapshot(q, (snap) => setAppts(snap.docs.map(publicFromDoc)));
   }, [shopId, today]);
 
   const lanes = useMemo(() => {
@@ -95,7 +89,7 @@ export default function Bildschirm() {
 
   const joinUrl = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shopId}`;
   const waiting = lanes.reduce((n, l) => n + l.next.length, 0);
-  const label = (a: Appointment) => a.referenceCode || '•';
+  const label = (a: PublicAppointment) => a.referenceCode || '•';
 
   return (
     <div className="flex min-h-screen flex-col gap-[2vw] bg-foreground p-[2.5vw] text-background">

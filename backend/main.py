@@ -138,19 +138,32 @@ def create_app() -> FastAPI:
             start_notify_worker()
             print("Notify worker autostarted")
 
-            # Team-Vermerke für die Firestore-Regeln an die Personen angleichen (app/libs/team.py)
+            # Team-Vermerke für die Firestore-Regeln an die Personen angleichen (app/libs/team.py), Kontaktdaten der
+            # Personen vom öffentlichen Eintrag zu den Kontaktdaten des Ladens umziehen (app/libs/staff_contacts.py)
             import threading
 
             def sync_team() -> None:
+                from app.apis.firebase_utils import get_firestore_db
+
                 try:
-                    from app.apis.firebase_utils import get_firestore_db
                     from app.libs.team import sync_members
 
                     print(f"Team-Vermerke abgeglichen: {sync_members(get_firestore_db())}")
                 except Exception as e:  # Start des Dienstes nie daran scheitern lassen
                     print(f"Team-Vermerke nicht abgeglichen: {e}")
+                try:
+                    from app.libs.staff_contacts import migrate
+
+                    print(f"Kontaktdaten des Teams umgezogen: {migrate(get_firestore_db())} Personen")
+                except Exception as e:
+                    print(f"Kontaktdaten des Teams nicht umgezogen: {e}")
 
             threading.Thread(target=sync_team, daemon=True).start()
+
+            # Öffentliche Kurzfassung der Termine anlegen und laufend abgleichen (app/libs/public_appointments.py)
+            from app.libs.public_appointments import start_public_sync
+
+            start_public_sync()
 
     return app
 

@@ -1,8 +1,9 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, where, Timestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
+import { firebaseApp, firebaseAuth } from 'app';
 import { Staff, WorkingHours } from './types';
 import { createUserProfile } from '../user-profile-service';
+import { contactRef, splitContact, withContacts } from './staff-contacts';
 
 export const getShopStaff = async (shopId: string): Promise<Staff[]> => {
   const db = getFirestore(firebaseApp);
@@ -13,22 +14,26 @@ export const getShopStaff = async (shopId: string): Promise<Staff[]> => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Staff));
 };
 
+// E-Mail und Telefon gehen nicht an den öffentlichen Eintrag, sondern zu den Kontaktdaten des Ladens (staff-contacts.ts)
 export const createStaff = async (staffData: Omit<Staff, 'id' | 'createdAt' | 'updatedAt'>): Promise<Staff> => {
   try {
     const db = getFirestore(firebaseApp);
     const staffRef = doc(collection(db, 'staff'));
     
     const now = Timestamp.now();
-    const newStaff: Staff = {
+    const { rest, contact } = splitContact(staffData);
+    const entry = {
       id: staffRef.id,
-      ...staffData,
+      ...rest,
       createdAt: now,
       updatedAt: now,
-      status: 'available',
+      status: 'available' as const,
     };
-    
-    await setDoc(staffRef, newStaff);
-    return newStaff;
+    const batch = writeBatch(db);
+    batch.set(staffRef, entry);
+    if (contact) batch.set(contactRef(db, staffData.shopId, staffRef.id), { ...contact, updatedAt: now });
+    await batch.commit();
+    return { ...entry, email: contact?.email ?? '', phone: contact?.phone ?? '' } as Staff;
   } catch (error) {
     console.error('Error creating staff:', error);
     throw error;
@@ -41,19 +46,25 @@ export const updateStaff = async (staffId: string, updates: Partial<Omit<Staff, 
     const staffRef = doc(db, 'staff', staffId);
     
     const now = Timestamp.now();
-    const updateData = {
-      ...updates,
-      updatedAt: now
-    };
-
-    await setDoc(staffRef, updateData, { merge: true });
+    const { rest, contact } = splitContact(updates);
+    const batch = writeBatch(db);
+    if (contact) {
+      const shopId = updates.shopId ?? (await getDoc(staffRef)).data()?.shopId;
+      if (!shopId) throw new Error('Staff not found for update');
+      batch.set(contactRef(db, shopId, staffId), { ...contact, updatedAt: now }, { merge: true });
+      // Kontaktdaten von früher am öffentlichen Eintrag gleich mit entfernen
+      batch.set(staffRef, { ...rest, email: deleteField(), phone: deleteField(), updatedAt: now }, { merge: true });
+    } else {
+      batch.set(staffRef, { ...rest, updatedAt: now }, { merge: true });
+    }
+    await batch.commit();
 
     const updatedDoc = await getDoc(staffRef);
     if (!updatedDoc.exists()) {
       throw new Error('Staff not found after update');
     }
 
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Staff;
+    return { id: updatedDoc.id, ...updatedDoc.data(), ...(contact ?? {}) } as Staff;
   } catch (error) {
     console.error('Error updating staff:', error);
     throw error;
@@ -165,9 +176,13 @@ export const getStaffByUserId = async (userId: string): Promise<Staff | null> =>
 export const findTeamMemberByEmail = async (shopId: string, email: string, exceptStaffId?: string): Promise<Staff | null> => {
   const wanted = email.trim().toLowerCase();
   if (!wanted) return null;
-  const team = await getStaffByShopId(shopId);
+  const team = await getStaffWithContacts(shopId);
   return team.find((s) => s.id !== exceptStaffId && (s.email || '').trim().toLowerCase() === wanted) ?? null;
 };
+
+/** Personen eines Ladens mit E-Mail und Telefon – nur für den Inhaber (Team verwalten) */
+export const getStaffWithContacts = async (shopId: string): Promise<Staff[]> =>
+  withContacts(getFirestore(firebaseApp), shopId, await getStaffByShopId(shopId));
 
 /** Meldung, wenn findTeamMemberByEmail jemanden findet */
 export const teamEmailMessage = (existing: Staff) =>
@@ -190,7 +205,8 @@ export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {
     if (!userDoc.exists()) {
       console.log('Creating missing user profile for staff member:', staff.name);
       // Create the user profile with employee role
-      await createUserProfile(staff.userId, staff.email, 'employee');
+      // Das eigene Profil: die E-Mail kommt aus der Anmeldung (die Kontaktdaten der Person liest nur der Inhaber)
+      await createUserProfile(staff.userId, staff.email || firebaseAuth.currentUser?.email || '', 'employee');
       console.log('User profile created successfully for staff ID:', staff.id);
     } else {
       console.log('User profile already exists for staff member:', staff.name);

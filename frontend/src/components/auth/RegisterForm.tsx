@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { registerWithRole } from '../../utils/auth-helpers';
 import { authErrorMessage, safeRedirect } from '../../utils/auth-errors';
-import { linkAnonymousBookingsToUser } from '../../utils/AnonymousBookingLinker';
+import { linkAnonymousBookingsToUser, type TicketToLink } from '../../utils/AnonymousBookingLinker';
 import { sendVerificationMailAfterSignUp } from '../../utils/email-verification';
 import { UserRole } from '../../utils/types';
 import { AuthShell, EmailField, FormError, PasswordField } from './AuthShell';
@@ -40,7 +40,7 @@ export const RegisterForm = ({ role }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const state = (location.state || {}) as { redirectAfterLogin?: string; linkAnonymousBooking?: boolean; shopId?: string; referenceCode?: string };
+  const state = (location.state || {}) as { redirectAfterLogin?: string; linkAnonymousBooking?: boolean } & TicketToLink;
   const next = safeRedirect(state.redirectAfterLogin) || safeRedirect(searchParams.get('next'));
 
   const [email, setEmail] = useState('');
@@ -56,7 +56,7 @@ export const RegisterForm = ({ role }: Props) => {
       const user = await registerWithRole(email.trim(), password, role);
       if (role === 'customer') {
         // Nummern, die in diesem Browser ohne Konto gezogen wurden, übernehmen
-        await linkAnonymousBookingsToUser(user.uid, state.shopId, state.referenceCode);
+        await linkAnonymousBookingsToUser(state);
       }
       toast.success('Dein Konto ist angelegt.');
       sendVerificationMailAfterSignUp();

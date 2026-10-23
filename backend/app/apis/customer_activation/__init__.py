@@ -30,6 +30,7 @@ from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_member
 from app.libs.links import new_token, public_origin, token_hash
+from app.libs.public_appointments import write_public
 
 router = APIRouter()
 
@@ -92,10 +93,12 @@ def _link(db, doc, shop_id: str, uid: str) -> int:
         a for a in db.collection("appointments").where("customerId", "==", doc.id).stream() if (a.to_dict() or {}).get("shopId") == shop_id
     ]
     # Erst die Termine, zuletzt der Eintrag: Bricht es dazwischen ab, holt ein zweiter Versuch den Rest
-    for start in range(0, len(appointments), 400):  # eine Sammelschreibung fasst höchstens 500 Änderungen
+    for start in range(0, len(appointments), 200):  # eine Sammelschreibung fasst höchstens 500 Änderungen
         batch = db.batch()
-        for a in appointments[start : start + 400]:
-            batch.update(a.reference, {"customerId": uid, "isAnonymous": False})
+        for a in appointments[start : start + 200]:
+            update = {"customerId": uid, "isAnonymous": False}
+            batch.update(a.reference, update)
+            write_public(batch, db, a.id, {**(a.to_dict() or {}), **update})  # öffentliche Kurzfassung mit
         batch.commit()
     doc.reference.update({"userId": uid, "isActive": True, "activatedAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP})
     return len(appointments)

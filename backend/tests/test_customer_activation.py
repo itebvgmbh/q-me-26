@@ -38,6 +38,9 @@ class Ref:
             else:
                 doc[k] = "ZEIT" if v is gcf.SERVER_TIMESTAMP else v
 
+    def set(self, values):
+        self.db.data[self.coll][self.id] = dict(values)
+
     def create(self, values):
         from google.api_core.exceptions import Conflict
 
@@ -84,11 +87,14 @@ class Batch:
         self.ops = []
 
     def update(self, ref, values):
-        self.ops.append((ref, values))
+        self.ops.append((ref.update, values))
+
+    def set(self, ref, values):
+        self.ops.append((ref.set, values))
 
     def commit(self):
-        for ref, values in self.ops:
-            ref.update(values)
+        for write, values in self.ops:
+            write(values)
 
 
 class FakeDb:
@@ -323,6 +329,9 @@ def test_verbinden_haengt_termine_ans_konto():
     assert store["appointments"]["t1"]["customerId"] == "kontoMax"
     assert store["appointments"]["t2"]["customerId"] == "kontoMax"
     assert store["appointments"]["t3"]["customerId"] == "jemand"  # fremder Termin bleibt
+    # Öffentliche Kurzfassung mitgeschrieben – ohne Konto und Namen (app/libs/public_appointments.py)
+    assert store["public_appointments"]["t1"]["isAnonymous"] is False
+    assert "customerId" not in store["public_appointments"]["t1"] and "t3" not in store["public_appointments"]
 
 
 def test_zweimal_verbinden_schadet_nicht():

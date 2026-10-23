@@ -1,6 +1,7 @@
-import { collection, doc, DocumentData, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
+import { collection, doc, DocumentData, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { firestore as db } from './firestore-client';
 import { occupiedWindow, projectLane } from './queue-lane';
+import { publicOfStaffBetween } from './firestore/public-appointments';
 
 /**
  * Eine Regel für alle Termine: Was hier nicht frei ist, darf weder angezeigt noch gespeichert werden.
@@ -100,9 +101,10 @@ export const loadShopData = async (shopId: string): Promise<DocumentData | null>
  * Lädt alles, was die Tage einer Person zwischen from und to einschränkt – alle Abfragen gleichzeitig,
  * also eine Rundreise zum Server. Vorher lud die Platzsuche das für jeden Tag einzeln und nacheinander
  * (bis zu 14 Tage × 3 Rundreisen) und jedes Mal alle Termine der Person seit Anbeginn.
- * Termine nur im Zeitraum (Index staffId + startTime ist vorhanden), mit einem Tag Vorlauf für
- * Termine, die vor Mitternacht beginnen. Einzelne Pausen nur nach Person, den Tag filtert
- * buildDayContext – eine Abfrage mit Datumsbereich bräuchte einen eigenen Index.
+ * Termine nur im Zeitraum, mit einem Tag Vorlauf für Termine, die vor Mitternacht beginnen – aus den öffentlichen
+ * Kurzfassungen (public-appointments.ts: Zeit, Status, Aufrufe, keine Namen), damit es auch ohne Anmeldung geht.
+ * Einzelne Pausen nur nach Person, den Tag filtert buildDayContext – eine Abfrage mit Datumsbereich bräuchte einen
+ * eigenen Index.
  */
 export const loadStaffRange = async (
   shopId: string,
@@ -120,14 +122,7 @@ export const loadStaffRange = async (
     getDoc(doc(db, 'staff', staffId)),
     getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId))),
     getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
-    getDocs(
-      query(
-        collection(db, 'appointments'),
-        where('staffId', '==', staffId),
-        where('startTime', '>=', Timestamp.fromMillis(from.getTime() - DAY_MS)),
-        where('startTime', '<', Timestamp.fromDate(to)),
-      ),
-    ),
+    publicOfStaffBetween(db, staffId, new Date(from.getTime() - DAY_MS), to),
   ]);
   return {
     shop: shopData,
@@ -135,7 +130,7 @@ export const loadStaffRange = async (
     staff: staffSnap.exists() ? staffSnap.data() : null,
     recurringBreaks: recurringSnap.docs.map((d) => d.data()),
     breaks: breaksSnap.docs.map((d) => d.data()),
-    appointments: apptSnap.docs.filter((d) => d.data().shopId === shopId).map((d) => ({ id: d.id, data: d.data() })),
+    appointments: apptSnap.filter((a) => a.shopId === shopId).map(({ id, ...data }) => ({ id, data })),
   };
 };
 

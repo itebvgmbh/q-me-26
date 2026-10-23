@@ -71,6 +71,12 @@ def _loop() -> None:
                 last_cleanup = today
                 removed = cleanup_subscriptions(db)
                 print(f"Benachrichtigungen: {removed} alte Push-Anmeldungen entfernt")
+                # Kontaktdaten, die ein Browserfenster mit altem Stand der App noch an eine Person geschrieben hat
+                from app.libs.staff_contacts import migrate
+
+                moved = migrate(db)
+                if moved:
+                    print(f"Kontaktdaten des Teams umgezogen: {moved} Personen")
         except Exception as e:  # nie den Dienst deswegen anhalten
             print(f"Benachrichtigungen: Fehler im Durchlauf: {e}")
         # Start-Mails an Läden (app/libs/onboarding_mail.py), seltener als die Nachrichten an Kunden

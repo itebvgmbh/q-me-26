@@ -12,6 +12,7 @@ import { findNextSlots } from './firestore/timeslots';
 import { dayKey } from './firestore/schedule';
 import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
+import { hashTicketKey, newTicketKey, rememberTicketKey } from './ticket-key';
 
 // Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
 // Auswahl (Raster 15 Minuten – bei 30 Minuten Leistung also etwa halb so viele verschiedene Plätze)
@@ -91,6 +92,8 @@ export interface BookingResponse {
   referenceCode?: string;
   /** ID des angelegten Termins – für die Nummernseite /nummer/:id */
   appointmentId?: string;
+  /** Nummer ohne Konto: Schlüssel für den Link der Nummernseite (utils/ticket-key.ts) */
+  ticketKey?: string;
   isAnonymous: boolean;
   /** Platz, den die Nummer tatsächlich bekommen hat */
   bookedSlot?: TimeSlot;
@@ -260,6 +263,8 @@ export const QueueBookingService = {
     } = params;
     const name = contact?.name.trim();
     const phone = contact?.phone.trim();
+    // Schlüssel zum Absagen und Übernehmen: am Termin nur der Hash, der Schlüssel bleibt hier und im Link
+    const ticketKey = newTicketKey();
 
     // Anonymous booking without customer data
     const appointment = await createQueueAppointment({
@@ -271,6 +276,7 @@ export const QueueBookingService = {
       status: 'scheduled',
       type: 'queue',
       isAnonymous: true, // Mark as anonymous booking
+      ticketKeyHash: await hashTicketKey(ticketKey),
       ...(name ? { customerName: name } : {}),
       ...(phone ? { customerPhone: phone } : {}),
       checkEarlierOptions: checkEarlierOptions,
@@ -280,8 +286,9 @@ export const QueueBookingService = {
 
     console.log('Anonymous booking successfully created:', appointment);
     
-    // Termin-ID merken, um die Buchung später eindeutig einem Konto zuzuordnen
+    // Termin-ID und Schlüssel merken, um die Buchung später eindeutig einem Konto zuzuordnen
     if (appointment.id) {
+      rememberTicketKey(appointment.id, ticketKey);
       saveAnonymousBookingCode(selectedShop, appointment.id);
     }
     
@@ -289,6 +296,7 @@ export const QueueBookingService = {
       success: true,
       isAnonymous: true,
       appointmentId: appointment.id,
+      ticketKey,
       referenceCode: appointment.referenceCode || '',
       ...bookedSlotOf(appointment, startTime),
       message: 'Termin erfolgreich gebucht!'
