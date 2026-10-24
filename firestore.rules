@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
-// Fassung: 2026-10-23.2 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+// Fassung: 2026-10-24 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
 //
 // Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
 // Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
@@ -258,7 +258,7 @@ service cloud.firestore {
       allow delete: if ownsShop(resource.data.shopId);
     }
 
-    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer hängt genau eine an, keine fällt weg
+    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer wird angehängt; nur in der festen Form
     function validShopDay(id, d) {
       return d.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
         && d.day is string && d.codes is list && id == d.shopId + '_' + d.day
@@ -267,10 +267,12 @@ service cloud.firestore {
 
     match /shop_days/{id} {
       allow read: if true;
-      allow create: if validShopDay(id, request.resource.data) && request.resource.data.codes.size() == 1;
+      // Kein Vergleich mit dem bisherigen Inhalt (z. B. „genau eine Nummer mehr“): Ziehen zwei gleichzeitig, prüfen die
+      // Regeln den Schreibschritt des Zweiten gegen den schon neueren Stand und lehnen ab, statt dass die Transaktion
+      // wie vorgesehen neu anläuft (dev/e2e/gleichzeitig.cjs, Nummer ziehen im Ansturm).
+      allow create: if validShopDay(id, request.resource.data) && request.resource.data.codes.size() >= 1;
       allow update: if validShopDay(id, request.resource.data) && request.resource.data.shopId == resource.data.shopId
-        && request.resource.data.codes.hasAll(resource.data.codes)
-        && request.resource.data.codes.size() == resource.data.codes.size() + 1;
+        && request.resource.data.codes.size() >= 1;
       allow delete: if ownsShop(resource.data.shopId);
     }
 

@@ -394,15 +394,15 @@ describe('Termine: Nummer ziehen und buchen', () => {
     await assertFails(deleteDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`)));
   });
 
-  test('Tagesnummern: nur genau eine dazu, keine weg', async () => {
+  test('Tagesnummern: feste Form, nie leer (ohne Vergleich mit dem Stand davor, sonst scheitert der Ansturm)', async () => {
     await seedShop();
     const db = anon();
     const ref = doc(db, 'shop_days', `${SHOP}_${TODAY}`);
-    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: [], updatedAt: Timestamp.now() }));
     await assertSucceeds(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
     await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: [], updatedAt: Timestamp.now() }));
-    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A2'], updatedAt: Timestamp.now() }));
-    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2', 'A3'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP2, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now(), extra: 1 }));
     await assertSucceeds(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1', 'A2'], updatedAt: Timestamp.now() }));
     await assertFails(setDoc(doc(db, 'shop_days', `${SHOP}_2099-01-01`), { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
     await assertFails(setDoc(doc(db, 'shop_days', `gibtsnicht_${TODAY}`), { shopId: 'gibtsnicht', day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));

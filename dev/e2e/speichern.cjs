@@ -1,15 +1,16 @@
 // Bearbeiten-Dialog am Tresen: Speichern mit leeren Feldern (keine Kunden-ID, leerer Preis) darf nicht scheitern.
 // Früher: "Function setDoc() called with invalid data. Unsupported field value: undefined".
+// Angemeldet als Inhaber des Testladens (Tresen): Ändern dürfen nach firestore.rules nur Laden und Team.
 // Braucht: Entwicklungsserver und Testdaten.
-const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { launch, newPage, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
 
 run(async () => {
   const fx = fixture();
   const browser = await launch();
   const page = await newPage(browser);
   const errors = collectErrors(page);
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(3000);
+  await signIn(page, fx);
+  await page.waitForTimeout(1000);
   const out = await page.evaluate(async (fx) => {
     const appts = await import('/src/utils/firestore/appointments.ts');
     const at = (day, h, m) => { const [y, mo, d] = day.split('-').map(Number); return new Date(y, mo - 1, d, h, m); };

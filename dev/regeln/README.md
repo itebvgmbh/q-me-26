@@ -57,7 +57,8 @@ Kopie des Termins nach dem Schreibschritt (App: in derselben Transaktion; Backen
 
 **Belegung** (`schedules/{staffId}_{Tag}`) und **Tagesnummern** (`shop_days/{shopId}_{Tag}`) schreibt jede Buchung in
 derselben Transaktion mit, auch ohne Anmeldung: nur in der festen Form, nur für eine Person dieses Ladens; Nummern
-kommen genau eine je Schritt dazu und fallen nie weg.
+werden angehängt (ohne Vergleich mit dem Stand davor – sonst lehnen die Regeln im Ansturm ab, statt die
+Transaktion neu anlaufen zu lassen).
 
 **Personen, Leistungen, Pausen**: pflegt der Inhaber, nur im eigenen Laden. Ein Konto verbindet mit einer Person nur
 das Backend (Einladung); der Inhaber nur sich selbst. Die Person selbst ändert nur ihre Arbeitszeiten. E-Mail, Telefon
@@ -70,7 +71,7 @@ Löschen macht das Backend. **Profile** (`users`): nur das eigene. **Angebote �
 **Nur Backend**, im Browser weder lesbar noch schreibbar: `meta` (Zähler der Gründerplätze), `push_subscriptions`,
 `staff-invitations`, `verzeichnis` und jede Sammlung, die in den Regeln nicht vorkommt.
 
-## Wer liest und schreibt was (Fassung 2026-10-23.2)
+## Wer liest und schreibt was (Fassung 2026-10-24)
 
 | Sammlung | Ohne Anmeldung | Kunde | Inhaber | Team |
 |---|---|---|---|---|
