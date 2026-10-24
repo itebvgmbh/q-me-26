@@ -1,14 +1,16 @@
 // Terminregeln (booking-rules): Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben, Absage.
+// Angemeldet als Inhaber des Testladens (wie der Tresen): Ohne Anmeldung erlauben die Firestore-Regeln nur
+// eine Nummer ohne Konto, keine Buchung und kein Verschieben (firestore.rules).
 // Braucht: Entwicklungsserver (npm run dev im frontend) und Testdaten (python dev/fixtures.py anlegen).
-const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { launch, newPage, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
 
 run(async () => {
   const fx = fixture();
   const browser = await launch();
   const page = await newPage(browser);
   const errors = collectErrors(page);
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(3000);
+  await signIn(page, fx);
+  await page.waitForTimeout(1000);
   const out = await page.evaluate(async (fx) => {
     const rules = await import('/src/utils/booking-rules.ts');
     const { getAvailableTimeslotsDirect } = await import('/src/utils/firestore/timeslots.ts');

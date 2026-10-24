@@ -59,7 +59,8 @@ run(async () => {
 
   // Löschen an einem eigenen Probe-Laden (der Testladen bliebe sonst weg, solange die Regeln fehlen)
   const now = inDays(0);
-  const probe = await http('POST', `${FS}/shops`, { fields: { name: { stringValue: 'Regelprobe (wird gleich gelöscht)' }, owner: { stringValue: fx.uid }, createdAt: now, updatedAt: now } }, token);
+  // ID selbst vergeben wie die App (addDoc); vom Server vergebene IDs kennen die Regeln nicht
+  const probe = await http('POST', `${FS}/shops?documentId=regelprobe${Date.now()}`, { fields: { name: { stringValue: 'Regelprobe (wird gleich gelöscht)' }, owner: { stringValue: fx.uid }, createdAt: now, updatedAt: now } }, token);
   rows.push({ name: 'Inhaber legt einen Laden an', pass: probe.status === 200, detail: `Status ${probe.status}` });
   if (probe.status === 200) {
     const probeId = probe.data.name.split('/').pop();
@@ -109,7 +110,7 @@ run(async () => {
 
   // Ohne Anmeldung einen Termin auf ein fremdes Konto anlegen
   const start = new Date(Date.now() + 40 * 86400000);
-  const foreign = await http('POST', `${FS}/appointments`, { fields: {
+  const foreign = await http('POST', `${FS}/appointments?documentId=regelprobe${Date.now()}`, { fields: {
     shopId: { stringValue: fx.shopId }, staffId: { stringValue: fx.staffId }, customerId: { stringValue: NONE },
     customerName: { stringValue: 'Regelprobe' }, status: { stringValue: 'scheduled' }, type: { stringValue: 'queue' },
     startTime: { timestampValue: start.toISOString() }, endTime: { timestampValue: new Date(start.getTime() + 1800000).toISOString() },

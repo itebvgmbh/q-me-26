@@ -172,7 +172,8 @@ run(async () => {
     const kimDay = await ok(kimPage.getByRole('button', { name: 'Meine Arbeitszeiten' }).waitFor({ timeout: 20000 }));
     const kimUid = await kimPage.evaluate(async () => (await import('/src/app/auth/firebase.ts')).firebaseAuth.currentUser?.uid);
     const kimAfter = await staffByName(owner, fx.shopId, 'Kim (Test)');
-    const kimProfile = await db(owner, async (fs, firestore, uid) => (await fs.getDoc(fs.doc(firestore, 'users', uid))).data() || null, kimUid);
+    // Profil liest nur das eigene Konto (firestore.rules)
+    const kimProfile = await db(kimPage, async (fs, firestore, uid) => (await fs.getDoc(fs.doc(firestore, 'users', uid))).data() || null, kimUid);
     await owner.goto(`${BASE}/staff-registration?token=${t3}`, { waitUntil: 'domcontentloaded' });
     const already = await ok(owner.getByRole('heading', { name: 'Schon angenommen.' }).waitFor({ timeout: 15000 }));
     rows.push(
@@ -201,7 +202,7 @@ run(async () => {
     await kunde.page.goto(`${BASE}/staff-registration?token=${kundeToken}`, { waitUntil: 'domcontentloaded' });
     await kunde.page.getByRole('button', { name: 'Einladung annehmen' }).click();
     const kundeDay = await ok(kunde.page.getByRole('button', { name: 'Meine Arbeitszeiten' }).waitFor({ timeout: 20000 }));
-    const kundeProfile = await db(owner, async (fs, firestore, uid) => (await fs.getDoc(fs.doc(firestore, 'users', uid))).data() || null, kunde.uid);
+    const kundeProfile = await db(kunde.page, async (fs, firestore, uid) => (await fs.getDoc(fs.doc(firestore, 'users', uid))).data() || null, kunde.uid);
     const kundeNav = await kunde.page.getByRole('link', { name: 'Meine Termine' }).count();
     rows.push(
       { name: 'Kundenkonto-E-Mail darf eingeladen werden', pass: customerAllowed },
@@ -242,9 +243,10 @@ run(async () => {
       async (fs, firestore, { uid, email }) => {
         const now = fs.Timestamp.now();
         const shop = await fs.addDoc(fs.collection(firestore, 'shops'), { name: 'Zweitladen (Test)', owner: uid, createdAt: now, updatedAt: now });
-        const ref = fs.doc(fs.collection(firestore, 'staff'));
-        await fs.setDoc(ref, { id: ref.id, shopId: shop.id, name: 'Kim zwei (Test)', email, phone: '', role: '', userId: '', isActive: true, status: 'available', workingHours: [], serviceIds: [], createdAt: now, updatedAt: now });
-        return { shopId: shop.id, staffId: ref.id };
+        // Wie die App: E-Mail bei den Kontaktdaten des Ladens, nicht am öffentlichen Eintrag (firestore.rules)
+        const { createStaff } = await import('/src/utils/firestore/staff.ts');
+        const staff = await createStaff({ shopId: shop.id, name: 'Kim zwei (Test)', email, phone: '', role: '', userId: '', isActive: true, status: 'available', workingHours: [], serviceIds: [] });
+        return { shopId: shop.id, staffId: staff.id };
       },
       { uid: fx.uid, email: kimMail },
     );

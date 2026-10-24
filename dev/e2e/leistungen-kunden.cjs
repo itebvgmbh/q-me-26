@@ -201,7 +201,7 @@ run(async () => {
     async (fs, firestore, fx) => {
       const ref = fs.doc(fs.collection(firestore, 'staff'));
       const now = fs.Timestamp.now();
-      await fs.setDoc(ref, { id: ref.id, shopId: fx.shopId, name: 'Chef (Test)', email: fx.email, phone: '', role: 'staff', userId: fx.uid, isActive: true, status: 'available', workingHours: [], serviceIds: [], createdAt: now, updatedAt: now });
+      await fs.setDoc(ref, { id: ref.id, shopId: fx.shopId, name: 'Chef (Test)', role: 'staff', userId: fx.uid, isActive: true, status: 'available', workingHours: [], serviceIds: [], createdAt: now, updatedAt: now });
       return ref.id;
     },
     fx,

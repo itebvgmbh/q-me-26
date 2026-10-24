@@ -260,7 +260,7 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung 2026-10-23.2 (Kopfzeile `// Fassung:` in `firestore.rules`):
+Fassung 2026-10-24 (Kopfzeile `// Fassung:` in `firestore.rules`):
 - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen ohne Kontaktdaten,
   Leistungen, Pausen, Kurzfassung der Termine, Belegung, Tagesnummern).
 - Termine selbst (Name, Handynummer, E-Mail, Konto) lesen nur Inhaber, Team und das eigene Konto; E-Mail und Telefon

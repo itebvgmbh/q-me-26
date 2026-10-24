@@ -69,7 +69,10 @@ def value(v):
 
 
 def create(collection, fields, token, doc_id=None):
-    url = f'{FS}/{collection}' + (f'?documentId={doc_id}' if doc_id else '')
+    # ID selbst vergeben wie die App (addDoc): Vergibt sie der Server, kennen die Regeln sie nicht und lehnen
+    # z. B. neue Läden ab (firestore.rules prüft deleted_shops/{id})
+    doc_id = doc_id or secrets.token_hex(10)
+    url = f'{FS}/{collection}?documentId={doc_id}'
     return call('POST', url, {'fields': {k: value(v) for k, v in fields.items()}}, token)['name'].split('/documents/')[1]
 
 
