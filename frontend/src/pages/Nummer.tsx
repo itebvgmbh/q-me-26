@@ -239,9 +239,13 @@ export default function Nummer() {
       )}
 
       {appt.isAnonymous && appt.status === 'scheduled' && !user && ticketKey && shopData && hasFeature(shopData, 'frueherDran') && (
-        <p className="text-sm text-muted-foreground">
-          Früher dran, wenn etwas frei wird: Das geht mit Konto. Leg eins an, dann bleibt deine Nummer und du kannst es gleich hier einschalten.
-        </p>
+        <div className="rounded-2xl border border-border p-4 text-sm">
+          <strong className="block">Früher dran, wenn etwas frei wird</strong>
+          <span className="text-muted-foreground">
+            Das geht mit Konto: Wird vorher ein Platz frei, bieten wir ihn dir an. Leg eins an – deine Nummer bleibt, und du kannst es
+            gleich hier einschalten.
+          </span>
+        </div>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
