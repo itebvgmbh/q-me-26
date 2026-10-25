@@ -251,7 +251,7 @@ def _send_offers(db, now: datetime, shops: dict, can_push: bool, can_mail: bool)
                     original=_local(appt.get("startTime")),
                     hold_until=_local(offer.get("expiresAt")),
                 )
-                _deliver(db, appt, channels, email, title, body, tag=f"offer-{appt['id']}", url="/my-bookings", button_text="Angebot ansehen")
+                _deliver(db, appt, channels, email, title, body, tag=f"offer-{appt['id']}", url=f"/my-bookings?angebot={offer['id']}", button_text="Angebot ansehen")
                 sent += 1
         db.collection("earlier_slot_notifications").document(offer["id"]).update({"offerNotice": None, "offerNotifiedAt": now})
     return sent

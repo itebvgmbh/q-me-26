@@ -124,6 +124,12 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
         </fieldset>
       )}
 
+      {anonymous && earlierAllowed && (
+        <p className="text-sm text-muted-foreground">
+          Früher dran, wenn etwas frei wird, geht mit Konto: Nach dem Ziehen auf der Nummernseite „Konto anlegen“ – die Nummer bleibt.
+        </p>
+      )}
+
       {user && earlierAllowed && (
         <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-sm">
           <Checkbox checked={checkEarlierOptions} onCheckedChange={(v) => onCheckEarlierOptionsChange(v === true)} className="mt-0.5" />

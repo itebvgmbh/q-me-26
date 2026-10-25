@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Ticket } from '../components/brand/Ticket';
 import { HilfeLink } from '../components/HilfeLink';
+import { FrueherDranSchalter } from '../components/FrueherDranSchalter';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
 import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
@@ -227,9 +228,19 @@ export default function Nummer() {
         <NotifyCard appt={appt} ticketKey={ticketKey} userEmail={user?.email ?? ''} />
       )}
 
+      {appt.status === 'scheduled' && start && shopData && hasFeature(shopData, 'frueherDran') && (
+        <FrueherDranSchalter appointmentId={appt.id} start={start} claimedKey={appt.isAnonymous} />
+      )}
+
       {appt.status === 'scheduled' && (
         <p className="text-sm text-muted-foreground" aria-live="polite">
           Diese Seite aktualisiert sich von selbst. Du kannst sie schließen und über den Link oder die Startseite wieder öffnen.
+        </p>
+      )}
+
+      {appt.isAnonymous && appt.status === 'scheduled' && !user && ticketKey && shopData && hasFeature(shopData, 'frueherDran') && (
+        <p className="text-sm text-muted-foreground">
+          Früher dran, wenn etwas frei wird: Das geht mit Konto. Leg eins an, dann bleibt deine Nummer und du kannst es gleich hier einschalten.
         </p>
       )}
 

@@ -164,6 +164,29 @@ run(async () => {
       detail: `Meldung ${toastOff}, Anzeige weg ${offerHidden}, DB ${savedOff?.checkEarlierOptions}, Angebot weg ${offerGone}`,
     });
 
+    // ---------- Wieder ein und annehmen: Erfolgsmeldung, Termin wirklich früher ----------
+    // Früher kam hier „Der Platz ist leider schon weg“, obwohl der Server verschoben hatte (Antwort nicht gelesen)
+    const before = await appt(owner, scheduledId);
+    await kunde.getByRole('switch', SWITCH).click();
+    await kunde.getByText('Früher dran ist an').waitFor({ timeout: 15000 }).catch(() => {});
+    const offeredAgain = await until(async () => (await openOffers(owner, { shopId: fx.shopId, appointmentId: scheduledId })) > 0, 30000);
+    await kunde.reload({ waitUntil: 'domcontentloaded' });
+    await kunde.getByRole('button', { name: 'Früheren Platz nehmen' }).click({ timeout: 20000 }).catch(() => {});
+    const acceptedToast = await kunde.getByText('Du hast den früheren Platz.').waitFor({ timeout: 15000 }).then(() => true, () => false);
+    const wrongToast = await kunde.getByText('Der Platz ist leider schon weg').count();
+    const after = await appt(owner, scheduledId);
+    const startOf = (a) => (a?.startTime?.seconds ?? 0) * 1000;
+    rows.push({
+      name: 'Annehmen: Erfolgsmeldung, Termin früher',
+      pass: offeredAgain && acceptedToast && wrongToast === 0 && startOf(after) < startOf(before),
+      detail: `Angebot ${offeredAgain}, Meldung ${acceptedToast}, „schon weg“ ${wrongToast}, ${new Date(startOf(before)).toISOString()} → ${new Date(startOf(after)).toISOString()}`,
+    });
+
+    // Link aus der Benachrichtigung mit einem Angebot, das hier nicht offen ist (anderes Konto, schon angenommen)
+    await kunde.goto(`${BASE}/my-bookings?angebot=gibt-es-hier-nicht`, { waitUntil: 'domcontentloaded' });
+    const foreignOfferHint = await kunde.getByText('Dieses Angebot ist hier nicht offen.').waitFor({ timeout: 20000 }).then(() => true, () => false);
+    rows.push({ name: 'Angebots-Link, Angebot nicht hier: Hinweis', pass: foreignOfferHint });
+
     // ---------- 2. Gratis-Tarif (Testphase vorbei) ----------
     // Zweiter Termin der Kundin, Montag 14:00 in einem Laden ohne Testphase; der Termin im Testladen behält seinen Schalter
     gratisPage = await newPage(browser, { viewport: { width: 1280, height: 800 } });

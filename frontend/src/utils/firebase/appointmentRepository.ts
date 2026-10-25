@@ -48,7 +48,9 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       status: brainResponse.status,
       statusText: brainResponse.statusText,
       headers: new Headers(brainResponse.headers),
-      json: async () => brainResponse.data
+      // Ohne format liefert der Brain-Client keinen geparsten Inhalt (data bleibt null): selbst lesen.
+      // Vorher hieß jede Annahme „Der Platz ist leider schon weg“, obwohl der Server verschoben hatte.
+      json: async () => brainResponse.json()
     };
     
     
