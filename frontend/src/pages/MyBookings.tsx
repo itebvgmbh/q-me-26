@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -30,6 +30,10 @@ const MyBookings = () => {
   const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<EarlierSlotNotificationType[]>([]);
+  // Link aus der Benachrichtigung „Früher dran?“: /my-bookings?angebot=<id> (backend/app/libs/notify_worker.py)
+  const [params] = useSearchParams();
+  const offerFromLink = params.get('angebot');
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
 
   const loadAppointments = useCallback(async () => {
@@ -50,6 +54,8 @@ const MyBookings = () => {
       setNotifications(await loadUserNotifications(user.uid));
     } catch {
       setNotifications([]);
+    } finally {
+      setNotificationsLoaded(true);
     }
   }, [user]);
 
@@ -128,6 +134,16 @@ const MyBookings = () => {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Meine Termine</h1>
+
+      {offerFromLink && notificationsLoaded && !loading && !notifications.some((n) => n.id === offerFromLink) && (
+        <div role="status" className="rounded-2xl border border-border bg-card p-4 text-sm">
+          <p className="font-semibold">Dieses Angebot ist hier nicht offen.</p>
+          <p className="text-muted-foreground">
+            Entweder ist es schon angenommen oder abgelaufen – oder es gehört zu einem anderen Konto. Angemeldet bist du als{' '}
+            <strong className="text-foreground">{user?.email}</strong>. Gebucht mit einem anderen Konto? Dann melde dich damit an.
+          </p>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Termine werden geladen">
