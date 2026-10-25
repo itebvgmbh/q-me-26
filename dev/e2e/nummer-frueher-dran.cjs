@@ -1,10 +1,59 @@
-// Nummer ohne Konto ziehen, danach „Konto anlegen und Nummer behalten“ – und „Früher dran“ gleich auf der Nummernseite
-// einschalten. Vorher ging das nur unter „Meine Termine“; auf der Nummernseite fehlte der Schalter.
+// „Früher dran“ für Kunden ohne Konto:
+//  A. Nummer ziehen per QR-Link ohne Konto: Kasten „Früher dran … dafür brauchst du ein Konto“ mit Anmelden/Konto anlegen;
+//     nach „Konto anlegen“ zurück auf derselben Seite, dort ist das Häkchen da.
+//  B. Nummer ohne Konto ziehen, danach „Konto anlegen und Nummer behalten“ – und „Früher dran“ gleich auf der Nummernseite
+//     einschalten. Vorher ging das nur unter „Meine Termine“; auf der Nummernseite fehlte der Schalter.
 // Braucht: Entwicklungsserver mit Backend ab diesem Stand (QME_BACKEND) und Testdaten (python dev/fixtures.py anlegen).
 // Legt ein Kundenkonto kunde-…@example.com an und löscht es am Ende wieder; die Nummer räumt fixtures.py loeschen weg.
 const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const ok = (p) => p.then(() => true, () => false);
+
+/** Angemeldetes Konto im Browser wieder löschen (Profil und Anmeldung) */
+const removeAccount = (page) =>
+  page.evaluate(async () => {
+    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const user = firebaseAuth.currentUser;
+    if (!user) return;
+    const src = await (await fetch('/src/utils/firestore-client.ts')).text();
+    const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
+    const { firestore } = await import('/src/utils/firestore-client.ts');
+    await fs.deleteDoc(fs.doc(firestore, 'users', user.uid)).catch(() => {});
+    await user.delete().catch(() => {});
+  }).catch(() => {});
+
+/** Nummer ziehen per QR-Link bis zur Bestätigung: Leistung → „Egal wer“ */
+const toConfirmation = async (page, shopId) => {
+  await page.goto(`${BASE}/public-join-queue?shopId=${shopId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
+  await page.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+  await page.waitForFunction(() => /\d{2}:\d{2}|kein Platz/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 60000 });
+};
+
+/** A. Ohne Konto: Hinweis mit Anmelden/Konto anlegen, danach zurück und Häkchen da */
+const teilA = async (browser, fx, rows) => {
+  const page = await newPage(browser);
+  const errors = collectErrors(page);
+  try {
+    await toConfirmation(page, fx.shopId);
+    const box = page.getByText('Dafür brauchst du ein Konto');
+    rows.push({ name: 'A: ohne Konto Hinweis „Früher dran“', pass: await ok(box.waitFor({ timeout: 15000 })) });
+    rows.push({ name: 'A: ohne Konto kein Häkchen', pass: (await page.getByRole('checkbox').count()) === 0 });
+    await page.getByRole('link', { name: 'Konto anlegen' }).click();
+    await page.getByLabel('E-Mail').fill(`kunde-${Date.now()}a@example.com`);
+    await page.getByLabel('Passwort', { exact: true }).fill(`Test-${Math.random().toString(36).slice(2)}`);
+    await page.getByRole('button', { name: 'Konto anlegen' }).click();
+    const back = await ok(page.waitForURL((url) => url.pathname === '/public-join-queue' && url.searchParams.get('shopId') === fx.shopId, { timeout: 30000 }));
+    rows.push({ name: 'A: nach „Konto anlegen“ zurück beim Nummer ziehen', pass: back, detail: page.url().replace(BASE, '') });
+    await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
+    await page.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+    rows.push({ name: 'A: mit Konto Häkchen „Früher dran“', pass: await ok(page.getByText('Früher dran, wenn etwas frei wird').waitFor({ timeout: 30000 })) && (await page.getByRole('checkbox').count()) === 1 });
+    rows.push({ name: 'A: keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
+  } finally {
+    await removeAccount(page);
+    await page.close();
+  }
+};
 
 run(async () => {
   const fx = fixture();
@@ -13,6 +62,7 @@ run(async () => {
   const page = await newPage(browser);
   const errors = collectErrors(page);
   const mail = `kunde-${Date.now()}@example.com`;
+  await teilA(browser, fx, rows);
   try {
     // Nummer ohne Konto für Montag 11:00 (Testladen in der Testphase, also mit „Früher dran“)
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -28,11 +78,11 @@ run(async () => {
       });
       return { ok: r.success, id: r.appointmentId, key: r.ticketKey, message: r.message };
     }, fx);
-    rows.push({ name: 'Nummer ohne Konto gezogen', pass: ticket.ok && !!ticket.key, detail: ticket.message || ticket.id });
+    rows.push({ name: 'B: Nummer ohne Konto gezogen', pass: ticket.ok && !!ticket.key, detail: ticket.message || ticket.id });
     if (!ticket.ok) return report(rows);
 
     await page.goto(`${BASE}/nummer/${ticket.id}#k=${ticket.key}`, { waitUntil: 'domcontentloaded' });
-    rows.push({ name: 'Ohne Konto: Hinweis „geht mit Konto“', pass: await ok(page.getByText(/Früher dran, wenn etwas frei wird: Das geht mit Konto/).waitFor({ timeout: 20000 })) });
+    rows.push({ name: 'B: ohne Konto Hinweis „geht mit Konto“', pass: await ok(page.getByText(/Das geht mit Konto/).waitFor({ timeout: 20000 })) });
     rows.push({ name: 'Ohne Konto: kein Schalter', pass: (await page.getByRole('switch').count()) === 0 });
 
     await page.getByRole('button', { name: 'Konto anlegen und Nummer behalten' }).click();
@@ -53,16 +103,7 @@ run(async () => {
     rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
   } finally {
     // Kundenkonto wieder weg (Profil und Anmeldung); die Nummer bleibt im Testladen bis fixtures.py loeschen
-    await page.evaluate(async () => {
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-      const user = firebaseAuth.currentUser;
-      if (!user) return;
-      const src = await (await fetch('/src/utils/firestore-client.ts')).text();
-      const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
-      const { firestore } = await import('/src/utils/firestore-client.ts');
-      await fs.deleteDoc(fs.doc(firestore, 'users', user.uid)).catch(() => {});
-      await user.delete().catch(() => {});
-    }).catch(() => {});
+    await removeAccount(page);
     await browser.close();
   }
   return report(rows);

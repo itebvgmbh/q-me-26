@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -124,10 +125,29 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
         </fieldset>
       )}
 
+      {/* Ohne Konto: zeigen, dass es „Früher dran“ gibt – angeboten wird es dem Konto (Meine Termine, Push) */}
       {anonymous && earlierAllowed && (
-        <p className="text-sm text-muted-foreground">
-          Früher dran, wenn etwas frei wird, geht mit Konto: Nach dem Ziehen auf der Nummernseite „Konto anlegen“ – die Nummer bleibt.
-        </p>
+        <div className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm">
+          <span>
+            <strong className="block">Früher dran, wenn etwas frei wird</strong>
+            <span className="text-muted-foreground">
+              Wird vorher ein Platz frei, bieten wir ihn dir an. Dafür brauchst du ein Konto – ohne Konto ziehst du deine Nummer wie
+              gewohnt.
+            </span>
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/login" state={{ redirectAfterLogin: `${window.location.pathname}${window.location.search}` }}>
+                Anmelden
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/register-customer" state={{ redirectAfterLogin: `${window.location.pathname}${window.location.search}` }}>
+                Konto anlegen
+              </Link>
+            </Button>
+          </div>
+        </div>
       )}
 
       {user && earlierAllowed && (
