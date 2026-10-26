@@ -274,8 +274,9 @@ export const CreateAppointmentDialog = ({
               <Input
                 id="duration"
                 type="number"
-                min="15"
-                step="15"
+                // Ganze Minuten: Leistungen haben jede Dauer (z. B. 20 Min.); mit step 15 lehnte der Browser sie ab
+                min="1"
+                step="1"
                 value={duration}
                 onChange={(e) => setDuration(parseInt(e.target.value))}
                 required
