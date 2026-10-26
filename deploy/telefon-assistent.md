@@ -174,20 +174,26 @@ Zusätzliche Static Body Fields:
 Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten weiterverwenden:
 
 - **First Message:** wie in Abschnitt 2, Modus „Assistant speaks first“.
-- **System Prompt:** die Systemanweisung aus Abschnitt 2.
-- **Tools:** die fünf Werkzeuge anhängen.
-- **Transcriber:**
-  - Deutsch, z. B. Deepgram Nova (Sprache Deutsch) oder Whisper mit Deutsch.
-  - Für den Sprachwechsel zusätzlich eine mehrsprachige Einstellung (Deepgram „multi“) testen.
-- **Model:**
-  - ein schnelles Modell, z. B. GPT-4.1 mini oder Claude Haiku.
-  - Im Probelauf auch ein größeres zum Vergleich testen.
-- **Voice:**
-  - eine deutsche Stimme mit kurzer Antwortzeit, z. B. ElevenLabs „Flash“ bzw. „Turbo“ (mehrsprachig).
-  - Die Stimme „Sarah“ (ElevenLabs Multilingual v2) aus deinem früheren Test klingt gut, ist aber langsamer.
-- **Datenschutz (Advanced):**
-  - Gesprächsaufnahme ausschalten.
-  - Für die Auswertung des Probelaufs reichen Abschriften und Logs.
+- **System Prompt:** die Systemanweisung aus Abschnitt 2. In der Code-Ansicht einfügen, damit die Vorlage
+  vollständig ersetzt wird.
+- **Tools:** die fünf Werkzeuge anhängen („Add tool“ → „Select all“).
+- **Transcriber:** Soniox (STT RT) mit den Sprachen Deutsch, Englisch, Türkisch und Arabisch. Soniox erkennt die
+  Sprache dann selbst.
+- **Model:** GPT-4.1. Im Probelauf auch ein schnelleres oder größeres Modell zum Vergleich testen.
+- **Voice:** ElevenLabs „Eleven Flash v2.5“ (mehrsprachig, kurze Antwortzeit), Stimme „Sarah“. Hintergrundgeräusch
+  aus.
+- **Datenschutz (Advanced → Recording & Artifacts):** Audio Recording aus. Logging und Transcript bleiben für
+  die Auswertung an.
+
+Stand 26.10.2026 ist genau so eingerichtet. Vapi schätzt die Kosten auf etwa 0,11 $ pro Minute und die
+Antwortzeit auf etwa 1,5 Sekunden.
+
+**Hinweise aus der Einrichtung:**
+- Den Haken „Required“ bei den Feldern speichert Vapi nicht immer. Das ist nicht schlimm: Leere Felder kommen als
+  `""` an, und die Schnittstelle antwortet dann mit einem verständlichen Grund.
+- Der Test-Knopf beim einzelnen Werkzeug schickt die Anfrage direkt aus dem Browser, ohne Credential, und
+  scheitert an CORS. Zum Prüfen beim Assistenten neben „Talk“ den **Chat** nehmen. Der ruft die Werkzeuge über
+  Vapi auf, wie ein echter Anruf.
 
 ### Nummer
 
@@ -197,8 +203,8 @@ Dort hängt bisher ein früherer Test-Assistent. Er wird damit abgelöst.
 
 ### Probe
 
-1. **Im Browser:** Mit „Talk“ beim Assistenten probieren. Dabei kommt keine Rufnummer an, deshalb gilt die
-   Laden-ID.
+1. **Im Browser:** Beim Assistenten „Chat“ (Text) oder „Talk“ (Sprache). Dabei kommt keine Rufnummer an,
+   deshalb gilt die Laden-ID.
 2. **Am Telefon:** Von einem Handy die Berliner Nummer anrufen.
 3. **Mit Umleitung:** Am Handy „bei Nichtmelden“ auf die Berliner Nummer umleiten, mit `**61*<Nummer>**20#`. Dann
    das Handy anrufen und nicht abnehmen. So läuft es später bei einem Salon.
