@@ -331,7 +331,7 @@ export const CreateAppointmentForm = ({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="duration">Dauer (Minuten)</Label>
-              <Input id="duration" type="number" min="5" step="5" value={duration} onChange={(e) => setDuration(Math.max(5, Number(e.target.value) || 0))} />
+              <Input id="duration" type="number" min="1" step="1" value={duration} onChange={(e) => setDuration(Math.max(1, Number(e.target.value) || 0))} />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="price">Preis (€)</Label>

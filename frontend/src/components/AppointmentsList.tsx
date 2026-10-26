@@ -320,8 +320,8 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
               <Input
                 id="duration"
                 type="number"
-                min="5"
-                step="5"
+                min="1"
+                step="1"
                 value={appointmentDuration}
                 onChange={(e) => setAppointmentDuration(Number(e.target.value))}
               />
