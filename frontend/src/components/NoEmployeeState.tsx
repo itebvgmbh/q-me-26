@@ -3,6 +3,7 @@ import { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { EmployeeNavigation } from './EmployeeNavigation';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
+import { t } from '@/i18n';
 
 interface Props {
   user: User | null;
@@ -18,15 +19,15 @@ export const NoEmployeeState = ({ user }: Props) => {
       <EmployeeNavigation user={user} employee={null} showLogout={false} />
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-12 sm:px-6">
         <h1 className="font-display text-3xl font-extrabold tracking-[-0.02em] sm:text-4xl">
-          {owner ? 'Du nimmst noch keine Termine an.' : 'Noch mit keinem Laden verknüpft.'}
+          {owner ? t('Du nimmst noch keine Termine an.') : t('Noch mit keinem Laden verknüpft.')}
         </h1>
         <p className="text-muted-foreground">
           {owner
-            ? 'Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.'
-            : 'Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.'}
+            ? t('Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.')
+            : t('Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.')}
         </p>
         <Button variant="signal" asChild>
-          <Link to={owner ? '/staff-management' : '/'}>{owner ? 'Zum Team' : 'Zur Startseite'}</Link>
+          <Link to={owner ? '/staff-management' : '/'}>{owner ? t('Zum Team') : t('Zur Startseite')}</Link>
         </Button>
       </div>
     </div>

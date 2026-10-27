@@ -19,12 +19,13 @@ export function SprachMenue({ className }: { className?: string }) {
           aria-label={t('Sprache wählen')}
           title={t('Sprache wählen')}
           className={cn(
-            'inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold uppercase text-foreground hover:bg-foreground/5',
+            'inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-2.5 text-sm font-semibold uppercase text-foreground hover:bg-foreground/5 xl:px-3',
             className,
           )}
         >
           <Globe className="h-5 w-5" aria-hidden="true" />
-          {aktuell}
+          {/* bei lg nur die Kugel, sonst passt die Kopfzeile auf Deutsch nicht mehr */}
+          <span className="hidden xl:inline">{aktuell}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-44 rounded-xl" align="end">

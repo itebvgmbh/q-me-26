@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { t, tTeile } from '@/i18n';
 
 interface Props {
   shopId: string;
@@ -13,10 +14,10 @@ interface Props {
 }
 
 const mailText = (customer: Customer, link: string) =>
-  `Hallo ${customer.name},\n\n` +
-  'hier ist dein Link für Dranzeit. Einmal öffnen und mit deinem Konto verbinden (oder schnell eins anlegen). ' +
-  'Dann siehst du deine Termine bei uns jederzeit unter „Meine Termine“.\n\n' +
-  `${link}\n`;
+  t(
+    'Hallo {name},\n\nhier ist dein Link für Dranzeit. Einmal öffnen und mit deinem Konto verbinden (oder schnell eins anlegen). Dann siehst du deine Termine bei uns jederzeit unter „Meine Termine“.',
+    { name: customer.name },
+  ) + `\n\n${link}\n`;
 
 /** Kunde anlegen ("Mein Tag"): Eintrag für die Kundenliste plus Link, mit dem die Person ihr Konto verbindet */
 export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props) => {
@@ -38,7 +39,7 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
     try {
       setLink((await createActivationLink(customer.id)).link);
     } catch (error) {
-      setLinkError(error instanceof Error ? error.message : 'Der Link konnte nicht erzeugt werden.');
+      setLinkError(error instanceof Error ? error.message : t('Der Link konnte nicht erzeugt werden.'));
     } finally {
       setLinkBusy(false);
     }
@@ -55,10 +56,10 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
       if (existing) {
         // Den alten Link kennt nur noch die Person (gespeichert ist sein Hash): Es gibt einen neuen, der alte gilt dann nicht mehr
         customer = existing;
-        toast.info(`${customer.name} ist schon in deiner Kundenliste.`);
+        toast.info(t('{name} ist schon in deiner Kundenliste.', { name: customer.name }));
       } else {
         customer = await createCustomer({ shopId, name: name.trim(), email: email.trim(), phone: phone.trim() });
-        toast.success('Kunde angelegt.');
+        toast.success(t('Kunde angelegt.'));
       }
 
       await fetchLink(customer);
@@ -69,7 +70,7 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
       setPhone('');
     } catch (error) {
       console.error('Error creating customer:', error);
-      toast.error('Der Kunde konnte nicht angelegt werden.');
+      toast.error(t('Der Kunde konnte nicht angelegt werden.'));
     } finally {
       setLoading(false);
     }
@@ -79,62 +80,65 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
     const copy = async () => {
       try {
         await navigator.clipboard.writeText(link);
-        toast.success('Link kopiert.');
+        toast.success(t('Link kopiert.'));
       } catch {
-        toast.error('Kopieren klappt hier nicht. Markier den Link und kopier ihn von Hand.');
+        toast.error(t('Kopieren klappt hier nicht. Markier den Link und kopier ihn von Hand.'));
       }
     };
     const share = async () => {
       try {
-        await navigator.share({ title: 'Dein Link für Dranzeit', text: mailText(createdCustomer, link).replace(`${link}\n`, ''), url: link });
+        await navigator.share({ title: t('Dein Link für Dranzeit'), text: mailText(createdCustomer, link).replace(`${link}\n`, ''), url: link });
       } catch {
         /* Teilen abgebrochen */
       }
     };
     const mailto = createdCustomer.email
-      ? `mailto:${encodeURIComponent(createdCustomer.email)}?subject=${encodeURIComponent('Dein Link für Dranzeit')}&body=${encodeURIComponent(mailText(createdCustomer, link))}`
+      ? `mailto:${encodeURIComponent(createdCustomer.email)}?subject=${encodeURIComponent(t('Dein Link für Dranzeit'))}&body=${encodeURIComponent(mailText(createdCustomer, link))}`
       : '';
 
     return (
       <div className="flex flex-col gap-4">
         {createdCustomer.userId ? (
           <p className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">
-            <strong>{createdCustomer.name}</strong> hat das Konto schon verbunden. Termine, die du einträgst, stehen bei {createdCustomer.name} unter „Meine
-            Termine“.
+            {tTeile(
+              '<fett>{name}</fett> hat das Konto schon verbunden. Termine, die du einträgst, stehen bei {name} unter „Meine Termine“.',
+              { fett: (inhalt) => <strong>{inhalt}</strong> },
+              { name: createdCustomer.name },
+            )}
           </p>
         ) : !link ? (
           <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-sm">
             <p>
-              <strong>{createdCustomer.name}</strong> steht in deiner Kundenliste.{' '}
-              {linkError ? `Den Link konnten wir gerade nicht erzeugen: ${linkError}` : 'Der Link wird erzeugt …'}
+              {tTeile('<fett>{name}</fett> steht in deiner Kundenliste.', { fett: (inhalt) => <strong>{inhalt}</strong> }, { name: createdCustomer.name })}{' '}
+              {linkError ? t('Den Link konnten wir gerade nicht erzeugen: {fehler}', { fehler: linkError }) : t('Der Link wird erzeugt …')}
             </p>
             <Button variant="outline" disabled={linkBusy} onClick={() => fetchLink(createdCustomer)}>
-              Link erzeugen
+              {t('Link erzeugen')}
             </Button>
           </div>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Schick {createdCustomer.name} diesen Link. Wer ihn öffnet und sich anmeldet (oder ein Konto anlegt), sieht die Termine, die du einträgst, unter
-              „Meine Termine“. Hakst du beim Termin „Bei früherem freien Termin benachrichtigen“ an, bieten wir frühere Plätze an. Der Link gilt
-              30 Tage. Brauchst du ihn später noch einmal, leg {createdCustomer.name} mit derselben E-Mail erneut an: Du bekommst einen neuen Link, der
-              alte gilt dann nicht mehr.
+              {t(
+                'Schick {name} diesen Link. Wer ihn öffnet und sich anmeldet (oder ein Konto anlegt), sieht die Termine, die du einträgst, unter „Meine Termine“. Hakst du beim Termin „Bei früherem freien Termin benachrichtigen“ an, bieten wir frühere Plätze an. Der Link gilt 30 Tage. Brauchst du ihn später noch einmal, leg {name} mit derselben E-Mail erneut an: Du bekommst einen neuen Link, der alte gilt dann nicht mehr.',
+                { name: createdCustomer.name },
+              )}
             </p>
-            <p className="break-all rounded-2xl bg-muted p-3 font-mono text-sm" data-testid="activation-link">
+            <p className="break-all rounded-2xl bg-muted p-3 font-mono text-sm" data-testid="activation-link" dir="ltr">
               {link}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={copy}>
-                Link kopieren
+                {t('Link kopieren')}
               </Button>
               {typeof navigator.share === 'function' && (
                 <Button variant="outline" onClick={share}>
-                  Teilen
+                  {t('Teilen')}
                 </Button>
               )}
               {mailto && (
                 <Button variant="outline" asChild>
-                  <a href={mailto}>Per E-Mail schicken</a>
+                  <a href={mailto}>{t('Per E-Mail schicken')}</a>
                 </Button>
               )}
             </div>
@@ -142,9 +146,9 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
         )}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={() => setCreatedCustomer(null)}>
-            Weiteren Kunden anlegen
+            {t('Weiteren Kunden anlegen')}
           </Button>
-          {onDone && <Button onClick={onDone}>Fertig</Button>}
+          {onDone && <Button onClick={onDone}>{t('Fertig')}</Button>}
         </div>
       </div>
     );
@@ -153,22 +157,22 @@ export const CreateCustomerForm = ({ shopId, onCustomerCreated, onDone }: Props)
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Max Mustermann" autoComplete="off" />
+        <Label htmlFor="name">{t('Name')}</Label>
+        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder={t('Max Mustermann')} autoComplete="off" />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">E-Mail</Label>
-        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="max@beispiel.de" autoComplete="off" />
+        <Label htmlFor="email">{t('E-Mail')}</Label>
+        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={t('max@beispiel.de')} autoComplete="off" />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="phone">Telefon (freiwillig)</Label>
+        <Label htmlFor="phone">{t('Telefon (freiwillig)')}</Label>
         <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 123 456789" autoComplete="off" />
       </div>
 
       <Button type="submit" disabled={loading} className="self-start">
-        {loading ? 'Wird angelegt …' : 'Kunde anlegen'}
+        {loading ? t('Wird angelegt …') : t('Kunde anlegen')}
       </Button>
     </form>
   );

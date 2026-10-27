@@ -15,6 +15,15 @@ Der Nutzer führt Befehle in PowerShell auf Windows aus (meist Windows PowerShel
 
 Server: `root@195.201.26.108`, Code in `/opt/q-me`, Einzelheiten in `deploy/README.md`. Adresse: https://dranzeit.de (q-me.spielmacherei.de, www.dranzeit.de und dranzeit.com leiten dorthin weiter).
 
+## Mehrsprachigkeit
+
+- Die App gibt es auf Deutsch, Englisch, Türkisch und Arabisch (von rechts nach links). Der deutsche Text im Code ist der Schlüssel: `t('…')`, `tn(n, '{n} Termin', '{n} Termine')`, `tTeile()` für Links im Satz, `merke()` für Konstanten auf Modulebene – alles aus `@/i18n` (erklärt in `frontend/src/i18n/index.ts`).
+- Jeder neue oder geänderte Text gleich mit übersetzen in `frontend/src/i18n/{en,tr,ar}/<bereich>.ts`. Prüfen: `node --experimental-strip-types dev/i18n-pruefen.mjs` muss mit `0 Fehler` enden; `--offen` zeigt Text, der noch ohne `t()` dasteht.
+- Layout-Klassen logisch schreiben (`ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`, `text-start`), nicht `ml-`, `mr-`, `left-`, `right-` – sonst steht es auf Arabisch falsch herum.
+- Gespeicherte oder verglichene Werte bleiben deutsch (z. B. „Laufkundschaft“), übersetzt wird nur die Anzeige.
+- Bleibt deutsch: Betreiber-Bereich, Rechtstexte (Impressum, Datenschutz, AGB – mit Hinweis), Seitenköpfe für Suchmaschinen, alles vom Backend (E-Mails, Push, Fehlermeldungen, Hilfe- und Stadtseiten).
+- Die Tests laufen auf Deutsch (`locale: 'de-DE'` in `dev/e2e/lib.cjs`); andere Sprache im Browser zum Ansehen: `?sprache=en|tr|ar` an die Adresse hängen.
+
 ## Testen
 
 - Testskripte liegen in `dev/` (Anleitung: `dev/README.md`): Testladen anlegen/löschen (`dev/fixtures.py`), Regel- und Oberflächentests mit Playwright (`dev/e2e/`), Datenblick (`dev/daten.py`), Attrappen für PowerShell-Blöcke (`dev/powershell/`).

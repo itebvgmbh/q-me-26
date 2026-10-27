@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { t } from '@/i18n';
 
 interface ShellProps {
   title: string;
@@ -12,7 +13,7 @@ interface ShellProps {
 }
 
 /** Rahmen für einen Schritt der Warteschlange */
-export const QueueStepShell = ({ title, description, onBack, backLabel = 'Zurück', children }: ShellProps) => (
+export const QueueStepShell = ({ title, description, onBack, backLabel, children }: ShellProps) => (
   <section className="flex flex-col gap-5 rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="schritt-titel">
     <div className="flex flex-col gap-1">
       <h2 id="schritt-titel" className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
@@ -22,7 +23,7 @@ export const QueueStepShell = ({ title, description, onBack, backLabel = 'Zurüc
     {onBack && (
       <Button variant="ghost" className="self-start" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        {backLabel}
+        {backLabel ?? t('Zurück')}
       </Button>
     )}
   </section>

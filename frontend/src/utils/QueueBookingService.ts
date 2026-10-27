@@ -13,6 +13,7 @@ import { dayKey } from './firestore/schedule';
 import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
 import { hashTicketKey, newTicketKey, rememberTicketKey } from './ticket-key';
+import { t } from '@/i18n';
 
 // Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
 // Auswahl (Raster 15 Minuten – bei 30 Minuten Leistung also etwa halb so viele verschiedene Plätze)
@@ -163,7 +164,7 @@ export const QueueBookingService = {
         success: false,
         isAnonymous: !user,
         error,
-        message: error instanceof Error && error.message ? error.message : 'Das hat nicht geklappt. Versuch es gleich noch einmal.'
+        message: error instanceof Error && error.message ? error.message : t('Das hat nicht geklappt. Versuch es gleich noch einmal.')
       };
     }
   },
@@ -200,7 +201,7 @@ export const QueueBookingService = {
       return {
         success: false,
         isAnonymous: false,
-        message: 'Du stehst schon in der Schlange dieses Ladens.'
+        message: t('Du stehst schon in der Schlange dieses Ladens.')
       };
     }
     
@@ -232,7 +233,7 @@ export const QueueBookingService = {
       isAnonymous: false,
       appointmentId: appointment.id,
       ...bookedSlotOf(appointment, startTime),
-      message: 'Du bist eingereiht'
+      message: t('Du bist eingereiht')
     };
   },
   
@@ -299,7 +300,7 @@ export const QueueBookingService = {
       ticketKey,
       referenceCode: appointment.referenceCode || '',
       ...bookedSlotOf(appointment, startTime),
-      message: 'Termin erfolgreich gebucht!'
+      message: t('Termin erfolgreich gebucht!')
     };
   }
 };

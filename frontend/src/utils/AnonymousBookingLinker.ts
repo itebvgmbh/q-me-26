@@ -1,6 +1,7 @@
 import { getAnonymousBookingCodes, removeAnonymousBookingCode, saveAnonymousBookingCode } from './localStorageUtils';
 import { claimTicket, rememberTicketKey, storedTicketKey } from './ticket-key';
 import { toast } from 'sonner';
+import { tn } from '@/i18n';
 
 // Login, Registrierung und Startseite können gleichzeitig verknüpfen – nur ein Lauf auf einmal
 let running: Promise<void> | null = null;
@@ -36,7 +37,7 @@ const linkAll = async ({ shopId, appointmentId, ticketKey }: TicketToLink): Prom
       }
     }
     if (linkedCount > 0) {
-      toast.success(linkedCount === 1 ? 'Deine Nummer ist jetzt in deinem Konto.' : `${linkedCount} Nummern sind jetzt in deinem Konto.`);
+      toast.success(tn(linkedCount, 'Deine Nummer ist jetzt in deinem Konto.', '{n} Nummern sind jetzt in deinem Konto.'));
     }
   } catch (error) {
     console.error('Fehler beim Verknüpfen anonymer Buchungen:', error);

@@ -173,7 +173,7 @@ for (const sprache of SPRACHEN) {
 if (!filter.length) {
   for (const sprache of SPRACHEN) {
     const unbenutzt = Object.keys(kataloge[sprache]).filter((s) => !verwendet.has(s));
-    if (unbenutzt.length) hinweise.push(`[${sprache}] ${unbenutzt.length} Einträge werden im Code nicht (mehr) als Text verwendet, z. B. ${unbenutzt.slice(0, 5).map((s) => JSON.stringify(s)).join(", ")}`);
+    if (unbenutzt.length) hinweise.push(`[${sprache}] ${unbenutzt.length} Einträge werden im Code nicht (mehr) als Text verwendet, z. B. ${unbenutzt.slice(0, 20).map((s) => JSON.stringify(s)).join(", ")}`);
   }
 }
 

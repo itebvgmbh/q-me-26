@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUser, firebaseApp } from 'app';
@@ -35,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { datumsLocale, intlSprache, t } from '@/i18n';
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card px-4 py-3">
@@ -73,7 +73,7 @@ const ShopDashboard = () => {
     try {
       const shopData = await getShopById(shopId);
       if (!shopData) {
-        toast.error('Der Laden konnte nicht geladen werden.');
+        toast.error(t('Der Laden konnte nicht geladen werden.'));
         return;
       }
       setShop(shopData);
@@ -87,7 +87,7 @@ const ShopDashboard = () => {
       setCustomers(getUniqueCustomers(customersData));
     } catch (error) {
       console.error('Fehler beim Laden der Shop-Daten:', error);
-      toast.error('Die Daten des Ladens konnten nicht geladen werden.');
+      toast.error(t('Die Daten des Ladens konnten nicht geladen werden.'));
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +158,7 @@ const ShopDashboard = () => {
   const lanes = useMemo(() => {
     const list = staff.map((s) => ({ key: s.id, title: s.name, items: appointments.filter((a) => a.staffId === s.id && a.status !== 'cancelled') }));
     const orphan = appointments.filter((a) => a.status !== 'cancelled' && !staff.some((s) => s.id === a.staffId));
-    if (orphan.length) list.push({ key: 'ohne', title: 'Ohne Zuordnung', items: orphan });
+    if (orphan.length) list.push({ key: 'ohne', title: t('Ohne Zuordnung'), items: orphan });
     return list;
   }, [staff, appointments]);
 
@@ -171,7 +171,7 @@ const ShopDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6" aria-busy="true" aria-label="Tresen wird geladen">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6" aria-busy="true" aria-label={t('Tresen wird geladen')}>
         <div className="h-12 w-64 animate-pulse rounded-2xl bg-muted" />
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -186,10 +186,10 @@ const ShopDashboard = () => {
   if (loadFailed) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">Dein Laden lädt gerade nicht.</h1>
-        <p className="text-muted-foreground">Die Verbindung zur Datenbank hat nicht geklappt. Prüf dein Internet und lade die Seite neu.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">{t('Dein Laden lädt gerade nicht.')}</h1>
+        <p className="text-muted-foreground">{t('Die Verbindung zur Datenbank hat nicht geklappt. Prüf dein Internet und lade die Seite neu.')}</p>
         <Button variant="signal" onClick={() => window.location.reload()}>
-          Neu laden
+          {t('Neu laden')}
         </Button>
       </div>
     );
@@ -198,12 +198,12 @@ const ShopDashboard = () => {
   if (!shop) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Willkommen am Tresen.</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Willkommen am Tresen.')}</h1>
         <p className="text-muted-foreground">
-          Richte zuerst deinen Laden ein: ein paar Fragen, und Öffnungszeiten, Leistungen und Team stehen. Ist dein Laden bei Google, übernehme ich das meiste von dort.
+          {t('Richte zuerst deinen Laden ein: ein paar Fragen, und Öffnungszeiten, Leistungen und Team stehen. Ist dein Laden bei Google, übernehme ich das meiste von dort.')}
         </p>
         <Button variant="signal" size="lg" onClick={() => navigate('/shop-setup')}>
-          Laden einrichten
+          {t('Laden einrichten')}
         </Button>
       </div>
     );
@@ -217,10 +217,10 @@ const ShopDashboard = () => {
       {/* Kopf: Laden, Tag, Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Tresen</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Tresen')}</p>
           {shops.length > 1 ? (
             <Select value={shop.id} onValueChange={loadShopData}>
-              <SelectTrigger className="h-auto w-auto gap-3 border-none bg-transparent p-0 font-display text-3xl font-extrabold sm:text-4xl" aria-label="Laden wechseln">
+              <SelectTrigger className="h-auto w-auto gap-3 border-none bg-transparent p-0 font-display text-3xl font-extrabold sm:text-4xl" aria-label={t('Laden wechseln')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -235,11 +235,11 @@ const ShopDashboard = () => {
             <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{shop.name}</h1>
           )}
           <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, -1))} aria-label="Vorheriger Tag">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, -1))} aria-label={t('Vorheriger Tag')}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </Button>
             <label className="sr-only" htmlFor="tresen-datum">
-              Tag wählen
+              {t('Tag wählen')}
             </label>
             <Input
               id="tresen-datum"
@@ -248,61 +248,61 @@ const ShopDashboard = () => {
               onChange={(e) => e.target.value && setSelectedDate(new Date(`${e.target.value}T12:00:00`))}
               className="h-11 w-auto font-mono"
             />
-            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, 1))} aria-label="Nächster Tag">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, 1))} aria-label={t('Nächster Tag')}>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </Button>
             {!live && (
               <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())}>
-                Heute
+                {t('Heute')}
               </Button>
             )}
-            <span className="ms-1 text-sm text-muted-foreground">{format(selectedDate, 'EEEE', { locale: de })}</span>
+            <span className="ms-1 text-sm text-muted-foreground">{format(selectedDate, 'EEEE', { locale: datumsLocale() })}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="signal" onClick={() => openCreate('queue')}>
             <Plus className="me-1.5 h-4 w-4" aria-hidden="true" />
-            Nummer vergeben
+            {t('Nummer vergeben')}
           </Button>
           <Button variant="outline" onClick={() => openCreate('booked')}>
-            Termin eintragen
+            {t('Termin eintragen')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Weitere Aktionen">
+              <Button variant="ghost" size="icon" aria-label={t('Weitere Aktionen')}>
                 <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => window.open(`/bildschirm/${shop.id}`, '_blank', 'noopener')}>
-                Wartezimmer-Bildschirm öffnen
+                {t('Wartezimmer-Bildschirm öffnen')}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/auswertung')}>Auswertung</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/plakat')}>QR-Plakat drucken</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowEditShop(true)}>Laden bearbeiten</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/staff-management')}>Team</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/service-management')}>Leistungen</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>Weiteren Laden einrichten</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => window.open('/hilfe', '_blank', 'noopener')}>Hilfe und Anleitungen</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/auswertung')}>{t('Auswertung')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/plakat')}>{t('QR-Plakat drucken')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowEditShop(true)}>{t('Laden bearbeiten')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/staff-management')}>{t('Team')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/service-management')}>{t('Leistungen')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>{t('Weiteren Laden einrichten')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => window.open('/hilfe', '_blank', 'noopener')}>{t('Hilfe und Anleitungen')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label={live ? 'Wartet noch' : 'Gebucht'} value={String(stats.waiting)} />
-        <Stat label="Ist dran" value={String(stats.running)} />
-        <Stat label="Fertig" value={String(stats.done)} />
-        <Stat label="Umsatz" value={`${stats.revenue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} />
+        <Stat label={live ? t('Wartet noch') : t('Gebucht')} value={String(stats.waiting)} />
+        <Stat label={t('Ist dran')} value={String(stats.running)} />
+        <Stat label={t('Fertig')} value={String(stats.done)} />
+        <Stat label={t('Umsatz')} value={`${stats.revenue.toLocaleString(intlSprache(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <div className="flex flex-col gap-6">
           {staff.length === 0 ? (
             <div className="flex flex-col items-start gap-3 rounded-3xl border border-border bg-card p-6">
-              <p className="font-display text-xl font-bold">Noch niemand im Team.</p>
-              <p className="text-sm text-muted-foreground">Ohne Team gibt es keine freien Zeiten. Leg dich selbst oder deine Leute an.</p>
-              <Button onClick={() => navigate('/staff-management')}>Team anlegen</Button>
+              <p className="font-display text-xl font-bold">{t('Noch niemand im Team.')}</p>
+              <p className="text-sm text-muted-foreground">{t('Ohne Team gibt es keine freien Zeiten. Leg dich selbst oder deine Leute an.')}</p>
+              <Button onClick={() => navigate('/staff-management')}>{t('Team anlegen')}</Button>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
@@ -330,8 +330,8 @@ const ShopDashboard = () => {
       <Dialog open={showEditShop} onOpenChange={setShowEditShop}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Laden bearbeiten</DialogTitle>
-            <DialogDescription>Änderungen gelten sofort.</DialogDescription>
+            <DialogTitle>{t('Laden bearbeiten')}</DialogTitle>
+            <DialogDescription>{t('Änderungen gelten sofort.')}</DialogDescription>
           </DialogHeader>
           <EditShopForm
             shop={shop}
@@ -347,7 +347,7 @@ const ShopDashboard = () => {
       <Dialog open={showCreateAppointmentDialog} onOpenChange={setShowCreateAppointmentDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{appointmentType === 'queue' ? 'Nummer vergeben' : 'Termin eintragen'}</DialogTitle>
+            <DialogTitle>{appointmentType === 'queue' ? t('Nummer vergeben') : t('Termin eintragen')}</DialogTitle>
           </DialogHeader>
           <CreateAppointmentForm
             services={services}

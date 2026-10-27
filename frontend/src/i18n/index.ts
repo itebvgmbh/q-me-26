@@ -1,6 +1,8 @@
 import { createElement, Fragment, type ReactNode } from "react";
 import type { Locale } from "date-fns";
-import { de } from "date-fns/locale";
+// Direkt statt aus "date-fns/locale": Sonst zählt der Bündler auch die anderen Sprachen zum Einstieg
+import { de } from "date-fns/locale/de";
+import { einmalNeuLaden } from "../utils/lazy-page";
 import type { Sprache, Texte } from "./typen";
 
 export type { Sprache, Texte, Mehrzahl } from "./typen";
@@ -52,6 +54,8 @@ const ermittleSprache = (): Sprache => {
   if (gespeichert) return gespeichert;
   // Bildschirm und Plakat sind für alle Kunden im Laden, nicht für den, dem das Gerät gehört
   if (/^\/(bildschirm|plakat)(\/|$)/.test(window.location.pathname)) return "de";
+  // Suchmaschinen rendern mit englischem Browser – sie sollen die deutsche Seite sehen wie im Seitenkopf
+  if (/bot\b|bot\/|crawl|spider|slurp|lighthouse/i.test(navigator.userAgent)) return "de";
   for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
     const code = (tag || "").slice(0, 2).toLowerCase();
     if (istSprache(code)) return code;
@@ -69,7 +73,9 @@ export async function starteSprache(): Promise<void> {
       datum = katalog.datumsLocale;
       aktuell = gewuenscht;
     } catch (fehler) {
-      // Ohne Verbindung lieber Deutsch als gar nichts
+      // Nach einem Ausrollen gibt es die Sprachdatei der alten Fassung nicht mehr: einmal neu laden.
+      // Klappt das nicht (keine Verbindung), lieber Deutsch als gar nichts.
+      if (einmalNeuLaden()) await new Promise<never>(() => {});
       console.error("Sprache konnte nicht geladen werden", fehler);
     }
   }

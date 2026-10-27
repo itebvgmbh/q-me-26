@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { merke, t, tTeile } from '@/i18n';
 import { registerWithRole } from '../../utils/auth-helpers';
 import { authErrorMessage, safeRedirect } from '../../utils/auth-errors';
 import { linkAnonymousBookingsToUser, type TicketToLink } from '../../utils/AnonymousBookingLinker';
@@ -13,23 +14,22 @@ interface Props {
   role: Extract<UserRole, 'customer' | 'shopOwner'>;
 }
 
+// Texte mit merke(), angezeigt mit t(); im Wechsel-Satz steht der Link als <link>…</link>
 const COPY = {
   customer: {
-    title: 'Konto anlegen',
-    intro: 'Deine Nummern und Termine an einem Ort. Und wir bieten dir frühere Plätze an, wenn etwas frei wird.',
-    submit: 'Konto anlegen',
-    switchText: 'Du hast einen Laden?',
+    title: merke('Konto anlegen'),
+    intro: merke('Deine Nummern und Termine an einem Ort. Und wir bieten dir frühere Plätze an, wenn etwas frei wird.'),
+    submit: merke('Konto anlegen'),
+    switchText: merke('Du hast einen Laden? <link>Als Laden registrieren</link>'),
     switchLink: '/register-shop-owner',
-    switchLabel: 'Als Laden registrieren',
     home: '/my-bookings',
   },
   shopOwner: {
-    title: 'Laden anmelden',
-    intro: 'Leg dein Konto an. Danach führe ich dich in ein paar Fragen durch Laden, Öffnungszeiten, Leistungen und Team.',
-    submit: 'Konto für deinen Laden anlegen',
-    switchText: 'Du willst nur buchen?',
+    title: merke('Laden anmelden'),
+    intro: merke('Leg dein Konto an. Danach führe ich dich in ein paar Fragen durch Laden, Öffnungszeiten, Leistungen und Team.'),
+    submit: merke('Konto für deinen Laden anlegen'),
+    switchText: merke('Du willst nur buchen? <link>Als Kunde registrieren</link>'),
     switchLink: '/register-customer',
-    switchLabel: 'Als Kunde registrieren',
     home: '/shop-setup',
   },
 } as const;
@@ -58,7 +58,7 @@ export const RegisterForm = ({ role }: Props) => {
         // Nummern, die in diesem Browser ohne Konto gezogen wurden, übernehmen
         await linkAnonymousBookingsToUser(state);
       }
-      toast.success('Dein Konto ist angelegt.');
+      toast.success(t('Dein Konto ist angelegt.'));
       sendVerificationMailAfterSignUp();
       navigate(next || copy.home, { replace: true });
     } catch (err) {
@@ -73,21 +73,27 @@ export const RegisterForm = ({ role }: Props) => {
 
   return (
     <AuthShell
-      title={copy.title}
-      intro={copy.intro}
+      title={t(copy.title)}
+      intro={t(copy.intro)}
       footer={
         <>
           <p>
-            Schon ein Konto?{' '}
-            <Link to={`/login${loginSearch}`} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
-              Anmelden
-            </Link>
+            {tTeile('Schon ein Konto? <link>Anmelden</link>', {
+              link: (inhalt) => (
+                <Link to={`/login${loginSearch}`} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
+                  {inhalt}
+                </Link>
+              ),
+            })}
           </p>
           <p>
-            {copy.switchText}{' '}
-            <Link to={copy.switchLink} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
-              {copy.switchLabel}
-            </Link>
+            {tTeile(copy.switchText, {
+              link: (inhalt) => (
+                <Link to={copy.switchLink} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
+                  {inhalt}
+                </Link>
+              ),
+            })}
           </p>
         </>
       }
@@ -97,7 +103,7 @@ export const RegisterForm = ({ role }: Props) => {
         <EmailField value={email} onChange={(v) => { setEmail(v); setError(null); }} invalid={!!error} />
         <PasswordField value={password} onChange={setPassword} isNew />
         <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? 'Wird angelegt …' : copy.submit}
+          {submitting ? t('Wird angelegt …') : t(copy.submit)}
         </Button>
       </form>
     </AuthShell>

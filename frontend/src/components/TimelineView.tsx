@@ -6,10 +6,10 @@ import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addDays, addMinutes, startOfDay } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import useTimeSlotStore from '../utils/timeSlotStore';
+import { datumsLocale, merke, t } from '@/i18n';
 
 // Sichtbarer Bereich: Arbeitszeiten der Person plus alle Termine im Zeitraum.
 // Vorher fest 9–17 Uhr – Termine davor oder danach lagen außerhalb des Rasters.
@@ -40,6 +40,10 @@ const getHourRange = (employee: Staff, appointments: Appointment[]): HourRange =
   const end = Math.min(24, Math.max(...(ends.length ? ends : [17])));
   return { start, end: Math.max(end, start + 1) };
 };
+
+// Platzhalter-Namen stehen so in Firestore – angezeigt werden sie übersetzt
+const PLATZHALTER_NAMEN: string[] = [merke('Laufkundschaft'), merke('Unbekannter Kunde'), merke('Gast')];
+const kundenName = (name?: string) => (!name ? t('Gast') : PLATZHALTER_NAMEN.includes(name) ? t(name) : name);
 
 interface DraggableAppointmentProps {
   appointment: Appointment;
@@ -100,10 +104,10 @@ const DraggableAppointment = ({
     >
       <div className="flex justify-between items-center w-full min-w-0 h-full">
         <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${conflict ? conflict + ' | ' : ''}${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
-          {conflict && <span className="me-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">Konflikt</span>}
+          {conflict && <span className="me-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">{t('Konflikt')}</span>}
           <span className="font-mono">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
           <span className="mx-1.5 opacity-50">·</span>
-          {appointment.customerName || 'Gast'}
+          {kundenName(appointment.customerName)}
           <span className="mx-1.5 opacity-50">·</span>
           {services.find(s => s.id === appointment.serviceId)?.name}
         </div>
@@ -208,11 +212,11 @@ const DayView: React.FC<DayViewProps> = ({
       // Cache für diesen Shop und Datum invalidieren
       invalidateCache(employee.shopId, selectedAppointment.startTime.toDate());
       
-      toast.success('Status geändert.');
+      toast.success(t('Status geändert.'));
       setShowStatusDialog(false);
     } catch (error) {
       console.error('Error updating appointment status:', error);
-      toast.error('Fehler beim Aktualisieren des Status');
+      toast.error(t('Fehler beim Aktualisieren des Status'));
     }
   };
 
@@ -252,7 +256,7 @@ const DayView: React.FC<DayViewProps> = ({
     const start = appointment.startTime.toDate();
     const end = appointment.endTime.toDate();
     const b = breakOverlapping(start, start.getHours() * 60 + start.getMinutes(), end.getHours() * 60 + end.getMinutes());
-    return b ? `Liegt in der ${getBreakTypeLabel(b.type)} (${b.startTime}–${b.endTime}) – bitte verschieben` : undefined;
+    return b ? t('Liegt in der {pause} ({von}–{bis}) – bitte verschieben', { pause: getBreakTypeLabel(b.type), von: b.startTime, bis: b.endTime }) : undefined;
   };
 
   const getBreakStyle = (breakItem: RecurringBreak) => {
@@ -270,11 +274,11 @@ const DayView: React.FC<DayViewProps> = ({
 
   const getBreakTypeLabel = (type?: string): string => {
     switch (type) {
-      case 'lunch': return 'Mittagspause';
-      case 'coffee': return 'Kaffeepause';
-      case 'personal': return 'Persönliche Pause';
-      case 'other': return 'Sonstige Pause';
-      default: return 'Pause';
+      case 'lunch': return t('Mittagspause');
+      case 'coffee': return t('Kaffeepause');
+      case 'personal': return t('Persönliche Pause');
+      case 'other': return t('Sonstige Pause');
+      default: return t('Pause');
     }
   };
 
@@ -315,7 +319,7 @@ const DayView: React.FC<DayViewProps> = ({
       <div className="absolute start-0 end-0 z-30 border-b border-border bg-card px-4 py-2">
         <div className="flex justify-between items-center">
           <div className="font-medium">
-            {format(date, 'EEEE, d. MMMM', { locale: de })}
+            {format(date, t('EEEE, d. MMMM'), { locale: datumsLocale() })}
           </div>
           <Button
             variant="outline"
@@ -331,7 +335,7 @@ const DayView: React.FC<DayViewProps> = ({
               setShowCreateDialog(true);
             }}
           >
-            + Termin
+            {t('+ Termin')}
           </Button>
         </div>
       </div>
@@ -424,7 +428,7 @@ const DayView: React.FC<DayViewProps> = ({
               const clicked = hour * 60 + minutes;
               const pause = breakOverlapping(date, clicked, clicked + 1);
               if (pause) {
-                toast.info(`Da ist ${getBreakTypeLabel(pause.type)} (${pause.startTime}–${pause.endTime}).`);
+                toast.info(t('Da ist {pause} ({von}–{bis}).', { pause: getBreakTypeLabel(pause.type), von: pause.startTime, bis: pause.endTime }));
                 return;
               }
 
@@ -491,13 +495,13 @@ const DayView: React.FC<DayViewProps> = ({
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Status ändern</DialogTitle>
+            <DialogTitle>{t('Status ändern')}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant={selectedAppointment?.status === 'scheduled' ? 'default' : 'outline'} onClick={() => handleStatusChange('scheduled')}>Wartet</Button>
-            <Button variant={selectedAppointment?.status === 'in-progress' ? 'default' : 'outline'} onClick={() => handleStatusChange('in-progress')}>Ist dran</Button>
-            <Button variant={selectedAppointment?.status === 'completed' ? 'default' : 'outline'} onClick={() => handleStatusChange('completed')}>Fertig</Button>
-            <Button variant={selectedAppointment?.status === 'cancelled' ? 'default' : 'outline'} onClick={() => handleStatusChange('cancelled')}>Abgesagt</Button>
+            <Button variant={selectedAppointment?.status === 'scheduled' ? 'default' : 'outline'} onClick={() => handleStatusChange('scheduled')}>{t('Wartet')}</Button>
+            <Button variant={selectedAppointment?.status === 'in-progress' ? 'default' : 'outline'} onClick={() => handleStatusChange('in-progress')}>{t('Ist dran')}</Button>
+            <Button variant={selectedAppointment?.status === 'completed' ? 'default' : 'outline'} onClick={() => handleStatusChange('completed')}>{t('Fertig')}</Button>
+            <Button variant={selectedAppointment?.status === 'cancelled' ? 'default' : 'outline'} onClick={() => handleStatusChange('cancelled')}>{t('Abgesagt')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -726,9 +730,9 @@ export const TimelineView = ({
               const newDate = dragPreview.startTime.toDateString();
               
               if (oldDate !== newDate) {
-                toast.success(`Termin erfolgreich auf ${format(dragPreview.startTime, 'dd.MM.yyyy')} verschoben`);
+                toast.success(t('Termin erfolgreich auf {datum} verschoben', { datum: format(dragPreview.startTime, t('dd.MM.yyyy')) }));
               } else {
-                toast.success('Termin erfolgreich verschoben');
+                toast.success(t('Termin erfolgreich verschoben'));
               }
               
               // Zurücksetzen der States
@@ -737,7 +741,7 @@ export const TimelineView = ({
             })
             .catch((error) => {
               console.error('Error updating appointment time:', error);
-              toast.error(`Nicht verschoben: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`);
+              toast.error(t('Nicht verschoben: {fehler}', { fehler: error instanceof Error ? error.message : t('unbekannter Fehler') }));
               setDraggedAppointment(null);
               setDragPreview(null);
             });

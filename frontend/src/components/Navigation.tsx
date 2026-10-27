@@ -59,7 +59,7 @@ const PROFILE_PATH: Record<UserRole, string> = {
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    'inline-flex h-10 items-center rounded-full px-3 text-[15px] font-medium transition-colors lg:px-4',
+    'inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[15px] font-medium transition-colors lg:px-4',
     isActive ? 'bg-signal text-signal-foreground' : 'text-foreground hover:bg-foreground/5',
   );
 

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import brain from 'brain';
 import { AvailableTimeslotsRequest } from '../brain/data-contracts';
+import { t } from '@/i18n';
 
 interface AvailableTimeSlotPickerProps {
   shopId: string;
@@ -55,7 +55,7 @@ export const AvailableTimeSlotPicker = ({
 
         if (data.timeslots.length === 0) {
           // Wenn keine Slots verfügbar sind, zeige eine Nachricht und füge Standard-Zeitoptionen hinzu
-          setError('An diesem Tag ist nichts mehr frei. Vielleicht hat der Laden geschlossen.');
+          setError(t('An diesem Tag ist nichts mehr frei. Vielleicht hat der Laden geschlossen.'));
           
           // Generiere alle Zeitoptionen für den Tag (deaktiviert)
           const allHours = Array.from({ length: 24 }, (_, hour) => {
@@ -75,8 +75,8 @@ export const AvailableTimeSlotPicker = ({
         }
       } catch (error) {
         console.error('Error loading available time slots:', error);
-        setError('Die freien Zeiten konnten nicht geladen werden.');
-        toast.error('Die freien Zeiten konnten nicht geladen werden.');
+        setError(t('Die freien Zeiten konnten nicht geladen werden.'));
+        toast.error(t('Die freien Zeiten konnten nicht geladen werden.'));
       } finally {
         setLoading(false);
       }
@@ -96,10 +96,10 @@ export const AvailableTimeSlotPicker = ({
           {loading ? (
             <div className="flex items-center space-x-2 rtl:space-x-reverse">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Lade Zeiten...</span>
+              <span>{t('Lade Zeiten...')}</span>
             </div>
           ) : (
-            <SelectValue placeholder="Uhrzeit auswählen" />
+            <SelectValue placeholder={t('Uhrzeit auswählen')} />
           )}
         </SelectTrigger>
         <SelectContent>
@@ -107,19 +107,19 @@ export const AvailableTimeSlotPicker = ({
             <div className="px-2 py-1 text-sm text-destructive">{error}</div>
           ) : availableSlots.length > 0 ? (
             <SelectGroup>
-              <SelectLabel>Verfügbare Zeiten</SelectLabel>
+              <SelectLabel>{t('Verfügbare Zeiten')}</SelectLabel>
               {availableSlots.map((slot) => (
                 <SelectItem 
                   key={slot.time} 
                   value={slot.time}
                   disabled={slot.disabled}
                 >
-                  {slot.time} Uhr {slot.disabled && '(nicht verfügbar)'}
+                  {t('{zeit} Uhr', { zeit: slot.time })} {slot.disabled && t('(nicht verfügbar)')}
                 </SelectItem>
               ))}
             </SelectGroup>
           ) : (
-            <div className="px-2 py-1 text-sm text-muted-foreground">Wähl zuerst Leistung, Person und Datum.</div>
+            <div className="px-2 py-1 text-sm text-muted-foreground">{t('Wähl zuerst Leistung, Person und Datum.')}</div>
           )}
         </SelectContent>
       </Select>

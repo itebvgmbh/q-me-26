@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { CalendarTimeSlot } from '../types';
 
 /**
@@ -22,22 +23,22 @@ export const useBookingValidation = () => {
   }): boolean => {
     // Specific validation checks with clear error messages
     if (!selectedShop) {
-      toast.error('Wähl zuerst einen Shop.');
+      toast.error(t('Wähl zuerst einen Shop.'));
       return false;
     }
     
     if (!selectedStaff) {
-      toast.error('Wähl aus, bei wem.');
+      toast.error(t('Wähl aus, bei wem.'));
       return false;
     }
     
     if (!selectedService) {
-      toast.error('Wähl eine Leistung.');
+      toast.error(t('Wähl eine Leistung.'));
       return false;
     }
     
     if (!selectedTimeSlot) {
-      toast.error('Wähl eine Uhrzeit.');
+      toast.error(t('Wähl eine Uhrzeit.'));
       return false;
     }
 

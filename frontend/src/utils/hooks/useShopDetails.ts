@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { doc, getDocFromServer } from 'firebase/firestore';
 import { getServicesByShopId, getStaffByShopId, offeredServices, Service, Shop, Staff } from '../firestore';
 import { firestore as db } from '../firestore-client';
@@ -24,7 +25,7 @@ export const useShopDetails = (shopId: string | null) => {
   useEffect(() => {
     const loadShopDetails = async () => {
       if (!shopId) {
-        toast.error('Shop-ID fehlt');
+        toast.error(t('Shop-ID fehlt'));
         navigate('/');
         return;
       }
@@ -35,7 +36,7 @@ export const useShopDetails = (shopId: string | null) => {
         // Vom Server lesen: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
         const snap = await getDocFromServer(doc(db, 'shops', shopId));
         if (!snap.exists()) {
-          toast.error('Shop nicht gefunden');
+          toast.error(t('Shop nicht gefunden'));
           navigate('/');
           return;
         }
@@ -59,7 +60,7 @@ export const useShopDetails = (shopId: string | null) => {
           setLoading(false);
           return;
         }
-        toast.error('Fehler beim Laden der Shop-Details');
+        toast.error(t('Fehler beim Laden der Shop-Details'));
         navigate('/');
       }
     };

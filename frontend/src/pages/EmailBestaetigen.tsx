@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import { AuthShell } from '../components/auth/AuthShell';
 import { confirmEmail, refreshVerified } from '../utils/email-verification';
 
@@ -35,16 +36,16 @@ const EmailBestaetigen = () => {
     return (
       <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
         <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
-        <span className="sr-only">E-Mail-Adresse wird bestätigt …</span>
+        <span className="sr-only">{t('E-Mail-Adresse wird bestätigt …')}</span>
       </div>
     );
   }
 
   if (state === 'bestaetigt') {
     return (
-      <AuthShell title="Bestätigt." intro="Deine E-Mail-Adresse ist bestätigt. Du musst sonst nichts weiter tun.">
+      <AuthShell title={t('Bestätigt.')} intro={t('Deine E-Mail-Adresse ist bestätigt. Du musst sonst nichts weiter tun.')}>
         <Button asChild size="lg" className="w-full">
-          {user ? <Link to="/profile">Zu meinem Profil</Link> : <Link to="/login">Anmelden</Link>}
+          {user ? <Link to="/profile">{t('Zu meinem Profil')}</Link> : <Link to="/login">{t('Anmelden')}</Link>}
         </Button>
       </AuthShell>
     );
@@ -52,9 +53,9 @@ const EmailBestaetigen = () => {
 
   if (state === 'offline') {
     return (
-      <AuthShell title="Keine Verbindung." intro="Deine Adresse ist noch nicht bestätigt. Prüf dein Internet und öffne den Link aus der E-Mail noch einmal.">
+      <AuthShell title={t('Keine Verbindung.')} intro={t('Deine Adresse ist noch nicht bestätigt. Prüf dein Internet und öffne den Link aus der E-Mail noch einmal.')}>
         <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
-          Noch mal versuchen
+          {t('Noch mal versuchen')}
         </Button>
       </AuthShell>
     );
@@ -62,15 +63,15 @@ const EmailBestaetigen = () => {
 
   return (
     <AuthShell
-      title="Dieser Link klappt nicht."
+      title={t('Dieser Link klappt nicht.')}
       intro={
         user
-          ? 'Der Link ist abgelaufen oder wurde schon benutzt. Im Profil siehst du, ob deine Adresse bestätigt ist, und schickst dir bei Bedarf eine neue E-Mail.'
-          : 'Der Link ist abgelaufen oder wurde schon benutzt. Melde dich an: Im Profil siehst du, ob deine Adresse bestätigt ist, und schickst dir bei Bedarf eine neue E-Mail.'
+          ? t('Der Link ist abgelaufen oder wurde schon benutzt. Im Profil siehst du, ob deine Adresse bestätigt ist, und schickst dir bei Bedarf eine neue E-Mail.')
+          : t('Der Link ist abgelaufen oder wurde schon benutzt. Melde dich an: Im Profil siehst du, ob deine Adresse bestätigt ist, und schickst dir bei Bedarf eine neue E-Mail.')
       }
     >
       <Button asChild size="lg" className="w-full">
-        {user ? <Link to="/profile">Zu meinem Profil</Link> : <Link to={`/login?next=${encodeURIComponent('/profile')}`}>Anmelden</Link>}
+        {user ? <Link to="/profile">{t('Zu meinem Profil')}</Link> : <Link to={`/login?next=${encodeURIComponent('/profile')}`}>{t('Anmelden')}</Link>}
       </Button>
     </AuthShell>
   );

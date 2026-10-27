@@ -4,6 +4,7 @@ import { confirmPasswordReset, signInWithEmailAndPassword, verifyPasswordResetCo
 import { firebaseAuth } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { t, tTeile } from '@/i18n';
 import { AuthShell, FormError, PasswordField } from '../components/auth/AuthShell';
 import { authErrorMessage } from '../utils/auth-errors';
 import { getRedirectPath } from '../utils/user-profile-service';
@@ -51,7 +52,7 @@ const PasswortNeu = () => {
     }
     try {
       const { user } = await signInWithEmailAndPassword(firebaseAuth, email, password);
-      toast.success('Dein neues Passwort ist gespeichert. Du bist angemeldet.');
+      toast.success(t('Dein neues Passwort ist gespeichert. Du bist angemeldet.'));
       navigate(await getRedirectPath(user.uid).catch(() => '/'), { replace: true });
     } catch {
       // Passwort ist geändert, nur das Anmelden klappte nicht (z. B. Netz weg): von Hand anmelden
@@ -64,21 +65,24 @@ const PasswortNeu = () => {
     return (
       <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
         <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
-        <span className="sr-only">Link wird geprüft …</span>
+        <span className="sr-only">{t('Link wird geprüft …')}</span>
       </div>
     );
   }
 
   if (state === 'formular') {
     return (
-      <AuthShell title="Neues Passwort." intro={<>Für dein Konto <strong className="text-foreground">{email}</strong>.</>}>
+      <AuthShell
+        title={t('Neues Passwort.')}
+        intro={tTeile('Für dein Konto <email/>.', { email: () => <strong className="text-foreground" dir="ltr">{email}</strong> })}
+      >
         <form onSubmit={save} className="flex flex-col gap-4">
           {error && <FormError>{error}</FormError>}
           {/* Für Passwort-Manager: zu welchem Konto das neue Passwort gehört */}
           <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
-          <PasswordField value={password} onChange={(v) => { setPassword(v); setError(null); }} isNew label="Neues Passwort" />
+          <PasswordField value={password} onChange={(v) => { setPassword(v); setError(null); }} isNew label={t('Neues Passwort')} />
           <Button type="submit" size="lg" disabled={saving}>
-            {saving ? 'Wird gespeichert …' : 'Passwort speichern'}
+            {saving ? t('Wird gespeichert …') : t('Passwort speichern')}
           </Button>
         </form>
       </AuthShell>
@@ -87,9 +91,9 @@ const PasswortNeu = () => {
 
   if (state === 'fertig') {
     return (
-      <AuthShell title="Gespeichert." intro="Dein neues Passwort gilt ab sofort. Melde dich damit an.">
+      <AuthShell title={t('Gespeichert.')} intro={t('Dein neues Passwort gilt ab sofort. Melde dich damit an.')}>
         <Button asChild size="lg" className="w-full">
-          <Link to="/login">Anmelden</Link>
+          <Link to="/login">{t('Anmelden')}</Link>
         </Button>
       </AuthShell>
     );
@@ -97,9 +101,9 @@ const PasswortNeu = () => {
 
   if (state === 'offline') {
     return (
-      <AuthShell title="Keine Verbindung." intro="Prüf dein Internet und öffne den Link aus der E-Mail noch einmal.">
+      <AuthShell title={t('Keine Verbindung.')} intro={t('Prüf dein Internet und öffne den Link aus der E-Mail noch einmal.')}>
         <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
-          Noch mal versuchen
+          {t('Noch mal versuchen')}
         </Button>
       </AuthShell>
     );
@@ -107,11 +111,11 @@ const PasswortNeu = () => {
 
   return (
     <AuthShell
-      title="Dieser Link klappt nicht."
-      intro="Der Link ist abgelaufen oder wurde schon benutzt. Er gilt nur eine Stunde. Fordere beim Anmelden unter „Passwort vergessen?“ einfach einen neuen an."
+      title={t('Dieser Link klappt nicht.')}
+      intro={t('Der Link ist abgelaufen oder wurde schon benutzt. Er gilt nur eine Stunde. Fordere beim Anmelden unter „Passwort vergessen?“ einfach einen neuen an.')}
     >
       <Button asChild size="lg" className="w-full">
-        <Link to="/login">Zum Anmelden</Link>
+        <Link to="/login">{t('Zum Anmelden')}</Link>
       </Button>
     </AuthShell>
   );

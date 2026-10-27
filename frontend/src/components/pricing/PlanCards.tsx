@@ -2,20 +2,27 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { euro, gross, PLANS, type PlanId } from '../../utils/plans';
 import type { Interval } from '../../utils/billing';
+import { merke, t } from '@/i18n';
 
 // Was in welchem Tarif steckt – Texte wie auf der Preisseite der Strategie
 const INCLUDES: Record<PlanId, string[]> = {
-  gratis: ['1 Person', 'bis 100 Kunden im Monat', 'Nummer ziehen per QR-Code', 'Tresen-Ansicht', 'Eintrag auf der Karte'],
-  solo: ['1 Person, unbegrenzt Kunden', 'Online-Termine und Schlange in einem Tag', 'Früher dran', '„Gleich dran“-Nachricht per Push oder E-Mail', 'Termin-Erinnerungen'],
-  laden: ['bis 4 Personen', 'alles aus Solo', 'Team mit „Mein Tag“', 'Wartezimmer-Bildschirm', 'Auswertung: Wartezeit, Kunden pro Tag'],
-  team: ['bis 10 Personen', 'alles aus Laden', 'bevorzugter Support'],
+  gratis: [merke('1 Person'), merke('bis 100 Kunden im Monat'), merke('Nummer ziehen per QR-Code'), merke('Tresen-Ansicht'), merke('Eintrag auf der Karte')],
+  solo: [
+    merke('1 Person, unbegrenzt Kunden'),
+    merke('Online-Termine und Schlange in einem Tag'),
+    merke('Früher dran'),
+    merke('„Gleich dran“-Nachricht per Push oder E-Mail'),
+    merke('Termin-Erinnerungen'),
+  ],
+  laden: [merke('bis 4 Personen'), merke('alles aus Solo'), merke('Team mit „Mein Tag“'), merke('Wartezimmer-Bildschirm'), merke('Auswertung: Wartezeit, Kunden pro Tag')],
+  team: [merke('bis 10 Personen'), merke('alles aus Laden'), merke('bevorzugter Support')],
 };
 
 const NOTES: Record<PlanId, string> = {
-  gratis: 'Zum Ausprobieren und für kleine Läden.',
-  solo: 'Ein Haarschnitt im Monat bezahlt den Tarif.',
-  laden: 'Der typische Barbershop.',
-  team: 'Mehr als 10 Personen? Schreib uns.',
+  gratis: merke('Zum Ausprobieren und für kleine Läden.'),
+  solo: merke('Ein Haarschnitt im Monat bezahlt den Tarif.'),
+  laden: merke('Der typische Barbershop.'),
+  team: merke('Mehr als 10 Personen? Schreib uns.'),
 };
 
 interface Props {
@@ -45,22 +52,22 @@ export const PlanCards = ({ interval, current, founder = false, action }: Props)
           )}
         >
           <header className="flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-2xl font-extrabold">{plan.name}</h3>
+            <h3 className="font-display text-2xl font-extrabold">{t(plan.name)}</h3>
             {current === id ? (
-              <span className="rounded-full bg-signal px-2.5 py-0.5 text-xs font-bold text-signal-foreground">Dein Tarif</span>
+              <span className="rounded-full bg-signal px-2.5 py-0.5 text-xs font-bold text-signal-foreground">{t('Dein Tarif')}</span>
             ) : recommended ? (
-              <span className="rounded-full bg-foreground px-2.5 py-0.5 text-xs font-bold text-background">Empfohlen</span>
+              <span className="rounded-full bg-foreground px-2.5 py-0.5 text-xs font-bold text-background">{t('Empfohlen')}</span>
             ) : null}
           </header>
           <div className="flex flex-col gap-1">
             <p className="flex items-baseline gap-1.5">
               <span className="font-mono text-4xl font-bold tracking-tight">{euro(net)}</span>
-              <span className="text-sm text-muted-foreground">{id === 'gratis' ? 'für immer' : interval === 'jahr' ? '/ Jahr' : '/ Monat'}</span>
+              <span className="text-sm text-muted-foreground">{id === 'gratis' ? t('für immer') : interval === 'jahr' ? t('/ Jahr') : t('/ Monat')}</span>
             </p>
             {id !== 'gratis' && (
               <p className="font-mono text-xs text-muted-foreground">
-                netto · {euro(gross(net))} inkl. MwSt.
-                {founderPrice && ' · Gründerpreis'}
+                {t('netto · {brutto} inkl. MwSt.', { brutto: euro(gross(net)) })}
+                {founderPrice && ` · ${t('Gründerpreis')}`}
               </p>
             )}
           </div>
@@ -68,11 +75,11 @@ export const PlanCards = ({ interval, current, founder = false, action }: Props)
             {INCLUDES[id].map((line) => (
               <li key={line} className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                {line}
+                {t(line)}
               </li>
             ))}
           </ul>
-          <p className="mt-auto border-t border-dashed border-border pt-3 text-sm text-muted-foreground">{NOTES[id]}</p>
+          <p className="mt-auto border-t border-dashed border-border pt-3 text-sm text-muted-foreground">{t(NOTES[id])}</p>
           {action?.(id)}
         </article>
       );
@@ -81,7 +88,7 @@ export const PlanCards = ({ interval, current, founder = false, action }: Props)
 );
 
 export const IntervalSwitch = ({ value, onChange }: { value: Interval; onChange: (v: Interval) => void }) => (
-  <div role="radiogroup" aria-label="Zahlweise" className="inline-flex rounded-full border border-border bg-card p-1">
+  <div role="radiogroup" aria-label={t('Zahlweise')} className="inline-flex rounded-full border border-border bg-card p-1">
     {(['monat', 'jahr'] as Interval[]).map((v) => (
       <button
         key={v}
@@ -91,7 +98,7 @@ export const IntervalSwitch = ({ value, onChange }: { value: Interval; onChange:
         onClick={() => onChange(v)}
         className={cn('min-h-10 rounded-full px-4 text-sm font-semibold', value === v ? 'bg-foreground text-background' : 'text-muted-foreground')}
       >
-        {v === 'monat' ? 'Monatlich' : 'Jährlich · 2 Monate geschenkt'}
+        {v === 'monat' ? t('Monatlich') : t('Jährlich · 2 Monate geschenkt')}
       </button>
     ))}
   </div>

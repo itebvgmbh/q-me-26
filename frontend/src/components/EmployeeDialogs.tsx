@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Staff } from '../utils/firestore';
 import { WorkingHoursForm } from './WorkingHoursForm';
 import { CreateCustomerForm } from './CreateCustomerForm';
+import { t } from '@/i18n';
 
 interface WorkingHoursDialogProps {
   employee: Staff;
@@ -23,9 +24,9 @@ export const WorkingHoursDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Arbeitszeiten bearbeiten</DialogTitle>
+          <DialogTitle>{t('Arbeitszeiten bearbeiten')}</DialogTitle>
           <DialogDescription>
-            Deine regulären Arbeitszeiten. Nur darin kann man bei dir buchen.
+            {t('Deine regulären Arbeitszeiten. Nur darin kann man bei dir buchen.')}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -64,9 +65,9 @@ export const CreateCustomerDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Neuen Kunden anlegen</DialogTitle>
+          <DialogTitle>{t('Neuen Kunden anlegen')}</DialogTitle>
           <DialogDescription>
-            Für deine Kundenliste beim Eintragen von Terminen. Danach bekommst du einen Link, den du der Person schickst.
+            {t('Für deine Kundenliste beim Eintragen von Terminen. Danach bekommst du einen Link, den du der Person schickst.')}
           </DialogDescription>
         </DialogHeader>
         <CreateCustomerForm

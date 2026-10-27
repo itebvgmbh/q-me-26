@@ -4,6 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { DraftService, newKey } from '../../utils/shop-setup';
+import { intlSprache, t } from '@/i18n';
 
 interface Props {
   services: DraftService[];
@@ -12,7 +13,9 @@ interface Props {
   templateTitle: string;
 }
 
-const euro = (n: number) => (n ? `${n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €` : 'ohne Preis');
+const zahl = (n: number) => n.toLocaleString(intlSprache(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const preis = (s: DraftService) =>
+  !s.price ? t('ohne Preis') : s.priceFrom ? t('ab {preis} €', { preis: zahl(s.price) }) : t('{preis} €', { preis: zahl(s.price) });
 
 const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<DraftService>) => void; remove?: () => void }) => (
   <li className={cn('flex flex-col gap-3 rounded-2xl border p-3 transition-colors', s.selected ? 'border-foreground bg-background' : 'border-border bg-background/60')}>
@@ -20,15 +23,15 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
       <Checkbox
         checked={s.selected}
         onCheckedChange={(v) => update({ selected: v === true })}
-        aria-label={`${s.name || 'Leistung'} anbieten`}
+        aria-label={t('{name} anbieten', { name: s.name || t('Leistung') })}
         className="mt-1 h-5 w-5"
       />
       {s.selected ? (
         <Input
           value={s.name}
           onChange={(e) => update({ name: e.target.value })}
-          placeholder="Name der Leistung"
-          aria-label="Name der Leistung"
+          placeholder={t('Name der Leistung')}
+          aria-label={t('Name der Leistung')}
           autoFocus={s.source === 'own' && !s.name}
           className="h-10 flex-1"
         />
@@ -36,12 +39,12 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
         <button type="button" className="flex min-w-0 flex-1 flex-col text-start" onClick={() => update({ selected: true })}>
           <span className="font-semibold">{s.name}</span>
           <span className="text-sm text-muted-foreground">
-            {[s.category, `${s.duration} Min.`, `${s.priceFrom ? 'ab ' : ''}${euro(s.price)}`].filter(Boolean).join(' · ')}
+            {[s.category, t('{dauer} Min.', { dauer: s.duration }), preis(s)].filter(Boolean).join(' · ')}
           </span>
         </button>
       )}
       {remove && (
-        <Button type="button" variant="ghost" size="icon" onClick={remove} aria-label="Leistung entfernen">
+        <Button type="button" variant="ghost" size="icon" onClick={remove} aria-label={t('Leistung entfernen')}>
           <Trash2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
@@ -49,7 +52,7 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
     {s.selected && (
       <div className="flex flex-wrap items-end gap-3 ps-8">
         <label className="flex w-28 flex-col gap-1 text-xs font-semibold text-muted-foreground">
-          Dauer (Min.){s.durationGuessed ? ' – geschätzt' : ''}
+          {s.durationGuessed ? t('Dauer (Min.) – geschätzt') : t('Dauer (Min.)')}
           <Input
             type="number"
             inputMode="numeric"
@@ -61,7 +64,7 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
           />
         </label>
         <label className="flex w-28 flex-col gap-1 text-xs font-semibold text-muted-foreground">
-          Preis ({s.priceFrom ? 'ab ' : ''}€)
+          {s.priceFrom ? t('Preis (ab €)') : t('Preis (€)')}
           <Input
             type="number"
             inputMode="decimal"
@@ -85,9 +88,9 @@ export const ServicePicker = ({ services, onChange, templateTitle }: Props) => {
     onChange(services.map((s) => (s.key === key ? { ...s, ...patch, ...('selected' in patch ? { autoSelected: false } : {}) } : s)));
   const remove = (key: string) => onChange(services.filter((s) => s.key !== key));
   const groups: { title: string; items: DraftService[]; removable: boolean }[] = [
-    { title: 'Von deiner Webseite', items: services.filter((s) => s.source === 'website'), removable: true },
+    { title: t('Von deiner Webseite'), items: services.filter((s) => s.source === 'website'), removable: true },
     { title: templateTitle, items: services.filter((s) => s.source === 'template'), removable: false },
-    { title: 'Eigene', items: services.filter((s) => s.source === 'own'), removable: true },
+    { title: t('Eigene'), items: services.filter((s) => s.source === 'own'), removable: true },
   ];
 
   return (
@@ -111,7 +114,7 @@ export const ServicePicker = ({ services, onChange, templateTitle }: Props) => {
         onClick={() => onChange([...services, { key: newKey('o'), name: '', category: '', duration: 30, price: 0, selected: true, source: 'own' }])}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
-        Eigene Leistung
+        {t('Eigene Leistung')}
       </Button>
     </div>
   );

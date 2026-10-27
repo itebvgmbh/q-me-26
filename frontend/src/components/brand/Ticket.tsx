@@ -42,7 +42,8 @@ export const Ticket = ({
         size === 'lg' ? 'text-[88px] sm:text-[112px]' : 'text-7xl sm:text-[88px]',
       )}
     >
-      {number}
+      {/* bdi: Nummer bleibt auch in arabischer Umgebung in ihrer Reihenfolge */}
+      <bdi>{number}</bdi>
     </div>
     {stats.length > 0 && (
       <>

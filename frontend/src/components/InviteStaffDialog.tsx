@@ -16,6 +16,7 @@ import { defaultWorkingHours } from '../utils/staff-utils';
 import { workingHoursFromOpening } from '../utils/opening-hours';
 import { createStaffInvite, StaffInviteResult } from '../utils/staff-invitation';
 import { StaffInvitePanel } from './StaffInvitePanel';
+import { t } from '@/i18n';
 
 export interface InviteStaffDialogProps {
   /** Shop that the staff will be invited to */
@@ -52,8 +53,8 @@ export const InviteStaffDialog = ({ shop, services, onStaffInvited }: InviteStaf
   const handleSubmit = async () => {
     setError('');
     const mail = email.trim();
-    if (!name.trim()) return setError('Bitte trag einen Namen ein. So sehen Kunden die Person bei der Buchung.');
-    if (!isEmail(mail)) return setError('Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.');
+    if (!name.trim()) return setError(t('Bitte trag einen Namen ein. So sehen Kunden die Person bei der Buchung.'));
+    if (!isEmail(mail)) return setError(t('Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.'));
     setSaving(true);
     try {
       const existing = await findTeamMemberByEmail(shop.id, mail);
@@ -81,7 +82,7 @@ export const InviteStaffDialog = ({ shop, services, onStaffInvited }: InviteStaf
       setDone({ staff, result });
     } catch (e) {
       console.error('Error creating staff:', e);
-      setError('Anlegen hat nicht geklappt. Bitte noch einmal.');
+      setError(t('Anlegen hat nicht geklappt. Bitte noch einmal.'));
     } finally {
       setSaving(false);
     }
@@ -90,45 +91,45 @@ export const InviteStaffDialog = ({ shop, services, onStaffInvited }: InviteStaf
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">Per E-Mail einladen</Button>
+        <Button variant="outline">{t('Per E-Mail einladen')}</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         {done ? (
           <>
             <DialogHeader>
-              <DialogTitle>{done.staff.name} ist im Team.</DialogTitle>
+              <DialogTitle>{t('{name} ist im Team.', { name: done.staff.name })}</DialogTitle>
               <DialogDescription>
                 {done.result?.email_sent
-                  ? `Die Einladung ist an ${done.staff.email} unterwegs.`
-                  : 'Die Einladung ist noch nicht angekommen. Unten steht, was du tun kannst.'}{' '}
-                Leistungen und Arbeitszeiten passt du unter „Bearbeiten“ an.
+                  ? t('Die Einladung ist an {email} unterwegs.', { email: done.staff.email })
+                  : t('Die Einladung ist noch nicht angekommen. Unten steht, was du tun kannst.')}{' '}
+                {t('Leistungen und Arbeitszeiten passt du unter „Bearbeiten“ an.')}
               </DialogDescription>
             </DialogHeader>
             {!done.result && (
               <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                Die Einladung konnte nicht erstellt werden. Versuch es unten noch einmal.
+                {t('Die Einladung konnte nicht erstellt werden. Versuch es unten noch einmal.')}
               </p>
             )}
             <StaffInvitePanel staff={done.staff} initialResult={done.result} />
             <Button variant="signal" className="w-full" onClick={() => handleOpenChange(false)}>
-              Fertig
+              {t('Fertig')}
             </Button>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Per E-Mail einladen</DialogTitle>
+              <DialogTitle>{t('Per E-Mail einladen')}</DialogTitle>
               <DialogDescription>
-                Die Person steht sofort im Team und bekommt einen Link. Damit legt sie ihr Konto an (oder meldet sich mit ihrem an) und sieht unter „Mein Tag“ ihre Kunden.
+                {t('Die Person steht sofort im Team und bekommt einen Link. Damit legt sie ihr Konto an (oder meldet sich mit ihrem an) und sieht unter „Mein Tag“ ihre Kunden.')}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="invite-name">Name</Label>
-                <Input id="invite-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Max Mustermann" />
+                <Label htmlFor="invite-name">{t('Name')}</Label>
+                <Input id="invite-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Max Mustermann')} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="invite-email">E-Mail</Label>
+                <Label htmlFor="invite-email">{t('E-Mail')}</Label>
                 <Input
                   id="invite-email"
                   type="email"
@@ -147,7 +148,7 @@ export const InviteStaffDialog = ({ shop, services, onStaffInvited }: InviteStaf
                 </p>
               )}
               <Button onClick={handleSubmit} disabled={saving}>
-                {saving ? 'Wird verschickt …' : 'Einladung senden'}
+                {saving ? t('Wird verschickt …') : t('Einladung senden')}
               </Button>
             </div>
           </>

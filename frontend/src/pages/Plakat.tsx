@@ -7,8 +7,13 @@ import { BrandMark } from '../components/brand/Logo';
 import { getShopsByOwnerId, type Shop } from '../utils/firestore';
 import { HilfeLink } from '../components/HilfeLink';
 import { markOnboarding } from '../components/onboarding/Startklar';
+import { merke, t } from '@/i18n';
 
-const STEPS = ['QR-Code scannen', 'Leistung wählen, Nummer ziehen', 'Draußen warten. Auf dem Handy siehst du, wann du dran bist.'];
+const STEPS = [
+  merke('QR-Code scannen'),
+  merke('Leistung wählen, Nummer ziehen'),
+  merke('Draußen warten. Auf dem Handy siehst du, wann du dran bist.'),
+];
 
 /** QR-Plakat für Tür und Tresen, A4 hoch. Gedruckt wird über den Browser (Strg+P). */
 export default function Plakat() {
@@ -25,8 +30,8 @@ export default function Plakat() {
   }, [user]);
 
   const shop = shops?.find((s) => s.id === shopId);
-  if (shops === null) return <div className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">Plakat wird vorbereitet …</div>;
-  if (!shop) return <div className="mx-auto max-w-3xl px-4 py-16">Richte zuerst deinen Laden ein.</div>;
+  if (shops === null) return <div className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">{t('Plakat wird vorbereitet …')}</div>;
+  if (!shop) return <div className="mx-auto max-w-3xl px-4 py-16">{t('Richte zuerst deinen Laden ein.')}</div>;
 
   const url = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shop.id}`;
   const host = window.location.host.replace(/^www\./, '');
@@ -36,14 +41,14 @@ export default function Plakat() {
       <style>{'@page { size: A4 portrait; margin: 12mm; }'}</style>
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em]">QR-Plakat</h1>
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em]">{t('QR-Plakat')}</h1>
           <p className="text-sm text-muted-foreground">
-            Auf A4 drucken und an Tür oder Tresen hängen. <HilfeLink hilfe="plakat">Tipps fürs Aufhängen</HilfeLink>
+            {t('Auf A4 drucken und an Tür oder Tresen hängen.')} <HilfeLink hilfe="plakat">{t('Tipps fürs Aufhängen')}</HilfeLink>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {shops.length > 1 && (
-            <select aria-label="Laden wählen" className="rounded-xl border border-border bg-card px-3 py-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
+            <select aria-label={t('Laden wählen')} className="rounded-xl border border-border bg-card px-3 py-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
               {shops.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -57,7 +62,7 @@ export default function Plakat() {
               window.print();
             }}
           >
-            <Printer className="me-2 h-4 w-4" aria-hidden="true" /> Drucken
+            <Printer className="me-2 h-4 w-4" aria-hidden="true" /> {t('Drucken')}
           </Button>
         </div>
       </div>
@@ -67,9 +72,9 @@ export default function Plakat() {
         <header className="flex flex-col gap-3">
           <p className="text-[clamp(14px,2.4vw,18px)] font-semibold uppercase tracking-[0.12em]">{shop.name}</p>
           <h2 className="font-display text-[clamp(40px,8vw,72px)] font-extrabold leading-[0.92] tracking-[-0.045em]">
-            Nummer ziehen.
+            {t('Nummer ziehen.')}
             <br />
-            Ohne App.
+            {t('Ohne App.')}
           </h2>
         </header>
 
@@ -81,7 +86,7 @@ export default function Plakat() {
           {STEPS.map((step, i) => (
             <li key={step} className="flex items-baseline gap-3 text-[clamp(16px,2.8vw,22px)] font-semibold">
               <span className="font-mono font-bold">{i + 1}</span>
-              {step}
+              {t(step)}
             </li>
           ))}
         </ol>

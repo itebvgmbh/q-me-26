@@ -18,6 +18,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { INDUSTRIES } from '../utils/industries';
 import { loadKartenSalons, type KartenSalon } from '../utils/verzeichnis';
+import { t, tn } from '@/i18n';
 
 // Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -221,8 +222,8 @@ const ShopMap = () => {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Läden finden</h1>
-        <p className="text-muted-foreground">Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Läden finden')}</h1>
+        <p className="text-muted-foreground">{t('Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.')}</p>
       </div>
 
       <form
@@ -234,20 +235,20 @@ const ShopMap = () => {
         }}
       >
         <div className="flex flex-col gap-2 md:flex-row">
-          <label htmlFor="karte-suche" className="sr-only">Adresse, Ort oder PLZ</label>
+          <label htmlFor="karte-suche" className="sr-only">{t('Adresse, Ort oder PLZ')}</label>
           <div className="relative flex-grow">
             <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input id="karte-suche" className="ps-10" placeholder="Adresse, Ort oder PLZ" value={searchInput} onChange={handleSearchChange} />
+            <Input id="karte-suche" className="ps-10" placeholder={t('Adresse, Ort oder PLZ')} value={searchInput} onChange={handleSearchChange} />
           </div>
-          <Button type="submit">Suchen</Button>
+          <Button type="submit">{t('Suchen')}</Button>
           <Button type="button" variant="outline" onClick={getUserLocation} className="whitespace-nowrap">
             <MapPin className="me-2 h-4 w-4" aria-hidden="true" />
-            In meiner Nähe
+            {t('In meiner Nähe')}
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-entfernung">Umkreis: {maxDistance} km</Label>
+            <Label htmlFor="karte-entfernung">{t('Umkreis: {km} km', { km: maxDistance })}</Label>
             <input
               id="karte-entfernung"
               type="range"
@@ -259,14 +260,14 @@ const ShopMap = () => {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-branche">Branche</Label>
+            <Label htmlFor="karte-branche">{t('Branche')}</Label>
             <select
               id="karte-branche"
               className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
             >
-              <option value="">Alle Branchen</option>
+              <option value="">{t('Alle Branchen')}</option>
               {INDUSTRIES.map((industry) => (
                 <option key={industry.id} value={industry.id}>
                   {industry.name}
@@ -277,7 +278,7 @@ const ShopMap = () => {
         </div>
         {locationPermission === 'denied' && (
           <p className="rounded-2xl bg-muted p-3 text-sm">
-            Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.
+            {t('Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.')}
           </p>
         )}
       </form>
@@ -285,17 +286,17 @@ const ShopMap = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-3 lg:col-span-1">
           <h2 className="font-display text-xl font-bold">
-            {userPosition ? `${shops.length} ${shops.length === 1 ? 'Shop' : 'Shops'} gefunden` : 'Alle Shops'}
+            {userPosition ? tn(shops.length, '{n} Shop gefunden', '{n} Shops gefunden') : t('Alle Shops')}
           </h2>
           {loadError ? (
             <ConnectionProblem error={loadError} />
           ) : loading ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Shops werden geladen">
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Shops werden geladen')}>
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
             </div>
           ) : shops.length === 0 && visibleSalons.length === 0 ? (
-            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.</p>
+            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.')}</p>
           ) : (
             <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
               {shops.map((shop) => (
@@ -303,8 +304,8 @@ const ShopMap = () => {
               ))}
               {visibleSalons.length > 0 && (
                 <>
-                  <h3 className="pt-2 font-display text-lg font-bold">Weitere Salons</h3>
-                  <p className="-mt-2 text-sm text-muted-foreground">Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.</p>
+                  <h3 className="pt-2 font-display text-lg font-bold">{t('Weitere Salons')}</h3>
+                  <p className="-mt-2 text-sm text-muted-foreground">{t('Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.')}</p>
                   {visibleSalons.map((s) => (
                     <a
                       key={s.id}
@@ -340,7 +341,7 @@ const ShopMap = () => {
               {userPosition && (
                 <Marker position={userPosition}>
                   <Popup>
-                    Du bist hier
+                    {t('Du bist hier')}
                   </Popup>
                 </Marker>
               )}
@@ -369,7 +370,7 @@ const ShopMap = () => {
                       </p>
                       {shop.distance !== undefined && (
                         <p className="text-sm">
-                          {shop.distance.toFixed(1)} km entfernt
+                          {t('{km} km entfernt', { km: shop.distance.toFixed(1) })}
                         </p>
                       )}
                       <div className="mt-2">
@@ -378,7 +379,7 @@ const ShopMap = () => {
                           className="w-full" 
                           onClick={() => navigate(`/public-join-queue?shopId=${shop.id}`)}
                         >
-                          Einreihen
+                          {t('Einreihen')}
                         </Button>
                       </div>
                     </div>
@@ -392,9 +393,9 @@ const ShopMap = () => {
                     <div className="text-center">
                       <h3 className="font-display font-bold">{s.name}</h3>
                       <p className="text-sm">{[s.street, s.postalCode, s.city].filter(Boolean).join(', ')}</p>
-                      <p className="text-sm text-muted-foreground">Noch nicht online buchbar</p>
+                      <p className="text-sm text-muted-foreground">{t('Noch nicht online buchbar')}</p>
                       <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
-                        Ansehen
+                        {t('Ansehen')}
                       </a>
                     </div>
                   </Popup>

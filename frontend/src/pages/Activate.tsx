@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { auth, useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { AuthShell, FormError } from '../components/auth/AuthShell';
+import { t, tTeile } from '@/i18n';
 
 // Kunden-Link: Ein Laden hat die Person unter "Mein Tag" angelegt und ihr diesen Link geschickt.
 // Link erzeugen (CreateCustomerForm), Prüfen und Verbinden macht das Backend (backend/app/apis/customer_activation).
@@ -16,7 +17,7 @@ const call = async <T,>(token: string, method: 'GET' | 'POST'): Promise<T> => {
   try {
     res = await fetch(`/routes/customer-activation/${encodeURIComponent(token)}`, { method, headers });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -25,7 +26,7 @@ const call = async <T,>(token: string, method: 'GET' | 'POST'): Promise<T> => {
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   return (await res.json()) as T;
 };
@@ -43,7 +44,7 @@ const Activate = () => {
 
   useEffect(() => {
     if (!token) {
-      setInfoError('In diesem Link fehlt etwas. Bitte den Laden, ihn noch einmal zu schicken.');
+      setInfoError(t('In diesem Link fehlt etwas. Bitte den Laden, ihn noch einmal zu schicken.'));
       return;
     }
     call<Info>(token, 'GET')
@@ -57,7 +58,7 @@ const Activate = () => {
     try {
       setDone(await call<{ shopName: string; moved: number }>(token, 'POST'));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      setError(e instanceof Error ? e.message : t('Das hat nicht geklappt.'));
     } finally {
       setBusy(false);
     }
@@ -76,9 +77,9 @@ const Activate = () => {
 
   if (infoError) {
     return (
-      <AuthShell title="Dieser Link klappt nicht." intro={infoError}>
+      <AuthShell title={t('Dieser Link klappt nicht.')} intro={infoError}>
         <Button asChild variant="outline">
-          <Link to="/">Zur Startseite</Link>
+          <Link to="/">{t('Zur Startseite')}</Link>
         </Button>
       </AuthShell>
     );
@@ -88,7 +89,7 @@ const Activate = () => {
     return (
       <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
         <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
-        <span className="sr-only">Link wird geprüft …</span>
+        <span className="sr-only">{t('Link wird geprüft …')}</span>
       </div>
     );
   }
@@ -96,11 +97,11 @@ const Activate = () => {
   if (done) {
     return (
       <AuthShell
-        title="Verbunden."
-        intro={`Deine Termine bei ${done.shopName} stehen jetzt unter „Meine Termine“.`}
+        title={t('Verbunden.')}
+        intro={t('Deine Termine bei {laden} stehen jetzt unter „Meine Termine“.', { laden: done.shopName })}
       >
         <Button asChild size="lg" className="w-full">
-          <Link to="/my-bookings">Zu meinen Terminen</Link>
+          <Link to="/my-bookings">{t('Zu meinen Terminen')}</Link>
         </Button>
       </AuthShell>
     );
@@ -108,9 +109,9 @@ const Activate = () => {
 
   if (info.status === 'abgelaufen') {
     return (
-      <AuthShell title="Der Link ist abgelaufen." intro={`Bitte ${info.shopName} um einen neuen. Beim nächsten Besuch geht das in einer Minute.`}>
+      <AuthShell title={t('Der Link ist abgelaufen.')} intro={t('Bitte {laden} um einen neuen. Beim nächsten Besuch geht das in einer Minute.', { laden: info.shopName })}>
         <Button asChild variant="outline">
-          <Link to="/">Zur Startseite</Link>
+          <Link to="/">{t('Zur Startseite')}</Link>
         </Button>
       </AuthShell>
     );
@@ -118,9 +119,9 @@ const Activate = () => {
 
   if (info.status === 'verbunden') {
     return (
-      <AuthShell title="Schon verbunden." intro={`Dieser Link wurde schon mit einem Konto verbunden. Die Termine bei ${info.shopName} stehen dort unter „Meine Termine“.`}>
+      <AuthShell title={t('Schon verbunden.')} intro={t('Dieser Link wurde schon mit einem Konto verbunden. Die Termine bei {laden} stehen dort unter „Meine Termine“.', { laden: info.shopName })}>
         <Button asChild size="lg" className="w-full">
-          <Link to={user ? '/my-bookings' : `/login?next=${encodeURIComponent('/my-bookings')}`}>{user ? 'Zu meinen Terminen' : 'Anmelden'}</Link>
+          <Link to={user ? '/my-bookings' : `/login?next=${encodeURIComponent('/my-bookings')}`}>{user ? t('Zu meinen Terminen') : t('Anmelden')}</Link>
         </Button>
       </AuthShell>
     );
@@ -128,15 +129,18 @@ const Activate = () => {
 
   return (
     <AuthShell
-      title={`${info.shopName} hat dich angelegt.`}
-      intro={`Verbinde dein Dranzeit-Konto, dann siehst du deine Termine bei ${info.shopName} jederzeit unter „Meine Termine“. Wird ein früherer Platz frei, können wir ihn dir anbieten.`}
+      title={t('{laden} hat dich angelegt.', { laden: info.shopName })}
+      intro={t('Verbinde dein Dranzeit-Konto, dann siehst du deine Termine bei {laden} jederzeit unter „Meine Termine“. Wird ein früherer Platz frei, können wir ihn dir anbieten.', { laden: info.shopName })}
       footer={
         user ? (
           <p>
-            Nicht dein Konto?{' '}
-            <button type="button" onClick={() => auth.signOut()} className="font-semibold text-foreground underline-offset-4 hover:underline">
-              Abmelden
-            </button>
+            {tTeile('Nicht dein Konto? <abmelden>Abmelden</abmelden>', {
+              abmelden: (inhalt) => (
+                <button type="button" onClick={() => auth.signOut()} className="font-semibold text-foreground underline-offset-4 hover:underline">
+                  {inhalt}
+                </button>
+              ),
+            })}
           </p>
         ) : undefined
       }
@@ -146,19 +150,25 @@ const Activate = () => {
         {user ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Angemeldet als <strong className="text-foreground">{user.email}</strong>
+              {tTeile('Angemeldet als <email/>', {
+                email: () => (
+                  <strong className="text-foreground">
+                    <bdi>{user.email}</bdi>
+                  </strong>
+                ),
+              })}
             </p>
             <Button size="lg" onClick={connect} disabled={busy}>
-              {busy ? 'Wird verbunden …' : 'Mit diesem Konto verbinden'}
+              {busy ? t('Wird verbunden …') : t('Mit diesem Konto verbinden')}
             </Button>
           </>
         ) : (
           <>
             <Button asChild size="lg">
-              <Link to={`/register-customer${next}`}>Konto anlegen</Link>
+              <Link to={`/register-customer${next}`}>{t('Konto anlegen')}</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to={`/login${next}`}>Ich habe schon ein Konto</Link>
+              <Link to={`/login${next}`}>{t('Ich habe schon ein Konto')}</Link>
             </Button>
           </>
         )}

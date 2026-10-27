@@ -1,4 +1,5 @@
 import { auth } from 'app';
+import { t } from '@/i18n';
 
 /**
  * Schlüssel einer Nummer ohne Konto. Wer eine Nummer ohne Anmeldung zieht, bekommt einen zufälligen Schlüssel; am
@@ -63,7 +64,7 @@ const post = async (path: string, body: unknown, withAuth = false): Promise<void
   try {
     res = await fetch(`/routes/${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -72,7 +73,7 @@ const post = async (path: string, body: unknown, withAuth = false): Promise<void
     } catch {
       /* keine JSON-Antwort */
     }
-    const error = new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    const error = new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
     (error as Error & { status?: number }).status = res.status;
     throw error;
   }

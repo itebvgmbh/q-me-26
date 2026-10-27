@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { t, datumsLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Ticket } from './brand/Ticket';
 import { TimeSlot } from '../utils/types';
@@ -16,7 +16,7 @@ export interface BookingSuccessStepProps {
 }
 
 // Kurz halten, damit die Monospace-Zeile im Ticket nicht umbricht
-const dayLabel = (d: Date) => (isToday(d) ? 'Heute' : isTomorrow(d) ? 'Morgen' : format(d, 'EEEEEE d.M.', { locale: de }));
+const dayLabel = (d: Date) => (isToday(d) ? t('Heute') : isTomorrow(d) ? t('Morgen') : format(d, t('EEEEEE d.M.'), { locale: datumsLocale() }));
 
 /** Wartemarke nach dem Einreihen ohne Konto */
 export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingReference, shopId, slot, shopName, serviceName, staffName }) => {
@@ -26,14 +26,14 @@ export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingR
     <div className="flex flex-col gap-5">
       <Ticket
         size="lg"
-        eyebrow="Deine Nummer"
+        eyebrow={t('Deine Nummer')}
         eyebrowRight={[serviceName, staffName].filter(Boolean).join(' · ')}
         number={bookingReference || '—'}
         stats={
           slot
             ? [
-                { label: 'Dran um ca.', value: format(slot.start, 'HH:mm') },
-                { label: 'Wann', value: dayLabel(slot.start) },
+                { label: t('Dran um ca.'), value: format(slot.start, 'HH:mm') },
+                { label: t('Wann'), value: dayLabel(slot.start) },
               ]
             : []
         }
@@ -41,10 +41,9 @@ export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingR
       />
 
       <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5">
-        <p className="font-semibold">Mach einen Screenshot von deiner Nummer.</p>
+        <p className="font-semibold">{t('Mach einen Screenshot von deiner Nummer.')}</p>
         <p className="text-sm text-muted-foreground">
-          Mit Konto siehst du die Nummer unter „Meine Termine“ und bekommst frühere Plätze angeboten. Deine Nummer wird dabei
-          übernommen.
+          {t('Mit Konto siehst du die Nummer unter „Meine Termine“ und bekommst frühere Plätze angeboten. Deine Nummer wird dabei übernommen.')}
         </p>
       </div>
 
@@ -58,10 +57,10 @@ export const BookingSuccessStep: React.FC<BookingSuccessStepProps> = ({ bookingR
             })
           }
         >
-          Konto anlegen und Nummer behalten
+          {t('Konto anlegen und Nummer behalten')}
         </Button>
         <Button size="lg" variant="outline" className="sm:flex-1" onClick={() => navigate('/')}>
-          Fertig
+          {t('Fertig')}
         </Button>
       </div>
     </div>

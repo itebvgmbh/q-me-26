@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { useShopDetails } from '../utils/hooks/useShopDetails';
 import { getIndustryNameById } from '../utils/industries';
 import { ConnectionProblem } from '../components/ConnectionProblem';
-import { formatDayHours } from '../utils/opening-hours';
+import { DAY_SHORT, formatDayHours } from '../utils/opening-hours';
 import { canonicalUrl, setzeKopf, STANDARD_KOPF } from '../utils/seiten-kopf';
 import { loadLadenSeite } from '../utils/verzeichnis';
+import { t, intlSprache } from '@/i18n';
 
-const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
-const euro = (value: number) => `${Number(value || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const euro = (value: number) => `${Number(value || 0).toLocaleString(intlSprache(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /** Öffentliche Seite eines Ladens: einreihen oder Termin buchen, Leistungen, Öffnungszeiten, Team */
 const ShopDetails = () => {
@@ -58,7 +58,7 @@ const ShopDetails = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6" aria-busy="true" aria-label="Shop wird geladen">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6" aria-busy="true" aria-label={t('Shop wird geladen')}>
         <div className="h-14 w-80 max-w-full animate-pulse rounded-2xl bg-muted" />
         <div className="h-48 animate-pulse rounded-3xl bg-muted" />
       </div>
@@ -69,13 +69,13 @@ const ShopDetails = () => {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-start gap-4 px-4 py-16 sm:px-6">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">
-          {shop ? 'Dieser Laden ist gerade nicht erreichbar.' : 'Laden nicht gefunden.'}
+          {shop ? t('Dieser Laden ist gerade nicht erreichbar.') : t('Laden nicht gefunden.')}
         </h1>
         <p className="text-muted-foreground">
-          {shop ? 'Online geht im Moment weder Nummer ziehen noch Termin buchen.' : 'Vielleicht ist der Link alt. Such den Laden einfach neu.'}
+          {shop ? t('Online geht im Moment weder Nummer ziehen noch Termin buchen.') : t('Vielleicht ist der Link alt. Such den Laden einfach neu.')}
         </p>
         <Button asChild>
-          <Link to="/shop-map">Läden finden</Link>
+          <Link to="/shop-map">{t('Läden finden')}</Link>
         </Button>
       </div>
     );
@@ -106,7 +106,7 @@ const ShopDetails = () => {
           {shop.phone && (
             <p className="flex items-center gap-2">
               <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <a href={`tel:${shop.phone.replace(/\s/g, '')}`} className="underline-offset-4 hover:underline">
+              <a href={`tel:${shop.phone.replace(/\s/g, '')}`} dir="ltr" className="underline-offset-4 hover:underline">
                 {shop.phone}
               </a>
             </p>
@@ -115,10 +115,10 @@ const ShopDetails = () => {
         {shop.description && <p className="max-w-2xl">{shop.description}</p>}
         <div className="flex flex-wrap gap-2">
           <Button variant="signal" size="lg" asChild>
-            <Link to={`/public-join-queue?shopId=${shop.id}`}>Nummer ziehen</Link>
+            <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
           </Button>
           <Button variant="outline" size="lg" asChild>
-            <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>Termin buchen</Link>
+            <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
           </Button>
         </div>
       </header>
@@ -126,10 +126,10 @@ const ShopDetails = () => {
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <section className="flex flex-col gap-3" aria-labelledby="leistungen">
           <h2 id="leistungen" className="font-display text-2xl font-bold">
-            Leistungen
+            {t('Leistungen')}
           </h2>
           {services.length === 0 ? (
-            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Noch keine Leistungen eingetragen.</p>
+            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Noch keine Leistungen eingetragen.')}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-card px-5">
               {services.map((service) => (
@@ -137,16 +137,16 @@ const ShopDetails = () => {
                   <div className="min-w-0 flex-1">
                     <p className="font-display text-lg font-bold">{service.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-mono">{service.duration} Min</span> · <span className="font-mono">{euro(service.price)}</span>
+                      <span className="font-mono">{t('{minuten} Min', { minuten: service.duration })}</span> · <span className="font-mono">{euro(service.price)}</span>
                       {service.description && ` · ${service.description}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="ghost" asChild>
-                      <Link to={`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`}>Einreihen</Link>
+                      <Link to={`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`}>{t('Einreihen')}</Link>
                     </Button>
                     <Button size="sm" asChild>
-                      <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>Termin</Link>
+                      <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>{t('Termin')}</Link>
                     </Button>
                   </div>
                 </li>
@@ -158,25 +158,25 @@ const ShopDetails = () => {
         <aside className="flex flex-col gap-4">
           <section className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5" aria-labelledby="oeffnungszeiten">
             <h2 id="oeffnungszeiten" className="font-display text-lg font-bold">
-              Öffnungszeiten
+              {t('Öffnungszeiten')}
             </h2>
             {hasHours ? (
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-sm">
                 {hours.map(({ day, entry }) => (
                   <div key={day} className="contents">
-                    <dt className="text-muted-foreground">{DAYS[day]}</dt>
+                    <dt className="text-muted-foreground">{DAY_SHORT[day]}</dt>
                     <dd className="font-mono">{formatDayHours(entry)}</dd>
                   </div>
                 ))}
               </dl>
             ) : (
-              <p className="text-sm text-muted-foreground">{shop.businessHours || 'Nicht angegeben.'}</p>
+              <p className="text-sm text-muted-foreground">{shop.businessHours || t('Nicht angegeben.')}</p>
             )}
           </section>
           {team.length > 0 && (
             <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5" aria-labelledby="team">
               <h2 id="team" className="font-display text-lg font-bold">
-                Team
+                {t('Team')}
               </h2>
               <ul className="flex flex-col gap-2">
                 {team.map((person) => (

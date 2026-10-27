@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, format, isToday, startOfDay, subDays } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { datumsLocale, t, tn } from '@/i18n';
 
 interface Props {
   startDate: Date;
@@ -18,20 +18,20 @@ interface Props {
 export const DateRangeSelector = ({ startDate, numDays, onDateChange, onNumDaysChange }: Props) => (
   <div className="flex flex-wrap items-center gap-2">
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" onClick={() => onDateChange(subDays(startDate, 1))} aria-label="Einen Tag zurück">
+      <Button variant="ghost" size="icon" onClick={() => onDateChange(subDays(startDate, 1))} aria-label={t('Einen Tag zurück')}>
         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
       </Button>
       <p className="min-w-[9.5rem] text-center font-display text-lg font-bold">
-        {format(startDate, 'EEE d. MMM', { locale: de })}
-        {numDays > 1 && ` – ${format(addDays(startDate, numDays - 1), 'EEE d. MMM', { locale: de })}`}
+        {format(startDate, t('EEE d. MMM'), { locale: datumsLocale() })}
+        {numDays > 1 && ` – ${format(addDays(startDate, numDays - 1), t('EEE d. MMM'), { locale: datumsLocale() })}`}
       </p>
-      <Button variant="ghost" size="icon" onClick={() => onDateChange(addDays(startDate, 1))} aria-label="Einen Tag weiter">
+      <Button variant="ghost" size="icon" onClick={() => onDateChange(addDays(startDate, 1))} aria-label={t('Einen Tag weiter')}>
         <ChevronRight className="h-5 w-5" aria-hidden="true" />
       </Button>
     </div>
     {!isToday(startDate) && (
       <Button variant="outline" size="sm" onClick={() => onDateChange(startOfDay(new Date()))}>
-        Heute
+        {t('Heute')}
       </Button>
     )}
     <Select
@@ -41,14 +41,15 @@ export const DateRangeSelector = ({ startDate, numDays, onDateChange, onNumDaysC
         onDateChange(startOfDay(new Date()));
       }}
     >
-      <SelectTrigger className="h-9 w-28" aria-label="Zeitraum">
+      <SelectTrigger className="h-9 w-28" aria-label={t('Zeitraum')}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="1">1 Tag</SelectItem>
-        <SelectItem value="3">3 Tage</SelectItem>
-        <SelectItem value="5">5 Tage</SelectItem>
-        <SelectItem value="7">7 Tage</SelectItem>
+        {[1, 3, 5, 7].map((tage) => (
+          <SelectItem key={tage} value={String(tage)}>
+            {tn(tage, '{n} Tag', '{n} Tage')}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   </div>

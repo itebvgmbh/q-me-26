@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Shop, getShops } from '../firestore';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 
 /**
  * Hook to fetch and manage shops
@@ -32,14 +33,14 @@ export const useShops = (shopIdFromQR: string | null) => {
             setArrivedFromQR(true);
           } else {
             console.error('Shop from QR code not found:', shopIdFromQR);
-            toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+            toast.error(t('Der Shop aus dem QR-Code wurde nicht gefunden'));
             setError(new Error('Shop from QR code not found'));
           }
         }
       } catch (error) {
         console.error('Error loading shops:', error);
         setError(error instanceof Error ? error : new Error('Failed to load shops'));
-        toast.error('Fehler beim Laden der Shops');
+        toast.error(t('Fehler beim Laden der Shops'));
       } finally {
         setLoading(false);
       }

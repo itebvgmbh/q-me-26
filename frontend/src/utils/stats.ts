@@ -1,7 +1,7 @@
 // Auswertung eines Ladens aus seinen Terminen: Kunden pro Tag, Anteil Nummer/Termin, Wartezeit, Stoßzeiten.
 // Wartezeit = Nummer gezogen (createdAt) bis aufgerufen (calledAt, setzt updateAppointment seit Oktober 2026).
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { datumsLocale, t } from '@/i18n';
 import { safelyConvertToDate } from './datetime';
 import type { Appointment } from './firestore';
 
@@ -30,7 +30,7 @@ const MAX_PLAUSIBLE_WAIT_MIN = 240;
 export const computeStats = (appts: Appointment[], from: Date, to: Date): ShopStats => {
   const days: DayStat[] = [];
   for (let d = new Date(from); d < to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-    days.push({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'EEEEEE d.M.', { locale: de }), queue: 0, booked: 0, cancelled: 0 });
+    days.push({ key: format(d, 'yyyy-MM-dd'), label: format(d, t('EEEEEE d.M.'), { locale: datumsLocale() }), queue: 0, booked: 0, cancelled: 0 });
   }
   const byKey = new Map(days.map((d) => [d.key, d]));
   const byHour = Array.from({ length: 24 }, () => 0);

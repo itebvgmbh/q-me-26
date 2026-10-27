@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { PlusCircle, Clock, Trash2, Edit, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Timestamp } from 'firebase/firestore';
 import { Switch } from '@/components/ui/switch';
+import { merke, t } from '@/i18n';
 
 interface RecurringBreakManagerProps {
   staff: Staff;
@@ -21,19 +21,20 @@ interface RecurringBreakManagerProps {
 
 type BreakType = 'lunch' | 'coffee' | 'personal' | 'other';
 
+// Gespeichert wird nur value, label ist nur Anzeige
 const breakTypeOptions = [
-  { value: 'lunch', label: 'Mittagspause' },
-  { value: 'coffee', label: 'Kaffeepause' },
-  { value: 'personal', label: 'Persönlich' },
-  { value: 'other', label: 'Sonstige' },
+  { value: 'lunch', label: merke('Mittagspause') },
+  { value: 'coffee', label: merke('Kaffeepause') },
+  { value: 'personal', label: merke('Persönlich') },
+  { value: 'other', label: merke('Sonstige') },
 ];
 
 const getBreakTypeLabel = (type: string | undefined): string => {
   const option = breakTypeOptions.find(option => option.value === type);
-  return option ? option.label : 'Pause';
+  return option ? t(option.label) : t('Pause');
 };
 
-const DAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const DAY_NAMES = [merke('Sonntag'), merke('Montag'), merke('Dienstag'), merke('Mittwoch'), merke('Donnerstag'), merke('Freitag'), merke('Samstag')];
 
 export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerProps) => {
   const [activeTab, setActiveTab] = useState<string>('0'); // 0 = Sonntag, 1 = Montag, usw.
@@ -85,7 +86,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
       setBreaks(groupedBreaks);
     } catch (error) {
       console.error('Error loading recurring breaks:', error);
-      toast.error('Fehler beim Laden der wiederkehrenden Pausen');
+      toast.error(t('Fehler beim Laden der wiederkehrenden Pausen'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
   
   // Pause löschen
   const handleDeleteBreak = async (breakId: string, dayOfWeek: number) => {
-    if (!window.confirm('Diese Pause wirklich löschen?')) {
+    if (!window.confirm(t('Diese Pause wirklich löschen?'))) {
       return;
     }
     
@@ -134,10 +135,10 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
       updatedBreaks[dayOfWeek] = updatedBreaks[dayOfWeek].filter(b => b.id !== breakId);
       setBreaks(updatedBreaks);
       
-      toast.success('Pause erfolgreich gelöscht');
+      toast.success(t('Pause erfolgreich gelöscht'));
     } catch (error) {
       console.error('Error deleting recurring break:', error);
-      toast.error('Fehler beim Löschen der Pause');
+      toast.error(t('Fehler beim Löschen der Pause'));
     }
   };
   
@@ -156,17 +157,17 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
       );
       setBreaks(updatedBreaks);
       
-      toast.success(`Pause ${updatedBreak.active ? 'aktiviert' : 'deaktiviert'}`);
+      toast.success(updatedBreak.active ? t('Pause aktiviert') : t('Pause deaktiviert'));
     } catch (error) {
       console.error('Error toggling break status:', error);
-      toast.error('Fehler beim Ändern des Pausenstatus');
+      toast.error(t('Fehler beim Ändern des Pausenstatus'));
     }
   };
   
   // Pause speichern (erstellen oder aktualisieren)
   const handleSaveBreak = async () => {
     if (!startTime || !endTime) {
-      toast.error('Bitte gib Start- und Endzeit ein.');
+      toast.error(t('Bitte gib Start- und Endzeit ein.'));
       return;
     }
     
@@ -175,7 +176,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
     const endMinutes = timeStringToMinutes(endTime);
     
     if (startMinutes >= endMinutes) {
-      toast.error('Die Startzeit muss vor der Endzeit liegen');
+      toast.error(t('Die Startzeit muss vor der Endzeit liegen'));
       return;
     }
     
@@ -192,7 +193,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
       );
       
       if (hasConflict) {
-        toast.error('Diese Pause überschneidet sich mit einer bereits existierenden Pause');
+        toast.error(t('Diese Pause überschneidet sich mit einer bereits existierenden Pause'));
         return;
       }
       
@@ -212,7 +213,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
         );
         setBreaks(updatedBreaks);
         
-        toast.success('Pause erfolgreich aktualisiert');
+        toast.success(t('Pause erfolgreich aktualisiert'));
       } else {
         // Neue Pause erstellen
         const newBreak = await createRecurringBreak({
@@ -238,14 +239,14 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
         
         setBreaks(updatedBreaks);
         
-        toast.success('Pause erfolgreich erstellt');
+        toast.success(t('Pause erfolgreich erstellt'));
       }
       
       // Formular zurücksetzen
       resetForm();
     } catch (error) {
       console.error('Error saving recurring break:', error);
-      toast.error('Fehler beim Speichern der Pause');
+      toast.error(t('Fehler beim Speichern der Pause'));
     }
   };
   
@@ -263,9 +264,9 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
     <div className="space-y-6">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Wöchentliche Pausen für {staff.name}</CardTitle>
+          <CardTitle>{t('Wöchentliche Pausen für {name}', { name: staff.name })}</CardTitle>
           <CardDescription>
-            Regelmäßige Pausen – in dieser Zeit kann niemand buchen.
+            {t('Regelmäßige Pausen – in dieser Zeit kann niemand buchen.')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -273,7 +274,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
             <TabsList className="grid grid-cols-7 mb-4">
               {DAY_NAMES.map((day, index) => (
                 <TabsTrigger key={index} value={index.toString()} className="text-xs sm:text-sm">
-                  {day}
+                  {t(day)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -282,11 +283,11 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
               <TabsContent key={index} value={index.toString()}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Pausen für {day}</h3>
+                    <h3 className="text-lg font-medium">{t('Pausen für {tag}', { tag: t(day) })}</h3>
                     {!isAddingBreak && (
                       <Button onClick={handleAddBreak} size="sm">
                         <PlusCircle className="h-4 w-4 me-2" />
-                        Pause hinzufügen
+                        {t('Pause hinzufügen')}
                       </Button>
                     )}
                   </div>
@@ -295,14 +296,14 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                     <Card className="bg-muted">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base">
-                          {editingBreak ? 'Pause bearbeiten' : 'Neue Pause hinzufügen'}
+                          {editingBreak ? t('Pause bearbeiten') : t('Neue Pause hinzufügen')}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-4">
                           <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="startTime">Startzeit</Label>
+                              <Label htmlFor="startTime">{t('Startzeit')}</Label>
                               <Input
                                 id="startTime"
                                 type="time"
@@ -311,7 +312,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="endTime">Endzeit</Label>
+                              <Label htmlFor="endTime">{t('Endzeit')}</Label>
                               <Input
                                 id="endTime"
                                 type="time"
@@ -320,15 +321,15 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="breakType">Pausentyp</Label>
+                              <Label htmlFor="breakType">{t('Pausentyp')}</Label>
                               <Select value={breakType} onValueChange={(value) => setBreakType(value as BreakType)}>
                                 <SelectTrigger id="breakType">
-                                  <SelectValue placeholder="Pausentyp auswählen" />
+                                  <SelectValue placeholder={t('Pausentyp auswählen')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {breakTypeOptions.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
+                                      {t(option.label)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -339,18 +340,18 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                       </CardContent>
                       <CardFooter className="flex justify-between">
                         <Button variant="outline" onClick={resetForm}>
-                          Abbrechen
+                          {t('Abbrechen')}
                         </Button>
                         <Button onClick={handleSaveBreak}>
                           <Save className="h-4 w-4 me-2" />
-                          Speichern
+                          {t('Speichern')}
                         </Button>
                       </CardFooter>
                     </Card>
                   )}
                   
                   {loading ? (
-                    <p>Lädt...</p>
+                    <p>{t('Lädt...')}</p>
                   ) : breaks[index] && breaks[index].length > 0 ? (
                     <div className="space-y-2">
                       {breaks[index].map((breakItem) => (
@@ -367,7 +368,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                               </div>
                               <div className={`text-sm ${!breakItem.active ? 'text-muted-foreground' : ''}`}>
                                 <Clock className="h-3 w-3 inline-block me-1" />
-                                {breakItem.startTime} - {breakItem.endTime} Uhr
+                                {t('{start} - {ende} Uhr', { start: breakItem.startTime, ende: breakItem.endTime })}
                               </div>
                             </div>
                           </div>
@@ -384,7 +385,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                     </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-4">
-                      Keine Pausen für diesen Tag eingerichtet.
+                      {t('Keine Pausen für diesen Tag eingerichtet.')}
                     </p>
                   )}
                 </div>

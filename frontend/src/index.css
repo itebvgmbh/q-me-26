@@ -83,17 +83,23 @@
   html[lang="ar"] * {
     letter-spacing: 0 !important;
   }
-  /* Von rechts nach links zeigen Pfeile für „weiter“ und „zurück“ in die andere Richtung.
-     scale statt transform, damit gedrehte Pfeile (rotate-90) ihre Drehung behalten */
-  [dir="rtl"] :is(.lucide-arrow-right, .lucide-arrow-left, .lucide-chevron-right, .lucide-chevron-left,
-    .lucide-chevrons-right, .lucide-chevrons-left, .lucide-arrow-big-right, .lucide-arrow-big-left) {
-    scale: -1 1;
-  }
   /* E-Mail, Telefon und Adressen bleiben lesbar von links nach rechts */
   [dir="rtl"] :is(input[type="email"], input[type="tel"], input[type="url"]) {
     direction: ltr;
     text-align: right;
   }
+}
+
+/* Von rechts nach links zeigen Pfeile für „weiter“ und „zurück“ in die andere Richtung.
+   scale statt transform, damit gedrehte Pfeile (rotate-90) ihre Drehung behalten.
+   Außerhalb von @layer: Tailwind würfe die Regel sonst raus, weil lucide die Klassen erst zur Laufzeit setzt. */
+[dir="rtl"] :is(.lucide-arrow-right, .lucide-arrow-left, .lucide-chevron-right, .lucide-chevron-left,
+  .lucide-chevrons-right, .lucide-chevrons-left, .lucide-arrow-big-right, .lucide-arrow-big-left) {
+  scale: -1 1;
+}
+/* Ziffern bleiben in JetBrains Mono; arabische Buchstaben sonst aus einer Monospace-Ersatzschrift, die sie auseinanderreißt */
+html[lang="ar"] .font-mono {
+  font-family: "JetBrains Mono", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @layer components {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Shop, Service, getServicesByShopId, createService, updateService } from '../firestore';
+import { t } from '@/i18n';
 
 /**
  * Custom hook for service management operations
@@ -33,7 +34,7 @@ export const useServiceManagement = (shop: Shop | null) => {
     } catch (err) {
       console.error('Error loading services:', err);
       setError(err instanceof Error ? err : new Error('Failed to load services'));
-      toast.error('Fehler beim Laden der Services');
+      toast.error(t('Fehler beim Laden der Services'));
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,7 @@ export const useServiceManagement = (shop: Shop | null) => {
     category: string;
   }) => {
     if (!shop) {
-      toast.error('Kein Shop ausgewählt');
+      toast.error(t('Kein Shop ausgewählt'));
       return false;
     }
 
@@ -61,12 +62,12 @@ export const useServiceManagement = (shop: Shop | null) => {
         ...serviceData
       });
       
-      toast.success('Service erfolgreich erstellt');
+      toast.success(t('Service erfolgreich erstellt'));
       await loadServices(); // Refresh the services list
       return true;
     } catch (err) {
       console.error('Error creating service:', err);
-      toast.error('Fehler beim Erstellen des Services');
+      toast.error(t('Fehler beim Erstellen des Services'));
       return false;
     }
   }, [shop, loadServices]);
@@ -85,12 +86,12 @@ export const useServiceManagement = (shop: Shop | null) => {
     try {
       await updateService(serviceId, serviceData);
       
-      toast.success('Service erfolgreich aktualisiert');
+      toast.success(t('Service erfolgreich aktualisiert'));
       await loadServices(); // Refresh the services list
       return true;
     } catch (err) {
       console.error('Error updating service:', err);
-      toast.error('Fehler beim Aktualisieren des Services');
+      toast.error(t('Fehler beim Aktualisieren des Services'));
       return false;
     }
   }, [loadServices]);

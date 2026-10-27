@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import { ShopCard } from './ShopCard';
 import { getAllShopsForMarketplace, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
 import { Shop, Service } from '../utils/firestore/types';
+import { t } from '@/i18n';
 
 /**
  * MarketplaceSection displays a list of shops that users can browse
@@ -80,22 +81,22 @@ export const MarketplaceSection: React.FC = () => {
           handleSearch();
         }}
       >
-        <label htmlFor="shop-suche" className="sr-only">Ort oder PLZ</label>
+        <label htmlFor="shop-suche" className="sr-only">{t('Ort oder PLZ')}</label>
         <div className="relative min-w-0 flex-[1_1_240px]">
           <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             id="shop-suche"
             className="border-transparent ps-10 text-foreground"
-            placeholder="Ort oder PLZ"
+            placeholder={t('Ort oder PLZ')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <Button type="submit" variant="signal">Suchen</Button>
+        <Button type="submit" variant="signal">{t('Suchen')}</Button>
       </form>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Shops werden geladen">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={t('Shops werden geladen')}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5">
               <Skeleton className="h-6 w-2/3 bg-white/10" />
@@ -106,9 +107,9 @@ export const MarketplaceSection: React.FC = () => {
         </div>
       ) : shops.length === 0 ? (
         <div className="rounded-3xl border border-white/10 p-8">
-          <p className="text-lg font-semibold">Hier ist noch kein Shop eingetragen.</p>
+          <p className="text-lg font-semibold">{t('Hier ist noch kein Shop eingetragen.')}</p>
           <p className="mt-1 text-white/70">
-            {Object.keys(searchFilters).length > 0 ? 'Versuch es mit einem anderen Ort oder einer PLZ.' : 'Schau bald wieder vorbei.'}
+            {Object.keys(searchFilters).length > 0 ? t('Versuch es mit einem anderen Ort oder einer PLZ.') : t('Schau bald wieder vorbei.')}
           </p>
         </div>
       ) : (
@@ -120,7 +121,7 @@ export const MarketplaceSection: React.FC = () => {
           </div>
           {shops.length > 6 && (
             <Button variant="outline" className="self-start border-background text-background hover:bg-background hover:text-foreground" onClick={handleViewAllShops}>
-              Alle {shops.length} Shops ansehen
+              {t('Alle {anzahl} Shops ansehen', { anzahl: shops.length })}
             </Button>
           )}
         </>

@@ -1,4 +1,5 @@
 import { auth } from 'app';
+import { t } from '@/i18n';
 
 // Team-Einladung: Link erzeugen (Inhaber), prüfen (öffentlich) und annehmen (angemeldet).
 // Alles läuft übers Backend (backend/app/apis/staff_invitation): Der Link hängt am Eintrag im Team,
@@ -15,7 +16,7 @@ const call = async <T,>(path: string, method: 'GET' | 'POST', body?: unknown): P
   try {
     res = await fetch(`/routes/${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -24,7 +25,8 @@ const call = async <T,>(path: string, method: 'GET' | 'POST', body?: unknown): P
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    // detail ist deutscher Text vom Backend und bleibt so; nur der eigene Ersatztext wird übersetzt
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   return (await res.json()) as T;
 };

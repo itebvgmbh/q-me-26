@@ -12,6 +12,7 @@ import { useBookingForm } from '../utils/hooks/useBookingForm';
 import { useBookingValidation } from '../utils/hooks/useBookingValidation';
 import { Link } from 'react-router-dom';
 import { hasFeature } from '../utils/plans';
+import { t } from '@/i18n';
 
 const BookAppointment = () => {
   const navigate = useNavigate();
@@ -99,31 +100,31 @@ const BookAppointment = () => {
       }
     } catch (error) {
       console.error('Error in booking process:', error);
-      toast.error('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.');
+      toast.error(t('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.'));
     }
   };
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Termin buchen</h1>
-        <p className="text-muted-foreground">Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Termin buchen')}</h1>
+        <p className="text-muted-foreground">{t('Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.')}</p>
       </div>
 
       {shopsLoading ? (
-        <div className="flex flex-col gap-4" aria-busy="true" aria-label="Shops werden geladen">
+        <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('Shops werden geladen')}>
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
         </div>
       ) : !termineAllowed ? (
         <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6">
-          <p className="font-semibold">{shopData?.name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.</p>
+          <p className="font-semibold">{t('{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.', { name: shopData?.name ?? '' })}</p>
           <div className="flex flex-wrap gap-2">
             <Link to={`/public-join-queue?shopId=${selectedShop}`} className="inline-flex min-h-11 items-center rounded-xl bg-foreground px-5 font-semibold text-background">
-              Nummer ziehen
+              {t('Nummer ziehen')}
             </Link>
             <button type="button" className="min-h-11 rounded-xl border border-border px-5 font-semibold" onClick={() => setSelectedShop('')}>
-              Anderen Laden wählen
+              {t('Anderen Laden wählen')}
             </button>
           </div>
         </div>

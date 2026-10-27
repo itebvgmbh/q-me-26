@@ -12,6 +12,7 @@ import { hasFeature } from '../utils/plans';
 import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane';
 import type { Shop, Staff } from '../utils/firestore';
 import { publicFromDoc, shopDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
+import { t, tn } from '@/i18n';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
@@ -30,8 +31,8 @@ export default function Bildschirm() {
   const today = dayKey(now);
 
   useEffect(() => {
-    const t = window.setInterval(() => setNow(new Date()), 15_000);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setNow(new Date()), 15_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // Bildschirm bleibt an, wo der Browser es erlaubt
@@ -78,13 +79,13 @@ export default function Bildschirm() {
 
   if (shop === undefined) return <div className="min-h-screen bg-foreground" />;
   if (shop === null) {
-    return <Message title="Diesen Laden gibt es nicht." text="Prüf den Link zum Bildschirm am Tresen." />;
+    return <Message title={t('Diesen Laden gibt es nicht.')} text={t('Prüf den Link zum Bildschirm am Tresen.')} />;
   }
   if (shop.suspended) {
-    return <Message title="Dieser Laden ist gerade gesperrt." text={`Fragen beantworten wir unter ${HILFE_MAIL}.`} />;
+    return <Message title={t('Dieser Laden ist gerade gesperrt.')} text={t('Fragen beantworten wir unter {mail}.', { mail: HILFE_MAIL })} />;
   }
   if (!hasFeature(shop, 'bildschirm', now)) {
-    return <Message title="Der Wartezimmer-Bildschirm gehört zum Tarif Laden." text="Unter „Tarif“ lässt er sich freischalten." />;
+    return <Message title={t('Der Wartezimmer-Bildschirm gehört zum Tarif Laden.')} text={t('Unter „Tarif“ lässt er sich freischalten.')} />;
   }
 
   const joinUrl = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shopId}`;
@@ -104,41 +105,47 @@ export default function Bildschirm() {
       <main className="grid flex-1 grid-cols-[1fr_auto] gap-[2vw]">
         <section className="grid auto-rows-fr gap-[1.2vw]" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(lanes.length, 1), 4)}, minmax(0, 1fr))` }}>
           {lanes.length === 0 && (
-            <div className="flex items-center justify-center rounded-[2vw] bg-background/[0.06] font-display text-[3vw] font-bold">Gerade wartet niemand.</div>
+            <div className="flex items-center justify-center rounded-[2vw] bg-background/[0.06] font-display text-[3vw] font-bold">{t('Gerade wartet niemand.')}</div>
           )}
           {lanes.map(({ person, current, next, projection }) => (
             <article key={person.id} className="flex min-w-0 flex-col gap-[1vw] rounded-[2vw] bg-background/[0.06] p-[1.6vw]">
               <h2 className="truncate font-display text-[2vw] font-bold">{person.name}</h2>
               <div className="flex flex-col gap-[0.4vw] rounded-[1.4vw] bg-signal p-[1.4vw] text-signal-foreground">
-                <span className="text-[1vw] font-semibold uppercase tracking-[0.08em]">Jetzt dran</span>
+                <span className="text-[1vw] font-semibold uppercase tracking-[0.08em]">{t('Jetzt dran')}</span>
                 <span className="font-mono text-[6vw] font-bold leading-none tracking-[-0.04em]">
                   {current.length > 0 ? current.map(label).join(' ') : '–'}
                 </span>
               </div>
               <div className="flex flex-col gap-[0.6vw]">
-                <span className="text-[1vw] font-semibold uppercase tracking-[0.08em] text-background/60">Als Nächstes</span>
+                <span className="text-[1vw] font-semibold uppercase tracking-[0.08em] text-background/60">{t('Als Nächstes')}</span>
                 {next.slice(0, 4).map((a) => (
                   <div key={a.id} className="flex items-baseline justify-between gap-2 font-mono">
                     <span className="text-[3vw] font-bold leading-none">{label(a)}</span>
-                    <span className="text-[1.5vw] text-background/70">ca. {format(expectedStart(a, projection), 'HH:mm')}</span>
+                    <span className="text-[1.5vw] text-background/70">
+                      {t('ca. {zeit}', { zeit: format(expectedStart(a, projection), 'HH:mm') })}
+                    </span>
                   </div>
                 ))}
-                {next.length === 0 && <span className="text-[1.6vw] text-background/60">frei</span>}
-                {next.length > 4 && <span className="text-[1.4vw] text-background/60">+ {next.length - 4} weitere</span>}
+                {next.length === 0 && <span className="text-[1.6vw] text-background/60">{t('frei')}</span>}
+                {next.length > 4 && (
+                  <span className="text-[1.4vw] text-background/60">{t('+ {anzahl} weitere', { anzahl: next.length - 4 })}</span>
+                )}
               </div>
             </article>
           ))}
         </section>
 
         <aside className="flex w-[22vw] flex-col items-center justify-center gap-[1.2vw] rounded-[2vw] bg-background p-[1.6vw] text-center text-foreground">
-          <p className="font-display text-[2vw] font-extrabold leading-tight">Nummer ziehen ohne App</p>
+          <p className="font-display text-[2vw] font-extrabold leading-tight">{t('Nummer ziehen ohne App')}</p>
           <QRCodeSVG value={joinUrl} size={512} className="h-auto w-full" marginSize={1} />
-          <p className="text-[1.2vw] text-muted-foreground">Scannen, Leistung wählen, draußen warten. Auf dem Handy siehst du, wann du dran bist.</p>
+          <p className="text-[1.2vw] text-muted-foreground">
+            {t('Scannen, Leistung wählen, draußen warten. Auf dem Handy siehst du, wann du dran bist.')}
+          </p>
         </aside>
       </main>
 
       <footer className="flex items-center justify-between gap-4 text-[1.3vw] text-background/70">
-        <span>{waiting === 0 ? 'Keine Wartenden' : waiting === 1 ? '1 Person wartet' : `${waiting} Personen warten`}</span>
+        <span>{waiting === 0 ? t('Keine Wartenden') : tn(waiting, '{n} Person wartet', '{n} Personen warten')}</span>
         <span className="flex items-center gap-2 font-semibold text-background">
           <BrandMark inverted className="h-[2vw] w-[2vw]" /> Dranzeit
         </span>

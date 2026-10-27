@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Check, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,6 +9,7 @@ import { CustomerCalendar } from './CustomerCalendar';
 import { Staff, Service, Shop } from '../utils/firestore';
 import { CalendarTimeSlot } from '../utils/types';
 import { hasFeature } from '../utils/plans';
+import { t, datumsLocale, intlSprache } from '@/i18n';
 
 interface BookingFormProps {
   shops: Shop[];
@@ -95,7 +95,7 @@ export function BookingForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <Step nr={1} title="Wo?" done={!!shop}>
+      <Step nr={1} title={t('Wo?')} done={!!shop}>
         {shop ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -107,10 +107,10 @@ export function BookingForm({
                 </p>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => onShopChange('')}>Anderen Shop wählen</Button>
+            <Button variant="ghost" size="sm" onClick={() => onShopChange('')}>{t('Anderen Shop wählen')}</Button>
           </div>
         ) : shops.length === 0 ? (
-          <p className="text-muted-foreground">Noch keine Shops eingetragen.</p>
+          <p className="text-muted-foreground">{t('Noch keine Shops eingetragen.')}</p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {shops.map((s) => (
@@ -124,16 +124,16 @@ export function BookingForm({
       </Step>
 
       {shop && (
-        <Step nr={2} title="Was?" done={!!service}>
+        <Step nr={2} title={t('Was?')} done={!!service}>
           {services.length === 0 ? (
-            <p className="text-muted-foreground">Dieser Shop hat noch keine Leistungen eingetragen.</p>
+            <p className="text-muted-foreground">{t('Dieser Shop hat noch keine Leistungen eingetragen.')}</p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {services.map((s) => (
                 <Choice key={s.id} selected={s.id === selectedService} onClick={() => onServiceChange(s.id)}>
                   <span className="font-semibold">{s.name}</span>
                   <span className={cn('text-sm', s.id === selectedService ? 'text-background/75' : 'text-muted-foreground')}>
-                    {[s.duration && `${s.duration} Min`, typeof s.price === 'number' && `${s.price.toLocaleString('de-DE')} €`].filter(Boolean).join(' · ')}
+                    {[s.duration && t('{minuten} Min', { minuten: s.duration }), typeof s.price === 'number' && `${s.price.toLocaleString(intlSprache())} €`].filter(Boolean).join(' · ')}
                   </span>
                 </Choice>
               ))}
@@ -143,9 +143,9 @@ export function BookingForm({
       )}
 
       {shop && service && (
-        <Step nr={3} title="Bei wem?" done={!!person}>
+        <Step nr={3} title={t('Bei wem?')} done={!!person}>
           {staff.length === 0 ? (
-            <p className="text-muted-foreground">Für diesen Shop ist noch niemand eingetragen.</p>
+            <p className="text-muted-foreground">{t('Für diesen Shop ist noch niemand eingetragen.')}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {staff.map((s) => (
@@ -159,7 +159,7 @@ export function BookingForm({
       )}
 
       {shop && service && person && (
-        <Step nr={4} title="Wann?" done={!!selectedTimeSlot}>
+        <Step nr={4} title={t('Wann?')} done={!!selectedTimeSlot}>
           <CustomerCalendar
             shopId={selectedShop}
             serviceId={selectedService}
@@ -172,10 +172,10 @@ export function BookingForm({
       )}
 
       {shop && service && person && selectedTimeSlot && (
-        <section className="sticky bottom-3 z-10 flex flex-col gap-4 rounded-3xl bg-foreground p-5 text-background shadow-xl sm:p-6" aria-label="Zusammenfassung">
+        <section className="sticky bottom-3 z-10 flex flex-col gap-4 rounded-3xl bg-foreground p-5 text-background shadow-xl sm:p-6" aria-label={t('Zusammenfassung')}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="font-display text-2xl font-bold">
-              {format(selectedTimeSlot.start, "EEE d. MMM 'um' HH:mm", { locale: de })}
+              {format(selectedTimeSlot.start, t("EEE d. MMM 'um' HH:mm"), { locale: datumsLocale() })}
             </p>
             <p className="text-sm text-background/75">
               {service.name} · {person.name} · {shop.name}
@@ -189,22 +189,22 @@ export function BookingForm({
               className="mt-0.5 border-background data-[state=checked]:bg-signal data-[state=checked]:text-signal-foreground"
             />
             <span>
-              <strong className="block">Früher dran, wenn etwas frei wird</strong>
-              <span className="text-background/75">Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.</span>
+              <strong className="block">{t('Früher dran, wenn etwas frei wird')}</strong>
+              <span className="text-background/75">{t('Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.')}</span>
             </span>
           </label>
           )}
           {isLoggedIn ? (
             <Button variant="signal" size="lg" onClick={onBookAppointment} disabled={submitting}>
-              {submitting ? 'Wird gebucht …' : 'Termin verbindlich buchen'}
+              {submitting ? t('Wird gebucht …') : t('Termin verbindlich buchen')}
             </Button>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button variant="signal" size="lg" className="sm:flex-1" asChild>
-                <Link to={loginHref}>Anmelden und buchen</Link>
+                <Link to={loginHref}>{t('Anmelden und buchen')}</Link>
               </Button>
               <Button variant="outline" size="lg" className="border-background/50 sm:flex-1 text-background hover:bg-background hover:text-foreground" asChild>
-                <Link to={`/public-join-queue?shopId=${selectedShop}&serviceId=${selectedService}`}>Ohne Konto einreihen</Link>
+                <Link to={`/public-join-queue?shopId=${selectedShop}&serviceId=${selectedService}`}>{t('Ohne Konto einreihen')}</Link>
               </Button>
             </div>
           )}

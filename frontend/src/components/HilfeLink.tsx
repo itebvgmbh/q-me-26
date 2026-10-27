@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CircleHelp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { t } from '@/i18n';
 
 export const HILFE_MAIL = 'hilfe@dranzeit.de';
 
@@ -9,7 +10,7 @@ export const HILFE_MAIL = 'hilfe@dranzeit.de';
  * deshalb ein normaler Link statt Router-Link – und ein neuer Tab, damit angefangene Eingaben bleiben.
  * Dass jeder Artikel existiert, prüft backend/tests/test_hilfe.py.
  */
-export const HilfeLink = ({ hilfe, children = 'Mehr dazu', className }: { hilfe: string; children?: ReactNode; className?: string }) => (
+export const HilfeLink = ({ hilfe, children = t('Mehr dazu'), className }: { hilfe: string; children?: ReactNode; className?: string }) => (
   <a
     href={`/hilfe/${hilfe}`}
     target="_blank"
@@ -18,6 +19,6 @@ export const HilfeLink = ({ hilfe, children = 'Mehr dazu', className }: { hilfe:
   >
     <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
     {children}
-    <span className="sr-only"> (öffnet in neuem Tab)</span>
+    <span className="sr-only"> {t('(öffnet in neuem Tab)')}</span>
   </a>
 );

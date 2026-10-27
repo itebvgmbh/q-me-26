@@ -3,6 +3,7 @@ import { Loader2, MapPin, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import type { PlaceDetailsData, PlaceSuggestion } from '../../brain/data-contracts';
 import { placeDetails, searchPlaces } from '../../utils/shop-setup';
+import { t } from '@/i18n';
 
 const token = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -64,7 +65,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
   return (
     <div className="flex flex-col gap-3">
       <label htmlFor="laden-suche" className="sr-only">
-        Name deines Ladens und Ort
+        {t('Name deines Ladens und Ort')}
       </label>
       <div className="relative">
         <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -73,12 +74,12 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
           autoFocus
           autoComplete="off"
           enterKeyHint="search"
-          placeholder="z. B. Salon Schnittig Leipzig"
+          placeholder={t('z. B. Salon Schnittig Leipzig')}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           className="h-14 rounded-2xl ps-12 text-base"
         />
-        {searching && <Loader2 className="absolute end-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Suche läuft" />}
+        {searching && <Loader2 className="absolute end-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-label={t('Suche läuft')} />}
       </div>
       {error && (
         <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -86,7 +87,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
         </p>
       )}
       {suggestions.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="Vorschläge von Google">
+        <ul className="flex flex-col gap-2" aria-label={t('Vorschläge von Google')}>
           {suggestions.map((s) => (
             <li key={s.place_id}>
               <button
@@ -102,7 +103,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
                 )}
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-semibold">{s.title}</span>
-                  <span className="truncate text-sm text-muted-foreground">{loadingId === s.place_id ? 'Hole die Angaben von Google …' : s.subtitle}</span>
+                  <span className="truncate text-sm text-muted-foreground">{loadingId === s.place_id ? t('Hole die Angaben von Google …') : s.subtitle}</span>
                 </span>
               </button>
             </li>
@@ -110,7 +111,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
         </ul>
       )}
       {query.trim().length >= 3 && !searching && suggestions.length === 0 && !error && (
-        <p className="text-sm text-muted-foreground">Nichts gefunden. Probier es mit dem Ort dazu – oder trag deinen Laden selbst ein.</p>
+        <p className="text-sm text-muted-foreground">{t('Nichts gefunden. Probier es mit dem Ort dazu – oder trag deinen Laden selbst ein.')}</p>
       )}
     </div>
   );

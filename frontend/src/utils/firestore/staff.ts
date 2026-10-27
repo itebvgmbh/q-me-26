@@ -4,6 +4,7 @@ import { firebaseApp, firebaseAuth } from 'app';
 import { Staff, WorkingHours } from './types';
 import { createUserProfile } from '../user-profile-service';
 import { contactRef, splitContact, withContacts } from './staff-contacts';
+import { t } from '@/i18n';
 
 export const getShopStaff = async (shopId: string): Promise<Staff[]> => {
   const db = getFirestore(firebaseApp);
@@ -187,8 +188,8 @@ export const getStaffWithContacts = async (shopId: string): Promise<Staff[]> =>
 /** Meldung, wenn findTeamMemberByEmail jemanden findet */
 export const teamEmailMessage = (existing: Staff) =>
   existing.isActive === false
-    ? `${existing.name} mit dieser E-Mail ist deaktiviert. Hol sie unten unter „Deaktiviert“ zurück ins Team.`
-    : `${existing.name} hat diese E-Mail schon im Team.`;
+    ? t('{name} mit dieser E-Mail ist deaktiviert. Hol sie unten unter „Deaktiviert“ zurück ins Team.', { name: existing.name })
+    : t('{name} hat diese E-Mail schon im Team.', { name: existing.name });
 
 // Utility function to ensure staff has a user profile
 export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {

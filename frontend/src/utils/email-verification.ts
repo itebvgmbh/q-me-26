@@ -1,6 +1,7 @@
 import { applyActionCode } from 'firebase/auth';
 import { toast } from 'sonner';
 import { auth, firebaseAuth } from 'app';
+import { t } from '@/i18n';
 
 // E-Mail-Adresse bestätigen: Die Mail verschickt das Backend über Resend (backend/app/apis/email_verification),
 // der Link darin führt auf /email-bestaetigen?code=… (pages/EmailBestaetigen.tsx). Pflicht ist das nirgends.
@@ -14,7 +15,7 @@ export const sendVerificationMail = async (): Promise<VerificationMailResult> =>
   try {
     res = await fetch('/routes/email-verification', { method: 'POST', headers: { Authorization: await auth.getAuthHeaderValue() } });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -23,7 +24,7 @@ export const sendVerificationMail = async (): Promise<VerificationMailResult> =>
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   return (await res.json()) as VerificationMailResult;
 };
@@ -31,10 +32,10 @@ export const sendVerificationMail = async (): Promise<VerificationMailResult> =>
 /** Text zum Ergebnis, für Profil und Registrieren */
 export const verificationMailMessage = ({ status, email }: VerificationMailResult): string =>
   ({
-    verschickt: `Wir haben dir eine E-Mail an ${email} geschickt. Tipp auf den Link darin, dann ist deine Adresse bestätigt.`,
-    bestaetigt: 'Deine E-Mail-Adresse ist schon bestätigt.',
-    testadresse: 'An Testadressen wie example.com verschickt Dranzeit keine E-Mails.',
-    nicht_eingerichtet: 'Der E-Mail-Versand ist gerade nicht eingerichtet. Versuch es später noch mal.',
+    verschickt: t('Wir haben dir eine E-Mail an {email} geschickt. Tipp auf den Link darin, dann ist deine Adresse bestätigt.', { email }),
+    bestaetigt: t('Deine E-Mail-Adresse ist schon bestätigt.'),
+    testadresse: t('An Testadressen wie example.com verschickt Dranzeit keine E-Mails.'),
+    nicht_eingerichtet: t('Der E-Mail-Versand ist gerade nicht eingerichtet. Versuch es später noch mal.'),
   })[status];
 
 /** Gleich nach dem Registrieren mit E-Mail und Passwort, im Hintergrund: Bestätigungs-Mail, bei Erfolg ein Hinweis. Wirft nie. */

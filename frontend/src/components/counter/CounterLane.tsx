@@ -7,8 +7,10 @@ import { cn } from '@/lib/utils';
 import { safelyConvertToDate } from '../../utils/datetime';
 import { Appointment, Service, updateAppointment } from '../../utils/firestore';
 import { delayMinutes, expectedStart, isDue, projectLane, SHOW_DELAY_MINUTES, waitingInOrder } from '../../utils/queue-lane';
+import { merke, t, tn, tTeile } from '@/i18n';
 
-const PLACEHOLDER_NAMES = ['Unbekannter Kunde', 'Laufkundschaft', 'Gast'];
+// Platzhalter, die so in Firestore stehen – verglichen wird deutsch, angezeigt übersetzt
+const PLACEHOLDER_NAMES: string[] = [merke('Unbekannter Kunde'), merke('Laufkundschaft'), merke('Gast')];
 
 /**
  * Name und Nummer, wie am Tresen gerufen wird – die Nummer steht immer dabei, auch bei Nummern vom Tresen
@@ -18,15 +20,16 @@ export const customerLabel = (a: Appointment) => {
   const raw = a.customerName?.trim() ?? '';
   if (a.referenceCode) {
     const name = raw && !PLACEHOLDER_NAMES.includes(raw) ? raw : '';
-    return name ? `${name} · Nr. ${a.referenceCode}` : `Nr. ${a.referenceCode}`;
+    return name ? t('{name} · Nr. {nummer}', { name, nummer: a.referenceCode }) : t('Nr. {nummer}', { nummer: a.referenceCode });
   }
-  return raw && raw !== 'Unbekannter Kunde' ? raw : 'Gast';
+  if (!raw || raw === 'Unbekannter Kunde') return t('Gast');
+  return PLACEHOLDER_NAMES.includes(raw) ? t(raw) : raw;
 };
 
 /** Handynummer vom Nummer-Ziehen oder aus dem Profil, damit der Laden anrufen kann (nach 90 Tagen gelöscht) */
 const PhoneLink = ({ phone }: { phone: string }) => (
   <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2">
-    <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {phone}
+    <Phone className="h-3.5 w-3.5" aria-hidden="true" /> <bdi dir="ltr">{phone}</bdi>
   </a>
 );
 
@@ -57,7 +60,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
   const next = waiting[0];
   const nextDue = Boolean(next && isDue(next, nowMs));
   const delay = live && next ? delayMinutes(next, projection) : 0;
-  const serviceName = (a: Appointment) => services.find((s) => s.id === a.serviceId)?.name || 'Leistung';
+  const serviceName = (a: Appointment) => services.find((s) => s.id === a.serviceId)?.name || t('Leistung');
   const at = (a: Appointment) => format(safelyConvertToDate(a.startTime), 'HH:mm');
 
   const run = async (work: () => Promise<void>) => {
@@ -67,7 +70,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
       await work();
     } catch (error) {
       console.error('Error at the counter:', error);
-      toast.error('Das hat nicht geklappt. Versuch es noch einmal.');
+      toast.error(t('Das hat nicht geklappt. Versuch es noch einmal.'));
     } finally {
       setBusy(false);
     }
@@ -79,9 +82,9 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
       if (current) await updateAppointment(current.id, { status: 'completed' });
       if (callNext && next) {
         await updateAppointment(next.id, { status: 'in-progress' });
-        toast.success(`${customerLabel(next)} ist dran.`);
+        toast.success(t('{name} ist dran.', { name: customerLabel(next) }));
       } else {
-        toast.success(waiting.length === 0 ? 'Fertig. Gerade wartet niemand.' : 'Fertig.');
+        toast.success(waiting.length === 0 ? t('Fertig. Gerade wartet niemand.') : t('Fertig.'));
       }
     });
 
@@ -89,7 +92,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
     run(async () => {
       if (!current) return;
       await updateAppointment(current.id, { status: 'cancelled', noShow: true }, { notifyCustomer: true });
-      toast.success(`${customerLabel(current)} ist abgesagt.`);
+      toast.success(t('{name} ist abgesagt.', { name: customerLabel(current) }));
     });
 
   const primary = () => {
@@ -99,23 +102,26 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={`Schlange von ${title}`}>
+    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={t('Schlange von {name}', { name: title })}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl font-bold">{title}</h3>
         <p className="text-end text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          {waiting.length} wartet · {done} fertig
-          {delay >= SHOW_DELAY_MINUTES && <span className="block normal-case tracking-normal">ca. {delay} Min. Verzug</span>}
+          {t('{wartend} wartet · {fertig} fertig', { wartend: waiting.length, fertig: done })}
+          {delay >= SHOW_DELAY_MINUTES && <span className="block normal-case tracking-normal">{t('ca. {minuten} Min. Verzug', { minuten: delay })}</span>}
         </p>
       </header>
 
       <div className={cn('flex flex-col gap-1 rounded-2xl p-4', current ? 'bg-signal text-signal-foreground' : 'border border-dashed border-border')}>
-        <p className="text-xs font-semibold uppercase tracking-[0.08em]">Jetzt dran</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em]">{t('Jetzt dran')}</p>
         {current ? (
           <>
             <p className="font-display text-2xl font-bold">{customerLabel(current)}</p>
             <p className="text-sm">
-              {serviceName(current)} · seit{' '}
-              <span className="font-mono">{format(safelyConvertToDate(current.lastCalledAt ?? current.calledAt ?? current.startTime), 'HH:mm')}</span>
+              {tTeile(
+                '{leistung} · seit <zeit/>',
+                { zeit: () => <span className="font-mono">{format(safelyConvertToDate(current.lastCalledAt ?? current.calledAt ?? current.startTime), 'HH:mm')}</span> },
+                { leistung: serviceName(current) },
+              )}
             </p>
             {current.customerPhone && <PhoneLink phone={current.customerPhone} />}
             {live && ask?.kind !== 'noShow' && (
@@ -125,21 +131,27 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
                 onClick={() => setAsk({ kind: 'noShow' })}
                 disabled={busy}
               >
-                Nicht gekommen
+                {t('Nicht gekommen')}
               </button>
             )}
           </>
         ) : (
           <p className="text-muted-foreground">
-            {next ? (nextDue ? 'Niemand. Ruf die nächste Nummer auf.' : `Niemand. Als Nächstes ${customerLabel(next)} um ${at(next)}.`) : appointments.length === 0 ? 'Noch niemand da.' : 'Niemand.'}
+            {next
+              ? nextDue
+                ? t('Niemand. Ruf die nächste Nummer auf.')
+                : t('Niemand. Als Nächstes {name} um {zeit}.', { name: customerLabel(next), zeit: at(next) })
+              : appointments.length === 0
+                ? t('Noch niemand da.')
+                : t('Niemand.')}
           </p>
         )}
       </div>
 
       {ask?.kind === 'noShow' && current && (
         <Confirm
-          text={`${customerLabel(current)} absagen? Der Kunde bekommt Bescheid, sein Platz wird frei.`}
-          confirmLabel="Ja, absagen"
+          text={t('{name} absagen? Der Kunde bekommt Bescheid, sein Platz wird frei.', { name: customerLabel(current) })}
+          confirmLabel={t('Ja, absagen')}
           onConfirm={noShow}
           onCancel={() => setAsk(null)}
           busy={busy}
@@ -150,13 +162,21 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
         <div className="flex flex-col gap-2">
           <Button size="lg" onClick={primary} disabled={busy}>
             {next && (nextDue || !current) ? <Megaphone className="me-2 h-4 w-4" aria-hidden="true" /> : <Check className="me-2 h-4 w-4" aria-hidden="true" />}
-            {busy ? 'Moment …' : next && nextDue ? (current ? 'Fertig – nächste Nummer' : 'Nächste Nummer aufrufen') : current ? 'Fertig' : 'Nächste Nummer aufrufen'}
+            {busy
+              ? t('Moment …')
+              : next && nextDue
+                ? current
+                  ? t('Fertig – nächste Nummer')
+                  : t('Nächste Nummer aufrufen')
+                : current
+                  ? t('Fertig')
+                  : t('Nächste Nummer aufrufen')}
           </Button>
           {current && next && !nextDue && (
             <p className="text-sm text-muted-foreground">
-              Als Nächstes erst um {at(next)}: {customerLabel(next)}.{' '}
+              {t('Als Nächstes erst um {zeit}: {name}.', { zeit: at(next), name: customerLabel(next) })}{' '}
               <button type="button" className="font-semibold text-foreground underline underline-offset-2" onClick={() => setAsk({ kind: 'early' })} disabled={busy}>
-                Schon jetzt aufrufen
+                {t('Schon jetzt aufrufen')}
               </button>
             </p>
           )}
@@ -165,8 +185,8 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
 
       {ask?.kind === 'early' && next && (
         <Confirm
-          text={`${customerLabel(next)} ist erst um ${at(next)} eingeplant und vielleicht noch nicht da. Jetzt schon aufrufen?`}
-          confirmLabel={current ? 'Ja, fertig und aufrufen' : 'Ja, jetzt aufrufen'}
+          text={t('{name} ist erst um {zeit} eingeplant und vielleicht noch nicht da. Jetzt schon aufrufen?', { name: customerLabel(next), zeit: at(next) })}
+          confirmLabel={current ? t('Ja, fertig und aufrufen') : t('Ja, jetzt aufrufen')}
           onConfirm={() => finishAndCall(true)}
           onCancel={() => setAsk(null)}
           busy={busy}
@@ -174,12 +194,12 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Als Nächstes</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Als Nächstes')}</p>
         {waiting.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {appointments.length === 0 && live
-              ? 'Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Nummer vergeben“.'
-              : 'Keiner mehr in der Schlange.'}
+              ? t('Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Nummer vergeben“.')
+              : t('Keiner mehr in der Schlange.')}
           </p>
         ) : (
           <ol className="flex flex-col divide-y divide-border">
@@ -191,16 +211,16 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{customerLabel(a)}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {serviceName(a)} · {a.type === 'queue' ? 'Nummer' : 'Termin'}
-                      {late >= SHOW_DELAY_MINUTES && ` · ca. ${format(expectedStart(a, projection), 'HH:mm')}`}
+                      {serviceName(a)} · {a.type === 'queue' ? t('Nummer') : t('Termin')}
+                      {late >= SHOW_DELAY_MINUTES && ` · ${t('ca. {zeit}', { zeit: format(expectedStart(a, projection), 'HH:mm') })}`}
                     </span>
                     {a.customerPhone && <PhoneLink phone={a.customerPhone} />}
                   </span>
-                  {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">Nächste</span>}
+                  {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">{t('Nächste')}</span>}
                 </li>
               );
             })}
-            {waiting.length > 6 && <li className="py-2 text-sm text-muted-foreground">+ {waiting.length - 6} weitere</li>}
+            {waiting.length > 6 && <li className="py-2 text-sm text-muted-foreground">{tn(waiting.length - 6, '+ {n} weitere', '+ {n} weitere')}</li>}
           </ol>
         )}
       </div>
@@ -216,7 +236,7 @@ const Confirm = ({ text, confirmLabel, onConfirm, onCancel, busy }: { text: stri
         {confirmLabel}
       </Button>
       <Button variant="outline" className="flex-1" onClick={onCancel} disabled={busy}>
-        Abbrechen
+        {t('Abbrechen')}
       </Button>
     </div>
   </div>

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { Staff, Service, getStaffEntriesByUserId, getServicesByShopId, getShopById } from '../firestore';
 import { ensureStaffUserProfile } from '../firestore/staff';
+import { t } from '@/i18n';
 
 /** Ein Eintrag im Team mit dem Namen seines Ladens (für die Auswahl bei mehreren Läden) */
 export type StaffEntry = Staff & { shopName: string };
@@ -40,7 +41,7 @@ export function useEmployeeData(user: User | null) {
         const all = await getStaffEntriesByUserId(user.uid);
         const withNames: StaffEntry[] =
           all.length > 1
-            ? await Promise.all(all.map(async (s) => ({ ...s, shopName: (await getShopById(s.shopId).catch(() => null))?.name || 'Laden' })))
+            ? await Promise.all(all.map(async (s) => ({ ...s, shopName: (await getShopById(s.shopId).catch(() => null))?.name || t('Laden') })))
             : all.map((s) => ({ ...s, shopName: '' }));
         withNames.sort((a, b) => a.shopName.localeCompare(b.shopName, 'de'));
         const employeeData = withNames.find((s) => s.id === wanted) || withNames.find((s) => s.id === remembered()) || withNames[0] || null;

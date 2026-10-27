@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { Service, getServicesByShopId, offeredServices } from '../firestore';
 
 /**
@@ -24,7 +25,7 @@ export const useServices = (selectedShop: string) => {
         setLoading(false);
       } catch (error) {
         console.error('Error loading services:', error);
-        toast.error('Fehler beim Laden der Services');
+        toast.error(t('Fehler beim Laden der Services'));
         setLoading(false);
       }
     };
