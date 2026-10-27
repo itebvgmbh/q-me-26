@@ -4,7 +4,7 @@ Die App ist eine **Trusted Web Activity**: Sie öffnet https://dranzeit.de im Vo
 Adresszeile. Jede Änderung an der Website ist sofort auch in der App – eine neue Store-Fassung braucht es nur,
 wenn sich an der Hülle etwas ändert (Name, Symbol, Farben, Start-Adresse, Version).
 
-- Paket: `de.dranzeit.app` (lässt sich nach dem ersten Hochladen nie mehr ändern), Ziel Android 16 (API 36)
+- Paket: `de.dranzeit.app` (lässt sich nach dem ersten Hochladen nie mehr ändern), ab Android 7 (API 24), Ziel Android 16 (API 36)
 - Start-Adresse `/?app=android`: Daran erkennt die Website die App und **verkauft dort nichts** – kein Tarif,
   keine Preise, keine Links dorthin (`frontend/src/utils/app-shell.ts`, Server-Seiten `backend/app/seo.py`).
   Google Play verlangt sonst die Abrechnung über Google. Abos gibt es nur im Browser.
