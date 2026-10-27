@@ -52,7 +52,7 @@ export const useServiceManagement = (shop: Shop | null) => {
     category: string;
   }) => {
     if (!shop) {
-      toast.error(t('Kein Shop ausgewählt'));
+      toast.error(t('Kein Laden ausgewählt'));
       return false;
     }
 

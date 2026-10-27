@@ -177,7 +177,7 @@ const texte: Texte = {
   "Logo wird hochgeladen …": "جارٍ رفع الشعار …",
   "Logo hochgeladen.": "تم رفع الشعار.",
   "Das Logo konnte nicht hochgeladen werden.": "تعذّر رفع الشعار.",
-  "Shop-Profil aktualisiert": "تم تحديث ملف المحل",
+  "Laden-Profil aktualisiert": "تم تحديث ملف المحل",
   "Fehler beim Aktualisieren": "فشل التحديث",
   "Name des Ladens": "اسم المحل",
   "Adresse": "العنوان",

@@ -58,7 +58,7 @@ const ShopDetails = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6" aria-busy="true" aria-label={t('Shop wird geladen')}>
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6" aria-busy="true" aria-label={t('Laden wird geladen')}>
         <div className="h-14 w-80 max-w-full animate-pulse rounded-2xl bg-muted" />
         <div className="h-48 animate-pulse rounded-3xl bg-muted" />
       </div>
@@ -143,10 +143,10 @@ const ShopDetails = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="ghost" asChild>
-                      <Link to={`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`}>{t('Einreihen')}</Link>
+                      <Link to={`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`}>{t('Nummer ziehen')}</Link>
                     </Button>
                     <Button size="sm" asChild>
-                      <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>{t('Termin')}</Link>
+                      <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
                     </Button>
                   </div>
                 </li>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { linkOwnCustomerEntry } from '../utils/firestore';
-import { BookingForm } from '../components/BookingForm';
+import { BookingForm, EGAL_WER } from '../components/BookingForm';
 import { useShops } from '../utils/hooks/useShops';
 import { useShopServices } from '../utils/hooks/useShopServices';
 import { useShopStaff } from '../utils/hooks/useShopStaff';
@@ -50,17 +50,19 @@ const BookAppointment = () => {
   const staff = selectedService && eligible.length > 0 ? eligible : allStaff;
   const [staffFromUrl] = useState(() => new URLSearchParams(window.location.search).get('staffId'));
 
-  // Mitarbeiter vorbelegen: aus der URL (nach dem Login) oder wenn es nur eine Person gibt
+  // Person vorbelegen: aus der URL („Nochmal buchen“, nach dem Login), die einzige – sonst „Egal wer“,
+  // dann stehen die freien Zeiten gleich da
   const staffKey = staff.map((s) => s.id).join(',');
   useEffect(() => {
     if (staff.length === 0) return;
     if (selectedStaff) {
-      // Person bietet die neu gewählte Leistung nicht an
-      if (!staff.some((s) => s.id === selectedStaff)) setSelectedStaff('');
+      // Person bietet die neu gewählte Leistung nicht an; „Egal wer“ nur, wenn es eine Wahl gibt
+      if (selectedStaff === EGAL_WER ? staff.length < 2 : !staff.some((s) => s.id === selectedStaff)) setSelectedStaff('');
       return;
     }
     if (staffFromUrl && staff.some((s) => s.id === staffFromUrl)) setSelectedStaff(staffFromUrl);
     else if (staff.length === 1) setSelectedStaff(staff[0].id);
+    else setSelectedStaff(EGAL_WER);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffKey, staffFromUrl, selectedStaff, setSelectedStaff]);
 
@@ -72,7 +74,7 @@ const BookAppointment = () => {
   const params = new URLSearchParams({ fromMarketplace: 'true' });
   if (selectedShop) params.set('shopId', selectedShop);
   if (selectedService) params.set('serviceId', selectedService);
-  if (selectedStaff) params.set('staffId', selectedStaff);
+  if (selectedStaff && selectedStaff !== EGAL_WER) params.set('staffId', selectedStaff);
   const loginHref = `/login?next=${encodeURIComponent(`/book-appointment?${params.toString()}`)}`;
 
   const handleBookAppointment = async () => {
@@ -85,7 +87,7 @@ const BookAppointment = () => {
     try {
       const result = await bookAppointment(
         selectedShop,
-        selectedStaff,
+        selectedStaff === EGAL_WER ? (selectedTimeSlot?.staffOptions ?? []) : [selectedStaff],
         selectedService,
         user.uid,
         user.displayName || (user.email ? user.email.split('@')[0] : null) || 'Unbekannt',
@@ -112,7 +114,7 @@ const BookAppointment = () => {
       </div>
 
       {shopsLoading ? (
-        <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('Shops werden geladen')}>
+        <div className="flex flex-col gap-4" aria-busy="true" aria-label={t('Läden werden geladen')}>
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
           <div className="h-28 animate-pulse rounded-3xl bg-muted" />
         </div>

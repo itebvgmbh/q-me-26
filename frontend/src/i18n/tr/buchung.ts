@@ -6,19 +6,17 @@ const texte: Texte = {
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "Randevu alınamadı. Lütfen tekrar deneyin.",
   "Termin buchen": "Randevu al",
   "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "Belirli bir saat seçin. Hemen mi gelmek istiyorsunuz? O zaman sıraya girin.",
-  "Shops werden geladen": "Salonlar yükleniyor",
+  "Läden werden geladen": "Salonlar yükleniyor",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "{name} online randevu kabul etmiyor. Ama sıra numarası alabilirsiniz.",
   "Anderen Laden wählen": "Başka salon seç",
 
   // components/BookingForm.tsx
   "Wo?": "Nerede?",
-  "Anderen Shop wählen": "Başka salon seç",
-  "Noch keine Shops eingetragen.": "Henüz kayıtlı salon yok.",
+  "Noch keine Läden eingetragen.": "Henüz kayıtlı salon yok.",
   "Was?": "Hangi hizmet?",
-  "Dieser Shop hat noch keine Leistungen eingetragen.": "Bu salon henüz hizmet eklememiş.",
   "{minuten} Min": "{minuten} dk",
   "Bei wem?": "Kiminle?",
-  "Für diesen Shop ist noch niemand eingetragen.": "Bu salon için henüz kimse eklenmemiş.",
+  "Für diesen Laden ist noch niemand eingetragen.": "Bu salon için henüz kimse eklenmemiş.",
   "Wann?": "Ne zaman?",
   "Zusammenfassung": "Özet",
   "EEE d. MMM 'um' HH:mm": "d MMM EEE, 'saat' HH:mm",
@@ -123,19 +121,17 @@ const texte: Texte = {
   "Branche": "Sektör",
   "Alle Branchen": "Tüm sektörler",
   "Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.": "Konumunuzu paylaşmadınız. Yukarıya bir şehir veya posta kodu girmeniz yeterli.",
-  "{n} Shops gefunden": "{n} salon bulundu",
-  "Alle Shops": "Tüm salonlar",
-  "Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.": "Burada henüz salon yok. Mesafeyi artırın veya başka bir yerde arayın.",
+  "{n} Läden gefunden": "{n} salon bulundu",
+  "Alle Läden": "Tüm salonlar",
+  "Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.": "Burada henüz salon yok. Mesafeyi artırın veya başka bir yerde arayın.",
   "Weitere Salons": "Diğer salonlar",
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "Burada henüz online sıra numarası yok – ama adresi, saatleri ve fiyatları yine de bulabilirsiniz.",
   "Du bist hier": "Buradasınız",
   "{km} km entfernt": "{km} km uzakta",
-  "Einreihen": "Sıraya gir",
   "Noch nicht online buchbar": "Henüz online randevu yok",
   "Ansehen": "Görüntüle",
 
   // pages/ShopDetails.tsx
-  "Shop wird geladen": "Salon yükleniyor",
   "Dieser Laden ist gerade nicht erreichbar.": "Bu salona şu anda ulaşılamıyor.",
   "Laden nicht gefunden.": "Salon bulunamadı.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "Şu anda online sıra numarası almak da randevu almak da mümkün değil.",
@@ -146,10 +142,10 @@ const texte: Texte = {
 
   // components/MarketplaceSection.tsx
   "Ort oder PLZ": "Şehir veya posta kodu",
-  "Hier ist noch kein Shop eingetragen.": "Burada henüz kayıtlı salon yok.",
+  "Hier ist noch kein Laden eingetragen.": "Burada henüz kayıtlı salon yok.",
   "Versuch es mit einem anderen Ort oder einer PLZ.": "Başka bir şehir veya posta kodu deneyin.",
   "Schau bald wieder vorbei.": "Yakında tekrar uğrayın.",
-  "Alle {anzahl} Shops ansehen": "Tüm salonları gör ({anzahl})",
+  "Alle {anzahl} Läden ansehen": "Tüm salonları gör ({anzahl})",
 
   // components/BusinessHours.tsx
   "Geschlossen": "Kapalı",
@@ -253,21 +249,28 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "Sıraya girilemedi. Lütfen tekrar deneyin.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Shop.": "Önce bir salon seçin.",
+  "Wähl zuerst einen Laden.": "Önce bir salon seçin.",
   "Wähl aus, bei wem.": "Kiminle olacağını seçin.",
   "Wähl eine Leistung.": "Bir hizmet seçin.",
   "Wähl eine Uhrzeit.": "Bir saat seçin.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
-  "Der Shop aus dem QR-Code wurde nicht gefunden": "QR koddaki salon bulunamadı",
-  "Fehler beim Laden der Shops": "Salonlar yüklenirken hata oluştu",
-  "Shop-ID fehlt": "Salon kimliği eksik",
-  "Shop nicht gefunden": "Salon bulunamadı",
-  "Fehler beim Laden der Shop-Details": "Salon bilgileri yüklenirken hata oluştu",
+  "Der Laden aus dem QR-Code wurde nicht gefunden": "QR koddaki salon bulunamadı",
+  "Die Läden konnten nicht geladen werden.": "Salonlar yüklenirken hata oluştu",
+  "Laden-ID fehlt": "Salon kimliği eksik",
+  "Laden nicht gefunden": "Salon bulunamadı",
   "Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.": "Boş yerler yüklenemedi. Lütfen biraz sonra tekrar deneyin.",
   "Fehler beim Laden der Services": "Hizmetler yüklenirken hata oluştu",
   "Fehler beim Laden der Mitarbeiter": "Çalışanlar yüklenirken hata oluştu",
   "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "Bu hizmet burada artık sunulmuyor. Lütfen başka birini seçin.",
+
+  // Nochmal buchen, Egal wer beim Termin (MyBookings, AppointmentCard, BookingForm, CustomerCalendar)
+  "Nochmal buchen": "Tekrar randevu al",
+  "Wie letztes Mal?": "Geçen seferki gibi mi?",
+  "{leistung} bei {name}": "{leistung}, {name} ile",
+  "zuletzt am {datum}": "son ziyaret: {datum}",
+  "Egal wer": "Fark etmez",
+  "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "Önümüzdeki üç hafta boyunca boş yer yok. Başka bir hizmeti deneyin.",
 };
 
 export default texte;

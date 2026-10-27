@@ -166,8 +166,8 @@ const texte: Texte = {
 
   // components/ShopSelectionStep.tsx
   "Wo möchtest du hin?": "Where would you like to go?",
-  "Wähl den Shop, in dessen Schlange du dich einreihen willst.": "Choose the shop whose queue you'd like to join.",
-  "Noch kein Shop eingetragen.": "No shops listed yet.",
+  "Wähl den Laden, in dessen Schlange du dich einreihen willst.": "Choose the shop whose queue you'd like to join.",
+  "Noch kein Laden eingetragen.": "No shops listed yet.",
   "Zur Startseite": "Go to home page",
 
   // components/StepIndicator.tsx
@@ -193,7 +193,6 @@ const texte: Texte = {
   // components/QRCodeDisplay.tsx
   "Link kopiert.": "Link copied.",
   "Kopieren ging nicht. Halte den Link gedrückt und kopier ihn von Hand.": "Couldn't copy. Press and hold the link to copy it manually.",
-  "Einreihen per QR-Code": "Join the queue by QR code",
   "Ausdrucken und an Tür oder Tresen hängen. Kunden scannen und ziehen eine Nummer – ohne App.":
     "Print it and put it up on the door or counter. Customers scan it and take a number – no app needed.",
   "QR-Code zum Einreihen bei {laden}": "QR code to join the queue at {laden}",
@@ -220,6 +219,10 @@ const texte: Texte = {
 
   // utils/notifications.ts
   "{n} frühere Plätze sind frei geworden.": { one: "An earlier slot has opened up.", other: "{n} earlier slots have opened up." },
+
+  // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
+  "Rechne mit {von} bis {bis} Uhr.": "Expect your turn between {von} and {bis}.",
+  "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "If you're not there when your number is called, the shop may remove it.",
 };
 
 export default texte;

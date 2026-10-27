@@ -33,8 +33,9 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   ],
   customer: [
     { to: '/my-bookings', label: merke('Meine Termine') },
-    { to: '/shop-map', label: merke('Läden finden') },
     { to: '/public-join-queue', label: merke('Nummer ziehen') },
+    { to: '/book-appointment', label: merke('Termin buchen') },
+    { to: '/shop-map', label: merke('Läden finden') },
   ],
   shopOwner: [
     { to: '/shop-dashboard', label: merke('Tresen') },

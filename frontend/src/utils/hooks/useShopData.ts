@@ -49,7 +49,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
             return;
           }
           console.error('Shop from QR code not found:', shopIdFromQR);
-          toast.error(t('Der Shop aus dem QR-Code wurde nicht gefunden'));
+          toast.error(t('Der Laden aus dem QR-Code wurde nicht gefunden'));
           setSelectedShop('');
           setArrivedFromQR(false);
         }
