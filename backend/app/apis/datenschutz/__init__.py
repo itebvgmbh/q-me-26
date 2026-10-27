@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import owned_shop_ids, require_shop_member
+from app.i18n import merke
 from app.libs.privacy import DATENSCHUTZ_KONTAKT, delete_account_data, forget_customer
 
 router = APIRouter()
@@ -42,7 +43,7 @@ def delete_account(user: AuthorizedUser) -> dict:
     if owned_shop_ids(user.sub) or list(db.collection("staff").where("userId", "==", user.sub).limit(1).stream()):
         raise HTTPException(
             status_code=409,
-            detail=f"Konten von Läden und Teams löschen wir auf Anfrage. Schreib uns an {DATENSCHUTZ_KONTAKT}.",
+            detail=merke("Konten von Läden und Teams löschen wir auf Anfrage. Schreib uns an {kontakt}.", kontakt=DATENSCHUTZ_KONTAKT),
         )
     result = delete_account_data(db, user.sub)
     try:

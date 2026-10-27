@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 import { createAppointment } from '../firestore';
 import { assertOnlineLead, isSlotConflict } from '../booking-rules';
 import { toast } from 'sonner';
-import { t } from '@/i18n';
+import { sprache, t } from '@/i18n';
 import useTimeSlotStore from '../timeSlotStore';
 import { CalendarTimeSlot } from '../types';
 
@@ -45,6 +45,8 @@ export const useAppointmentBooking = () => {
         endTime: Timestamp.fromDate(endTime),
         status: 'scheduled',
         type: 'booked',
+        // Erinnerung, Absage und „Früher dran“ kommen in dieser Sprache (backend/app/i18n)
+        language: sprache(),
         checkEarlierOptions,
         ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {}),
       });

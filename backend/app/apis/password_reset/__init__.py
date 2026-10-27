@@ -1,5 +1,5 @@
 """Passwort vergessen: Dranzeit schickt die Mail selbst über Resend (app/libs/mail.py), von hallo@dranzeit.de und auf
-Deutsch. Firebases eigene Mail kommt von noreply@…firebaseapp.com, ist englisch und landet bei Microsoft 365 und
+in der Sprache der Anfrage (Accept-Language, app/i18n). Firebases eigene Mail kommt von noreply@…firebaseapp.com, ist englisch und landet bei Microsoft 365 und
 anderen oft im Spam oder in der Quarantäne. Der Link führt auf /passwort-neu?code=…, dort setzt der Browser das neue
 Passwort bei Firebase (confirmPasswordReset, frontend/src/pages/PasswortNeu.tsx).
 
@@ -23,6 +23,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.apis.email_verification import _origin
+from app.i18n import aus_anfrage, t
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.onboarding_mail import is_test_address
 
@@ -75,23 +76,24 @@ def reset_link(firebase_link: str, origin: str) -> str:
     return f"{origin}/passwort-neu?code={quote(code, safe='')}"
 
 
-def reset_mail(email: str, link: str) -> tuple[str, str, str]:
-    """Betreff, HTML und Text der Passwort-Mail"""
-    subject = "Neues Passwort für Dranzeit"
-    note = "Du hast kein neues Passwort angefordert? Dann kannst du diese E-Mail einfach löschen. Dein Passwort bleibt, wie es ist."
+def reset_mail(email: str, link: str, sprache: str = "de") -> tuple[str, str, str]:
+    """Betreff, HTML und Text der Passwort-Mail, in der Sprache der Person (app/i18n)"""
+    subject = t("Neues Passwort für Dranzeit", sprache)
+    note = t("Du hast kein neues Passwort angefordert? Dann kannst du diese E-Mail einfach löschen. Dein Passwort bleibt, wie es ist.", sprache)
     html = branded_html(
-        "Neues Passwort setzen",
+        esc(t("Neues Passwort setzen", sprache)),
         [
-            f"Hallo, für dein Dranzeit-Konto <strong>{esc(email)}</strong> wurde ein neues Passwort angefordert.",
-            "Tipp auf den Knopf und wähl ein neues Passwort. Der Link gilt eine Stunde.",
+            t("Hallo, für dein Dranzeit-Konto <strong>{email}</strong> wurde ein neues Passwort angefordert.", sprache, email=esc(email)),
+            esc(t("Tipp auf den Knopf und wähl ein neues Passwort. Der Link gilt eine Stunde.", sprache)),
         ],
-        button_text="Neues Passwort setzen",
+        button_text=t("Neues Passwort setzen", sprache),
         button_url=link,
         note=esc(note),
+        sprache=sprache,
     )
     text = (
-        f"Hallo, für dein Dranzeit-Konto {email} wurde ein neues Passwort angefordert.\n\n"
-        "Öffne diesen Link und wähl ein neues Passwort (gilt eine Stunde):\n"
+        t("Hallo, für dein Dranzeit-Konto {email} wurde ein neues Passwort angefordert.", sprache, email=email) + "\n\n"
+        + t("Öffne diesen Link und wähl ein neues Passwort (gilt eine Stunde):", sprache) + "\n"
         f"{link}\n\n"
         f"{note}\n"
     )
@@ -123,21 +125,21 @@ def _release(keys: list[tuple[str, int, int]], stamp: float) -> None:
                 pass
 
 
-def mail_reset(address: str, origin: str) -> None:
+def mail_reset(address: str, origin: str, sprache: str = "de") -> None:
     """Passwort-Mail an diese Konto-Adresse, ohne weitere Prüfung (auch für den Betreiber-Bereich).
     Wirft bei Fehlern von Firebase oder Resend."""
-    subject, html, text = reset_mail(address, reset_link(_firebase_link(address), origin))
+    subject, html, text = reset_mail(address, reset_link(_firebase_link(address), origin), sprache)
     send_mail(address, subject, html, text)
 
 
-def send_reset(email: str, origin: str) -> bool:
+def send_reset(email: str, origin: str, sprache: str = "de") -> bool:
     """Passwort-Mail an das Konto zur Adresse. False = kein Konto, gesperrt oder Testadresse (nichts verschickt)."""
     if is_test_address(email):
         return False
     record = _user(email)
     if record is None or record.disabled or not record.email:
         return False
-    mail_reset(record.email, origin)
+    mail_reset(record.email, origin, sprache)
     return True
 
 
@@ -158,7 +160,7 @@ def request_reset(body: ResetRequest, request: Request) -> dict:
     stamp = time.time()
     _reserve(keys, stamp)
     try:
-        send_reset(email, _origin(request))
+        send_reset(email, _origin(request), aus_anfrage(request))
     except Exception as e:  # MailError von Resend, Fehler von Firebase (z. B. TOO_MANY_ATTEMPTS_TRY_LATER)
         _release(keys, stamp)
         print(f"Passwort-Mail an {email} nicht verschickt: {e}")

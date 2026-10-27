@@ -29,6 +29,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
+from app.i18n import merke
 
 router = APIRouter()
 
@@ -244,24 +245,24 @@ def check_public_url(url: str, resolve=socket.getaddrinfo) -> tuple:
     try:
         port = parsed.port
     except ValueError:
-        raise ValueError("Das ist keine Webadresse.")
+        raise ValueError(merke("Das ist keine Webadresse."))
     if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
-        raise ValueError("Das ist keine Webadresse.")
+        raise ValueError(merke("Das ist keine Webadresse."))
     if port not in (None, 80, 443):
-        raise ValueError("Diese Webadresse wird nicht gelesen.")
+        raise ValueError(merke("Diese Webadresse wird nicht gelesen."))
     try:
         # Umlaut-Domains (friseur-müller.de) als xn--…: so stehen sie im Zertifikat und im DNS
         host = parsed.hostname.encode("idna").decode("ascii")
     except UnicodeError:
-        raise ValueError("Das ist keine Webadresse.")
+        raise ValueError(merke("Das ist keine Webadresse."))
     url = parsed._replace(netloc=host + (f":{port}" if port else "")).geturl()  # ohne Benutzer:Passwort@
     try:
         infos = resolve(host, port or (443 if parsed.scheme.lower() == "https" else 80), proto=socket.IPPROTO_TCP)
     except socket.gaierror:
-        raise ValueError("Diese Webseite gibt es nicht (Adresse nicht gefunden).")
+        raise ValueError(merke("Diese Webseite gibt es nicht (Adresse nicht gefunden)."))
     ips = [ipaddress.ip_address(info[4][0]) for info in infos]
     if not ips or any(not ip.is_global for ip in ips):
-        raise ValueError("Diese Webadresse wird nicht gelesen.")
+        raise ValueError(merke("Diese Webadresse wird nicht gelesen."))
     ipv4 = [ip for ip in ips if ip.version == 4]
     return url, str((ipv4 or ips)[0])
 
@@ -281,7 +282,7 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
         host = parsed.hostname
         left = deadline - time.monotonic()
         if left <= 0:
-            raise ValueError("Die Webseite antwortet zu langsam.")
+            raise ValueError(merke("Die Webseite antwortet zu langsam."))
         timeout = urllib3.Timeout(connect=min(5, left), read=min(10, left))
         if parsed.scheme == "https":
             pool = urllib3.HTTPSConnectionPool(ip, port=parsed.port or 443, server_hostname=host, assert_hostname=host,
@@ -303,7 +304,7 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
                 raise ValueError(f"Die Webseite antwortet mit Fehler {resp.status}.")
             content_type = resp.headers.get("content-type", "text/html")
             if "html" not in content_type:
-                raise ValueError("Das ist keine Webseite.")
+                raise ValueError(merke("Das ist keine Webseite."))
             body = b""
             try:
                 while True:
@@ -315,14 +316,14 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
                     if len(body) > MAX_BYTES:
                         break
                     if time.monotonic() > deadline:
-                        raise ValueError("Die Webseite antwortet zu langsam.")
+                        raise ValueError(merke("Die Webseite antwortet zu langsam."))
             except urllib3.exceptions.HTTPError as e:
                 raise ValueError(f"Die Webseite ließ sich nicht vollständig lesen ({type(e).__name__}).")
             return current, _decode(body, content_type)
         finally:
             resp.release_conn()
             pool.close()
-    raise ValueError("Zu viele Weiterleitungen.")
+    raise ValueError(merke("Zu viele Weiterleitungen."))
 
 
 def page_text(html: str) -> str:

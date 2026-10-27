@@ -13,7 +13,7 @@ import { dayKey } from './firestore/schedule';
 import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
 import { hashTicketKey, newTicketKey, rememberTicketKey } from './ticket-key';
-import { t } from '@/i18n';
+import { sprache, t } from '@/i18n';
 
 // Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
 // Auswahl (Raster 15 Minuten – bei 30 Minuten Leistung also etwa halb so viele verschiedene Plätze)
@@ -220,6 +220,8 @@ export const QueueBookingService = {
       endTime: Timestamp.fromDate(endTime),
       status: 'scheduled',
       type: 'queue', // Mark as queue appointment
+      // Push und E-Mails zur Nummer kommen in dieser Sprache (backend/app/i18n)
+      language: sprache(),
       checkEarlierOptions: checkEarlierOptions,
       // Only add if option is enabled
       ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
@@ -278,6 +280,7 @@ export const QueueBookingService = {
       type: 'queue',
       isAnonymous: true, // Mark as anonymous booking
       ticketKeyHash: await hashTicketKey(ticketKey),
+      language: sprache(),
       ...(name ? { customerName: name } : {}),
       ...(phone ? { customerPhone: phone } : {}),
       checkEarlierOptions: checkEarlierOptions,

@@ -310,6 +310,27 @@ def test_push_anmelden_nur_mit_schluessel():
     assert len(store["push_subscriptions"]) == 1
 
 
+def test_push_und_email_merken_sich_die_sprache():
+    """Die zuletzt gewählte Sprache steht an der Anmeldung und am Termin; ohne Angabe gilt Accept-Language."""
+    store = store_with()
+    sub = {"appointment_id": "t1", "key": KEY, "endpoint": "https://push.example.com/abc", "p256dh": "p" * 20, "auth": "a" * 10}
+    assert push_client(store).post("/routes/push/subscribe", json={**sub, "language": "tr"}).status_code == 200
+    assert [s["language"] for s in store["push_subscriptions"].values()] == ["tr"]
+    assert store["appointments"]["t1"]["language"] == "tr"
+    assert "language" not in store["public_appointments"]["t1"]
+    other = {**sub, "endpoint": "https://push.example.com/zweites-geraet"}
+    assert push_client(store).post("/routes/push/subscribe", json=other, headers={"Accept-Language": "ar,en;q=0.5"}).status_code == 200
+    assert sorted(s["language"] for s in store["push_subscriptions"].values()) == ["ar", "tr"]
+    body = {"appointment_id": "t1", "key": KEY, "email": "kim@example.com", "language": "en"}
+    assert push_client(store).post("/routes/push/notify-email", json=body).status_code == 200
+    assert store["appointments"]["t1"]["language"] == "en"
+    # Unbekanntes wird Deutsch, Abmelden der E-Mail ändert die Sprache nicht
+    assert push_client(store).post("/routes/push/notify-email", json={**body, "language": "xx"}).status_code == 200
+    assert store["appointments"]["t1"]["language"] == "de"
+    assert push_client(store).post("/routes/push/notify-email", json={**body, "email": None, "language": "tr"}).status_code == 200
+    assert store["appointments"]["t1"]["language"] == "de"
+
+
 # --- Schlüssel, Kontaktdaten des Teams -----------------------------------------------------------
 
 def test_schluessel_vergleich():

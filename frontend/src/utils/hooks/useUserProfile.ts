@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCurrentUser } from 'app';
-import { getUserProfile, onProfileSaved } from '../user-profile-service';
+import { getUserProfile, onProfileSaved, syncProfileLanguage } from '../user-profile-service';
 import type { UserProfile } from '../types';
 
 // Profil pro Sitzung zwischenspeichern, damit die Navigation beim
@@ -28,6 +28,7 @@ export const useUserProfile = () => {
         if (savedMeanwhile) return;
         cache.set(user.uid, p);
         if (active) setProfile(p);
+        void syncProfileLanguage(user.uid, p);
       })
       .catch((error) => console.error('Profil konnte nicht geladen werden:', error))
       .finally(() => active && setLoading(false));

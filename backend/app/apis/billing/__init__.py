@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.i18n import merke
 from app.libs.plans import FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, trial_end
 from app.libs.stripe_billing import INTERVALS, client, lookup_key, price_id, stripe_configured
 
@@ -51,7 +52,11 @@ def stripe_errors(fn):
         except stripe.StripeError as e:
             print(f"Stripe-Fehler in {fn.__name__}: {e}")
             test_mode = "_test_" in os.environ.get("STRIPE_SECRET_KEY", "")
-            detail = f"Stripe meldet: {e.user_message or str(e)}" if test_mode else "Die Bezahlung klappt gerade nicht. Bitte versuch es später noch einmal."
+            detail = (
+                merke("Stripe meldet: {grund}", grund=e.user_message or str(e))
+                if test_mode
+                else merke("Die Bezahlung klappt gerade nicht. Bitte versuch es später noch einmal.")
+            )
             raise HTTPException(status_code=502, detail=detail) from e
         except RuntimeError as e:  # z. B. Preis fehlt, weil stripe-setup.py noch nicht lief
             print(f"Abrechnung nicht bereit in {fn.__name__}: {e}")

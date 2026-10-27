@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, quote, urlparse
 from fastapi import APIRouter, HTTPException, Request
 
 from app.auth import AuthorizedUser
+from app.i18n import aus_anfrage, merke, t
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.onboarding_mail import is_test_address
 
@@ -68,24 +69,26 @@ def verification_link(firebase_link: str, origin: str) -> str:
     return f"{origin}/email-bestaetigen?code={quote(code, safe='')}"
 
 
-def verification_mail(email: str, link: str) -> tuple[str, str, str]:
-    """Betreff, HTML und Text der Bestätigungs-Mail"""
-    subject = "Bitte bestätige deine E-Mail-Adresse"
+def verification_mail(email: str, link: str, sprache: str = "de") -> tuple[str, str, str]:
+    """Betreff, HTML und Text der Bestätigungs-Mail, in der Sprache der Person (app/i18n)"""
+    subject = t("Bitte bestätige deine E-Mail-Adresse", sprache)
+    note = t("Du hast kein Konto bei Dranzeit angelegt? Dann hat sich jemand vertippt. Du kannst diese E-Mail einfach löschen.", sprache)
     html = branded_html(
-        "Ist das deine E-Mail-Adresse?",
+        esc(t("Ist das deine E-Mail-Adresse?", sprache)),
         [
-            f"Hallo, du hast bei Dranzeit ein Konto mit der Adresse <strong>{esc(email)}</strong> angelegt.",
-            "Tipp auf den Knopf, dann ist sie bestätigt. So wissen wir, dass die Adresse wirklich dir gehört.",
+            t("Hallo, du hast bei Dranzeit ein Konto mit der Adresse <strong>{email}</strong> angelegt.", sprache, email=esc(email)),
+            esc(t("Tipp auf den Knopf, dann ist sie bestätigt. So wissen wir, dass die Adresse wirklich dir gehört.", sprache)),
         ],
-        button_text="E-Mail-Adresse bestätigen",
+        button_text=t("E-Mail-Adresse bestätigen", sprache),
         button_url=link,
-        note="Du hast kein Konto bei Dranzeit angelegt? Dann hat sich jemand vertippt. Du kannst diese E-Mail einfach löschen.",
+        note=esc(note),
+        sprache=sprache,
     )
     text = (
-        f"Hallo, du hast bei Dranzeit ein Konto mit der Adresse {email} angelegt.\n\n"
-        "Öffne diesen Link, dann ist sie bestätigt:\n"
+        t("Hallo, du hast bei Dranzeit ein Konto mit der Adresse {email} angelegt.", sprache, email=email) + "\n\n"
+        + t("Öffne diesen Link, dann ist sie bestätigt:", sprache) + "\n"
         f"{link}\n\n"
-        "Du hast kein Konto bei Dranzeit angelegt? Dann hat sich jemand vertippt. Du kannst diese E-Mail einfach löschen.\n"
+        f"{note}\n"
     )
     return subject, html, text
 
@@ -99,7 +102,7 @@ def _reserve(uid: str, now: float) -> None:
         if sent and now - sent[-1] < MIN_GAP_SECONDS:
             raise HTTPException(status_code=429, detail="Wir haben dir gerade erst eine E-Mail geschickt. Warte eine Minute, dann geht es noch mal.")
         if len(sent) >= PER_DAY:
-            raise HTTPException(status_code=429, detail=f"Heute haben wir dir schon {PER_DAY} E-Mails geschickt. Versuch es morgen noch mal.")
+            raise HTTPException(status_code=429, detail=merke("Heute haben wir dir schon {n} E-Mails geschickt. Versuch es morgen noch mal.", n=PER_DAY))
         sent.append(now)
 
 
@@ -134,7 +137,7 @@ def send_verification(request: Request, user: AuthorizedUser) -> dict:
     _reserve(user.sub, stamp)
     try:
         link = verification_link(_firebase_link(email), _origin(request))
-        subject, html, text = verification_mail(email, link)
+        subject, html, text = verification_mail(email, link, aus_anfrage(request))
         send_mail(email, subject, html, text)
     except Exception as e:  # MailError von Resend, Fehler von Firebase (z. B. TOO_MANY_ATTEMPTS_TRY_LATER)
         _release(user.sub, stamp)

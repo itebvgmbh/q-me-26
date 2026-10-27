@@ -16,6 +16,7 @@ Nachrichten:
 - "reminder": Erinnerung an einen gebuchten Termin, einige Zeit vorher.
 - "cancelled" / "moved": Der Laden hat abgesagt oder verschoben (Merker customerNotice am Termin).
 - "offer":  "Früher dran" – ein früherer Platz ist frei (app/apis/check_slots).
+Texte in der Sprache des Kunden (Feld language am Termin bzw. an der Push-Anmeldung, Übersetzungen in app/i18n).
 Jede Nachricht geht pro Termin nur einmal raus (Merker notifiedCalledAt / notifiedSoonAt / reminderSentAt,
 customerNotice wird nach dem Senden geleert). Wer zurück auf "Wartet" gesetzt wird, verliert notifiedCalledAt –
 beim nächsten Aufruf kommt "Du bist dran" noch einmal.
@@ -23,6 +24,8 @@ beim nächsten Aufruf kommt "Du bist dran" noch einmal.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+
+from app.i18n import t, wochentag
 
 # Bei so vielen (oder weniger) Wartenden vor dir kommt "gleich dran"
 SOON_AHEAD = 1
@@ -143,44 +146,59 @@ def notice_kind(appt: dict, now: datetime, today_start: datetime) -> str | None:
     return kind
 
 
-def _day(start: datetime, now: datetime) -> str:
+def _day(start: datetime, now: datetime, sprache: str = "de") -> str:
     days = (start.date() - now.date()).days
     if days == 0:
-        return "heute"
+        return t("heute", sprache)
     if days == 1:
-        return "morgen"
-    weekday = ("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")[start.weekday()]
-    return f"am {weekday} {start.day}.{start.month}."
+        return t("morgen", sprache)
+    return t("am {wochentag} {tag}.{monat}.", sprache, wochentag=wochentag(start, sprache), tag=start.day, monat=start.month)
 
 
-def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = "", **extra) -> tuple[str, str]:
-    """Titel und Text der Nachricht, du-Form wie in der App.
+def _gross(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = "", sprache: str = "de", **extra) -> tuple[str, str]:
+    """Titel und Text der Nachricht, du-Form wie in der App, in der Sprache des Kunden (app/i18n).
     Für "cancelled", "moved" und "offer" kommen start (und previous / original) als Ortszeit (Europe/Berlin) und now."""
-    shop = shop_name or "Dein Laden"
+    shop = shop_name or t("Dein Laden", sprache)
     if kind == "called":
-        return "Du bist dran", f"{shop} ruft dich auf. Komm jetzt rein."
+        return t("Du bist dran", sprache), t("{laden} ruft dich auf. Komm jetzt rein.", sprache, laden=shop)
     if kind == "soon":
         if ahead <= 0:
-            return "Gleich bist du dran", f"{shop}: Du bist als Nächstes dran. Mach dich auf den Weg."
-        return "Gleich bist du dran", f"{shop}: Nur noch {ahead} vor dir. Mach dich auf den Weg."
+            return t("Gleich bist du dran", sprache), t("{laden}: Du bist als Nächstes dran. Mach dich auf den Weg.", sprache, laden=shop)
+        return t("Gleich bist du dran", sprache), t("{laden}: Nur noch {n} vor dir. Mach dich auf den Weg.", sprache, laden=shop, n=ahead)
     if kind == "reminder":
-        return "Erinnerung an deinen Termin", f"{shop}, heute um {start_label}. Kannst du nicht? Dann sag bitte ab."
+        return t("Erinnerung an deinen Termin", sprache), t(
+            "{laden}, heute um {zeit}. Kannst du nicht? Dann sag bitte ab.", sprache, laden=shop, zeit=start_label
+        )
     now = extra.get("now")
     if kind == "cancelled":
         start = extra["start"]
-        what = "deine Nummer" if extra.get("queue") else "deinen Termin"
-        return "Abgesagt", f"{shop} hat {what} {_day(start, now)} um {start:%H:%M} abgesagt."
+        wann = {"laden": shop, "wann": _day(start, now, sprache), "zeit": f"{start:%H:%M}"}
+        if extra.get("queue"):
+            return t("Abgesagt", sprache), t("{laden} hat deine Nummer {wann} um {zeit} abgesagt.", sprache, **wann)
+        return t("Abgesagt", sprache), t("{laden} hat deinen Termin {wann} um {zeit} abgesagt.", sprache, **wann)
     if kind == "moved":
         start, previous = extra["start"], extra.get("previous")
-        staff = f" bei {extra['staff']}" if extra.get("staff") else ""
-        was = ""
-        if previous:
-            was = f" (vorher {previous:%H:%M})" if previous.date() == start.date() else f" (vorher {_day(previous, now)} um {previous:%H:%M})"
-        return "Neue Uhrzeit", f"{shop} hat deinen Termin verschoben: jetzt {_day(start, now)} um {start:%H:%M}{staff}{was}."
+        parts = [t("{laden} hat deinen Termin verschoben: jetzt {wann} um {zeit}", sprache, laden=shop, wann=_day(start, now, sprache), zeit=f"{start:%H:%M}")]
+        if extra.get("staff"):
+            parts.append(t("bei {name}", sprache, name=extra["staff"]))
+        if previous and previous.date() == start.date():
+            parts.append(t("(vorher {zeit})", sprache, zeit=f"{previous:%H:%M}"))
+        elif previous:
+            parts.append(t("(vorher {wann} um {zeit})", sprache, wann=_day(previous, now, sprache), zeit=f"{previous:%H:%M}"))
+        return t("Neue Uhrzeit", sprache), " ".join(parts) + "."
     if kind == "offer":
         start, original = extra["start"], extra.get("original")
-        was = f" (statt {original:%H:%M})" if original and original.date() == start.date() else ""
+        free = t("{laden}: {wann} um {zeit} ist ein Platz frei", sprache, laden=shop, wann=_gross(_day(start, now, sprache)), zeit=f"{start:%H:%M}")
+        if original and original.date() == start.date():
+            free += " " + t("(statt {zeit})", sprache, zeit=f"{original:%H:%M}")
         hold = extra.get("hold_until")
-        until = f" Bis {hold:%H:%M} nur für dich" if hold else " Nur kurz für dich reserviert"
-        return "Früher dran?", f"{shop}: {_day(start, now).capitalize()} um {start:%H:%M} ist ein Platz frei{was}.{until} – unter „Meine Termine“ annehmen."
+        if hold:
+            until = t("Bis {zeit} nur für dich – unter „Meine Termine“ annehmen.", sprache, zeit=f"{hold:%H:%M}")
+        else:
+            until = t("Nur kurz für dich reserviert – unter „Meine Termine“ annehmen.", sprache)
+        return t("Früher dran?", sprache), f"{free}. {until}"
     raise ValueError(kind)

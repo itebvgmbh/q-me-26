@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_member
+from app.i18n import merke
 from app.libs.links import new_token, public_origin, token_hash
 from app.libs.public_appointments import write_public
 
@@ -37,7 +38,7 @@ router = APIRouter()
 VALID_DAYS = 30
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
 SHOP_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
-NOT_FOUND = "Diesen Link gibt es nicht. Bitte den Laden um einen neuen."
+NOT_FOUND = merke("Diesen Link gibt es nicht. Bitte den Laden um einen neuen.")
 
 
 def _expired(data: dict, now: datetime) -> bool:
@@ -132,7 +133,10 @@ def create_link(body: LinkRequest, request: Request, user: AuthorizedUser) -> di
     customer = snap.to_dict() or {}
     require_shop_member(user, customer.get("shopId", ""))
     if customer.get("userId"):
-        raise HTTPException(status_code=409, detail=f"{customer.get('name') or 'Die Person'} hat das Konto schon verbunden und braucht keinen Link.")
+        raise HTTPException(
+            status_code=409,
+            detail=merke("{name} hat das Konto schon verbunden und braucht keinen Link.", name=customer.get("name") or merke("Die Person")),
+        )
 
     token = new_token()
     expires = datetime.now(timezone.utc) + timedelta(days=VALID_DAYS)

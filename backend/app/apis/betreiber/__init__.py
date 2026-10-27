@@ -86,6 +86,18 @@ def _auth():
     return auth
 
 
+def _profile_language(uid: str) -> str:
+    """Sprache aus dem Profil des Kontos (users/{uid}.language): Mails an das Konto gehen in seiner Sprache raus,
+    nicht in der des Betreibers"""
+    from app.i18n import sprache_von
+
+    try:
+        snap = get_firestore_db().collection("users").document(uid).get()
+        return sprache_von((snap.to_dict() or {}).get("language") if snap.exists else None)
+    except Exception:
+        return "de"
+
+
 def _account(uid: str):
     """Firebase-Konto oder 404"""
     auth = _auth()
@@ -602,7 +614,8 @@ def bestaetigungs_mail(uid: str, request: Request, user: AuthorizedUser) -> dict
     if not mail_configured():
         return {"status": "nicht_eingerichtet"}
     try:
-        subject, html, text = ev.verification_mail(email, ev.verification_link(ev._firebase_link(email), ev._origin(request)))
+        link = ev.verification_link(ev._firebase_link(email), ev._origin(request))
+        subject, html, text = ev.verification_mail(email, link, _profile_language(uid))
         send_mail(email, subject, html, text)
     except Exception as e:
         print(f"Bestätigungs-Mail an {email} nicht verschickt: {e}")
@@ -632,7 +645,7 @@ def passwort_mail(uid: str, request: Request, user: AuthorizedUser) -> dict:
         protokoll.write(user, "Passwort-Mail angestoßen", {"uid": uid, "email": email})
         return {"email": email, "status": "nicht_eingerichtet"}
     try:
-        pr.mail_reset(email, _origin(request))
+        pr.mail_reset(email, _origin(request), _profile_language(uid))
     except Exception as e:
         print(f"Passwort-Mail an {email} nicht verschickt: {e}")
         raise HTTPException(status_code=502, detail="Die E-Mail konnte nicht verschickt werden. Im Server-Log steht der Grund.")

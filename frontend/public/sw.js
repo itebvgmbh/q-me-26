@@ -18,7 +18,8 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       tag: data.tag || undefined,
       renotify: Boolean(data.tag),
-      requireInteraction: title === 'Du bist dran',
+      // "Du bist dran" bleibt stehen, bis man sie wegtippt – erkannt am tag ("called-<Termin>"), der Titel ist übersetzt
+      requireInteraction: String(data.tag || '').startsWith('called-'),
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [200, 100, 200],
