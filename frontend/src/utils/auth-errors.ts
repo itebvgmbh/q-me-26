@@ -13,6 +13,8 @@ const MESSAGES: Record<string, string> = {
   'auth/user-disabled': merke('Dieses Konto ist gesperrt.'),
   'auth/too-many-requests': merke('Zu viele Versuche. Warte kurz und versuch es dann noch einmal.'),
   'auth/network-request-failed': merke('Keine Verbindung. Prüf dein Internet und versuch es noch einmal.'),
+  // Datenbank (Firestore) nicht erreichbar, z. B. "client is offline"
+  unavailable: merke('Keine Verbindung. Prüf dein Internet und versuch es noch einmal.'),
   'auth/operation-not-allowed': merke('Anmelden mit E-Mail ist für diese App gerade nicht freigeschaltet.'),
   'permission-denied': merke('Dein Profil konnte nicht gespeichert werden (keine Berechtigung).'),
 };
