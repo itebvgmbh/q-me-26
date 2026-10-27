@@ -3,20 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { t } from '@/i18n';
-import { createUserProfile, getRedirectPath, getUserProfile } from '../utils/user-profile-service';
+import { createUserProfile, getRedirectPath, loadUserProfile } from '../utils/user-profile-service';
 import { authErrorMessage } from '../utils/auth-errors';
 import { ROLE_CHOICES, RoleChoiceCard } from '../components/auth/RoleChoice';
 import { FormError } from '../components/auth/AuthShell';
+import { ConnectionProblem } from '../components/ConnectionProblem';
 
 /**
  * Für Konten ohne Profil (z. B. abgebrochene Registrierung). Mitarbeiter-Rolle gibt es nur
  * per Einladung – vorher konnte sich hier jeder selbst zum Mitarbeiter machen.
+ * Die Wahl erscheint erst, wenn feststeht, dass es kein Profil gibt: Ohne Verbindung zur Datenbank sah ein
+ * bestehendes Konto sonst so aus, als hätte es keins (iPhone, 27.10.2026).
  */
 const RoleSelection = () => {
   const navigate = useNavigate();
   const { user, loading: userLoading } = useCurrentUser();
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [check, setCheck] = useState<{ state: 'pruefen' | 'waehlen' | 'fehler'; error?: unknown }>({ state: 'pruefen' });
 
   useEffect(() => {
     if (userLoading) return;
@@ -25,9 +29,12 @@ const RoleSelection = () => {
       return;
     }
     // Wer schon eine Rolle hat, muss hier nicht wählen
-    getUserProfile(user.uid).then(async (profile) => {
-      if (profile) navigate(await getRedirectPath(user.uid), { replace: true });
-    });
+    loadUserProfile(user.uid)
+      .then(async (profile) => {
+        if (profile) navigate(await getRedirectPath(user.uid), { replace: true });
+        else setCheck({ state: 'waehlen' });
+      })
+      .catch((err) => setCheck({ state: 'fehler', error: err }));
   }, [user, userLoading, navigate]);
 
   const choose = async (role: 'customer' | 'shopOwner') => {
@@ -46,7 +53,15 @@ const RoleSelection = () => {
     }
   };
 
-  if (userLoading || !user) return null;
+  if (userLoading || !user || check.state === 'pruefen') return null;
+
+  if (check.state === 'fehler') {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-16">
+        <ConnectionProblem error={check.error} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">

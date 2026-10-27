@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCurrentUser } from 'app';
-import { getUserProfile, onProfileSaved, syncProfileLanguage } from '../user-profile-service';
+import { loadUserProfile, onProfileSaved, syncProfileLanguage } from '../user-profile-service';
 import type { UserProfile } from '../types';
 
 // Profil pro Sitzung zwischenspeichern, damit die Navigation beim
@@ -22,7 +22,8 @@ export const useUserProfile = () => {
     }
     let active = true;
     let savedMeanwhile = false;
-    getUserProfile(user.uid)
+    // Ohne Verbindung nichts zwischenspeichern: Der nächste Seitenwechsel versucht es neu
+    loadUserProfile(user.uid)
       .then((p) => {
         // Eine langsame Antwort ohne Profil darf das gerade gespeicherte nicht überschreiben
         if (savedMeanwhile) return;
