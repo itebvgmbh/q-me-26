@@ -267,6 +267,15 @@ const texte: Texte = {
   "Freitag": "Cuma",
   "Samstag": "Cumartesi",
   "Sonntag": "Pazar",
+
+  // components/counter/CounterCalendar.tsx, pages/ShopDashboard.tsx
+  "Kalender": "Takvim",
+  "Woche": "Hafta",
+  "Ansicht": "Görünüm",
+  "{name} bietet diese Leistung nicht an.": "{name} bu hizmeti sunmuyor.",
+  "Verschoben: {wann} bei {name}.": "Taşındı: {wann}, {name}.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder Person.": "Durumunu değiştirmek için randevuya, yeni randevu için boş zamana tıklayın. Bekleyenleri başka bir saate veya kişiye sürükleyin.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder einen anderen Tag.": "Durumunu değiştirmek için randevuya, yeni randevu için boş zamana tıklayın. Bekleyenleri başka bir saate veya güne sürükleyin.",
 };
 
 export default texte;
