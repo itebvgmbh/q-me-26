@@ -337,6 +337,9 @@ def test_name_berichtigen_ohne_zweite_buchung():
     assert store["appointments"][r["termin_id"]]["customerName"] == "Ella Tittmann" and len(store["appointments"]) == 1
     assert store["appointments"][r["termin_id"]]["status"] == "scheduled"
     assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name=""))["grund"] == "name_fehlt"
+    # Vapi schickt leere Felder als "" mit, auch bei Ja/Nein
+    leer = tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name="Ella", absagen="")
+    assert leer.absagen is False and tel.AendernAnfrage(**anruf(), termin_id="x", absagen="true").absagen is True
 
 
 def test_absagen_gibt_den_platz_frei():
