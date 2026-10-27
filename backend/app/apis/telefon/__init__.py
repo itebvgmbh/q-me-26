@@ -26,7 +26,7 @@ from datetime import datetime, time, timedelta, timezone
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.cache import invalidate_shop_date_cache
@@ -96,6 +96,14 @@ class AendernAnfrage(Anruf):
     termin_id: str                    # "termin_id" aus buchen oder nummer, unverändert
     name: Optional[str] = None        # richtiger Name
     absagen: bool = False             # Termin bzw. Nummer zurückgeben
+
+    @field_validator("absagen", mode="before")
+    @classmethod
+    def _ja_nein(cls, wert):
+        """Vapi schickt leere Felder als "" – auch bei Ja/Nein"""
+        if isinstance(wert, str):
+            return wert.strip().casefold() in ("true", "ja", "yes", "1")
+        return bool(wert)
 
 
 class _Nein(Exception):
