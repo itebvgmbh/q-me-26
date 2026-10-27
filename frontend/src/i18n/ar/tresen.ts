@@ -105,10 +105,11 @@ const texte: Texte = {
   "Hallo {name}": "مرحبًا {name}",
 
   // components/NoEmployeeState.tsx
-  "Du nimmst noch keine Termine an.": "أنت لا تستقبل مواعيد بعد.",
+  "Die Termine deines Teams stehen am Tresen.": "مواعيد فريقك تجدها في الاستقبال.",
   "Noch mit keinem Laden verknüpft.": "غير مرتبط بأي محل بعد.",
-  "Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.": "إذا كنت تعمل بنفسك في المحل، فأضف نفسك ضمن «الفريق» باستخدام بريدك الإلكتروني. بعدها سترى مواعيدك واستراحاتك هنا.",
+  "„Mein Tag“ zeigt nur die Termine, die du selbst annimmst. Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein.": "«يومي» يعرض فقط المواعيد التي تستقبلها بنفسك. إذا كنت تعمل بنفسك في المحل، فأضف نفسك ضمن «الفريق» باستخدام بريدك الإلكتروني.",
   "Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.": "اطلب من محلّك رابط دعوة. به تُنشئ حسابك وترى يومك هنا.",
+  "Zum Tresen": "إلى الاستقبال",
   "Zum Team": "إلى الفريق",
   "Zur Startseite": "إلى الصفحة الرئيسية",
 

@@ -108,8 +108,8 @@ const ShopDashboard = () => {
       try {
         const userShops = await listShopsOfOwner(user.uid);
         setShops(userShops);
-        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens
-        const wanted = userShops.find((s) => s.id === searchParams.get('shopId')) ?? userShops[0];
+        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens; sonst zuerst ein Laden, der nicht gesperrt ist
+        const wanted = userShops.find((s) => s.id === searchParams.get('shopId')) ?? userShops.find((s) => !s.suspended) ?? userShops[0];
         if (wanted) await loadShopData(wanted.id);
         else setIsLoading(false);
       } catch (error) {
