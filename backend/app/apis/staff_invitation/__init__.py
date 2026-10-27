@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.i18n import aus_anfrage, merke, t, tn, uebersetze
 from app.libs.links import new_token, public_origin, token_hash
 from app.libs.mail import MailError, branded_html, esc, send_mail
 from app.libs.onboarding_mail import is_test_address
@@ -31,7 +32,8 @@ router = APIRouter()
 
 VALID_DAYS = 14
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
-NOT_FOUND = "Diesen Einladungslink gibt es nicht oder er wurde durch einen neueren ersetzt. Bitte deinen Laden um einen neuen."
+NOT_FOUND = merke("Diesen Einladungslink gibt es nicht oder er wurde durch einen neueren ersetzt. Bitte deinen Laden um einen neuen.")
+DEIN_LADEN = merke("Dein Laden")
 
 
 def _aware(value) -> datetime | None:
@@ -66,26 +68,31 @@ def _status(data: dict, now: datetime) -> str:
     return "offen"
 
 
-def invitation_mail(shop_name: str, person: str, link: str) -> tuple[str, str, str]:
-    """Betreff, HTML und Text der Einladung"""
-    subject = f"Einladung ins Team von {shop_name}"
-    hallo = f"Hallo {esc(person)}," if person else "Hallo,"
+def invitation_mail(shop_name: str, person: str, link: str, sprache: str = "de") -> tuple[str, str, str]:
+    """Betreff, HTML und Text der Einladung. Sprache: die des Inhabers, der einlädt – die der Person kennt noch niemand."""
+    subject = t("Einladung ins Team von {laden}", sprache, laden=shop_name)
+    hallo = t("Hallo {name},", sprache, name=esc(person)) if person else t("Hallo,", sprache)
+    gilt = tn(VALID_DAYS, "Der Link gilt {n} Tag. Fragen beantwortet dir dein Laden.", "Der Link gilt {n} Tage. Fragen beantwortet dir dein Laden.", sprache)
     html = branded_html(
-        f"Du bist ins Team von {esc(shop_name)} eingeladen",
+        t("Du bist ins Team von {laden} eingeladen", sprache, laden=esc(shop_name)),
         [
-            f"{hallo} <strong>{esc(shop_name)}</strong> nutzt Dranzeit für Termine und die Warteschlange und hat dich ins Team eingeladen.",
-            "Leg über den Link dein Konto an oder melde dich mit deinem bestehenden an. Danach siehst du unter „Mein Tag“ deine eigenen Kunden.",
+            t(
+                "{hallo} <strong>{laden}</strong> nutzt Dranzeit für Termine und die Warteschlange und hat dich ins Team eingeladen.",
+                sprache, hallo=hallo, laden=esc(shop_name),
+            ),
+            esc(t("Leg über den Link dein Konto an oder melde dich mit deinem bestehenden an. Danach siehst du unter „Mein Tag“ deine eigenen Kunden.", sprache)),
         ],
-        button_text="Einladung annehmen",
+        button_text=t("Einladung annehmen", sprache),
         button_url=link,
-        note=f"Der Link gilt {VALID_DAYS} Tage. Fragen beantwortet dir dein Laden.",
+        note=esc(gilt),
+        sprache=sprache,
     )
     text = (
-        f"Du bist ins Team von {shop_name} eingeladen.\n\n"
-        f"{shop_name} nutzt Dranzeit für Termine und die Warteschlange. "
-        "Leg über diesen Link dein Konto an oder melde dich mit deinem bestehenden an:\n"
+        t("Du bist ins Team von {laden} eingeladen.", sprache, laden=shop_name) + "\n\n"
+        + t("{laden} nutzt Dranzeit für Termine und die Warteschlange. Leg über diesen Link dein Konto an oder melde dich mit deinem bestehenden an:", sprache, laden=shop_name)
+        + "\n"
         f"{link}\n\n"
-        f"Der Link gilt {VALID_DAYS} Tage. Fragen beantwortet dir dein Laden.\n"
+        f"{gilt}\n"
     )
     return subject, html, text
 
@@ -107,11 +114,11 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
         raise HTTPException(status_code=404, detail="Diese Person gibt es nicht mehr. Lade die Seite neu.")
     staff = snap.to_dict() or {}
     require_shop_of_owner(user, staff.get("shopId", ""))
-    name = staff.get("name") or "Die Person"
+    name = staff.get("name") or merke("Die Person")
     if staff.get("userId"):
-        raise HTTPException(status_code=409, detail=f"{name} hat schon ein Konto und sieht „Mein Tag“.")
+        raise HTTPException(status_code=409, detail=merke("{name} hat schon ein Konto und sieht „Mein Tag“.", name=name))
     if staff.get("isActive") is False:
-        raise HTTPException(status_code=409, detail=f"{name} ist deaktiviert. Hol sie zuerst zurück ins Team.")
+        raise HTTPException(status_code=409, detail=merke("{name} ist deaktiviert. Hol sie zuerst zurück ins Team.", name=name))
     email = email_of(db, body.staff_id, staff)
     if body.send_email and not email:
         raise HTTPException(status_code=400, detail="Für die E-Mail fehlt die Adresse. Trag sie unter „Bearbeiten“ ein und speichere.")
@@ -133,19 +140,20 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
     contacts.set({"inviteEmailTo": gcf.DELETE_FIELD}, merge=True)
 
     email_sent, email_problem = False, ""
+    sprache = aus_anfrage(request)
     if body.send_email and is_test_address(email):
         # Testläden (dev/fixtures.py, Oberflächentests): keine echte Mail an reservierte Domains
-        email_problem = "An Testadressen wie example.com verschickt Dranzeit keine E-Mails."
+        email_problem = t("An Testadressen wie example.com verschickt Dranzeit keine E-Mails.", sprache)
     elif body.send_email:
-        shop_name = _shop(staff.get("shopId", "")).get("name") or "deinem Laden"
-        subject, html, text = invitation_mail(shop_name, staff.get("name", ""), link)
+        shop_name = _shop(staff.get("shopId", "")).get("name") or t("deinem Laden", sprache)
+        subject, html, text = invitation_mail(shop_name, staff.get("name", ""), link, sprache)
         try:
             email_sent = send_mail(email, subject, html, text)
             if not email_sent:
-                email_problem = "Der E-Mail-Versand ist gerade nicht eingerichtet."
+                email_problem = t("Der E-Mail-Versand ist gerade nicht eingerichtet.", sprache)
         except MailError as e:
             print(f"Team-Einladung an {email} nicht verschickt: {e}")
-            email_problem = "Die E-Mail konnte nicht verschickt werden."
+            email_problem = t("Die E-Mail konnte nicht verschickt werden.", sprache)
         if email_sent:
             ref.update({"inviteEmailSentAt": gcf.SERVER_TIMESTAMP})
             contacts.set({"inviteEmailTo": email, "updatedAt": gcf.SERVER_TIMESTAMP}, merge=True)
@@ -154,25 +162,26 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
 
 
 @router.get("/staff-invitation/{token}")
-def invitation_info(token: str) -> dict:
+def invitation_info(token: str, request: Request) -> dict:
     """Für die Seite /staff-registration vor dem Anmelden: gilt der Link, von welchem Laden, für wen?"""
     doc, data = _staff_by_token(token)
     shop = _shop(data.get("shopId", ""))
     return {
         "status": _status(data, datetime.now(timezone.utc)),
-        "shopName": shop.get("name") or "Dein Laden",
+        "shopName": shop.get("name") or uebersetze(DEIN_LADEN, aus_anfrage(request)),
         "name": data.get("name") or "",
         "email": email_of(get_firestore_db(), doc.id, data),
     }
 
 
 @router.post("/staff-invitation/{token}")
-def accept_invitation(token: str, user: AuthorizedUser) -> dict:
+def accept_invitation(token: str, request: Request, user: AuthorizedUser) -> dict:
     """Eintrag mit dem angemeldeten Konto verbinden; das Konto bekommt die Rolle Mitarbeiter (Inhaber bleiben Inhaber)"""
     doc, data = _staff_by_token(token)
     shop_id = data.get("shopId", "")
     shop = _shop(shop_id)
-    shop_name = shop.get("name") or "Dein Laden"
+    sprache = aus_anfrage(request)
+    shop_name = shop.get("name") or uebersetze(DEIN_LADEN, sprache)
     result = {"shopName": shop_name, "staffId": doc.id}
 
     if data.get("userId"):
@@ -192,14 +201,19 @@ def accept_invitation(token: str, user: AuthorizedUser) -> dict:
     for other in db.collection("staff").where("userId", "==", user.sub).stream():
         o = other.to_dict() or {}
         if o.get("shopId") == shop_id and o.get("isActive") is not False:
-            raise HTTPException(status_code=409, detail=f"Dein Konto steht im Team von {shop_name} schon als {o.get('name') or 'andere Person'}.")
+            raise HTTPException(
+                status_code=409,
+                detail=merke("Dein Konto steht im Team von {laden} schon als {name}.", laden=shop_name, name=o.get("name") or merke("andere Person")),
+            )
 
     # Erst das Profil, zuletzt der Eintrag: Bricht es dazwischen ab, holt ein zweiter Klick den Rest
     users = db.collection("users").document(user.sub)
     profile = users.get()
     email = (getattr(user, "email", None) or "").strip()
     if not profile.exists:
-        users.set({"uid": user.sub, "email": email, "role": "employee", "createdAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP})
+        users.set(
+            {"uid": user.sub, "email": email, "role": "employee", "language": sprache, "createdAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP}
+        )
     elif (profile.to_dict() or {}).get("role") not in ("employee", "shopOwner"):
         # Kundenkonto: wird Mitarbeiterkonto, "Meine Termine" bleibt erreichbar
         users.update({"role": "employee", "updatedAt": gcf.SERVER_TIMESTAMP})

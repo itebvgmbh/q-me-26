@@ -83,6 +83,10 @@ def create_app() -> FastAPI:
     """Create the app. This is called by uvicorn with the factory option to construct the app object."""
     app = FastAPI()
     app.include_router(import_api_routers())
+    # Fehlermeldungen (detail) in der Sprache der Anfrage (app/i18n)
+    from app.i18n import uebersetzte_fehler
+
+    uebersetzte_fehler(app)
 
     # Stadtseiten, sitemap.xml (app/seo.py), Salon-Verzeichnis (app/verzeichnis_seiten.py), Hilfe (app/hilfe) und
     # Einbau-Kasten (app/einbau.py): unter eigenem Pfad (Caddy leitet ihn weiter) und unter /routes/seo

@@ -2,7 +2,8 @@
 
 Anmelden darf, wer den Schlüssel der Nummer hat (Nummer ohne Konto, app/libs/ticket.py) oder mit dem Konto des
 Termins angemeldet ist. Zusätzlich nur für Termine, die heute oder später anstehen, und mit einer Bremse je Absender.
-Versand: app/libs/notify_worker.py.
+Versand: app/libs/notify_worker.py. Die Sprache (language, sonst Accept-Language) steht an der Anmeldung und am Termin –
+so kommen Nachrichten in der Sprache, die der Kunde zuletzt gewählt hat.
 """
 
 import hashlib
@@ -12,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from app.apis.firebase_utils import get_firestore_db
+from app.i18n import aus_anfrage, sprache_von
 from app.libs.mail import mail_configured
 from app.libs.notify_worker import wake
 from app.libs.plans import has_feature
@@ -74,6 +76,11 @@ class SubscribeRequest(BaseModel):
     endpoint: str = Field(min_length=10, max_length=1000)
     p256dh: str = Field(min_length=10, max_length=200)
     auth: str = Field(min_length=5, max_length=100)
+    language: str | None = Field(default=None, max_length=10)
+
+
+def _language(value: str | None, request: Request) -> str:
+    return sprache_von(value) if value else aus_anfrage(request)
 
 
 @router.post("/push/subscribe")
@@ -86,6 +93,7 @@ def subscribe(body: SubscribeRequest, request: Request) -> dict:
     appt = _open_appointment(body.appointment_id, body.key, request)
     _require_notifications(appt.get("shopId"))
     db = get_firestore_db()
+    language = _language(body.language, request)
     existing = list(db.collection("push_subscriptions").where("appointmentId", "==", body.appointment_id).limit(MAX_SUBSCRIPTIONS_PER_APPOINTMENT + 1).stream())
     doc_id = hashlib.sha256(f"{body.appointment_id}|{body.endpoint}".encode()).hexdigest()[:40]
     if len(existing) >= MAX_SUBSCRIPTIONS_PER_APPOINTMENT and all(d.id != doc_id for d in existing):
@@ -97,9 +105,12 @@ def subscribe(body: SubscribeRequest, request: Request) -> dict:
             "endpoint": body.endpoint,
             "p256dh": body.p256dh,
             "auth": body.auth,
+            "language": language,
             "createdAt": datetime.now(timezone.utc),
         }
     )
+    if appt.get("language") != language:
+        db.collection("appointments").document(body.appointment_id).update({"language": language})
     wake()
     return {"status": "ok"}
 
@@ -121,6 +132,7 @@ class NotifyEmailRequest(BaseModel):
     appointment_id: str
     email: EmailStr | None = None
     key: str | None = Field(default=None, max_length=64)
+    language: str | None = Field(default=None, max_length=10)
 
 
 @router.post("/push/notify-email")
@@ -132,7 +144,10 @@ def notify_email(body: NotifyEmailRequest, request: Request) -> dict:
     appt = _open_appointment(body.appointment_id, body.key, request)
     if body.email:
         _require_notifications(appt.get("shopId"))
-    get_firestore_db().collection("appointments").document(body.appointment_id).update({"notifyEmail": str(body.email) if body.email else None})
+    update = {"notifyEmail": str(body.email) if body.email else None}
+    if body.email:
+        update["language"] = _language(body.language, request)
+    get_firestore_db().collection("appointments").document(body.appointment_id).update(update)
     if body.email:
         wake()
     return {"status": "ok"}

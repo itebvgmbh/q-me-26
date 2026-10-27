@@ -14,6 +14,8 @@ import os
 
 import requests
 
+from app.i18n import ist_rtl, t
+
 RESEND_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "Dranzeit <hallo@dranzeit.de>"
 
@@ -74,12 +76,14 @@ PAPER = "#eeede7"
 FONT = "Arial,Helvetica,sans-serif"
 
 
-def branded_html(heading: str, paragraphs: list[str], button_text: str = "", button_url: str = "", note: str = "") -> str:
-    """E-Mail im Dranzeit-Design. `heading` und `paragraphs` müssen schon entschärft sein (esc).
+def branded_html(heading: str, paragraphs: list[str], button_text: str = "", button_url: str = "", note: str = "", sprache: str = "de") -> str:
+    """E-Mail im Dranzeit-Design. `heading` und `paragraphs` müssen schon entschärft sein (esc) und übersetzt;
+    sprache übersetzt den festen Rahmen (app/i18n), Arabisch steht von rechts nach links.
 
     Aus Tabellen gebaut, weil Outlook (Word als Darstellung) weder max-width noch Abstände an Links kennt. Ist das Logo
     blockiert (Outlook lädt Bilder erst auf Klick), steht an seiner Stelle „Dranzeit“ in Weiß."""
     base = public_url()
+    direction = "rtl" if ist_rtl(sprache) else "ltr"
     text = f"font-family:{FONT};color:{INK}"
     body = "".join(f'<p style="margin:0 0 14px;font-size:16px;line-height:1.55;{text}">{p}</p>' for p in paragraphs)
     button = ""
@@ -91,7 +95,7 @@ def branded_html(heading: str, paragraphs: list[str], button_text: str = "", but
             f'<a href="{url}" style="display:inline-block;padding:13px 22px;border-radius:12px;font-family:{FONT};'
             f'font-size:16px;font-weight:bold;color:{INK};text-decoration:none">{esc(button_text)}</a></td></tr></table>'
             f'<p style="margin:0 0 14px;font-family:{FONT};font-size:13px;line-height:1.5;color:{MUTED};word-break:break-all">'
-            f'Klappt der Knopf nicht? Dann öffne diesen Link: <a href="{url}" style="color:{MUTED}">{url}</a></p>'
+            f'{esc(t("Klappt der Knopf nicht? Dann öffne diesen Link:", sprache))} <a href="{url}" style="color:{MUTED}">{url}</a></p>'
         )
     foot = (
         f'<p style="margin:18px 0 0;padding-top:16px;border-top:1px solid {PAPER};font-family:{FONT};font-size:13px;'
@@ -101,12 +105,12 @@ def branded_html(heading: str, paragraphs: list[str], button_text: str = "", but
     )
     width, height = LOGO_SIZE
     return (
-        '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
+        f'<!DOCTYPE html><html lang="{sprache}" dir="{direction}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
         f"<title>{heading}</title></head>"
-        f'<body style="margin:0;padding:0;background:{PAPER}">'
-        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{PAPER}" style="background:{PAPER}">'
+        f'<body dir="{direction}" style="margin:0;padding:0;background:{PAPER}">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{PAPER}" dir="{direction}" style="background:{PAPER}">'
         '<tr><td align="center" style="padding:24px 12px">'
         '<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" '
         'style="width:100%;max-width:560px;background:#ffffff;border-radius:16px">'
@@ -120,6 +124,6 @@ def branded_html(heading: str, paragraphs: list[str], button_text: str = "", but
         '<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px">'
         f'<tr><td align="center" style="padding:14px 24px 0;font-family:{FONT};font-size:12px;line-height:1.6;color:{MUTED}">'
         f'<a href="{base}" style="color:{MUTED};text-decoration:none;font-weight:bold">Dranzeit</a> · ITEBV GmbH · '
-        f'<a href="{base}/impressum" style="color:{MUTED}">Impressum</a><br>Diese E-Mail wurde automatisch verschickt.'
+        f'<a href="{base}/impressum" style="color:{MUTED}">{esc(t("Impressum", sprache))}</a><br>{esc(t("Diese E-Mail wurde automatisch verschickt.", sprache))}'
         "</td></tr></table></td></tr></table></body></html>"
     )

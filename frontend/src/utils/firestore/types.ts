@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import type { Sprache } from '@/i18n';
 
 export interface BusinessHoursDay {
   dayOfWeek: number; // 0-6, where 0 is Sunday, 1 is Monday, etc.
@@ -158,6 +159,8 @@ export interface Appointment {
   customerNotice?: 'cancelled' | 'moved' | null;
   customerNoticePreviousStart?: Timestamp | null;
   customerNoticeAt?: Timestamp;
+  /** Sprache für Push und E-Mails an den Kunden – nur wenn er selbst zieht oder bucht (backend/app/i18n) */
+  language?: Sprache;
 }
 
 export interface QueueEntry {

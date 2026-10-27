@@ -87,7 +87,7 @@ def daten():
             "chef": {"role": "shopOwner", "email": "chef@dranzeit.de"},
             "inhaber": {"role": "shopOwner", "email": "inhaber@laden.de", "displayName": "Ina Haber"},
             "mitarbeiter": {"role": "employee", "email": "kim@laden.de"},
-            "kunde": {"role": "customer", "email": "kunde@web.de"},
+            "kunde": {"role": "customer", "email": "kunde@web.de", "language": "tr"},
             "fixture": {"role": "shopOwner"},
         },
         "shops": {
@@ -323,12 +323,13 @@ def test_passwort_mail_ueber_resend_sonst_firebase_im_browser():
 
     sent = []
     real = (pr.mail_reset, mail.mail_configured)
-    pr.mail_reset = lambda address, origin: sent.append((address, origin))
+    pr.mail_reset = lambda address, origin, sprache="de": sent.append((address, origin, sprache))
     try:
         mail.mail_configured = lambda: True
         client, _, auth = setup(users={**konten_daten(), "weg": {"email": "weg@laden.de", "disabled": True}})
         r = client.post("/routes/betreiber/konto/kunde/passwort-mail", headers={"Origin": "https://dranzeit.de"})
-        assert r.json() == {"email": "kunde@web.de", "status": "verschickt"} and sent == [("kunde@web.de", "https://dranzeit.de")]
+        # In der Sprache aus dem Profil des Kontos, nicht in der des Betreibers
+        assert r.json() == {"email": "kunde@web.de", "status": "verschickt"} and sent == [("kunde@web.de", "https://dranzeit.de", "tr")]
         assert protokoll_zeilen()[-1]["action"] == "Passwort-Mail geschickt"
         assert client.post("/routes/betreiber/konto/weg/passwort-mail").status_code == 400
         assert client.post("/routes/betreiber/konto/fixture/passwort-mail").status_code == 400

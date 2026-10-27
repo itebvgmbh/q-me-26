@@ -134,7 +134,9 @@ Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/te
 `uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
 (Rechnungen und E-Rechnung, Zugriff nur für den Inhaber) und `uv run python tests/test_queue_notify.py`
 (Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten) und `uv run python tests/test_verzeichnis.py`
-(Salon-Verzeichnis: Import, Seiten, Übernahme, Entfernen).
+(Salon-Verzeichnis: Import, Seiten, Übernahme, Entfernen) und `uv run python tests/test_i18n.py` (Texte vom Backend auf
+Englisch, Türkisch, Arabisch: alles übersetzt, Platzhalter passen, Sprache aus `Accept-Language`; mit `--fehlend` nur die
+Lücken auflisten).
 
 Regel der Schlange im Frontend (`frontend/src/utils/queue-lane.ts`) ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.
 

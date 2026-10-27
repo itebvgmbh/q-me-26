@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.i18n import ar, en, tr  # noqa: E402
 from app.libs.queue_notify import (  # noqa: E402
     Planned,
     message_for,
@@ -143,6 +144,18 @@ def test_mitteilung_nur_wenn_sinnvoll():
     assert notice_kind({**moved, "customerNoticePreviousStart": moved["startTime"] - timedelta(hours=1)}, NOW, today) == "moved"
     assert notice_kind({**moved, "customerNoticePreviousStart": moved["startTime"]}, NOW, today) is None  # zurückgeschoben
     assert notice_kind(appt("a", 60, customerNotice=None), NOW, today) is None
+
+
+def test_nachrichten_auf_tuerkisch_und_arabisch():
+    at = lambda h, m, day=19: datetime(2026, 10, day, h, m)  # noqa: E731
+    title, body = message_for("called", "Barber Ali", sprache="tr")
+    assert title == tr.TEXTE["Du bist dran"] and "Barber Ali" in body and body != "Barber Ali ruft dich auf. Komm jetzt rein."
+    _, body = message_for("moved", "Barber Ali", sprache="tr", now=at(9, 0), start=at(15, 30, 22), previous=at(14, 0), staff="Anna")
+    assert "15:30" in body and "Anna" in body and "14:00" in body and tr.TEXTE["Do"] in body  # 22.10.2026 ist ein Donnerstag
+    _, body = message_for("offer", "", sprache="ar", now=at(9, 0), start=at(10, 30), hold_until=at(9, 15))
+    assert ar.TEXTE["Dein Laden"] in body and "10:30" in body and "09:15" in body and "Platz" not in body
+    # Ohne Sprache wie bisher
+    assert message_for("called", "Barber Ali") == ("Du bist dran", "Barber Ali ruft dich auf. Komm jetzt rein.")
 
 
 # --- Durchlauf mit nachgebauter Datenbank ---------------------------------------------------
@@ -309,6 +322,32 @@ def test_abbestellte_anmeldung_wird_geloescht():
     }
     notify_worker.run_once(FakeDb(store), now=NOW)
     assert store["push_subscriptions"] == {}
+
+
+def test_durchlauf_schickt_in_der_sprache_der_anmeldung_und_des_termins():
+    sent, mails = [], []
+    notify_worker.push_configured = lambda: True
+    notify_worker.mail_configured = lambda: True
+    notify_worker.send_push = lambda sub, title, body, url, tag: sent.append((sub["endpoint"], title))
+    notify_worker.send_mail = lambda to, subject, html_body, text_body: mails.append((to, subject, html_body))
+    store = {
+        "shops": {"laden": {"name": "Barber Ali"}},
+        "users": {"kundin": {"email": "kundin@example.com", "language": "en"}},
+        "appointments": {
+            "dran": {**appt("dran", -5, status="in-progress"), "language": "tr", "notifyEmail": "ali@example.com"},
+            "konto": {**appt("konto", -5, staff="kim", status="in-progress"), "customerId": "kundin", "notifyEmail": "kundin@example.com"},
+        },
+        "push_subscriptions": {
+            "s1": {"appointmentId": "dran", "endpoint": "https://push/1", "p256dh": "k", "auth": "a", "language": "ar"},
+            "s2": {"appointmentId": "dran", "endpoint": "https://push/2", "p256dh": "k", "auth": "a"},
+        },
+    }
+    notify_worker.run_once(FakeDb(store), now=NOW, extras=False)
+    assert ("https://push/1", ar.TEXTE["Du bist dran"]) in sent  # Sprache der Anmeldung
+    assert ("https://push/2", tr.TEXTE["Du bist dran"]) in sent  # alte Anmeldung ohne Sprache: die am Termin
+    by_mail = {to: (subject, html) for to, subject, html in mails}
+    assert by_mail["ali@example.com"][0] == tr.TEXTE["Du bist dran"] and tr.TEXTE["Nummer ansehen"] in by_mail["ali@example.com"][1]
+    assert by_mail["kundin@example.com"][0] == en.TEXTE["Du bist dran"]  # Termin ohne Sprache: die des Kontos
 
 
 if __name__ == "__main__":

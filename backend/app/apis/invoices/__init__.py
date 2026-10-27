@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from app.apis.billing import _require_stripe, _shop, stripe_errors
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.i18n import merke
 from app.libs.invoices import FINAL, NotSupported, build_xrechnung, summary
 from app.libs.stripe_billing import client
 
@@ -127,5 +128,5 @@ def invoice_xrechnung(shop_id: str, invoice_id: str, user: AuthorizedUser) -> Re
     try:
         xml = build_xrechnung(inv, buyer_reference=shop_id)
     except NotSupported as e:
-        raise HTTPException(status_code=409, detail=f"Für diese Rechnung gibt es keine E-Rechnung: {e}") from e
+        raise HTTPException(status_code=409, detail=merke("Für diese Rechnung gibt es keine E-Rechnung: {grund}", grund=str(e))) from e
     return _download(xml, "application/xml", f"Dranzeit-Rechnung-{inv['number']}-XRechnung.xml")

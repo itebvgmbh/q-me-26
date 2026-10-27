@@ -9,7 +9,8 @@ und neue Angebote (check_slots) wecken ihn ebenfalls; deren Merker prüft er bei
 EXTRA_EVERY Durchläufe, nicht jedes Mal (spart Lesevorgänge).
 
 Kanäle je Termin: Web-Push (Sammlung push_subscriptions) und E-Mail (Feld notifyEmail am Termin, bei
-Erinnerungen, Absagen, Verschiebungen und Angeboten auch die E-Mail des Kundenkontos). Was gesendet wurde,
+Erinnerungen, Absagen, Verschiebungen und Angeboten auch die E-Mail des Kundenkontos). Sprache: die der
+Push-Anmeldung, sonst die am Termin (Nummer ziehen, Buchen), sonst die des Kundenkontos, sonst Deutsch. Was gesendet wurde,
 steht am Termin bzw. Angebot (notifiedSoonAt, notifiedCalledAt, reminderSentAt; customerNotice und
 offerNotice werden geleert), damit nichts doppelt kommt.
 """
@@ -19,6 +20,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from app.i18n import merke, sprache_von, t
 from app.libs import onboarding_mail
 from app.libs.appointment_window import AppointmentWindow
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
@@ -145,6 +147,7 @@ def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
     ids = list({p.appointment_id for p in planned} | {a["id"] for a in reminders})
     subs = _subscriptions_for(db, ids) if can_push else {}
     shops: dict[str, dict] = {}
+    users: dict[str, dict] = {}
     sent = 0
 
     for p in planned:
@@ -156,8 +159,8 @@ def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
         shop = _shop(db, shops, appt.get("shopId"))
         if not has_feature(shop, "benachrichtigung", now):
             continue  # gehört zu den Bezahltarifen (app/libs/plans.py)
-        title, body = message_for(p.kind, shop.get("name", ""), ahead=p.ahead)
-        _deliver(db, appt, channels, email, title, body, tag=f"{p.kind}-{appt['id']}")
+        message = lambda sprache, p=p, shop=shop: message_for(p.kind, shop.get("name", ""), ahead=p.ahead, sprache=sprache)  # noqa: E731
+        _deliver(db, appt, channels, email, message, tag=f"{p.kind}-{appt['id']}", users=users)
         field = "notifiedCalledAt" if p.kind == "called" else "notifiedSoonAt"
         _mark(db, appt["id"], {field: now})
         sent += 1
@@ -165,19 +168,21 @@ def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
     for appt in reminders:
         shop = _shop(db, shops, appt.get("shopId"))
         allowed = has_feature(shop, "erinnerung", now)
-        email = _customer_email(db, appt) if can_mail and allowed else ""
+        email = _customer_email(db, appt, users) if can_mail and allowed else ""
         channels = subs.get(appt["id"], []) if allowed else []
         if channels or email:
             start_label = appt["startTime"].astimezone(BERLIN).strftime("%H:%M")
-            title, body = message_for("reminder", shop.get("name", ""), start_label=start_label)
-            _deliver(db, appt, channels, email, title, body, tag=f"reminder-{appt['id']}")
+            message = lambda sprache, shop=shop, start_label=start_label: message_for(  # noqa: E731
+                "reminder", shop.get("name", ""), start_label=start_label, sprache=sprache
+            )
+            _deliver(db, appt, channels, email, message, tag=f"reminder-{appt['id']}", users=users)
             sent += 1
         _mark(db, appt["id"], {"reminderSentAt": now})
 
     result = {"geplant": len(planned), "erinnerungen": len(reminders), "gesendet": sent}
     if extras:
-        result["mitteilungen"] = _send_notices(db, now, start, shops, can_push, can_mail)
-        result["angebote"] = _send_offers(db, now, shops, can_push, can_mail)
+        result["mitteilungen"] = _send_notices(db, now, start, shops, users, can_push, can_mail)
+        result["angebote"] = _send_offers(db, now, shops, users, can_push, can_mail)
     return result
 
 
@@ -185,7 +190,7 @@ def _local(value: datetime | None) -> datetime | None:
     return value.astimezone(BERLIN) if value else None
 
 
-def _send_notices(db, now: datetime, today_start: datetime, shops: dict, can_push: bool, can_mail: bool) -> int:
+def _send_notices(db, now: datetime, today_start: datetime, shops: dict, users: dict, can_push: bool, can_mail: bool) -> int:
     """Laden hat abgesagt oder verschoben (Merker customerNotice, gesetzt von updateAppointment im Frontend)."""
     pending = [_as_dict(d) for d in db.collection("appointments").where("customerNotice", "in", ["cancelled", "moved"]).stream()]
     if not pending:
@@ -198,18 +203,19 @@ def _send_notices(db, now: datetime, today_start: datetime, shops: dict, can_pus
         delivered = False
         if kind and has_feature(shop, "benachrichtigung", now):
             channels = subs.get(appt["id"], [])
-            email = _customer_email(db, appt) if can_mail else ""
+            email = _customer_email(db, appt, users) if can_mail else ""
             if channels or email:
-                title, body = message_for(
-                    kind,
-                    shop.get("name", ""),
+                details = dict(
                     now=_local(now),
                     start=_local(appt["startTime"]),
                     previous=_local(appt.get("customerNoticePreviousStart")),
                     queue=appt.get("type") == "queue",
                     staff=_staff_name(db, appt.get("staffId")) if kind == "moved" else "",
                 )
-                _deliver(db, appt, channels, email, title, body, tag=f"notice-{appt['id']}")
+                message = lambda sprache, kind=kind, shop=shop, details=details: message_for(  # noqa: E731
+                    kind, shop.get("name", ""), sprache=sprache, **details
+                )
+                _deliver(db, appt, channels, email, message, tag=f"notice-{appt['id']}", users=users)
                 delivered = True
                 sent += 1
         # Auch ohne Kanal oder Tarif leeren – sonst käme die Nachricht Tage später, wenn sich jemand anmeldet
@@ -220,7 +226,7 @@ def _send_notices(db, now: datetime, today_start: datetime, shops: dict, can_pus
     return sent
 
 
-def _send_offers(db, now: datetime, shops: dict, can_push: bool, can_mail: bool) -> int:
+def _send_offers(db, now: datetime, shops: dict, users: dict, can_push: bool, can_mail: bool) -> int:
     """"Früher dran": neues oder verbessertes Angebot (Merker offerNotice, gesetzt in app/apis/check_slots)."""
     offers = [_as_dict(d) for d in db.collection("earlier_slot_notifications").where("offerNotice", "==", "pending").stream()]
     if not offers:
@@ -241,17 +247,14 @@ def _send_offers(db, now: datetime, shops: dict, can_push: bool, can_mail: bool)
         still_open = offer.get("status") == "offered" and not offer.get("isAccepted") and start is not None and start > local_now
         if appt and still_open and appt.get("status") == "scheduled" and has_feature(shop, "frueherDran", now):
             channels = subs.get(appt["id"], [])
-            email = _customer_email(db, appt) if can_mail else ""
+            email = _customer_email(db, appt, users) if can_mail else ""
             if channels or email:
-                title, body = message_for(
-                    "offer",
-                    shop.get("name", ""),
-                    now=local_now,
-                    start=start,
-                    original=_local(appt.get("startTime")),
-                    hold_until=_local(offer.get("expiresAt")),
+                details = dict(now=local_now, start=start, original=_local(appt.get("startTime")), hold_until=_local(offer.get("expiresAt")))
+                message = lambda sprache, shop=shop, details=details: message_for("offer", shop.get("name", ""), sprache=sprache, **details)  # noqa: E731
+                _deliver(
+                    db, appt, channels, email, message, tag=f"offer-{appt['id']}", url=f"/my-bookings?angebot={offer['id']}",
+                    button_text=ANGEBOT_ANSEHEN, users=users,
                 )
-                _deliver(db, appt, channels, email, title, body, tag=f"offer-{appt['id']}", url=f"/my-bookings?angebot={offer['id']}", button_text="Angebot ansehen")
                 sent += 1
         db.collection("earlier_slot_notifications").document(offer["id"]).update({"offerNotice": None, "offerNotifiedAt": now})
     return sent
@@ -276,11 +279,19 @@ def _staff_name(db, staff_id: str | None) -> str:
     return ((doc.to_dict() or {}).get("name") or "").strip() if doc.exists else ""
 
 
+NUMMER_ANSEHEN = merke("Nummer ansehen")
+ANGEBOT_ANSEHEN = merke("Angebot ansehen")
+
+
 def _deliver(
-    db, appt: dict, channels: list, email: str, title: str, body: str, tag: str, url: str | None = None, button_text: str = "Nummer ansehen"
+    db, appt: dict, channels: list, email: str, message, tag: str, url: str | None = None, button_text: str = NUMMER_ANSEHEN,
+    users: dict | None = None,
 ) -> None:
+    """message(sprache) -> (Titel, Text): jede Push-Anmeldung in ihrer Sprache, die E-Mail in der des Termins."""
     url = url or f"/nummer/{appt['id']}"
+    language = _language(db, appt, {} if users is None else users)
     for sub in channels:
+        title, body = message(sprache_von(sub["language"]) if sub.get("language") else language)
         try:
             send_push(sub["subscription"], title, body, url, tag)
         except SubscriptionGone:
@@ -288,11 +299,14 @@ def _deliver(
         except Exception as e:
             print(f"Push an {appt['id']} fehlgeschlagen: {e}")
     if email:
+        title, body = message(language)
         try:
             send_mail(
                 to=email,
                 subject=title,
-                html_body=branded_html(esc(title), [esc(body)], button_text=button_text, button_url=public_url() + url),
+                html_body=branded_html(
+                    esc(title), [esc(body)], button_text=t(button_text, language), button_url=public_url() + url, sprache=language
+                ),
                 text_body=f"{body}\n\n{public_url()}{url}\n",
             )
         except Exception as e:
@@ -307,7 +321,7 @@ def _subscriptions_for(db, appointment_ids: list[str]) -> dict[str, list]:
             data = doc.to_dict() or {}
             sub = {"endpoint": data.get("endpoint"), "keys": {"p256dh": data.get("p256dh"), "auth": data.get("auth")}}
             if sub["endpoint"]:
-                result.setdefault(data["appointmentId"], []).append({"doc_id": doc.id, "subscription": sub})
+                result.setdefault(data["appointmentId"], []).append({"doc_id": doc.id, "subscription": sub, "language": data.get("language")})
     return result
 
 
@@ -320,13 +334,30 @@ def _shop(db, cache: dict, shop_id: str | None) -> dict:
     return cache[shop_id]
 
 
-def _customer_email(db, appt: dict) -> str:
-    email = (appt.get("notifyEmail") or "").strip()
+def _customer(db, appt: dict, users: dict) -> dict:
+    """Profil des Kundenkontos (users/{uid}), je Durchlauf nur einmal gelesen; ohne Konto leer"""
     customer_id = appt.get("customerId")
-    if email or not customer_id or customer_id == "walk-in":
+    if not customer_id or customer_id == "walk-in":
+        return {}
+    if customer_id not in users:
+        doc = db.collection("users").document(customer_id).get()
+        users[customer_id] = (doc.to_dict() or {}) if doc.exists else {}
+    return users[customer_id]
+
+
+def _customer_email(db, appt: dict, users: dict | None = None) -> str:
+    email = (appt.get("notifyEmail") or "").strip()
+    if email:
         return email
-    doc = db.collection("users").document(customer_id).get()
-    return ((doc.to_dict() or {}).get("email") or "").strip() if doc.exists else ""
+    return (_customer(db, appt, {} if users is None else users).get("email") or "").strip()
+
+
+def _language(db, appt: dict, users: dict) -> str:
+    """Sprache für Nachrichten zum Termin: die beim Nummer ziehen oder Buchen, sonst die des Kundenkontos, sonst
+    Deutsch. Legt der Laden den Termin am Tresen an, steht keine dran – die Sprache des Ladens gilt nicht für den Kunden."""
+    if appt.get("language"):
+        return sprache_von(appt["language"])
+    return sprache_von(_customer(db, appt, users).get("language"))
 
 
 def _appointments(db, start: datetime, end: datetime) -> list[dict]:

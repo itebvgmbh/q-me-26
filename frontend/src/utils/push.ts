@@ -1,5 +1,5 @@
 import { auth } from 'app';
-import { t } from '@/i18n';
+import { sprache, t } from '@/i18n';
 
 // Benachrichtigungen für eine Nummer: Web-Push oder E-Mail.
 // Backend: backend/app/apis/push (Anmelden), backend/app/libs/notify_worker.py (Versand).
@@ -93,6 +93,8 @@ export const enablePush = async (appointmentId: string, publicKey: string, ticke
     endpoint: json.endpoint,
     p256dh: json.keys?.p256dh,
     auth: json.keys?.auth,
+    // Nachrichten an dieses Gerät in der gewählten Sprache (backend/app/i18n)
+    language: sprache(),
   });
   try {
     localStorage.setItem(flagKey(appointmentId), '1');
@@ -105,7 +107,7 @@ export const enablePush = async (appointmentId: string, publicKey: string, ticke
 const mailKey = (appointmentId: string) => `dranzeit-mail-${appointmentId}`;
 
 export const setNotifyEmail = async (appointmentId: string, email: string | null, ticketKey?: string | null) => {
-  await post('/routes/push/notify-email', { appointment_id: appointmentId, email: email || null, key: ticketKey || null });
+  await post('/routes/push/notify-email', { appointment_id: appointmentId, email: email || null, key: ticketKey || null, language: sprache() });
   // Die Adresse steht nur am Termin, den ohne Anmeldung niemand lesen kann – für die Anzeige hier merken
   try {
     if (email) localStorage.setItem(mailKey(appointmentId), email);

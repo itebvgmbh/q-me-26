@@ -7,6 +7,8 @@ Jede Mail geht pro Laden nur einmal raus; was verschickt ist, steht am Laden (on
 - "erinnerung": 2 bis 7 Tage nach dem Anlegen, wenn noch nie eine Nummer oder ein Termin eingetragen wurde
 - "testende":   in den letzten 5 Tagen der Testphase, wenn kein Abo läuft
 
+Sprache: die aus dem Profil des Inhabers (users/{uid}.language, app/i18n), sonst Deutsch.
+
 Der Benachrichtigungsdienst (notify_worker.py) ruft run_once höchstens alle SWEEP_MINUTES auf. Die Regeln
 (due_mails) und Texte (compose) kommen ohne Datenbank aus und sind in tests/test_onboarding_mail.py getestet.
 Ohne RESEND_API_KEY wird nichts verschickt und nichts als verschickt markiert.
@@ -17,6 +19,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from app.i18n import datum, sprache_von, t, tn
 from app.libs.mail import MailError, branded_html, esc, mail_configured, send_mail
 from app.libs.plans import ACTIVE_BILLING, PAID_PLANS, PLANS, trial_end
 
@@ -72,75 +75,96 @@ def due_mails(shop: dict, now: datetime, has_entries: bool) -> list[str]:
     return due
 
 
-def _date(value: datetime) -> str:
-    return value.astimezone(BERLIN).strftime("%d.%m.%Y")
+def _date(value: datetime, sprache: str = "de") -> str:
+    return datum(value.astimezone(BERLIN), sprache)
 
 
-def compose(kind: str, shop: dict, now: datetime, base_url: str) -> tuple[str, str, str]:
-    """Betreff, HTML und Text einer Start-Mail, du-Form wie in der App."""
-    name = shop.get("name") or "Dein Laden"
+def compose(kind: str, shop: dict, now: datetime, base_url: str, sprache: str = "de") -> tuple[str, str, str]:
+    """Betreff, HTML und Text einer Start-Mail, du-Form wie in der App, in der Sprache des Inhabers (app/i18n).
+    Feste Texte aus dem Katalog stehen ohne esc im HTML, Namen immer mit."""
+    name = shop.get("name") or t("Dein Laden", sprache)
     end = trial_end(shop)
     founder = bool(shop.get("founder"))
-    note = (
-        f'Fragen? Antworte einfach auf diese E-Mail oder schreib an <a href="mailto:{KONTAKT}">{KONTAKT}</a>. '
-        f'Anleitungen findest du unter <a href="{esc(base_url)}/hilfe">{esc(base_url)}/hilfe</a>.'
+    note = t(
+        "Fragen? Antworte einfach auf diese E-Mail oder schreib an {kontakt}. Anleitungen findest du unter {hilfe}.",
+        sprache,
+        kontakt=f'<a href="mailto:{KONTAKT}">{KONTAKT}</a>',
+        hilfe=f'<a href="{esc(base_url)}/hilfe">{esc(base_url)}/hilfe</a>',
     )
     if kind == "willkommen":
         days = max(1, round((end - now) / timedelta(days=1)))
-        trial = (
-            f"Als Gründer kannst du bis zum {_date(end)} alles kostenlos nutzen."
-            if founder
-            else f"Die nächsten {days} Tage kannst du alles kostenlos nutzen, ohne Zahlungsdaten."
-        )
-        subject = f"Willkommen bei Dranzeit – {name} ist startklar"
+        if founder:
+            trial = t("Als Gründer kannst du bis zum {datum} alles kostenlos nutzen.", sprache, datum=_date(end, sprache))
+        else:
+            trial = tn(
+                days,
+                "Einen Tag lang kannst du noch alles kostenlos nutzen, ohne Zahlungsdaten.",
+                "Die nächsten {n} Tage kannst du alles kostenlos nutzen, ohne Zahlungsdaten.",
+                sprache,
+            )
+        subject = t("Willkommen bei Dranzeit – {laden} ist startklar", sprache, laden=name)
         paragraphs = [
-            f"{esc(name)} ist eingerichtet. Ab jetzt ziehen deine Kunden per QR-Code eine Nummer und warten, wo sie wollen.",
-            "Drei Dinge, dann läuft es:",
-            "<strong>1. Einmal selbst ausprobieren:</strong> Mit dem Handy den QR-Code am Tresen scannen, eine Nummer ziehen "
-            "und am Tresen aufrufen. Auf dem Handy erscheint „Du bist dran“.",
-            "<strong>2. QR-Plakat aufhängen:</strong> Am Tresen unter „…“ → „QR-Plakat drucken“, dann an Tür oder Tresen.",
-            "<strong>3. Team einladen:</strong> Arbeitest du nicht allein, schick jeder Person ihren Einladungslink (unter „Team“).",
+            t("{laden} ist eingerichtet. Ab jetzt ziehen deine Kunden per QR-Code eine Nummer und warten, wo sie wollen.", sprache, laden=esc(name)),
+            t("Drei Dinge, dann läuft es:", sprache),
+            t(
+                "<strong>1. Einmal selbst ausprobieren:</strong> Mit dem Handy den QR-Code am Tresen scannen, eine Nummer ziehen "
+                "und am Tresen aufrufen. Auf dem Handy erscheint „Du bist dran“.",
+                sprache,
+            ),
+            t("<strong>2. QR-Plakat aufhängen:</strong> Am Tresen unter „…“ → „QR-Plakat drucken“, dann an Tür oder Tresen.", sprache),
+            t("<strong>3. Team einladen:</strong> Arbeitest du nicht allein, schick jeder Person ihren Einladungslink (unter „Team“).", sprache),
             esc(trial),
         ]
-        button = ("Zum Tresen", f"{base_url}/shop-dashboard")
-        heading = "Schön, dass du da bist."
+        button = (t("Zum Tresen", sprache), f"{base_url}/shop-dashboard")
+        heading = t("Schön, dass du da bist.", sprache)
     elif kind == "erinnerung":
-        subject = "In zwei Minuten ausprobiert: deine erste Nummer"
-        heading = "Schon ausprobiert?"
+        subject = t("In zwei Minuten ausprobiert: deine erste Nummer", sprache)
+        heading = t("Schon ausprobiert?", sprache)
         paragraphs = [
-            f"Bei {esc(name)} wurde noch keine Nummer gezogen. Am schnellsten siehst du, wie Dranzeit funktioniert, wenn du es einmal selbst machst:",
-            "Scann mit deinem Handy den QR-Code am Tresen, zieh eine Nummer und tipp am Tresen auf „Nächste Nummer aufrufen“. "
-            "Auf dem Handy steht dann „Du bist dran“. Das dauert zwei Minuten.",
-            "Hängt es irgendwo, zum Beispiel bei Öffnungszeiten oder Leistungen? Antworte auf diese E-Mail, wir helfen dir.",
+            t(
+                "Bei {laden} wurde noch keine Nummer gezogen. Am schnellsten siehst du, wie Dranzeit funktioniert, wenn du es einmal selbst machst:",
+                sprache,
+                laden=esc(name),
+            ),
+            t(
+                "Scann mit deinem Handy den QR-Code am Tresen, zieh eine Nummer und tipp am Tresen auf „Nächste Nummer aufrufen“. "
+                "Auf dem Handy steht dann „Du bist dran“. Das dauert zwei Minuten.",
+                sprache,
+            ),
+            t("Hängt es irgendwo, zum Beispiel bei Öffnungszeiten oder Leistungen? Antworte auf diese E-Mail, wir helfen dir.", sprache),
         ]
-        button = ("Zum Tresen", f"{base_url}/shop-dashboard")
-        note = "Diese Erinnerung bekommst du nur einmal. " + note
+        button = (t("Zum Tresen", sprache), f"{base_url}/shop-dashboard")
+        note = t("Diese Erinnerung bekommst du nur einmal.", sprache) + " " + note
     elif kind == "testende":
         left = max(1, round((end - now) / timedelta(days=1)))
         gratis = PLANS["gratis"]
-        subject = f"Deine Testphase endet am {_date(end)}"
-        heading = f"Noch {left} {'Tag' if left == 1 else 'Tage'} alles testen"
+        subject = t("Deine Testphase endet am {datum}", sprache, datum=_date(end, sprache))
+        heading = tn(left, "Noch {n} Tag alles testen", "Noch {n} Tage alles testen", sprache)
         if founder:
-            after = (
+            after = t(
                 "Als Gründer bekommst du danach den Laden-Tarif dauerhaft für 19 € im Monat (netto). "
-                "Wähl dafür unter „Mein Tarif“ das Abo. Ohne Abo läuft dein Laden im Gratis-Tarif weiter."
+                "Wähl dafür unter „Mein Tarif“ das Abo. Ohne Abo läuft dein Laden im Gratis-Tarif weiter.",
+                sprache,
             )
         else:
-            after = (
-                f"Danach läuft dein Laden automatisch im Gratis-Tarif weiter: {gratis['max_staff']} Person, bis "
-                f"{gratis['max_customers_per_month']} Kunden im Monat, Nummer ziehen per QR-Code. Online-Termine, Benachrichtigungen, "
-                "Team, Wartezimmer-Bildschirm und Auswertung gibt es dann mit einem Abo."
+            after = t(
+                "Danach läuft dein Laden automatisch im Gratis-Tarif weiter: {personen} Person, bis {kunden} Kunden im Monat, "
+                "Nummer ziehen per QR-Code. Online-Termine, Benachrichtigungen, Team, Wartezimmer-Bildschirm und Auswertung gibt es "
+                "dann mit einem Abo.",
+                sprache,
+                personen=gratis["max_staff"],
+                kunden=gratis["max_customers_per_month"],
             )
         paragraphs = [
-            f"Am {_date(end)} endet die Testphase von {esc(name)}.",
+            t("Am {datum} endet die Testphase von {laden}.", sprache, datum=_date(end, sprache), laden=esc(name)),
             esc(after),
-            "Reicht dir Gratis, musst du nichts tun. Ohne Abo entstehen keine Kosten.",
+            t("Reicht dir Gratis, musst du nichts tun. Ohne Abo entstehen keine Kosten.", sprache),
         ]
-        button = ("Tarife ansehen", f"{base_url}/tarif")
+        button = (t("Tarife ansehen", sprache), f"{base_url}/tarif")
     else:
         raise ValueError(kind)
-    html_body = branded_html(esc(heading), paragraphs, button[0], button[1], note)
-    text = "\n\n".join([heading, *[_plain(p) for p in paragraphs], f"{button[0]}: {button[1]}", f"Fragen? {KONTAKT}"])
+    html_body = branded_html(esc(heading), paragraphs, button[0], button[1], note, sprache=sprache)
+    text = "\n\n".join([heading, *[_plain(p) for p in paragraphs], f"{button[0]}: {button[1]}", t("Fragen? {kontakt}", sprache, kontakt=KONTAKT)])
     return subject, html_body, text
 
 
@@ -157,6 +181,15 @@ def _owner_email(shop: dict) -> str:
         return auth.get_user(shop["owner"]).email or ""
     except Exception:
         return shop.get("email") or ""
+
+
+def _owner_language(db, shop: dict) -> str:
+    """Sprache aus dem Profil des Inhabers; fehlt sie oder klappt das Lesen nicht: Deutsch"""
+    try:
+        doc = db.collection("users").document(shop["owner"]).get()
+        return sprache_von((doc.to_dict() or {}).get("language") if doc.exists else None)
+    except Exception:
+        return "de"
 
 
 def _has_entries(db, shop_id: str) -> bool:
@@ -190,8 +223,9 @@ def run_once(db, base_url: str, now: datetime | None = None) -> int:
         to = _owner_email(shop)
         if is_test_address(to):
             continue
+        sprache = _owner_language(db, shop)
         for kind in kinds:
-            subject, html_body, text = compose(kind, shop, now, base_url)
+            subject, html_body, text = compose(kind, shop, now, base_url, sprache)
             try:
                 if send_mail(to, subject, html_body, text, reply_to=KONTAKT):
                     doc.reference.update({f"onboardingMails.{kind}": now})

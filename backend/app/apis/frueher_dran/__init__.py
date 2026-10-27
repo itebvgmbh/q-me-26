@@ -20,12 +20,13 @@ from app.apis.check_slots import trigger_check_in_background
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
 from app.auth import AuthorizedUser
+from app.i18n import merke
 from app.libs.plans import has_feature
 
 router = APIRouter()
 
 ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
-NOT_FOUND = "Diesen Termin gibt es nicht mehr."
+NOT_FOUND = merke("Diesen Termin gibt es nicht mehr.")
 
 
 class FrueherDranRequest(BaseModel):

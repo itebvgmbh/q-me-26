@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import { merke } from '@/i18n';
+import { merke, type Sprache } from '@/i18n';
 
 export type UserRole = 'shopOwner' | 'employee' | 'customer';
 
@@ -9,6 +9,8 @@ export interface UserProfile {
   role: UserRole;
   displayName?: string;
   phoneNumber?: string;
+  /** Zuletzt gewählte Sprache – für E-Mails vom Backend an das Konto (backend/app/i18n) */
+  language?: Sprache;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

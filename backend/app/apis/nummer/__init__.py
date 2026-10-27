@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
+from app.i18n import merke
 from app.libs.public_appointments import write_public
 from app.libs.schedule import placement_of, read_placement
 from app.libs.throttle import throttle
@@ -23,8 +24,8 @@ from app.libs.ticket import key_matches
 
 router = APIRouter()
 
-NOT_FOUND = "Diese Nummer gibt es nicht."
-WRONG_KEY = "Diese Nummer lässt sich hier nicht ändern. Nimm das Handy, mit dem du sie gezogen hast, oder sag am Tresen Bescheid."
+NOT_FOUND = merke("Diese Nummer gibt es nicht.")
+WRONG_KEY = merke("Diese Nummer lässt sich hier nicht ändern. Nimm das Handy, mit dem du sie gezogen hast, oder sag am Tresen Bescheid.")
 
 
 class TicketRequest(BaseModel):

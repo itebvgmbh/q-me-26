@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
 import { listShopsOfOwner, getStaffByUserId } from './firestore';
+import { sprache, spracheGewaehlt } from '@/i18n';
 
 export interface UpdateProfileData {
   displayName: string;
@@ -49,6 +50,8 @@ export const createUserProfile = async (uid: string, email: string, role: UserRo
     uid,
     email,
     role,
+    // E-Mails vom Backend an das Konto kommen in dieser Sprache (backend/app/i18n)
+    language: sprache(),
     createdAt: now,
     updatedAt: now
   };
@@ -56,6 +59,17 @@ export const createUserProfile = async (uid: string, email: string, role: UserRo
   await setDoc(doc(db, 'users', uid), profile);
   emitProfileSaved(uid, profile);
   return profile;
+};
+
+/** Sprache im Profil an die gerade gewählte angleichen (beim Laden des Profils): Wer die Sprache wechselt, bekommt
+ * die nächsten E-Mails vom Backend in der neuen. Schlägt es fehl, bleibt die alte – kein Grund für eine Meldung. */
+export const syncProfileLanguage = async (userId: string, profile: UserProfile | null): Promise<void> => {
+  if (!profile || profile.language === sprache() || !spracheGewaehlt()) return;
+  try {
+    await updateDoc(doc(getFirestore(firebaseApp), 'users', userId), { language: sprache() });
+  } catch (error) {
+    console.error('Sprache im Profil nicht gespeichert:', error);
+  }
 };
 
 export const updateUserProfile = async (userId: string, data: UpdateProfileData) => {

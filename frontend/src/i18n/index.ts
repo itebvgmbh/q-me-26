@@ -33,6 +33,8 @@ const LADER: Record<Exclude<Sprache, "de">, () => Promise<{ texte: Texte; datums
 let aktuell: Sprache = "de";
 let texte: Texte = {};
 let datum: Locale = de;
+// Deutsch nur, weil die Seite es verlangt (Bildschirm, Plakat, Suchmaschine) – nicht, weil jemand es gewählt hat
+let erzwungen = false;
 
 const istSprache = (wert: unknown): wert is Sprache => SPRACHEN.some((s) => s.code === wert);
 const eintrag = () => SPRACHEN.find((s) => s.code === aktuell) ?? SPRACHEN[0];
@@ -52,10 +54,10 @@ const ermittleSprache = (): Sprache => {
   if (istSprache(ausAdresse)) return ausAdresse;
   const gespeichert = gespeicherteSprache();
   if (gespeichert) return gespeichert;
-  // Bildschirm und Plakat sind für alle Kunden im Laden, nicht für den, dem das Gerät gehört
-  if (/^\/(bildschirm|plakat)(\/|$)/.test(window.location.pathname)) return "de";
-  // Suchmaschinen rendern mit englischem Browser – sie sollen die deutsche Seite sehen wie im Seitenkopf
-  if (/bot\b|bot\/|crawl|spider|slurp|lighthouse/i.test(navigator.userAgent)) return "de";
+  // Bildschirm und Plakat sind für alle Kunden im Laden, nicht für den, dem das Gerät gehört.
+  // Suchmaschinen rendern mit englischem Browser – sie sollen die deutsche Seite sehen wie im Seitenkopf.
+  erzwungen = /^\/(bildschirm|plakat)(\/|$)/.test(window.location.pathname) || /bot\b|bot\/|crawl|spider|slurp|lighthouse/i.test(navigator.userAgent);
+  if (erzwungen) return "de";
   for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
     const code = (tag || "").slice(0, 2).toLowerCase();
     if (istSprache(code)) return code;
@@ -82,6 +84,27 @@ export async function starteSprache(): Promise<void> {
   const html = document.documentElement;
   html.lang = aktuell;
   html.dir = eintrag().rtl ? "rtl" : "ltr";
+  spracheAnsBackend();
+}
+
+let kopfGesetzt = false;
+
+/**
+ * Jede Anfrage ans Backend (/routes/…) sagt in Accept-Language, welche Sprache gewählt ist – Fehlermeldungen und
+ * E-Mails wie „Passwort vergessen“ kommen dann in ihr (backend/app/i18n). Ohne das schickte der Browser seine eigene.
+ */
+function spracheAnsBackend(): void {
+  if (kopfGesetzt) return;
+  kopfGesetzt = true;
+  const original = window.fetch.bind(window);
+  window.fetch = (eingabe: RequestInfo | URL, init?: RequestInit) => {
+    const anfrage = eingabe instanceof Request ? eingabe : null;
+    const adresse = new URL(anfrage ? anfrage.url : String(eingabe), window.location.href);
+    if (adresse.origin !== window.location.origin || !adresse.pathname.startsWith("/routes/")) return original(eingabe, init);
+    const kopf = new Headers(init?.headers ?? anfrage?.headers);
+    if (!kopf.has("Accept-Language")) kopf.set("Accept-Language", aktuell);
+    return original(eingabe, { ...init, headers: kopf });
+  };
 }
 
 /** Neu laden statt umschalten: So stimmt jeder Text, auch in schon geladenen Seiten und Konstanten */
@@ -98,6 +121,8 @@ export function wechsleSprache(neu: Sprache): void {
 }
 
 export const sprache = (): Sprache => aktuell;
+/** false, wenn Deutsch nur erzwungen ist (Bildschirm, Plakat): Dann nicht als Wahl des Nutzers speichern */
+export const spracheGewaehlt = (): boolean => !erzwungen;
 export const istRtl = (): boolean => Boolean(eintrag().rtl);
 /** Für Intl und toLocaleString: "de-DE", "en-GB", "tr-TR", "ar-u-nu-latn" */
 export const intlSprache = (): string => eintrag().intl;
