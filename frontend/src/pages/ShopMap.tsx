@@ -236,12 +236,12 @@ const ShopMap = () => {
         <div className="flex flex-col gap-2 md:flex-row">
           <label htmlFor="karte-suche" className="sr-only">Adresse, Ort oder PLZ</label>
           <div className="relative flex-grow">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input id="karte-suche" className="pl-10" placeholder="Adresse, Ort oder PLZ" value={searchInput} onChange={handleSearchChange} />
+            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input id="karte-suche" className="ps-10" placeholder="Adresse, Ort oder PLZ" value={searchInput} onChange={handleSearchChange} />
           </div>
           <Button type="submit">Suchen</Button>
           <Button type="button" variant="outline" onClick={getUserLocation} className="whitespace-nowrap">
-            <MapPin className="mr-2 h-4 w-4" aria-hidden="true" />
+            <MapPin className="me-2 h-4 w-4" aria-hidden="true" />
             In meiner Nähe
           </Button>
         </div>
@@ -297,7 +297,7 @@ const ShopMap = () => {
           ) : shops.length === 0 && visibleSalons.length === 0 ? (
             <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.</p>
           ) : (
-            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pr-1">
+            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
               {shops.map((shop) => (
                 <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} />
               ))}

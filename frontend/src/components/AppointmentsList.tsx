@@ -173,7 +173,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                   </span>
                 </span>
                 <span className={statusChip(appointment.status)}>{STATUS_LABEL[appointment.status] ?? appointment.status}</span>
-                <span className="ml-auto flex gap-1 sm:ml-0">
+                <span className="ms-auto flex gap-1 sm:ms-0">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -304,7 +304,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             <div className="space-y-2">
               <Label htmlFor="time">Uhrzeit</Label>
               <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <Clock className="me-2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="time"
                   type="time"
@@ -378,7 +378,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             
             {/* Angebote sieht der Kunde nur in seinem Konto – bei Nummern ohne Konto käme nichts an */}
             {selectedAppointment?.customerId && selectedAppointment.customerId !== 'walk-in' ? (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <Checkbox
                   id="checkEarlierOptions"
                   checked={appointmentFormData.checkEarlierOptions || false}
@@ -390,7 +390,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
               <p className="text-sm text-muted-foreground">„Früher dran“ geht nur bei Kunden mit Konto – sonst erreicht sie das Angebot nicht.</p>
             )}
             
-            <div className="pt-4 flex justify-end space-x-2">
+            <div className="pt-4 flex justify-end space-x-2 rtl:space-x-reverse">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
               <Button onClick={handleAppointmentEdit}>Speichern</Button>
             </div>

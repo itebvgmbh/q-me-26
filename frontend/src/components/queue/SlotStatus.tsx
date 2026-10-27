@@ -11,7 +11,7 @@ export const slotLabel = (d: Date) => `${format(d, 'HH:mm')} · ${slotDayLabel(d
 
 /** Kleiner Kreisel in der aktuellen Textfarbe */
 export const Spinner = ({ className }: { className?: string }) => (
-  <span className={cn('inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent', className)} aria-hidden="true" />
+  <span className={cn('inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-e-transparent', className)} aria-hidden="true" />
 );
 
 /** Zeile "Spinner + Text" für laufende Suchen */

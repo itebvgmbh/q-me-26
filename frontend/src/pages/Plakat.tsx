@@ -57,7 +57,7 @@ export default function Plakat() {
               window.print();
             }}
           >
-            <Printer className="mr-2 h-4 w-4" aria-hidden="true" /> Drucken
+            <Printer className="me-2 h-4 w-4" aria-hidden="true" /> Drucken
           </Button>
         </div>
       </div>

@@ -59,7 +59,7 @@ export const TimePicker = ({ id, value, onChange, className, disabled = false }:
   ));
 
   return (
-    <div className={cn('flex space-x-2 items-center', className)}>
+    <div className={cn('flex space-x-2 items-center rtl:space-x-reverse', className)}>
       {/* Hours select */}
       <Select
         disabled={disabled}

@@ -83,7 +83,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
             <span className="animate-pulse font-mono text-5xl font-bold tracking-tight opacity-50" aria-hidden="true">--:--</span>
             <span className="font-semibold">Wir suchen deinen Platz …</span>
             <span className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-signal-foreground/15" aria-hidden="true">
-              <span className="absolute inset-y-0 left-0 w-1/3 animate-scan rounded-full bg-signal-foreground" />
+              <span className="absolute inset-y-0 start-0 w-1/3 animate-scan rounded-full bg-signal-foreground" />
             </span>
           </>
         ) : nextAvailableSlot ? (

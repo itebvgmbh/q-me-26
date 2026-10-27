@@ -318,7 +318,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
               <button 
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
-                className="absolute top-0 right-0 bg-black bg-opacity-50 text-white p-1 rounded-bl-md"
+                className="absolute top-0 end-0 bg-black bg-opacity-50 text-white p-1 rounded-es-md"
                 aria-label="Logo entfernen"
               >
                 <X className="w-4 h-4" />
@@ -326,13 +326,13 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
             </div>
           )}
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isSubmitting}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 rtl:space-x-reverse"
             >
               {isUploading ? (
                 <>
@@ -402,7 +402,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
         />
       </div>
 
-      <div className="flex justify-end space-x-2 pt-4 mt-4">
+      <div className="flex justify-end space-x-2 pt-4 mt-4 rtl:space-x-reverse">
         <Button
           type="button"
           variant="outline"

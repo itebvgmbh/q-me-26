@@ -59,7 +59,7 @@ export function KontoDetail({
   const shopLink = (id: string) => {
     const s = shopsById.get(id);
     return (
-      <button key={id} type="button" className="text-left font-medium underline underline-offset-2" onClick={() => onOpenShop(id)}>
+      <button key={id} type="button" className="text-start font-medium underline underline-offset-2" onClick={() => onOpenShop(id)}>
         {s ? `${s.name}${s.city ? `, ${s.city}` : ''}` : `Laden ${id} (gibt es nicht mehr)`}
       </button>
     );

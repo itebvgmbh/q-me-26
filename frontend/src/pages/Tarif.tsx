@@ -128,7 +128,7 @@ export default function Tarif() {
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-background/70">{shop.name}</p>
           <p className="font-display text-3xl font-extrabold">
             {current.source === 'test' ? 'Testphase' : current.plan.name}
-            {shop.founder && <span className="ml-3 rounded-full bg-signal px-2.5 py-1 align-middle text-xs font-bold text-signal-foreground">Gründer</span>}
+            {shop.founder && <span className="ms-3 rounded-full bg-signal px-2.5 py-1 align-middle text-xs font-bold text-signal-foreground">Gründer</span>}
           </p>
           <p className="text-background/80">{status}</p>
           {hasAbo && (

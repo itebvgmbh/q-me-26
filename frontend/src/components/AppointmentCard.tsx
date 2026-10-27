@@ -137,7 +137,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             {offerUntil && <span className="block text-background/75">Für dich reserviert bis {format(offerUntil, 'HH:mm')} Uhr</span>}
           </p>
           <Button variant="signal" size="sm" onClick={accept} disabled={accepting}>
-            <ArrowUpRight className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            <ArrowUpRight className="me-1.5 h-4 w-4" aria-hidden="true" />
             {accepting ? 'Wird übernommen …' : 'Früheren Platz nehmen'}
           </Button>
         </div>

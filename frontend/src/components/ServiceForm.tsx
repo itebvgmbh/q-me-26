@@ -118,7 +118,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       <div className="grid gap-2">
         <Label htmlFor="name">
           Name*
-          {errors.name && <span className="text-destructive ml-1 text-sm">{errors.name}</span>}
+          {errors.name && <span className="text-destructive ms-1 text-sm">{errors.name}</span>}
         </Label>
         <Input
           id="name"
@@ -143,7 +143,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       <div className="grid gap-2">
         <Label htmlFor="duration">
           Dauer (Minuten)*
-          {errors.duration && <span className="text-destructive ml-1 text-sm">{errors.duration}</span>}
+          {errors.duration && <span className="text-destructive ms-1 text-sm">{errors.duration}</span>}
         </Label>
         <Input
           id="duration"
@@ -158,7 +158,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       <div className="grid gap-2">
         <Label htmlFor="setupTime">
           Vor- und Nachbereitung (Minuten)
-          {errors.setupTime && <span className="text-destructive ml-1 text-sm">{errors.setupTime}</span>}
+          {errors.setupTime && <span className="text-destructive ms-1 text-sm">{errors.setupTime}</span>}
         </Label>
         <Input
           id="setupTime"
@@ -176,7 +176,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       <div className="grid gap-2">
         <Label htmlFor="price">
           Preis (€)*
-          {errors.price && <span className="text-destructive ml-1 text-sm">{errors.price}</span>}
+          {errors.price && <span className="text-destructive ms-1 text-sm">{errors.price}</span>}
         </Label>
         <Input
           id="price"

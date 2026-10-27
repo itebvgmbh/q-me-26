@@ -102,7 +102,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
     <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={`Schlange von ${title}`}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl font-bold">{title}</h3>
-        <p className="text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        <p className="text-end text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {waiting.length} wartet · {done} fertig
           {delay >= SHOW_DELAY_MINUTES && <span className="block normal-case tracking-normal">ca. {delay} Min. Verzug</span>}
         </p>
@@ -149,7 +149,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
       {live && (current || next) && ask?.kind !== 'early' && (
         <div className="flex flex-col gap-2">
           <Button size="lg" onClick={primary} disabled={busy}>
-            {next && (nextDue || !current) ? <Megaphone className="mr-2 h-4 w-4" aria-hidden="true" /> : <Check className="mr-2 h-4 w-4" aria-hidden="true" />}
+            {next && (nextDue || !current) ? <Megaphone className="me-2 h-4 w-4" aria-hidden="true" /> : <Check className="me-2 h-4 w-4" aria-hidden="true" />}
             {busy ? 'Moment …' : next && nextDue ? (current ? 'Fertig – nächste Nummer' : 'Nächste Nummer aufrufen') : current ? 'Fertig' : 'Nächste Nummer aufrufen'}
           </Button>
           {current && next && !nextDue && (

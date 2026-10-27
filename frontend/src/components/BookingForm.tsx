@@ -56,7 +56,7 @@ const Choice = ({ selected, onClick, children, className }: { selected: boolean;
     aria-pressed={selected}
     onClick={onClick}
     className={cn(
-      'flex min-h-11 flex-col items-start justify-center rounded-2xl border px-4 py-2.5 text-left transition-colors',
+      'flex min-h-11 flex-col items-start justify-center rounded-2xl border px-4 py-2.5 text-start transition-colors',
       selected ? 'border-foreground bg-foreground text-background' : 'border-border bg-background hover:border-foreground',
       className,
     )}

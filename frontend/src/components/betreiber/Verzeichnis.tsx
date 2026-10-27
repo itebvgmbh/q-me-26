@@ -133,9 +133,9 @@ export function Verzeichnis() {
               {f.label} {data.eintraege.filter(f.test).length}
             </Chip>
           ))}
-          <div className="relative ml-auto w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input className="pl-9" placeholder="Name, Ort, Straße" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Einträge durchsuchen" />
+          <div className="relative ms-auto w-full sm:w-64">
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input className="ps-9" placeholder="Name, Ort, Straße" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Einträge durchsuchen" />
           </div>
         </div>
         <EintragTabelle entries={entries} onOpen={setSelected} />
@@ -344,7 +344,7 @@ function Finden({ status, onImported, onNew }: { status: Liste['status']; onImpo
             <Button size="sm" variant="ghost" disabled={running || picked.size === 0} onClick={() => setPicked(new Set())}>
               Auswahl leeren
             </Button>
-            <Button size="sm" className="ml-auto" disabled={running || picked.size === 0} onClick={runImport}>
+            <Button size="sm" className="ms-auto" disabled={running || picked.size === 0} onClick={runImport}>
               {running ? 'Liest Webseiten …' : `Ausgewählte anlegen (${picked.size})`}
             </Button>
           </div>
@@ -430,12 +430,12 @@ function EintragTabelle({ entries, onOpen }: { entries: Eintrag[]; onOpen: (id: 
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card">
       <table className="w-full text-sm">
-        <thead className="hidden bg-muted/60 text-left text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
+        <thead className="hidden bg-muted/60 text-start text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
           <tr>
             <th className="px-4 py-3 font-semibold">Salon</th>
             <th className="px-4 py-3 font-semibold">Ort</th>
             <th className="px-4 py-3 font-semibold">Stand</th>
-            <th className="px-4 py-3 text-right font-semibold">Wünsche</th>
+            <th className="px-4 py-3 text-end font-semibold">Wünsche</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -450,7 +450,7 @@ function EintragTabelle({ entries, onOpen }: { entries: Eintrag[]; onOpen: (id: 
               <td className="col-span-2 md:px-4 md:py-3">
                 <span className="font-semibold">{e.name || '(ohne Name)'}</span>
                 {e.shopId && (
-                  <span className="ml-2">
+                  <span className="ms-2">
                     <Pill tone="signal">Dranzeit</Pill>
                   </span>
                 )}
@@ -459,10 +459,10 @@ function EintragTabelle({ entries, onOpen }: { entries: Eintrag[]; onOpen: (id: 
               <td className="md:px-4 md:py-3">{[e.ortsteil, e.city].filter(Boolean).join(', ') || '–'}</td>
               <td className="md:px-4 md:py-3">
                 <Pill tone={statusTone(e.status)}>{STATUS_LABEL[e.status] ?? e.status}</Pill>
-                {e.shopFehlt && <span className="ml-2 text-xs text-destructive">Laden fehlt</span>}
+                {e.shopFehlt && <span className="ms-2 text-xs text-destructive">Laden fehlt</span>}
                 {e.fehlt.length > 0 && <span className="block text-xs text-muted-foreground">fehlt: {e.fehlt.join(', ')}</span>}
               </td>
-              <td className="tabular-nums md:px-4 md:py-3 md:text-right">{e.wuensche || '–'}</td>
+              <td className="tabular-nums md:px-4 md:py-3 md:text-end">{e.wuensche || '–'}</td>
             </tr>
           ))}
         </tbody>
@@ -786,7 +786,7 @@ function EintragEditor({ entry, onSaved, onClose }: { entry?: Eintrag; onSaved: 
           </Button>
         )}
         {entry && (!isShop || entry.shopFehlt) && (
-          <Button variant="ghost" className="ml-auto text-destructive" disabled={busy !== ''} onClick={remove}>
+          <Button variant="ghost" className="ms-auto text-destructive" disabled={busy !== ''} onClick={remove}>
             Löschen
           </Button>
         )}

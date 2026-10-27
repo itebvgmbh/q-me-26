@@ -17,35 +17,37 @@ import { Logo } from './brand/Logo';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
 import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
+import { istRtl, merke, t } from '@/i18n';
+import { SprachListe, SprachMenue } from './SprachWahl';
 
 /** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link */
 type NavItem = { to: string; label: string; server?: boolean };
 
 const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   guest: [
-    { to: '/shop-map', label: 'Läden finden' },
-    { to: '/public-join-queue', label: 'Nummer ziehen' },
-    { to: '/features', label: 'Für Läden' },
-    { to: '/preise', label: 'Preise' },
-    { to: '/hilfe', label: 'Hilfe', server: true },
+    { to: '/shop-map', label: merke('Läden finden') },
+    { to: '/public-join-queue', label: merke('Nummer ziehen') },
+    { to: '/features', label: merke('Für Läden') },
+    { to: '/preise', label: merke('Preise') },
+    { to: '/hilfe', label: merke('Hilfe'), server: true },
   ],
   customer: [
-    { to: '/my-bookings', label: 'Meine Termine' },
-    { to: '/shop-map', label: 'Läden finden' },
-    { to: '/public-join-queue', label: 'Nummer ziehen' },
+    { to: '/my-bookings', label: merke('Meine Termine') },
+    { to: '/shop-map', label: merke('Läden finden') },
+    { to: '/public-join-queue', label: merke('Nummer ziehen') },
   ],
   shopOwner: [
-    { to: '/shop-dashboard', label: 'Tresen' },
-    { to: '/employee-dashboard', label: 'Mein Tag' },
-    { to: '/staff-management', label: 'Team' },
-    { to: '/service-management', label: 'Leistungen' },
-    { to: '/shop-profile', label: 'Mein Laden' },
-    { to: '/tarif', label: 'Tarif' },
+    { to: '/shop-dashboard', label: merke('Tresen') },
+    { to: '/employee-dashboard', label: merke('Mein Tag') },
+    { to: '/staff-management', label: merke('Team') },
+    { to: '/service-management', label: merke('Leistungen') },
+    { to: '/shop-profile', label: merke('Mein Laden') },
+    { to: '/tarif', label: merke('Tarif') },
   ],
   employee: [
-    { to: '/employee-dashboard', label: 'Mein Tag' },
+    { to: '/employee-dashboard', label: merke('Mein Tag') },
     // Wer vorher Kunde war, behält seine eigenen Buchungen
-    { to: '/my-bookings', label: 'Meine Termine' },
+    { to: '/my-bookings', label: merke('Meine Termine') },
   ],
 };
 
@@ -84,29 +86,32 @@ export function Navigation() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        <nav aria-label="Hauptnavigation" className="hidden items-center gap-1 md:flex">
+        <nav aria-label={t('Hauptnavigation')} className="hidden items-center gap-1 md:flex">
           {links.map((item) =>
             item.server ? (
               // zwischen md und lg wäre die Zeile zu voll; dort steht die Hilfe in der Fußzeile
               <a key={item.to} href={item.to} className={cn(linkClass({ isActive: false }), 'hidden lg:inline-flex')}>
-                {item.label}
+                {t(item.label)}
               </a>
             ) : (
               <NavLink key={item.to} to={item.to} className={linkClass}>
-                {item.label}
+                {t(item.label)}
               </NavLink>
             ),
           )}
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* zwischen md und lg wäre die Zeile zu voll; dort steht die Sprachwahl in der Fußzeile */}
+          <SprachMenue className="hidden lg:inline-flex" />
+
           {!loading && !user && (
             <div className="hidden items-center gap-2 sm:flex">
               <Button variant="ghost" asChild>
-                <Link to="/login">Anmelden</Link>
+                <Link to="/login">{t('Anmelden')}</Link>
               </Button>
               <Button asChild>
-                <Link to="/register-options">Registrieren</Link>
+                <Link to="/register-options">{t('Registrieren')}</Link>
               </Button>
             </div>
           )}
@@ -114,8 +119,8 @@ export function Navigation() {
           {user && (
             <a
               href="/hilfe"
-              aria-label="Hilfe und Anleitungen"
-              title="Hilfe und Anleitungen"
+              aria-label={t('Hilfe und Anleitungen')}
+              title={t('Hilfe und Anleitungen')}
               className="hidden h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-foreground/5 sm:flex"
             >
               <CircleHelp className="h-6 w-6" aria-hidden="true" />
@@ -127,7 +132,7 @@ export function Navigation() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Konto-Menü öffnen"
+                  aria-label={t('Konto-Menü öffnen')}
                   className="hidden h-11 w-11 items-center justify-center rounded-full bg-foreground font-display text-base font-bold text-signal sm:flex"
                 >
                   {initial}
@@ -135,25 +140,25 @@ export function Navigation() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-60 rounded-xl" align="end">
                 <DropdownMenuLabel className="font-normal">
-                  <p className="truncate text-sm font-semibold">{profile?.displayName || 'Dein Konto'}</p>
+                  <p className="truncate text-sm font-semibold">{profile?.displayName || t('Dein Konto')}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {profile && (
                   <DropdownMenuItem onSelect={() => navigate(PROFILE_PATH[profile.role])}>
-                    <UserRound className="mr-2 h-4 w-4" aria-hidden="true" />
-                    Mein Profil
+                    <UserRound className="me-2 h-4 w-4" aria-hidden="true" />
+                    {t('Mein Profil')}
                   </DropdownMenuItem>
                 )}
                 {betreiber && (
                   <DropdownMenuItem onSelect={() => navigate('/betreiber')}>
-                    <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
-                    Betreiber-Bereich
+                    <ShieldCheck className="me-2 h-4 w-4" aria-hidden="true" />
+                    {t('Betreiber-Bereich')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onSelect={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Abmelden
+                  <LogOut className="me-2 h-4 w-4" aria-hidden="true" />
+                  {t('Abmelden')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -161,19 +166,19 @@ export function Navigation() {
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menü öffnen">
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label={t('Menü öffnen')}>
                 <Menu className="h-6 w-6" aria-hidden="true" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="flex w-[85vw] max-w-sm flex-col gap-6 bg-background">
-              <SheetHeader className="text-left">
-                <SheetTitle className="font-display text-2xl">Menü</SheetTitle>
+            <SheetContent side={istRtl() ? 'left' : 'right'} className="flex w-[85vw] max-w-sm flex-col gap-6 bg-background">
+              <SheetHeader className="text-start">
+                <SheetTitle className="font-display text-2xl">{t('Menü')}</SheetTitle>
               </SheetHeader>
-              <nav aria-label="Hauptnavigation" className="flex flex-col gap-1">
+              <nav aria-label={t('Hauptnavigation')} className="flex flex-col gap-1">
                 {links.map((item) =>
                   item.server ? (
                     <a key={item.to} href={item.to} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
-                      {item.label}
+                      {t(item.label)}
                     </a>
                   ) : (
                     <NavLink
@@ -187,38 +192,39 @@ export function Navigation() {
                         )
                       }
                     >
-                      {item.label}
+                      {t(item.label)}
                     </NavLink>
                   ),
                 )}
                 {profile && (
                   <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
-                    Mein Profil
+                    {t('Mein Profil')}
                   </NavLink>
                 )}
                 {betreiber && (
                   <NavLink to="/betreiber" onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
-                    Betreiber-Bereich
+                    {t('Betreiber-Bereich')}
                   </NavLink>
                 )}
                 {user && (
                   <a href="/hilfe" className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
-                    Hilfe
+                    {t('Hilfe')}
                   </a>
                 )}
               </nav>
               <div className="mt-auto flex flex-col gap-2">
+                <SprachListe className="mb-2 px-4 text-base text-muted-foreground" />
                 {user ? (
                   <Button variant="outline" size="lg" onClick={handleLogout}>
-                    Abmelden
+                    {t('Abmelden')}
                   </Button>
                 ) : (
                   <>
                     <Button size="lg" asChild>
-                      <Link to="/register-options" onClick={() => setOpen(false)}>Registrieren</Link>
+                      <Link to="/register-options" onClick={() => setOpen(false)}>{t('Registrieren')}</Link>
                     </Button>
                     <Button variant="outline" size="lg" asChild>
-                      <Link to="/login" onClick={() => setOpen(false)}>Anmelden</Link>
+                      <Link to="/login" onClick={() => setOpen(false)}>{t('Anmelden')}</Link>
                     </Button>
                   </>
                 )}

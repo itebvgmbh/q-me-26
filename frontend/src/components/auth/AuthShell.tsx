@@ -63,14 +63,14 @@ export const PasswordField = ({
           minLength={isNew ? 6 : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pr-12"
+          className="pe-12"
           aria-describedby={isNew ? `${id}-hint` : undefined}
           required
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          className="absolute end-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
           aria-label={visible ? 'Passwort verbergen' : 'Passwort anzeigen'}
           aria-pressed={visible}
         >

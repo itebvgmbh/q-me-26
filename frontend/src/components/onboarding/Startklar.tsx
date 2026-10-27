@@ -100,7 +100,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
         title: 'Einmal selbst ausprobieren',
         done: testlauf,
         body: (
-          <ol className="list-decimal space-y-1 pl-4">
+          <ol className="list-decimal space-y-1 ps-4">
             <li>Scann den QR-Code mit deinem Handy und zieh eine Nummer – so wie später deine Kunden. Nimm ein Gerät, auf dem du nicht angemeldet bist.</li>
             <li>Die Nummer erscheint hier in deiner Spalte. Tipp auf „Nächste Nummer aufrufen“.</li>
             <li>Auf dem Handy steht jetzt „Du bist dran“. Tipp hier auf „Fertig“.</li>
@@ -115,7 +115,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
               variant="outline"
               onClick={() => navigator.clipboard.writeText(joinUrl).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
             >
-              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+              <Copy className="me-2 h-4 w-4" aria-hidden="true" />
               Link kopieren
             </Button>
           </div>
@@ -220,7 +220,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
             <li key={step.key}>
               <button
                 type="button"
-                className="flex min-h-12 w-full items-center gap-3 py-2 text-left disabled:cursor-default"
+                className="flex min-h-12 w-full items-center gap-3 py-2 text-start disabled:cursor-default"
                 aria-expanded={step.body ? open : undefined}
                 disabled={!step.body}
                 onClick={() => setExpanded(open ? '' : step.key)}
@@ -240,7 +240,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
                 {step.body && <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} aria-hidden="true" />}
               </button>
               {open && (
-                <div className="flex flex-col items-start gap-3 pb-4 pl-10 text-sm">
+                <div className="flex flex-col items-start gap-3 pb-4 ps-10 text-sm">
                   <div className="text-muted-foreground">{step.body}</div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {step.action}

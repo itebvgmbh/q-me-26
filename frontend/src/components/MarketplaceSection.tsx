@@ -82,10 +82,10 @@ export const MarketplaceSection: React.FC = () => {
       >
         <label htmlFor="shop-suche" className="sr-only">Ort oder PLZ</label>
         <div className="relative min-w-0 flex-[1_1_240px]">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             id="shop-suche"
-            className="border-transparent pl-10 text-foreground"
+            className="border-transparent ps-10 text-foreground"
             placeholder="Ort oder PLZ"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}

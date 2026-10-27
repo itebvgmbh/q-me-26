@@ -67,7 +67,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
         Name deines Ladens und Ort
       </label>
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
           id="laden-suche"
           autoFocus
@@ -76,9 +76,9 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
           placeholder="z. B. Salon Schnittig Leipzig"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          className="h-14 rounded-2xl pl-12 text-base"
+          className="h-14 rounded-2xl ps-12 text-base"
         />
-        {searching && <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Suche läuft" />}
+        {searching && <Loader2 className="absolute end-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-label="Suche läuft" />}
       </div>
       {error && (
         <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -93,7 +93,7 @@ export const PlaceSearch = ({ query, onQueryChange, onPicked }: Props) => {
                 type="button"
                 onClick={() => pick(s)}
                 disabled={loadingId !== null}
-                className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 text-left transition-colors hover:border-foreground disabled:opacity-60"
+                className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 text-start transition-colors hover:border-foreground disabled:opacity-60"
               >
                 {loadingId === s.place_id ? (
                   <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden="true" />

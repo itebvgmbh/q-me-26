@@ -52,16 +52,16 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted">
-                  <th className="p-2 text-left font-medium">Datum</th>
-                  <th className="p-2 text-left font-medium">Kunde</th>
-                  <th className="p-2 text-left font-medium">Salon</th>
-                  <th className="p-2 text-left font-medium">Mitarbeiter</th>
-                  <th className="p-2 text-left font-medium">Original Termin</th>
-                  <th className="p-2 text-left font-medium">Früherer Termin</th>
-                  <th className="p-2 text-left font-medium">Dauer</th>
-                  <th className="p-2 text-left font-medium">Zeitersparnis</th>
-                  <th className="p-2 text-left font-medium">Status</th>
-                  <th className="p-2 text-left font-medium">Buchungs-ID</th>
+                  <th className="p-2 text-start font-medium">Datum</th>
+                  <th className="p-2 text-start font-medium">Kunde</th>
+                  <th className="p-2 text-start font-medium">Salon</th>
+                  <th className="p-2 text-start font-medium">Mitarbeiter</th>
+                  <th className="p-2 text-start font-medium">Original Termin</th>
+                  <th className="p-2 text-start font-medium">Früherer Termin</th>
+                  <th className="p-2 text-start font-medium">Dauer</th>
+                  <th className="p-2 text-start font-medium">Zeitersparnis</th>
+                  <th className="p-2 text-start font-medium">Status</th>
+                  <th className="p-2 text-start font-medium">Buchungs-ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -105,7 +105,7 @@ export const NotificationHistoryTable = ({ historyItems, historyLoading, loadHis
       </CardContent>
       <CardFooter className="justify-end">
         <Button variant="outline" onClick={loadHistory} disabled={historyLoading}>
-          <RotateCw className="mr-2 h-4 w-4" />
+          <RotateCw className="me-2 h-4 w-4" />
           Aktualisieren
         </Button>
       </CardFooter>

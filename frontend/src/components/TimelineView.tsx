@@ -88,7 +88,7 @@ const DraggableAppointment = ({
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 px-2 rounded-lg ${statusColor} ${conflict ? 'ring-2 ring-destructive z-10' : ''} cursor-move transition-colors group overflow-hidden flex items-center`}
+      className={`absolute start-0 end-0 px-2 rounded-lg ${statusColor} ${conflict ? 'ring-2 ring-destructive z-10' : ''} cursor-move transition-colors group overflow-hidden flex items-center`}
       style={{
         ...draggableStyle,
         paddingTop: 0,
@@ -100,7 +100,7 @@ const DraggableAppointment = ({
     >
       <div className="flex justify-between items-center w-full min-w-0 h-full">
         <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${conflict ? conflict + ' | ' : ''}${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
-          {conflict && <span className="mr-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">Konflikt</span>}
+          {conflict && <span className="me-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">Konflikt</span>}
           <span className="font-mono">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
           <span className="mx-1.5 opacity-50">·</span>
           {appointment.customerName || 'Gast'}
@@ -312,7 +312,7 @@ const DayView: React.FC<DayViewProps> = ({
 
   return (
     <div className="relative h-[600px] overflow-hidden rounded-3xl border border-border bg-card">
-      <div className="absolute left-0 right-0 z-30 border-b border-border bg-card px-4 py-2">
+      <div className="absolute start-0 end-0 z-30 border-b border-border bg-card px-4 py-2">
         <div className="flex justify-between items-center">
           <div className="font-medium">
             {format(date, 'EEEE, d. MMMM', { locale: de })}
@@ -339,12 +339,12 @@ const DayView: React.FC<DayViewProps> = ({
       <div ref={scrollRef} className="pt-12 pb-4 px-4 h-full overflow-y-auto">
         <div className="relative">
           {/* Time grid */}
-          <div className="absolute inset-0 ml-16 pointer-events-none z-0">
+          <div className="absolute inset-0 ms-16 pointer-events-none z-0">
             {/* Hour lines */}
             {HOURS.map((hour) => (
               <div
                 key={`hour-${hour}`}
-                className="absolute left-0 right-0 border-t border-border"
+                className="absolute start-0 end-0 border-t border-border"
                 style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
               />
             ))}
@@ -352,7 +352,7 @@ const DayView: React.FC<DayViewProps> = ({
             {HOURS.map((hour) => (
               <div
                 key={`half-${hour}`}
-                className="absolute left-0 right-0 border-t border-border/50"
+                className="absolute start-0 end-0 border-t border-border/50"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 30}px` }}
               />
             ))}
@@ -360,12 +360,12 @@ const DayView: React.FC<DayViewProps> = ({
             {HOURS.map((hour) => [
               <div
                 key={`quarter1-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                className="absolute start-0 end-0 border-t border-dotted border-border/40"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 15}px` }}
               />,
               <div
                 key={`quarter2-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                className="absolute start-0 end-0 border-t border-dotted border-border/40"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 45}px` }}
               />
             ])}
@@ -375,7 +375,7 @@ const DayView: React.FC<DayViewProps> = ({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="absolute left-0 font-mono text-xs text-muted-foreground"
+              className="absolute start-0 font-mono text-xs text-muted-foreground"
               style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
             >
               {`${hour}:00`}
@@ -385,7 +385,7 @@ const DayView: React.FC<DayViewProps> = ({
           {/* Current time indicator */}
           {isCurrentDay(date) && (
             <div
-              className="absolute left-16 right-0 z-10 border-t-2 border-destructive"
+              className="absolute start-16 end-0 z-10 border-t-2 border-destructive"
               style={getCurrentTimePosition()}
             />
           )}
@@ -394,7 +394,7 @@ const DayView: React.FC<DayViewProps> = ({
           {getBreaksForDay(date).map((breakItem) => (
             <div
               key={breakItem.id}
-              className="absolute left-16 right-0 z-5 border border-dashed border-foreground/30 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,hsl(var(--muted))_6px,hsl(var(--muted))_12px)]"
+              className="absolute start-16 end-0 z-5 border border-dashed border-foreground/30 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,hsl(var(--muted))_6px,hsl(var(--muted))_12px)]"
               style={getBreakStyle(breakItem)}
               title={getBreakTypeLabel(breakItem.type)}
             >
@@ -409,7 +409,7 @@ const DayView: React.FC<DayViewProps> = ({
           {/* Appointment blocks */}
           <DroppableArea
             style={{ minHeight: `${(LAST_HOUR - FIRST_HOUR) * 60}px` }}
-            className="ml-16 relative cursor-pointer transition-colors hover:bg-muted/40 z-20"
+            className="ms-16 relative cursor-pointer transition-colors hover:bg-muted/40 z-20"
             date={date}
             onDrop={() => {}}
             onClick={(e) => {
@@ -438,7 +438,7 @@ const DayView: React.FC<DayViewProps> = ({
             {/* Preview des Zeitraums während des Drags */}
             {dragPreview && draggedAppointment && dragPreview.startTime.toDateString() === date.toDateString() && (
               <div
-                className="pointer-events-none absolute left-0 right-0 rounded-lg border-2 border-dashed border-foreground bg-signal/30 transition-all duration-150"
+                className="pointer-events-none absolute start-0 end-0 rounded-lg border-2 border-dashed border-foreground bg-signal/30 transition-all duration-150"
                 style={{
                   top: `${(dragPreview.startTime.getHours() - FIRST_HOUR) * 60 + dragPreview.startTime.getMinutes()}px`,
                   height: `${(dragPreview.endTime.getTime() - dragPreview.startTime.getTime()) / (1000 * 60)}px`,

@@ -43,7 +43,7 @@ export const QueueOption = ({ selected = false, onClick, title, meta, badge }: O
     aria-pressed={selected}
     onClick={onClick}
     className={cn(
-      'flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors',
+      'flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-start transition-colors',
       selected ? 'border-foreground bg-foreground text-background' : 'border-border bg-background hover:border-foreground',
     )}
   >

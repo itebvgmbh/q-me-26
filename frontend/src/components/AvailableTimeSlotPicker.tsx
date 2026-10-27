@@ -94,7 +94,7 @@ export const AvailableTimeSlotPicker = ({
       >
         <SelectTrigger className="w-full">
           {loading ? (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 rtl:space-x-reverse">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Lade Zeiten...</span>
             </div>

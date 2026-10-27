@@ -48,7 +48,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceU
               <p className="font-mono text-[15px]">
                 {service.duration} Min{service.setupTime ? ` + ${service.setupTime} Vor-/Nachbereitung` : ''}
               </p>
-              <p className="w-24 text-right font-mono text-[15px] font-semibold">{euro(service.price)}</p>
+              <p className="w-24 text-end font-mono text-[15px] font-semibold">{euro(service.price)}</p>
               <div className="flex gap-1">
                 <EditServiceDialog service={service} onServiceUpdated={onServiceUpdated} />
                 <DeleteServiceDialog service={service} onServiceUpdated={onServiceUpdated} />

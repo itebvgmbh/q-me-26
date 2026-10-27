@@ -252,7 +252,7 @@ const ShopSetup = () => {
                       Link kopieren
                     </Button>
                   ) : (
-                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-right">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
+                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-end">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
                   )}
                 </li>
               ))}
@@ -317,7 +317,7 @@ const ShopSetup = () => {
           />
           <Button
             variant="ghost"
-            className="h-auto min-h-11 self-start whitespace-normal text-left"
+            className="h-auto min-h-11 self-start whitespace-normal text-start"
             onClick={() => next({ ...draft, source: 'manual', name: query.trim() || draft.name, step: 'find' })}
           >
             Nicht bei Google? Selbst eintragen

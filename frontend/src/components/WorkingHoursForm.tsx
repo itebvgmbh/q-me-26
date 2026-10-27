@@ -82,9 +82,9 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
         if (!dayHours) return null;
 
         return (
-          <div key={day.value} className="flex items-center space-x-4">
+          <div key={day.value} className="flex items-center space-x-4 rtl:space-x-reverse">
             <div className="w-32">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <Switch
                   checked={dayHours.isWorking}
                   onCheckedChange={() => handleWorkingDayToggle(day.value)}
@@ -122,7 +122,7 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
       })}
 
       </div>
-      <div className="flex justify-end space-x-2 pt-6 border-t">
+      <div className="flex justify-end space-x-2 pt-6 border-t rtl:space-x-reverse">
         <Button
           type="button"
           variant="outline"

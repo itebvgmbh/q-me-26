@@ -33,7 +33,7 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
           className="h-10 flex-1"
         />
       ) : (
-        <button type="button" className="flex min-w-0 flex-1 flex-col text-left" onClick={() => update({ selected: true })}>
+        <button type="button" className="flex min-w-0 flex-1 flex-col text-start" onClick={() => update({ selected: true })}>
           <span className="font-semibold">{s.name}</span>
           <span className="text-sm text-muted-foreground">
             {[s.category, `${s.duration} Min.`, `${s.priceFrom ? 'ab ' : ''}${euro(s.price)}`].filter(Boolean).join(' · ')}
@@ -47,7 +47,7 @@ const Row = ({ s, update, remove }: { s: DraftService; update: (patch: Partial<D
       )}
     </div>
     {s.selected && (
-      <div className="flex flex-wrap items-end gap-3 pl-8">
+      <div className="flex flex-wrap items-end gap-3 ps-8">
         <label className="flex w-28 flex-col gap-1 text-xs font-semibold text-muted-foreground">
           Dauer (Min.){s.durationGuessed ? ' – geschätzt' : ''}
           <Input

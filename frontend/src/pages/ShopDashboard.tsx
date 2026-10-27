@@ -256,12 +256,12 @@ const ShopDashboard = () => {
                 Heute
               </Button>
             )}
-            <span className="ml-1 text-sm text-muted-foreground">{format(selectedDate, 'EEEE', { locale: de })}</span>
+            <span className="ms-1 text-sm text-muted-foreground">{format(selectedDate, 'EEEE', { locale: de })}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="signal" onClick={() => openCreate('queue')}>
-            <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            <Plus className="me-1.5 h-4 w-4" aria-hidden="true" />
             Nummer vergeben
           </Button>
           <Button variant="outline" onClick={() => openCreate('booked')}>

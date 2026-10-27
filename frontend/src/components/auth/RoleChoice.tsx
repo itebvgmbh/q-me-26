@@ -37,7 +37,7 @@ export const RoleChoiceCard = ({
   return (
     <Tag
       className={cn(
-        'group flex h-full flex-col gap-4 rounded-3xl border p-6 text-left transition-colors',
+        'group flex h-full flex-col gap-4 rounded-3xl border p-6 text-start transition-colors',
         dark ? 'border-foreground bg-foreground text-background' : 'border-border bg-card hover:border-foreground',
       )}
     >

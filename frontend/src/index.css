@@ -78,6 +78,22 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
+
+  /* Arabisch: Sperrung zerreißt die verbundene Schrift */
+  html[lang="ar"] * {
+    letter-spacing: 0 !important;
+  }
+  /* Von rechts nach links zeigen Pfeile für „weiter“ und „zurück“ in die andere Richtung.
+     scale statt transform, damit gedrehte Pfeile (rotate-90) ihre Drehung behalten */
+  [dir="rtl"] :is(.lucide-arrow-right, .lucide-arrow-left, .lucide-chevron-right, .lucide-chevron-left,
+    .lucide-chevrons-right, .lucide-chevrons-left, .lucide-arrow-big-right, .lucide-arrow-big-left) {
+    scale: -1 1;
+  }
+  /* E-Mail, Telefon und Adressen bleiben lesbar von links nach rechts */
+  [dir="rtl"] :is(input[type="email"], input[type="tel"], input[type="url"]) {
+    direction: ltr;
+    text-align: right;
+  }
 }
 
 @layer components {

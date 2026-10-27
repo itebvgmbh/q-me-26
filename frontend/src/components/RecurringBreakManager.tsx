@@ -285,7 +285,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                     <h3 className="text-lg font-medium">Pausen für {day}</h3>
                     {!isAddingBreak && (
                       <Button onClick={handleAddBreak} size="sm">
-                        <PlusCircle className="h-4 w-4 mr-2" />
+                        <PlusCircle className="h-4 w-4 me-2" />
                         Pause hinzufügen
                       </Button>
                     )}
@@ -342,7 +342,7 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                           Abbrechen
                         </Button>
                         <Button onClick={handleSaveBreak}>
-                          <Save className="h-4 w-4 mr-2" />
+                          <Save className="h-4 w-4 me-2" />
                           Speichern
                         </Button>
                       </CardFooter>
@@ -359,14 +359,14 @@ export const RecurringBreakManager = ({ staff, shopId }: RecurringBreakManagerPr
                             <Switch
                               checked={breakItem.active}
                               onCheckedChange={() => handleToggleBreakStatus(breakItem)}
-                              className="mr-3"
+                              className="me-3"
                             />
                             <div>
                               <div className={`font-medium ${!breakItem.active ? 'text-muted-foreground' : ''}`}>
                                 {getBreakTypeLabel(breakItem.type as BreakType)}
                               </div>
                               <div className={`text-sm ${!breakItem.active ? 'text-muted-foreground' : ''}`}>
-                                <Clock className="h-3 w-3 inline-block mr-1" />
+                                <Clock className="h-3 w-3 inline-block me-1" />
                                 {breakItem.startTime} - {breakItem.endTime} Uhr
                               </div>
                             </div>

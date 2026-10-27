@@ -373,7 +373,7 @@ function NotifyCard({ appt, ticketKey, userEmail }: { appt: PublicAppointment; t
           </p>
         ) : (
           <Button size="lg" onClick={turnOnPush} disabled={busy}>
-            <Bell className="mr-2 h-5 w-5" aria-hidden="true" /> Benachrichtigung einschalten
+            <Bell className="me-2 h-5 w-5" aria-hidden="true" /> Benachrichtigung einschalten
           </Button>
         ))}
 
@@ -398,7 +398,7 @@ function NotifyCard({ appt, ticketKey, userEmail }: { appt: PublicAppointment; t
               onChange={(e) => setEmail(e.target.value)}
             />
             <Button type="submit" variant={canPush ? 'outline' : 'default'} disabled={busy}>
-              <Mail className="mr-2 h-4 w-4" aria-hidden="true" /> {emailSaved ? 'Ändern' : 'Speichern'}
+              <Mail className="me-2 h-4 w-4" aria-hidden="true" /> {emailSaved ? 'Ändern' : 'Speichern'}
             </Button>
           </div>
           {emailSaved && <p className="text-sm font-semibold">E-Mail ist hinterlegt.</p>}

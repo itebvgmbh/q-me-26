@@ -33,7 +33,7 @@ export const Ticket = ({
     {(eyebrow || eyebrowRight) && (
       <div className="flex items-start justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]">
         <span>{eyebrow}</span>
-        {eyebrowRight && <span className="text-right">{eyebrowRight}</span>}
+        {eyebrowRight && <span className="text-end">{eyebrowRight}</span>}
       </div>
     )}
     <div
