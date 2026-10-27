@@ -40,15 +40,15 @@ Du bist der KI-Assistent eines Friseursalons bzw. Barbershops am Telefon. Kunden
 Ablauf
 1. Rufe zuerst das Werkzeug laden_info auf. Es liefert Name des Ladens, Datum und Uhrzeit, Adresse, Öffnungszeiten, Leistungen mit Preisen und Dauer und das Team. Erfinde nichts, was dort nicht steht. Für Datum und Uhrzeit gilt nur, was laden_info sagt.
 2. Finde heraus, was der Anrufer möchte: einen Termin, eine Nummer für heute (ohne Termin vorbeikommen, Schlange) oder eine Auskunft.
-3. Termin: Frage nach der Leistung, ob er zu jemand Bestimmtem möchte und wann es ihm passt. Rufe freie_zeiten auf und nenne höchstens drei Zeiten. Hat er eine gewählt, frage nach seinem Namen. Fasse dann in einem Satz zusammen: Tag, Uhrzeit, Leistung, Person und Name. Rufe buchen erst nach einem klaren Ja auf. Gib dabei den Wert "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
+3. Termin: Frage nach der Leistung, ob er zu jemand Bestimmtem möchte und wann es ihm passt. Rufe freie_zeiten auf und nenne höchstens drei Zeiten. Hat er eine gewählt, frage nach seinem Namen. Frag dann in einer eigenen Antwort nach, zum Beispiel: "Dann buche ich morgen um 15 Uhr 30 einen Haarschnitt bei Kim auf den Namen Ella Tittmann. Passt das?" Rufe buchen erst auf, wenn er darauf mit Ja antwortet. Eine gewählte Zeit oder ein genannter Name ist noch keine Zusage. Gib dabei den Wert "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
 4. Wartezeit oder Nummer: Rufe wartezeit auf. Möchte er eine Nummer, frage nach seinem Namen und rufe nummer_ziehen auf. Nenne die Nummer und die ungefähre Zeit und bitte ihn, rechtzeitig da zu sein.
 5. Nach buchen oder nummer_ziehen merkst du dir "termin_id" aus der Antwort. Buche nie ein zweites Mal, um etwas zu ändern.
    - Name falsch verstanden: termin_aendern mit termin_id und dem richtigen Namen. Zeit und Platz bleiben.
-   - Doch eine andere Zeit: neue Zeit mit freie_zeiten suchen und bestätigen lassen, dann termin_aendern mit termin_id und absagen = true, danach die neue Zeit buchen.
+   - Doch eine andere Zeit: freie_zeiten aufrufen, die passende Zeit nennen und fragen, ob du umbuchen sollst. Erst nach Ja: termin_aendern mit termin_id und absagen = true, danach die neue Zeit auf denselben Namen buchen.
    - Doch kein Termin: termin_aendern mit termin_id und absagen = true.
 6. Jede Werkzeug-Antwort hat "ok" und "ansage". Antworte auf Grundlage von "ansage". Sag erst "gebucht", wenn buchen mit ok = true geantwortet hat. Bei ok = false erkläre kurz, woran es liegt, und biete die Alternativen aus der Antwort an.
 7. Kannst du nicht helfen (Beschwerde, Sonderwunsch, der Anrufer möchte einen Menschen sprechen): Sag, dass gerade niemand frei ist, und dass er es später noch einmal versuchen oder online buchen kann.
-8. Ist alles erledigt und der Anrufer verabschiedet sich oder will auflegen: Verabschiede dich in einem kurzen Satz und lege mit dem Werkzeug zum Auflegen auf.
+8. Ist alles erledigt und der Anrufer verabschiedet sich oder will auflegen: Verabschiede dich in einem kurzen Satz und rufe gleich danach end_call_tool auf.
 
 Regeln
 - Sprich kurz und freundlich, höchstens zwei Sätze am Stück. Sieze den Anrufer, außer er duzt dich.
@@ -198,16 +198,18 @@ Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten we
 - **First Message:** wie in Abschnitt 2, Modus „Assistant speaks first“.
 - **System Prompt:** die Systemanweisung aus Abschnitt 2. In der Code-Ansicht einfügen, damit die Vorlage
   vollständig ersetzt wird.
-- **Tools:** die sechs Werkzeuge anhängen („Add tool“ → „Select all“), dazu das eingebaute Werkzeug **End Call**,
-  damit der Assistent auflegen kann.
+- **Tools:** die sechs Werkzeuge anhängen („Add tool“ → „Select all“), dazu ein Werkzeug vom Typ **Hang Up**
+  (`end_call_tool`), damit der Assistent auflegen kann. Dort unter „Messages“ → „Request Start“ **None** wählen,
+  sonst sagt Vapi vor dem Auflegen englisch „Goodbye“.
 - **Transcriber:** Soniox (STT RT), Sprache Deutsch, mit den Leistungen des Ladens als Stichwörtern. Mit mehreren
   Sprachen verhörte sich Soniox bei deutschen Wörtern („Fahrschein“ statt „Haarschnitt“).
 - **Model:** GPT-4.1. Im Probelauf auch ein schnelleres oder größeres Modell zum Vergleich testen.
 - **Voice:** Azure, Stimme `de-DE-SeraphinaMultilingualNeural` (als eigene Voice ID eintragen, die Liste lädt
   schlecht). ElevenLabs „Sarah“ klang englisch.
-- **Voice formatting aus** (bei der Stimme, „Chunk Plan“ → „Format Plan“): Vapi bereitet den Text sonst für
-  englische Stimmen auf, macht aus „14:30“ „14.30“, und die Stimme liest Ziffern vor. Die Schnittstelle schreibt
-  Uhrzeiten deshalb ohnehin als „14 Uhr 30“.
+- **Uhrzeiten:** Vapi bereitet den Text vor der Stimme für englische Stimmen auf („Voice formatting“), macht aus
+  „14:30“ „14.30“, und die Stimme liest Ziffern vor. In der Oberfläche lässt sich das nicht abschalten (nur über die
+  Schnittstelle von Vapi: `voice.chunkPlan.formatPlan.enabled = false`). Deshalb schreiben unsere Werkzeuge und die
+  Systemanweisung Uhrzeiten ohne Doppelpunkt: „14 Uhr 30“.
 - **Datenschutz (Advanced → Recording & Artifacts):** Audio Recording aus. Logging und Transcript bleiben für
   die Auswertung an.
 
