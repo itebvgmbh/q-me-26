@@ -37,6 +37,7 @@ import {
   websiteServices,
   withTemplates,
 } from '../utils/shop-setup';
+import { entwurfAus, offeneUebernahme, verbindeSeite, Verbindung, vergissUebernahme } from '../utils/uebernahme';
 import type { ShopSetupStatusData } from '../brain/data-contracts';
 import { intlSprache, merke, t, tn, tTeile } from '@/i18n';
 
@@ -45,6 +46,8 @@ import { intlSprache, merke, t, tn, tTeile } from '@/i18n';
  * Laden finden (Google) → prüfen → Branche → Öffnungszeiten → Leistungen (Webseite + Vorlagen)
  * → selbst mitarbeiten? → Team → wer macht was → wer arbeitet wann → Zusammenfassung → fertig.
  * Fragen, die nichts ändern (z. B. "Kann jeder alles?" bei nur einer Person), werden übersprungen.
+ * Kommt der Laden von seiner Seite im Salon-Verzeichnis (/uebernehmen), ist alles vorausgefüllt und es geht bei
+ * „Stimmt das so?“ los; nach dem Anlegen wird die Seite verbunden (utils/uebernahme.ts).
  */
 
 type Step = 'find' | 'check' | 'industry' | 'hours' | 'services' | 'owner' | 'team' | 'skills' | 'staffHours' | 'summary';
@@ -110,6 +113,7 @@ const ShopSetup = () => {
   const [website, setWebsite] = useState<{ state: 'idle' | 'reading' | 'done' | 'failed'; text?: string }>({ state: 'idle' });
   const [creating, setCreating] = useState('');
   const [result, setResult] = useState<SetupResult | null>(null);
+  const [seite, setSeite] = useState<Verbindung | null>(null);
   const busy = useRef(false);
   const top = useRef<HTMLDivElement>(null);
 
@@ -131,7 +135,18 @@ const ShopSetup = () => {
       setStatus(st);
       const fallbackName = profile.displayName || user.displayName || '';
       const saved = loadDraft(user.uid);
-      setDraft(saved ?? emptyDraft(user.email || '', fallbackName));
+      const offen = offeneUebernahme();
+      if (offen && saved?.verzeichnis?.eintragId === offen.eintrag.id) {
+        // dieselbe Seite: weitermachen, einen später eingegebenen Code mitnehmen
+        setDraft({ ...saved, verzeichnis: { ...saved.verzeichnis, code: offen.code || saved.verzeichnis.code } });
+      } else if (offen && !saved?.progress?.shopId) {
+        // Seite aus dem Verzeichnis übernehmen; ein angefangener Entwurf ohne angelegten Laden weicht
+        setDraft(entwurfAus(offen, user.email || '', fallbackName));
+        setQuery(offen.eintrag.name);
+        return;
+      } else {
+        setDraft(saved ?? emptyDraft(user.email || '', fallbackName));
+      }
       if (saved?.name) setQuery(saved.name);
     })();
     return () => {
@@ -179,6 +194,13 @@ const ShopSetup = () => {
       patch({ services: withTemplates(draft.services, draft.industry), templateIndustry: draft.industry });
     }
     if (status.ai && draft.website && draft.websiteRead !== draft.website && website.state !== 'reading') readWebsite(draft.website);
+    const vonSeite = draft.services.filter((s) => s.source === 'website').length;
+    if (draft.source === 'verzeichnis' && vonSeite && website.state === 'idle') {
+      setWebsite({
+        state: 'done',
+        text: tn(vonSeite, '{n} Leistung von deiner Seite übernommen. Prüf kurz die Dauer, sie ist geschätzt.', '{n} Leistungen von deiner Seite übernommen. Prüf kurz die Dauer, sie ist geschätzt.'),
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, status.ai]);
 
@@ -230,6 +252,12 @@ const ShopSetup = () => {
             })}
           </p>
         </div>
+        {seite && (
+          <SeiteBox
+            seite={seite}
+            onRetry={draft.verzeichnis ? async () => setSeite(await verbindeSeite(draft.verzeichnis!, shop.id)) : undefined}
+          />
+        )}
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
             <h2 id="einladungen" className="font-display text-xl font-bold">{t('Einladungen fürs Team')}</h2>
@@ -292,6 +320,10 @@ const ShopSetup = () => {
         setDraft((d) => (d ? { ...d, progress } : d)); // landet über saveDraft auch im Browser
       });
       clearDraft(user.uid);
+      if (draft.verzeichnis) {
+        setCreating(t('Seite verbinden …'));
+        setSeite(await verbindeSeite(draft.verzeichnis, res.shop.id)); // wirft nicht; Fehler zeigt die Fertig-Seite
+      }
       setResult(res);
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -349,7 +381,12 @@ const ShopSetup = () => {
     }
     case 'check': {
       title = t('Stimmt das so?');
-      intro = draft.source === 'google' ? t('Von Google übernommen. Du kannst alles ändern.') : t('So finden dich deine Kunden. Nur der Name und die E-Mail sind Pflicht.');
+      intro =
+        draft.source === 'google'
+          ? t('Von Google übernommen. Du kannst alles ändern.')
+          : draft.source === 'verzeichnis'
+            ? t('Von deiner Seite auf Dranzeit übernommen. Du kannst alles ändern.')
+            : t('So finden dich deine Kunden. Nur der Name und die E-Mail sind Pflicht.');
       body = (
         <div className="grid gap-4 sm:grid-cols-6">
           <div className="sm:col-span-6">
@@ -383,6 +420,19 @@ const ShopSetup = () => {
               onChange={(e) => patch({ website: e.target.value })}
             />
           </div>
+          {draft.source === 'verzeichnis' && (
+            <Button
+              variant="ghost"
+              className="h-auto min-h-11 self-start whitespace-normal text-start sm:col-span-6"
+              onClick={() => {
+                vergissUebernahme();
+                setQuery('');
+                setDraft(emptyDraft(draft.email, draft.ownerName));
+              }}
+            >
+              {t('Nicht dein Salon? Leer anfangen')}
+            </Button>
+          )}
         </div>
       );
       primary = {
@@ -399,7 +449,9 @@ const ShopSetup = () => {
       title = t('Was für ein Laden ist das?');
       intro =
         draft.industryGuessed && industryName
-          ? t('Laut Google: {branche}. Stimmt das?', { branche: industryName })
+          ? draft.source === 'verzeichnis'
+            ? t('Laut deiner Seite: {branche}. Stimmt das?', { branche: industryName })
+            : t('Laut Google: {branche}. Stimmt das?', { branche: industryName })
           : t('Danach richten sich die Vorschläge für deine Leistungen.');
       body = (
         <div className="flex flex-col gap-2">
@@ -426,9 +478,11 @@ const ShopSetup = () => {
     }
     case 'hours': {
       title = t('Wann hast du geöffnet?');
-      intro = draft.hoursFromGoogle
-        ? t('So steht es bei Google. Mittagspausen gelten für alle – in der Zeit bucht niemand.')
-        : t('Tipp eine Vorlage an und pass sie an. Machst du mittags zu, trag eine Pause ein.');
+      intro = !draft.hoursFromGoogle
+        ? t('Tipp eine Vorlage an und pass sie an. Machst du mittags zu, trag eine Pause ein.')
+        : draft.source === 'verzeichnis'
+          ? t('So steht es auf deiner Seite. Mittagspausen gelten für alle – in der Zeit bucht niemand.')
+          : t('So steht es bei Google. Mittagspausen gelten für alle – in der Zeit bucht niemand.');
       body = <OpeningHoursEditor value={draft.hours} onChange={(hours) => patch({ hours })} presets={!draft.hoursFromGoogle} />;
       primary = {
         label: t('Weiter'),
@@ -779,6 +833,60 @@ const ShopSetup = () => {
         })}
       </p>
     </div>
+  );
+};
+
+/** Fertig-Seite: Was aus der übernommenen Seite im Salon-Verzeichnis geworden ist */
+const SeiteBox = ({ seite, onRetry }: { seite: Verbindung; onRetry?: () => Promise<void> }) => {
+  const [busy, setBusy] = useState(false);
+  const adresse = `dranzeit.de${seite.pfad}`;
+  const link = (
+    <a href={seite.pfad} target="_blank" rel="noopener" className="font-semibold underline underline-offset-4" dir="ltr">
+      {adresse}
+    </a>
+  );
+  return (
+    <section className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="eigene-seite" role="status">
+      <h2 id="eigene-seite" className="font-display text-xl font-bold">
+        {seite.stand === 'verbunden' ? t('Deine Seite gehört jetzt zu deinem Laden') : t('Deine Seite im Salon-Verzeichnis')}
+      </h2>
+      {seite.stand === 'verbunden' && (
+        <>
+          <p className="text-muted-foreground">
+            {tTeile('Auf <seite/> ziehen Kunden ab sofort eine Nummer. Die Adresse bleibt, so finden dich alle, die dich dort schon gesucht haben.', { seite: () => link })}
+          </p>
+          {seite.gruender && <p className="font-semibold">{t('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.')}</p>}
+        </>
+      )}
+      {seite.stand === 'pruefen' && (
+        <p className="text-muted-foreground">
+          {tTeile('<seite/> verbinden wir mit deinem Laden, sobald wir kurz geprüft haben, dass es dein Salon ist.', { seite: () => link })}
+        </p>
+      )}
+      {seite.stand === 'fehler' && (
+        <>
+          <p className="text-muted-foreground">
+            {tTeile('<seite/> ist noch nicht verbunden: {grund}', { seite: () => link }, { grund: seite.text })}
+          </p>
+          {seite.nochmal && onRetry ? (
+            <Button
+              variant="outline"
+              className="self-start"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                onRetry().finally(() => setBusy(false));
+              }}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+              {t('Noch einmal versuchen')}
+            </Button>
+          ) : (
+            <p className="text-muted-foreground">{t('Wir verbinden sie, sobald wir geprüft haben, dass es dein Salon ist.')}</p>
+          )}
+        </>
+      )}
+    </section>
   );
 };
 

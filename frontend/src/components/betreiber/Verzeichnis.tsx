@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ import {
   confirmTakeover,
   createByHand,
   deleteEintrag,
+  createClaimCode,
   importSalon,
   loadVerzeichnis,
   rejectTakeover,
@@ -792,6 +794,8 @@ function EintragEditor({ entry, onSaved, onClose }: { entry?: Eintrag; onSaved: 
         )}
       </div>
 
+      {entry && !isShop && <ClaimCode entry={entry} onChanged={() => onSaved(entry)} />}
+
       {entry && (
         <Section title="Herkunft">
           <dl className="grid gap-3 sm:grid-cols-2">
@@ -818,3 +822,75 @@ function EintragEditor({ entry, onSaved, onClose }: { entry?: Eintrag; onSaved: 
     </div>
   );
 }
+
+const copy = (text: string, done: string) => navigator.clipboard.writeText(text).then(() => toast.success(done), () => toast.error('Kopieren ging nicht.'));
+
+/**
+ * Übernahme-Code für den Brief an den Salon: Mit ihm richtet der Salon seinen Laden vorausgefüllt ein, und die Seite
+ * wird ohne Bestätigung hier verbunden. Der Code steht nur als Hash am Eintrag – darum nur direkt nach dem Erzeugen sichtbar.
+ */
+const ClaimCode = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void }) => {
+  const [neu, setNeu] = useState<{ code: string; link: string; gueltigBis: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const info = entry.uebernahme;
+
+  const create = async () => {
+    if (info?.erstelltAm && !info.eingeloestAm && !window.confirm('Neuen Code erzeugen? Der bisherige gilt dann nicht mehr (z. B. in einem schon verschickten Brief).')) return;
+    setBusy(true);
+    try {
+      setNeu(await createClaimCode(entry.id));
+      onChanged();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Übernahme-Code">
+      <p className="text-sm text-muted-foreground">
+        Für den Brief an den Salon. Mit dem Code richtet er seinen Laden vorausgefüllt ein, und die Seite gehört sofort ihm – ohne Bestätigung hier.
+        Ohne Code bleibt es beim Vorschlag oben, den du bestätigst.
+      </p>
+      {info?.eingeloestAm ? (
+        <p className="text-sm font-semibold">Eingelöst am {fmtDateTime(info.eingeloestAm)}.</p>
+      ) : info?.erstelltAm ? (
+        <p className="text-sm">
+          Code erzeugt am {fmtDate(info.erstelltAm)}, gültig bis {fmtDate(info.gueltigBis)}. Er wird nur beim Erzeugen angezeigt.
+        </p>
+      ) : null}
+      {neu && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-foreground bg-background p-4 sm:flex-row sm:items-center">
+          <div className="rounded-xl bg-white p-2 self-start">
+            <QRCodeSVG value={neu.link} size={112} />
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <p className="font-mono text-2xl font-bold tracking-widest" dir="ltr">
+              {neu.code}
+            </p>
+            <p className="truncate text-sm text-muted-foreground" dir="ltr">
+              {neu.link}
+            </p>
+            <p className="text-xs text-muted-foreground">Gültig bis {fmtDate(neu.gueltigBis)}. Jetzt notieren – später zeigt ihn niemand mehr an.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => copy(neu.code, 'Code kopiert.')}>
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                Code kopieren
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => copy(neu.link, 'Link kopiert.')}>
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                Link kopieren
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!info?.eingeloestAm && (
+        <Button variant="outline" className="self-start" disabled={busy || entry.status === 'entfernt'} onClick={create}>
+          {busy ? 'Erzeugt …' : info?.erstelltAm ? 'Neuen Code erzeugen' : 'Code erzeugen'}
+        </Button>
+      )}
+    </Section>
+  );
+};

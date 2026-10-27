@@ -9,12 +9,13 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["QME_BETREIBER_DIR"] = tempfile.mkdtemp(prefix="verzeichnis-test-")
 
+from databutton_app.mw.auth_mw import get_authorized_user  # noqa: E402
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -23,6 +24,7 @@ import app.verzeichnis_seiten as seiten  # noqa: E402
 from app.apis import verzeichnis as public_api  # noqa: E402
 from app.apis.betreiber import verzeichnis as admin_api  # noqa: E402
 from app.libs import protokoll  # noqa: E402
+from app.libs import uebernahme as ue  # noqa: E402
 from app.libs import verzeichnis as vz  # noqa: E402
 from app.libs import verzeichnis_import as imp  # noqa: E402
 
@@ -433,6 +435,89 @@ def test_betreiber_import():
         assert row["pfad"] == "/friseur/berlin/neuer-salon" and row["fehlt"] == []
     finally:
         imp.profil_von_webseite = imp.profil_von_webseite_orig
+
+
+# --- Übernahme per Code (app/libs/uebernahme.py) ---------------------------------------------------------------------
+
+
+def _fehler(fn, *args) -> int:
+    try:
+        fn(*args)
+    except ue.Fehler as e:
+        return e.status
+    raise AssertionError(f"{fn.__name__}{args} ohne Fehler")
+
+
+def test_uebernahme_code():
+    store = frisch([eintrag("e1", "Haarwerk"), eintrag("laden-s1", "Haarwerk Neu", shopId="s1", slug="haarwerk-neu")])
+    code = ue.code_erzeugen(store.hole("e1"), store, MONDAY)["code"]
+    assert re.fullmatch(r"[A-Z2-9]{5}-[A-Z2-9]{5}", code) and not set(code) & set("01OIL")
+    info = store.hole("e1")["uebernahme"]
+    assert info["codeHash"] == ue.code_hash(code) and code.replace("-", "") not in json.dumps(info, default=str)
+    assert info["gueltigBis"] == MONDAY + timedelta(days=ue.GUELTIG_TAGE)
+    # Schreibweise egal; falsch, zu kurz und abgelaufen nicht
+    assert ue.pruefen(code.lower().replace("-", " "), store, MONDAY)["id"] == "e1"
+    assert _fehler(ue.pruefen, "", store, MONDAY) == 404 and _fehler(ue.pruefen, "AAAAA-AAAAA", store, MONDAY) == 404
+    assert _fehler(ue.pruefen, code, store, MONDAY + timedelta(days=ue.GUELTIG_TAGE + 1)) == 410
+    # Neuer Code: der alte gilt nicht mehr
+    neu = ue.code_erzeugen(store.hole("e1"), store, MONDAY)["code"]
+    assert _fehler(ue.pruefen, code, store, MONDAY) == 404
+    # Einlösen: Eintrag wird die Seite des Ladens, die Seite aus dem Abgleich leitet hierher
+    ue.einloesen(neu, "s1", store, MONDAY)
+    e = store.hole("e1")
+    assert e["shopId"] == "s1" and e["status"] == "online" and e["slug"] == "haarwerk"
+    assert e["uebernahme"]["eingeloestAm"] == MONDAY and e["uebernahme"]["shopId"] == "s1"
+    assert not store.hole("laden-s1") and e["altePfade"] == ["/friseur/berlin/haarwerk-neu"]
+    assert _fehler(ue.einloesen, neu, "s2", store, MONDAY) == 409  # nur einmal
+    assert _fehler(ue.code_erzeugen, store.hole("e1"), store) == 409  # Seite eines Ladens bekommt keinen Code
+
+
+def test_uebernahme_api():
+    store = frisch([eintrag("e1", "Haarwerk"), eintrag("e2", "Entwurf", status="entwurf")],
+                   [{"id": "s1", "name": "Haarwerk", "street": "Schönhauser Allee 80", "postalCode": "10439", "city": "Berlin"}])
+    public_api._calls.clear()
+    app = FastAPI()
+    app.include_router(public_api.router, prefix="/routes")
+    app.include_router(admin_api.router, prefix="/routes")
+    app.dependency_overrides[get_authorized_user] = lambda: USER
+    c = TestClient(app)
+    # Vorschau für den Assistenten: nur veröffentlichte Seiten ohne Laden
+    v = c.get("/routes/verzeichnis/e1/vorschau").json()
+    assert v["name"] == "Haarwerk" and v["kategorie"] == "friseur" and v["services"][0]["name"] == "Herrenschnitt"
+    assert v["pfad"] == "/friseur/berlin/haarwerk" and v["businessHoursByDay"] == HOURS and "wuensche" not in v
+    assert c.get("/routes/verzeichnis/e2/vorschau").status_code == 404
+    # Betreiber erzeugt den Code; die Liste zeigt nur, dass es einen gibt
+    r = c.post("/routes/betreiber/verzeichnis/e1/code", headers={"origin": "https://dranzeit.de"}).json()
+    assert r["link"] == f"https://dranzeit.de/uebernehmen#code={r['code'].replace('-', '')}"
+    row = next(x for x in admin_api.liste()["eintraege"] if x["id"] == "e1")
+    assert row["uebernahme"]["gueltigBis"] and "codeHash" not in json.dumps(row, default=str)
+    # Prüfen ohne Anmeldung
+    assert c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "falsch"}).status_code == 404
+    p = c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": r["code"].lower()}).json()
+    assert p["code"] == r["code"] and p["eintrag"]["id"] == "e1"
+    # Einlösen nur für den eigenen Laden
+    def fremd(user, shop_id):
+        raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
+
+    public_api.require_shop_of_owner = fremd
+    assert c.post("/routes/verzeichnis/uebernahme/einloesen", json={"code": r["code"], "shopId": "s1"}).status_code == 403
+    public_api.require_shop_of_owner = lambda user, shop_id: None
+    public_api._laden = lambda shop_id: {"id": shop_id, "name": "Haarwerk"} if shop_id == "s1" else {}
+    assert c.post("/routes/verzeichnis/uebernahme/einloesen", json={"code": r["code"], "shopId": "s9"}).status_code == 404
+    ok = c.post("/routes/verzeichnis/uebernahme/einloesen", json={"code": r["code"], "shopId": "s1"}).json()
+    assert ok == {"ok": True, "pfad": "/friseur/berlin/haarwerk"} and store.hole("e1")["shopId"] == "s1"
+    assert protokoll.read(1)[0]["action"] == "Verzeichnis: per Code übernommen"
+    assert c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": r["code"]}).status_code == 409
+    # Die Seite zeigt jetzt den Laden; ein anderer Salon verweist auf die Übernahme mit Vorbefüllung
+    seiten.vergessen()
+    assert seiten.daten()["nach_pfad"]["/friseur/berlin/haarwerk"]["typ"] == "laden"
+    frisch([eintrag("e3", "Kamm & Co")])
+    html = seiten.render_salon(seiten.daten()["nach_pfad"]["/friseur/berlin/kamm-co"], seiten.daten(), MONDAY)
+    assert 'href="/uebernehmen?eintrag=e3"' in html
+    # Raten wird gebremst
+    public_api._calls.clear()
+    codes = [c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "AAAAA-AAAA" + x}).status_code for x in "ABCDEFGHJKMNPQRSTUVWX"]
+    assert codes[-1] == 429 and codes.count(404) == public_api.LIMITS["code"][0]
 
 
 if __name__ == "__main__":

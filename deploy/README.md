@@ -634,6 +634,12 @@ bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
 - **Übernahme**: Meldet sich ein Salon aus dem Verzeichnis bei Dranzeit an, steht oben „Übernahme bestätigen“
   (gleiche Google-Place-ID, sonst ähnlicher Name mit gleicher PLZ oder Lage). Bestätigen macht die Seite zur Seite
   des Ladens, die Adresse bleibt. „Nicht derselbe“ gibt dem Laden eine eigene Seite.
+- **Übernahme per Code** (für den Brief an den Salon): Im Eintrag unten „Code erzeugen“. Der Code (z. B.
+  `ABCDE-FGHJK`, 180 Tage gültig) und der Link `https://dranzeit.de/uebernehmen#code=…` samt QR-Code werden nur
+  in diesem Moment gezeigt; gespeichert ist nur ein Hash. Mit dem Code richtet der Salon seinen Laden vorausgefüllt
+  ein (Name, Adresse, Zeiten, Preise der Seite), und die Seite gehört ihm danach **ohne Bestätigung hier**; dazu
+  bekommt er einen Gründerplatz, solange frei. Ohne Code („Seite übernehmen“ auf der Seite) füllt der Assistent
+  genauso vor, verbunden wird aber erst über „Übernahme bestätigen“. Ein neuer Code macht den alten ungültig.
 - **Vom Salon entfernt**: Jede Seite hat unten „Eintrag entfernen“ für den Salon selbst (Widerspruch). Die Seite
   geht sofort offline; Grund und Kontakt stehen im Protokoll (nicht in Firestore).
 - **Wünsche**: „Das wünsch ich mir“ auf der Seite zählt mit (je Person und Tag einmal) – Liste nach Wünschen für den

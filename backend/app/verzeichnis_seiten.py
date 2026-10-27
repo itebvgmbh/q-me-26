@@ -358,7 +358,7 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
             f"<p><strong>Bei {_e(s['name'])} kannst du über Dranzeit noch keine Nummer ziehen.</strong> "
             f"Du möchtest das? Sag es uns – je mehr fragen, desto eher klappt es.{_e(andere)}</p>{wunsch}"
             "<p class=\"klein\">Ist das dein Salon? Mit Dranzeit ziehen deine Kunden online eine Nummer und warten, wo sie wollen. "
-            "<a href=\"/features\">So funktioniert’s</a> · <a href=\"/register-shop-owner\">30 Tage kostenlos testen</a></p></section>"
+            f"<a href=\"/features\">So funktioniert’s</a> · <a href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen, 30 Tage kostenlos</a></p></section>"
         )
 
     ueber = ""
