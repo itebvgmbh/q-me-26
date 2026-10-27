@@ -8,7 +8,8 @@ sofort – sonst käme "Du bist dran" bis zu 30 Sekunden zu spät. Absagen und V
 und neue Angebote (check_slots) wecken ihn ebenfalls; deren Merker prüft er beim Wecken und alle
 EXTRA_EVERY Durchläufe, nicht jedes Mal (spart Lesevorgänge).
 
-Kanäle je Termin: Web-Push (Sammlung push_subscriptions) und E-Mail (Feld notifyEmail am Termin, bei
+Kanäle je Termin: Web-Push und Push an die App (Sammlung push_subscriptions, Feld endpoint bzw. token –
+app/libs/webpush.py, app/libs/fcm.py) und E-Mail (Feld notifyEmail am Termin, bei
 Erinnerungen, Absagen, Verschiebungen und Angeboten auch die E-Mail des Kundenkontos). Sprache: die der
 Push-Anmeldung, sonst die am Termin (Nummer ziehen, Buchen), sonst die des Kundenkontos, sonst Deutsch. Was gesendet wurde,
 steht am Termin bzw. Angebot (notifiedSoonAt, notifiedCalledAt, reminderSentAt; customerNotice und
@@ -23,6 +24,7 @@ from zoneinfo import ZoneInfo
 from app.i18n import merke, sprache_von, t
 from app.libs import onboarding_mail
 from app.libs.appointment_window import AppointmentWindow
+from app.libs.fcm import TokenGone, fcm_configured, send_app_push
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.plans import has_feature
 from app.libs.queue_notify import message_for, needs_reminder, notice_kind, plan_queue_notifications, recalled_to_reset
@@ -120,7 +122,7 @@ def _day_range(now: datetime) -> tuple[datetime, datetime]:
 def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
     """Ein Durchlauf. extras: auch Absagen/Verschiebungen des Ladens und "Früher dran"-Angebote prüfen."""
     now = now or datetime.now(timezone.utc)
-    can_push, can_mail = push_configured(), mail_configured()
+    can_push, can_mail = push_configured() or fcm_configured(), mail_configured()
     if not can_push and not can_mail:
         return {"skipped": "kein Kanal eingerichtet"}
 
@@ -293,8 +295,11 @@ def _deliver(
     for sub in channels:
         title, body = message(sprache_von(sub["language"]) if sub.get("language") else language)
         try:
-            send_push(sub["subscription"], title, body, url, tag)
-        except SubscriptionGone:
+            if sub.get("token"):
+                send_app_push(sub["token"], title, body, url, tag)
+            else:
+                send_push(sub["subscription"], title, body, url, tag)
+        except (SubscriptionGone, TokenGone):
             db.collection("push_subscriptions").document(sub["doc_id"]).delete()
         except Exception as e:
             print(f"Push an {appt['id']} fehlgeschlagen: {e}")
@@ -314,14 +319,21 @@ def _deliver(
 
 
 def _subscriptions_for(db, appointment_ids: list[str]) -> dict[str, list]:
+    """Anmeldungen je Termin: Browser (endpoint, Web-Push) und App (token, Firebase Cloud Messaging) – nur die,
+    deren Kanal auf diesem Server eingerichtet ist."""
+    web, app = push_configured(), fcm_configured()
     result: dict[str, list] = {}
     for i in range(0, len(appointment_ids), 30):  # Firestore erlaubt höchstens 30 Werte für "in"
         chunk = appointment_ids[i : i + 30]
         for doc in db.collection("push_subscriptions").where("appointmentId", "in", chunk).stream():
             data = doc.to_dict() or {}
-            sub = {"endpoint": data.get("endpoint"), "keys": {"p256dh": data.get("p256dh"), "auth": data.get("auth")}}
-            if sub["endpoint"]:
-                result.setdefault(data["appointmentId"], []).append({"doc_id": doc.id, "subscription": sub, "language": data.get("language")})
+            entry = {"doc_id": doc.id, "language": data.get("language")}
+            if data.get("token"):
+                if app:
+                    result.setdefault(data["appointmentId"], []).append({**entry, "token": data["token"]})
+            elif data.get("endpoint") and web:
+                sub = {"endpoint": data["endpoint"], "keys": {"p256dh": data.get("p256dh"), "auth": data.get("auth")}}
+                result.setdefault(data["appointmentId"], []).append({**entry, "subscription": sub})
     return result
 
 

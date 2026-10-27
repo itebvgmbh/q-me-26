@@ -15,6 +15,7 @@ import { CounterLane } from '../components/counter/CounterLane';
 import { CounterCalendar } from '../components/counter/CounterCalendar';
 import { Startklar } from '../components/onboarding/Startklar';
 import { weekDays } from '../utils/calendar-layout';
+import { useKeepScreenOn } from '../utils/native-app';
 import {
   listShopsOfOwner,
   getShopById,
@@ -108,6 +109,9 @@ const ShopDashboard = () => {
   };
   // In der Wochenansicht blättern die Pfeile um eine Woche
   const step = view === 'woche' ? 7 : 1;
+
+  // Am Tresen geht der Bildschirm nicht aus (Tablet an der Theke, iPad-App)
+  useKeepScreenOn();
 
   // Uhr für Aufruf und Verzug am Tresen – alle 30 Sekunden
   useEffect(() => {

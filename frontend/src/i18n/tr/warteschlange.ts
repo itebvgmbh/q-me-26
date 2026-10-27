@@ -50,6 +50,8 @@ const texte: Texte = {
   "Wir sagen dir Bescheid, kurz bevor du dran bist.": "Sıranız gelmeden kısa süre önce size haber vereceğiz.",
   "Benachrichtigungen sind für diese Seite blockiert. Du kannst sie in den Browser-Einstellungen erlauben.":
     "Bu sayfa için bildirimler engellenmiş. Tarayıcı ayarlarından izin verebilirsiniz.",
+  "Mitteilungen für Dranzeit sind aus. Du kannst sie in den Einstellungen deines Geräts unter Dranzeit einschalten.":
+    "Dranzeit bildirimleri kapalı. Cihazının Ayarlar bölümünde Dranzeit altından açabilirsin.",
   "Dein Browser kann keine Benachrichtigungen. Nimm die E-Mail.": "Tarayıcınız bildirim gösteremiyor. Lütfen e-postayı seçin.",
   "Das hat nicht geklappt.": "İşlem başarısız oldu.",
   "Wir schicken dir eine E-Mail, kurz bevor du dran bist.": "Sıranız gelmeden kısa süre önce size e-posta göndereceğiz.",

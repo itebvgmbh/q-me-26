@@ -1,7 +1,8 @@
 import { auth } from 'app';
 import { sprache, t } from '@/i18n';
+import { inNativeApp } from './native-app';
 
-// Benachrichtigungen für eine Nummer: Web-Push oder E-Mail.
+// Benachrichtigungen für eine Nummer: Web-Push, in der iPhone/iPad-App nativer Push (enableAppPush), oder E-Mail.
 // Backend: backend/app/apis/push (Anmelden), backend/app/libs/notify_worker.py (Versand).
 // Eine Nummer ohne Konto meldet sich mit ihrem Schlüssel an (utils/ticket-key.ts), eine mit Konto mit der Anmeldung.
 
@@ -9,9 +10,11 @@ export interface PushConfig {
   push: boolean;
   email: boolean;
   publicKey: string;
+  /** Push an die App (Firebase Cloud Messaging, backend/app/libs/fcm.py) */
+  app?: boolean;
 }
 
-const NO_CHANNELS: PushConfig = { push: false, email: false, publicKey: '' };
+const NO_CHANNELS: PushConfig = { push: false, email: false, publicKey: '', app: false };
 
 const post = async (path: string, body: unknown) => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -60,7 +63,15 @@ const readFlag = (appointmentId: string) => {
 };
 
 export const pushEnabledFor = (appointmentId: string) =>
-  pushSupported() && Notification.permission === 'granted' && readFlag(appointmentId);
+  inNativeApp() ? readFlag(appointmentId) : pushSupported() && Notification.permission === 'granted' && readFlag(appointmentId);
+
+const setFlag = (appointmentId: string) => {
+  try {
+    localStorage.setItem(flagKey(appointmentId), '1');
+  } catch {
+    /* privater Modus: Benachrichtigung kommt trotzdem */
+  }
+};
 
 const urlBase64ToUint8Array = (base64: string) => {
   const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
@@ -96,11 +107,57 @@ export const enablePush = async (appointmentId: string, publicKey: string, ticke
     // Nachrichten an dieses Gerät in der gewählten Sprache (backend/app/i18n)
     language: sprache(),
   });
+  setFlag(appointmentId);
+  return 'ok';
+};
+
+// So lange warten wir auf das Token von iOS/Firebase (mobile/ios/App/App/AppDelegate.swift)
+const APP_TOKEN_TIMEOUT_MS = 15000;
+
+/** Token des Geräts in der App: iOS fragt einmal nach der Erlaubnis, danach kommt es ohne Rückfrage. */
+const appPushToken = async (): Promise<string | 'denied'> => {
+  const { PushNotifications } = await import('@capacitor/push-notifications');
+  let permission = await PushNotifications.checkPermissions();
+  if (permission.receive !== 'granted' && permission.receive !== 'denied') permission = await PushNotifications.requestPermissions();
+  if (permission.receive !== 'granted') return 'denied';
+  const handles: { remove: () => Promise<void> }[] = [];
   try {
-    localStorage.setItem(flagKey(appointmentId), '1');
-  } catch {
-    /* privater Modus: Benachrichtigung kommt trotzdem */
+    return await new Promise<string>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error(t('Das hat nicht geklappt. Versuch es gleich noch einmal.'))), APP_TOKEN_TIMEOUT_MS);
+      Promise.all([
+        PushNotifications.addListener('registration', ({ value }) => {
+          window.clearTimeout(timer);
+          resolve(value);
+        }),
+        PushNotifications.addListener('registrationError', ({ error }) => {
+          window.clearTimeout(timer);
+          reject(new Error(error || t('Das hat nicht geklappt.')));
+        }),
+      ])
+        .then((added) => {
+          handles.push(...added);
+          return PushNotifications.register();
+        })
+        .catch(reject);
+    });
+  } finally {
+    for (const handle of handles) handle.remove().catch(() => {});
   }
+};
+
+/** In der iPhone/iPad-App: nativer Push statt Web-Push (WKWebView kann keinen Web-Push). */
+export const enableAppPush = async (appointmentId: string, ticketKey?: string | null): Promise<EnablePushResult> => {
+  if (!inNativeApp()) return 'unsupported';
+  const token = await appPushToken();
+  if (token === 'denied') return 'denied';
+  await post('/routes/push/subscribe-app', {
+    appointment_id: appointmentId,
+    key: ticketKey || null,
+    token,
+    platform: 'ios',
+    language: sprache(),
+  });
+  setFlag(appointmentId);
   return 'ok';
 };
 

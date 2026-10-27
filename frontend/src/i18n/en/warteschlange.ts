@@ -52,6 +52,8 @@ const texte: Texte = {
   "Wir sagen dir Bescheid, kurz bevor du dran bist.": "We'll let you know shortly before it's your turn.",
   "Benachrichtigungen sind für diese Seite blockiert. Du kannst sie in den Browser-Einstellungen erlauben.":
     "Notifications are blocked for this page. You can allow them in your browser settings.",
+  "Mitteilungen für Dranzeit sind aus. Du kannst sie in den Einstellungen deines Geräts unter Dranzeit einschalten.":
+    "Notifications for Dranzeit are off. You can turn them on in your device's Settings under Dranzeit.",
   "Dein Browser kann keine Benachrichtigungen. Nimm die E-Mail.": "Your browser can't show notifications. Use e-mail instead.",
   "Das hat nicht geklappt.": "That didn't work.",
   "Wir schicken dir eine E-Mail, kurz bevor du dran bist.": "We'll e-mail you shortly before it's your turn.",

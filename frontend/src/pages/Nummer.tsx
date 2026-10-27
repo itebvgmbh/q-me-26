@@ -21,6 +21,7 @@ import { hasFeature } from '../utils/plans';
 import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
 import { caFenster } from '../utils/ca-zeit';
 import {
+  enableAppPush,
   enablePush,
   getPushConfig,
   isIos,
@@ -32,6 +33,7 @@ import {
   setNotifyEmail,
   type PushConfig,
 } from '../utils/push';
+import { inNativeApp } from '../utils/native-app';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
 import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 import { datumsLocale, t, tn } from '@/i18n';
@@ -344,7 +346,7 @@ function CancelButton({ onConfirm, label, confirmLabel }: { onConfirm: () => voi
   );
 }
 
-/** Benachrichtigung einschalten: Push, wo der Browser es kann, sonst E-Mail. */
+/** Benachrichtigung einschalten: Push, wo der Browser es kann (in der iPhone/iPad-App nativ), sonst E-Mail. */
 function NotifyCard({ appt, ticketKey, userEmail }: { appt: PublicAppointment; ticketKey: string | null; userEmail: string }) {
   const [config, setConfig] = useState<PushConfig | null>(null);
   const [pushOn, setPushOn] = useState(() => pushEnabledFor(appt.id));
@@ -356,18 +358,22 @@ function NotifyCard({ appt, ticketKey, userEmail }: { appt: PublicAppointment; t
     getPushConfig().then(setConfig);
   }, []);
 
-  if (!config || (!config.push && !config.email)) return null;
+  if (!config || (!config.push && !config.email && !config.app)) return null;
 
-  const iosBrowser = isIos() && !isStandalone();
-  const canPush = config.push && pushSupported() && !iosBrowser;
+  // In der App gibt es keinen Web-Push, dafür den nativen (utils/native-app.ts)
+  const app = inNativeApp();
+  const iosBrowser = !app && isIos() && !isStandalone();
+  const canPush = app ? Boolean(config.app) : config.push && pushSupported() && !iosBrowser;
 
   const turnOnPush = async () => {
     setBusy(true);
     try {
-      const result = await enablePush(appt.id, config.publicKey, ticketKey);
+      const result = app ? await enableAppPush(appt.id, ticketKey) : await enablePush(appt.id, config.publicKey, ticketKey);
       if (result === 'ok') {
         setPushOn(true);
         toast.success(t('Wir sagen dir Bescheid, kurz bevor du dran bist.'));
+      } else if (result === 'denied' && app) {
+        toast.error(t('Mitteilungen für Dranzeit sind aus. Du kannst sie in den Einstellungen deines Geräts unter Dranzeit einschalten.'));
       } else if (result === 'denied') {
         toast.error(t('Benachrichtigungen sind für diese Seite blockiert. Du kannst sie in den Browser-Einstellungen erlauben.'));
       } else {
