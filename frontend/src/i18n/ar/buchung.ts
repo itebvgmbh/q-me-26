@@ -6,19 +6,17 @@ const texte: Texte = {
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "تعذّر حجز الموعد. حاول مرة أخرى.",
   "Termin buchen": "احجز موعدًا",
   "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "اختر وقتًا محددًا. تفضّل الآن؟ انضم إذن إلى قائمة الانتظار.",
-  "Shops werden geladen": "جارٍ تحميل المحلات",
+  "Läden werden geladen": "جارٍ تحميل المحلات",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "لا يقبل {name} مواعيد محددة عبر الإنترنت، لكن يمكنك أخذ رقم انتظار.",
   "Anderen Laden wählen": "اختر محلًا آخر",
 
   // components/BookingForm.tsx
   "Wo?": "أين؟",
-  "Anderen Shop wählen": "اختر محلًا آخر",
-  "Noch keine Shops eingetragen.": "لا توجد محلات مسجلة بعد.",
+  "Noch keine Läden eingetragen.": "لا توجد محلات مسجلة بعد.",
   "Was?": "ماذا؟",
-  "Dieser Shop hat noch keine Leistungen eingetragen.": "لم يضف هذا المحل أي خدمات بعد.",
   "{minuten} Min": "{minuten} دقيقة",
   "Bei wem?": "عند من؟",
-  "Für diesen Shop ist noch niemand eingetragen.": "لم يُسجَّل أحد لهذا المحل بعد.",
+  "Für diesen Laden ist noch niemand eingetragen.": "لم يُسجَّل أحد لهذا المحل بعد.",
   "Wann?": "متى؟",
   "Zusammenfassung": "الملخص",
   "EEE d. MMM 'um' HH:mm": "EEEE، d MMMM، 'الساعة' HH:mm",
@@ -130,7 +128,7 @@ const texte: Texte = {
   "Branche": "المجال",
   "Alle Branchen": "كل المجالات",
   "Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.": "لم تشارك موقعك. أدخل مدينة أو رمزًا بريديًا في الأعلى.",
-  "{n} Shops gefunden": {
+  "{n} Läden gefunden": {
     zero: "لم يُعثر على أي محل",
     one: "تم العثور على محل واحد",
     two: "تم العثور على محلين",
@@ -138,18 +136,16 @@ const texte: Texte = {
     many: "تم العثور على {n} محلًا",
     other: "تم العثور على {n} محل",
   },
-  "Alle Shops": "كل المحلات",
-  "Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.": "لا توجد محلات هنا بعد. وسّع النطاق أو ابحث في مكان آخر.",
+  "Alle Läden": "كل المحلات",
+  "Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.": "لا توجد محلات هنا بعد. وسّع النطاق أو ابحث في مكان آخر.",
   "Weitere Salons": "صالونات أخرى",
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "لا يتوفر هنا رقم انتظار عبر الإنترنت بعد – لكنك ستجد العنوان والمواعيد والأسعار.",
   "Du bist hier": "أنت هنا",
   "{km} km entfernt": "على بُعد {km} كم",
-  "Einreihen": "انضم للانتظار",
   "Noch nicht online buchbar": "الحجز عبر الإنترنت غير متاح بعد",
   "Ansehen": "عرض",
 
   // pages/ShopDetails.tsx
-  "Shop wird geladen": "جارٍ تحميل المحل",
   "Dieser Laden ist gerade nicht erreichbar.": "هذا المحل غير متاح حاليًا.",
   "Laden nicht gefunden.": "المحل غير موجود.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "لا يمكن حاليًا أخذ رقم انتظار أو حجز موعد عبر الإنترنت.",
@@ -160,10 +156,10 @@ const texte: Texte = {
 
   // components/MarketplaceSection.tsx
   "Ort oder PLZ": "المدينة أو الرمز البريدي",
-  "Hier ist noch kein Shop eingetragen.": "لا يوجد محل مسجل هنا بعد.",
+  "Hier ist noch kein Laden eingetragen.": "لا يوجد محل مسجل هنا بعد.",
   "Versuch es mit einem anderen Ort oder einer PLZ.": "جرّب مدينة أخرى أو رمزًا بريديًا آخر.",
   "Schau bald wieder vorbei.": "عُد إلينا قريبًا.",
-  "Alle {anzahl} Shops ansehen": "عرض كل المحلات ({anzahl})",
+  "Alle {anzahl} Läden ansehen": "عرض كل المحلات ({anzahl})",
 
   // components/BusinessHours.tsx
   "Geschlossen": "مغلق",
@@ -282,21 +278,28 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "تعذّر الانضمام إلى قائمة الانتظار. حاول مرة أخرى.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Shop.": "اختر محلًا أولًا.",
+  "Wähl zuerst einen Laden.": "اختر محلًا أولًا.",
   "Wähl aus, bei wem.": "اختر عند من.",
   "Wähl eine Leistung.": "اختر خدمة.",
   "Wähl eine Uhrzeit.": "اختر وقتًا.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
-  "Der Shop aus dem QR-Code wurde nicht gefunden": "لم يتم العثور على المحل الموجود في رمز QR",
-  "Fehler beim Laden der Shops": "خطأ في تحميل المحلات",
-  "Shop-ID fehlt": "معرّف المحل مفقود",
-  "Shop nicht gefunden": "المحل غير موجود",
-  "Fehler beim Laden der Shop-Details": "خطأ في تحميل بيانات المحل",
+  "Der Laden aus dem QR-Code wurde nicht gefunden": "لم يتم العثور على المحل الموجود في رمز QR",
+  "Die Läden konnten nicht geladen werden.": "خطأ في تحميل المحلات",
+  "Laden-ID fehlt": "معرّف المحل مفقود",
+  "Laden nicht gefunden": "المحل غير موجود",
   "Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.": "تعذّر تحميل الأماكن المتاحة. حاول مرة أخرى بعد قليل.",
   "Fehler beim Laden der Services": "خطأ في تحميل الخدمات",
   "Fehler beim Laden der Mitarbeiter": "خطأ في تحميل الموظفين",
   "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "هذه الخدمة لم تعد متوفرة هنا. اختر خدمة أخرى من فضلك.",
+
+  // Nochmal buchen, Egal wer beim Termin (MyBookings, AppointmentCard, BookingForm, CustomerCalendar)
+  "Nochmal buchen": "احجز مرة أخرى",
+  "Wie letztes Mal?": "مثل المرة الماضية؟",
+  "{leistung} bei {name}": "{leistung} عند {name}",
+  "zuletzt am {datum}": "آخر مرة: {datum}",
+  "Egal wer": "أي شخص",
+  "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "لا يوجد وقت متاح في الأسابيع الثلاثة القادمة. جرّب خدمة أخرى.",
 };
 
 export default texte;

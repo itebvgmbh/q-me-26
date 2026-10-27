@@ -3,7 +3,7 @@ import type { Texte } from "../typen.ts";
 // Startseite, Für Läden, Preise, Mein Tarif, Fehlerseiten
 const texte: Texte = {
   // pages/App.tsx
-  "Shop und Leistung wählen. Ein Konto brauchst du dafür nicht.": "Choose a shop and a service. You don't need an account.",
+  "Laden und Leistung wählen. Ein Konto brauchst du dafür nicht.": "Choose a shop and a service. You don't need an account.",
   "Weitermachen": "Carry on",
   "Du bekommst eine Nummer und eine ungefähre Uhrzeit. Bis dahin bist du frei.": "You get a number and an approximate time. Until then, you're free to go.",
   "Früher dran": "Earlier slot",
@@ -15,7 +15,7 @@ const texte: Texte = {
   "Herrenschnitt": "Men's cut",
   "Vor dir": "Ahead of you",
   "Dran um ca.": "Your turn approx.",
-  "Shops in deiner Nähe": "Shops near you",
+  "Läden in deiner Nähe": "Shops near you",
   "Auf der Karte ansehen": "View on the map",
   "So läuft’s": "How it works",
   "Dein Laden ohne volles Wartezimmer.": "Your shop without a packed waiting room.",

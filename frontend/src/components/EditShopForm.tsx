@@ -163,7 +163,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       // Shop-Daten direkt aktualisieren
       const updatedShop = await updateShop(shop.id, formData);
       onUpdate(updatedShop);
-      toast.success(t('Shop-Profil aktualisiert'));
+      toast.success(t('Laden-Profil aktualisiert'));
     } catch (error: any) {
       console.error('Error updating shop:', error);
       toast.error(t('Fehler beim Aktualisieren'));

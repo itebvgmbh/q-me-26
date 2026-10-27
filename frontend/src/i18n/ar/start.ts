@@ -3,7 +3,7 @@ import type { Texte } from "../typen.ts";
 // Startseite, Für Läden, Preise, Mein Tarif, Fehlerseiten
 const texte: Texte = {
   // pages/App.tsx
-  "Shop und Leistung wählen. Ein Konto brauchst du dafür nicht.": "اختر المحل والخدمة. لا تحتاج إلى حساب لذلك.",
+  "Laden und Leistung wählen. Ein Konto brauchst du dafür nicht.": "اختر المحل والخدمة. لا تحتاج إلى حساب لذلك.",
   "Weitermachen": "تابع يومك",
   "Du bekommst eine Nummer und eine ungefähre Uhrzeit. Bis dahin bist du frei.": "تحصل على رقم ووقت تقريبي. وحتى ذلك الحين وقتك ملكك.",
   "Früher dran": "دور أبكر",
@@ -15,7 +15,7 @@ const texte: Texte = {
   "Herrenschnitt": "قص شعر رجالي",
   "Vor dir": "قبلك",
   "Dran um ca.": "دورك حوالي",
-  "Shops in deiner Nähe": "محلات بالقرب منك",
+  "Läden in deiner Nähe": "محلات بالقرب منك",
   "Auf der Karte ansehen": "عرض على الخريطة",
   "So läuft’s": "كيف يعمل",
   "Dein Laden ohne volles Wartezimmer.": "محلك بلا غرفة انتظار مزدحمة.",

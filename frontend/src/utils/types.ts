@@ -109,6 +109,8 @@ export interface EarlierSlotNotificationType {
 export interface CalendarTimeSlot {
   start: Date;
   end: Date;
+  /** Bei „Egal wer“: wer zu dieser Zeit frei ist, in der Reihenfolge, in der gebucht wird */
+  staffOptions?: string[];
 }
 
 /**

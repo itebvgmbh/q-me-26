@@ -312,7 +312,7 @@ const texte: Texte = {
 
   // utils/hooks/useServiceManagement.ts
   "Fehler beim Laden der Services": "Hizmetler yüklenirken hata oluştu",
-  "Kein Shop ausgewählt": "Salon seçilmedi",
+  "Kein Laden ausgewählt": "Salon seçilmedi",
   "Service erfolgreich erstellt": "Hizmet oluşturuldu",
   "Fehler beim Erstellen des Services": "Hizmet oluşturulamadı",
   "Service erfolgreich aktualisiert": "Hizmet güncellendi",

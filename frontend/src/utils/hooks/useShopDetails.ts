@@ -25,7 +25,7 @@ export const useShopDetails = (shopId: string | null) => {
   useEffect(() => {
     const loadShopDetails = async () => {
       if (!shopId) {
-        toast.error(t('Shop-ID fehlt'));
+        toast.error(t('Laden-ID fehlt'));
         navigate('/');
         return;
       }
@@ -36,7 +36,7 @@ export const useShopDetails = (shopId: string | null) => {
         // Vom Server lesen: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
         const snap = await getDocFromServer(doc(db, 'shops', shopId));
         if (!snap.exists()) {
-          toast.error(t('Shop nicht gefunden'));
+          toast.error(t('Laden nicht gefunden'));
           navigate('/');
           return;
         }
@@ -60,7 +60,7 @@ export const useShopDetails = (shopId: string | null) => {
           setLoading(false);
           return;
         }
-        toast.error(t('Fehler beim Laden der Shop-Details'));
+        toast.error(t('Der Laden konnte nicht geladen werden.'));
         navigate('/');
       }
     };

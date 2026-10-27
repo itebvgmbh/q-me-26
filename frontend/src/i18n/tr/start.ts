@@ -3,7 +3,7 @@ import type { Texte } from "../typen.ts";
 // Startseite, Für Läden, Preise, Mein Tarif, Fehlerseiten
 const texte: Texte = {
   // pages/App.tsx
-  "Shop und Leistung wählen. Ein Konto brauchst du dafür nicht.": "Salonu ve hizmeti seçin. Bunun için hesaba ihtiyacınız yok.",
+  "Laden und Leistung wählen. Ein Konto brauchst du dafür nicht.": "Salonu ve hizmeti seçin. Bunun için hesaba ihtiyacınız yok.",
   "Weitermachen": "Gününüze devam edin",
   "Du bekommst eine Nummer und eine ungefähre Uhrzeit. Bis dahin bist du frei.": "Bir sıra numarası ve yaklaşık bir saat alırsınız. O zamana kadar istediğiniz yere gidebilirsiniz.",
   "Früher dran": "Erken sıra",
@@ -15,7 +15,7 @@ const texte: Texte = {
   "Herrenschnitt": "Erkek saç kesimi",
   "Vor dir": "Önünüzde",
   "Dran um ca.": "Sıranız yaklaşık",
-  "Shops in deiner Nähe": "Yakınınızdaki salonlar",
+  "Läden in deiner Nähe": "Yakınınızdaki salonlar",
   "Auf der Karte ansehen": "Haritada görüntüle",
   "So läuft’s": "Nasıl işliyor",
   "Dein Laden ohne volles Wartezimmer.": "Salonunuzda kalabalık bekleme alanına son.",

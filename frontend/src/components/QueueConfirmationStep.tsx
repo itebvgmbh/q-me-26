@@ -12,6 +12,7 @@ import { QueueStepShell } from './queue/QueueStepShell';
 import { slotDayLabel } from './queue/SlotStatus';
 import { hasFeature } from '../utils/plans';
 import { useMonthlyUsage } from '../utils/plan-usage';
+import { caFenster } from '../utils/ca-zeit';
 import { t, tTeile } from '@/i18n';
 
 export interface QueueContact {
@@ -91,6 +92,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
           <>
             <span className="font-mono text-5xl font-bold tracking-tight">{format(nextAvailableSlot.start, 'HH:mm')}</span>
             <span className="font-semibold">{slotDayLabel(nextAvailableSlot.start)}</span>
+            <span className="text-sm">{t('Rechne mit {von} bis {bis} Uhr.', caFenster(nextAvailableSlot.start))}</span>
           </>
         ) : searchFailed ? (
           <span className="flex flex-col items-start gap-3 font-semibold">

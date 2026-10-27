@@ -193,7 +193,15 @@ def _personen(db, shop_id: str) -> List[dict]:
         s = snap.to_dict() or {}
         if s.get("isActive"):
             items.append({**s, "id": snap.id, "name": str(s.get("name") or "").strip() or "Team"})
-    return sorted(items, key=lambda s: s["name"].casefold())
+    return _mit_rufnamen(sorted(items, key=lambda s: s["name"].casefold()))
+
+
+def _mit_rufnamen(personen: List[dict]) -> List[dict]:
+    """Zum Ansagen nur der Vorname ("bei Stefan"), der volle Name nur, wenn zwei denselben Vornamen haben"""
+    vornamen = [p["name"].split()[0].casefold() for p in personen]
+    for p, vorname in zip(personen, vornamen):
+        p["rufname"] = p["name"].split()[0] if vornamen.count(vorname) == 1 else p["name"]
+    return personen
 
 
 def _wer(db, shop_id: str, leistung: dict, person: Optional[str]) -> List[dict]:
@@ -299,12 +307,12 @@ def _noch_frei(db, shop_id: str, leistung: dict, person_id: str, start: datetime
 
 def _platz(p: Platz, jetzt: datetime) -> dict:
     person, start, end = p
-    return {"platz": t.platz_kennung(person["id"], start), "zeit": t.zeit_text(start, jetzt), "person": person["name"],
+    return {"platz": t.platz_kennung(person["id"], start), "zeit": t.zeit_text(start, jetzt), "person": person["rufname"],
             "start": start.isoformat(timespec="minutes"), "ende": end.isoformat(timespec="minutes")}
 
 
 def _aufzaehlung(plaetze: List[Platz], jetzt: datetime) -> str:
-    return "; ".join(f"{t.zeit_text(s, jetzt)} bei {p['name']}" for p, s, _ in plaetze)
+    return "; ".join(f"{t.zeit_text(s, jetzt)} bei {p['rufname']}" for p, s, _ in plaetze)
 
 
 def _preis(value) -> str:
@@ -379,7 +387,7 @@ def laden(anfrage: Anruf) -> dict:
         "oeffnungszeiten": t.oeffnungszeiten(shop),
         "leistungen": [{"id": s["id"], "name": s["name"], "minuten": int(s.get("duration") or 0), "preis": _preis(s.get("price"))}
                        for s in _leistungen(db, shop_id)],
-        "personen": [{"id": p["id"], "name": p["name"]} for p in _personen(db, shop_id)],
+        "personen": [{"id": p["id"], "name": p["name"], "rufname": p["rufname"]} for p in _personen(db, shop_id)],
         "termine": has_feature(shop, "termine"),
         "ansage": f"Hallo, hier ist der KI-Assistent von {name}.",
     }
@@ -401,7 +409,7 @@ def freie_zeiten(anfrage: ZeitenAnfrage) -> dict:
         plaetze = _je_uhrzeit(_plaetze(db, shop_id, shop, leistung, personen, jetzt, ab, anzahl, TAGE_TERMIN, nummer=False), anzahl)
     except _Nein as nein:
         return nein.antwort()
-    wen = f" bei {personen[0]['name']}" if len(personen) == 1 else ""
+    wen = f" bei {personen[0]['rufname']}" if len(personen) == 1 else ""
     if not plaetze:
         von = t.tag_text((ab or jetzt).date(), jetzt.date())
         return {"ok": True, "leistung": leistung["name"], "zeiten": [],
@@ -446,8 +454,8 @@ def buchen(anfrage: BuchenAnfrage) -> dict:
     zeit = t.zeit_text(start, jetzt)
     code = termin.get("referenceCode")
     print(f"Telefon {shop_id}: Termin {termin['id']} gebucht, {start:%d.%m. %H:%M} bei {person_id}")
-    return {"ok": True, "termin_id": termin["id"], "nummer": code, "zeit": zeit, "person": person["name"], "leistung": leistung["name"],
-            "ansage": f"Gebucht: {zeit} bei {person['name']}, {leistung['name']}." + (f" Die Nummer für den Aufruf ist {code}." if code else "")}
+    return {"ok": True, "termin_id": termin["id"], "nummer": code, "zeit": zeit, "person": person["rufname"], "leistung": leistung["name"],
+            "ansage": f"Gebucht: {zeit} bei {person['rufname']}, {leistung['name']}." + (f" Die Nummer für den Aufruf ist {code}." if code else "")}
 
 
 @router.post("/telefon/wartezeit")
@@ -474,10 +482,10 @@ def wartezeit(anfrage: WartezeitAnfrage) -> dict:
     person, start, _ = plaetze[0]
     minuten = t.minuten_bis(start, jetzt)
     if minuten <= 5:
-        ansage = f"Für {leistung['name']} ist gerade frei, bei {person['name']} ab {t.uhrzeit(start)}."
+        ansage = f"Für {leistung['name']} ist gerade frei, bei {person['rufname']} ab {t.uhrzeit(start)}."
     else:
-        ansage = f"Für {leistung['name']} ist der nächste Platz heute gegen {t.uhrzeit(start)} bei {person['name']}, also in etwa {t.minuten_text(minuten)}."
-    return {"ok": True, "frei": True, "minuten": minuten, "zeit": f"heute gegen {t.uhrzeit(start)}", "person": person["name"],
+        ansage = f"Für {leistung['name']} ist der nächste Platz heute gegen {t.uhrzeit(start)} bei {person['rufname']}, also in etwa {t.minuten_text(minuten)}."
+    return {"ok": True, "frei": True, "minuten": minuten, "zeit": f"heute gegen {t.uhrzeit(start)}", "person": person["rufname"],
             "leistung": leistung["name"], "ansage": ansage}
 
 
@@ -506,13 +514,13 @@ def nummer(anfrage: NummerAnfrage) -> dict:
     except _Nein as nein:
         return nein.antwort()
     start = aware(termin["startTime"]).astimezone(BERLIN).replace(tzinfo=None)
-    person = next((p for p in personen if p["id"] == termin["staffId"]), {"name": "Team"})
+    person = next((p for p in personen if p["id"] == termin["staffId"]), {"name": "Team", "rufname": "Team"})
     minuten = t.minuten_bis(start, jetzt)
     code = termin.get("referenceCode")
     print(f"Telefon {shop_id}: Nummer {code} gezogen, {start:%H:%M} bei {termin['staffId']}")
     return {"ok": True, "termin_id": termin["id"], "nummer": code, "zeit": f"heute gegen {t.uhrzeit(start)}", "minuten": minuten,
-            "person": person["name"], "leistung": leistung["name"],
-            "ansage": f"Die Nummer ist {code}. Dran heute gegen {t.uhrzeit(start)} bei {person['name']}, "
+            "person": person["rufname"], "leistung": leistung["name"],
+            "ansage": f"Die Nummer ist {code}. Dran heute gegen {t.uhrzeit(start)} bei {person['rufname']}, "
                       + ("also gleich." if minuten <= 5 else f"in etwa {t.minuten_text(minuten)}.")}
 
 
@@ -543,5 +551,5 @@ def aendern(anfrage: AendernAnfrage) -> dict:
     print(f"Telefon {shop_id}: Termin {anfrage.termin_id} abgesagt")
     if appt.get("type") == "queue":
         return {"ok": True, "ansage": f"Die Nummer {appt.get('referenceCode')} ist zurückgegeben."}
-    person = next((p["name"] for p in _personen(db, shop_id) if p["id"] == appt.get("staffId")), "")
+    person = next((p["rufname"] for p in _personen(db, shop_id) if p["id"] == appt.get("staffId")), "")
     return {"ok": True, "ansage": f"Abgesagt: {t.zeit_text(start, jetzt)}" + (f" bei {person}." if person else ".")}

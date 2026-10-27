@@ -27,7 +27,7 @@ run(async () => {
     const toasts = (await page.locator('[data-sonner-toast]').allInnerTexts().catch(() => [])).join(' / ');
     if (/Keine Verbindung/.test(text)) { state = 'Meldung'; break; }
     if (/nicht gefunden|Hier ist noch kein Shop/i.test(text + toasts)) { state = 'falsche Meldung'; break; }
-    if (/Was soll gemacht werden|Alle Shops|Leistungen/.test(text) && !/wir holen/.test(text)) { state = 'geladen'; break; }
+    if (/Was soll gemacht werden|Alle Läden|Leistungen/.test(text) && !/wir holen/.test(text)) { state = 'geladen'; break; }
   }
   await shot(page, `wlan-${mode}`, false);
   const simple = await page.evaluate(() => { try { return sessionStorage.getItem('qme-verbindung-einfach'); } catch { return null; } });
