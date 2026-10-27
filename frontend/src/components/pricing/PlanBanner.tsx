@@ -3,9 +3,13 @@ import type { Shop } from '../../utils/firestore';
 import { effectivePlan } from '../../utils/plans';
 import { useMonthlyUsage } from '../../utils/plan-usage';
 import { HILFE_MAIL } from '../HilfeLink';
+import { inStoreApp } from '../../utils/app-shell';
 import { t, tn, tTeile } from '@/i18n';
 
-/** Hinweis am Tresen: Testphase, Gratis-Kontingent oder offene Zahlung. Bei laufendem Abo nichts. */
+/**
+ * Hinweis am Tresen: Testphase, Gratis-Kontingent oder offene Zahlung. Bei laufendem Abo nichts.
+ * In der App aus dem Store nur der Stand, ohne Preis und ohne Link zum Tarif (utils/app-shell.ts).
+ */
 export const PlanBanner = ({ shop }: { shop: Shop }) => {
   const current = effectivePlan(shop);
   const usage = useMonthlyUsage(shop.id, shop);
@@ -35,11 +39,13 @@ export const PlanBanner = ({ shop }: { shop: Shop }) => {
   } else if (current.source === 'test') {
     if (current.trialDaysLeft > 7 && !shop.founder) return null;
     text = shop.founder
-      ? tn(
-          current.trialDaysLeft,
-          'Gründer: noch {n} Tag kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.',
-          'Gründer: noch {n} Tage kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.',
-        )
+      ? inStoreApp()
+        ? tn(current.trialDaysLeft, 'Gründer: noch {n} Tag kostenlos.', 'Gründer: noch {n} Tage kostenlos.')
+        : tn(
+            current.trialDaysLeft,
+            'Gründer: noch {n} Tag kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.',
+            'Gründer: noch {n} Tage kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.',
+          )
       : tn(
           current.trialDaysLeft,
           'Deine Testphase endet in {n} Tag. Danach Gratis mit 100 Kunden im Monat.',
@@ -52,15 +58,14 @@ export const PlanBanner = ({ shop }: { shop: Shop }) => {
     text = t('Gratis-Tarif: {genutzt} von {max} Kunden diesen Monat.', { genutzt: usage.used ?? '…', max: usage.max ?? '' });
   }
 
+  const className = urgent
+    ? 'flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-destructive px-4 py-3 text-sm font-semibold text-destructive-foreground'
+    : 'flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-signal px-4 py-3 text-sm font-semibold text-signal-foreground';
+
+  if (inStoreApp()) return <div className={className}>{text}</div>;
+
   return (
-    <Link
-      to="/tarif"
-      className={
-        urgent
-          ? 'flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-destructive px-4 py-3 text-sm font-semibold text-destructive-foreground'
-          : 'flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-signal px-4 py-3 text-sm font-semibold text-signal-foreground'
-      }
-    >
+    <Link to="/tarif" className={className}>
       <span>{text}</span>
       <span className="underline underline-offset-2">{t('Tarif ansehen')}</span>
     </Link>

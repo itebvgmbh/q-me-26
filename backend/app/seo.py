@@ -118,6 +118,23 @@ def _e(value) -> str:
     return html.escape(str(value or ""), quote=True)
 
 
+# App aus Google Play bzw. dem App Store: Dort wird nichts verkauft (Erklärung und gleiche Erkennung in
+# frontend/src/utils/app-shell.ts). Links zu Tarif, Preisen und den Hilfe-Artikeln über Preise verschwinden,
+# diese Artikel selbst leiten zur Hilfe-Übersicht weiter.
+APP_VERKAUF = ("/tarif", "/preise", "/hilfe/tarife", "/hilfe/abo", "/hilfe/gruenderangebot")
+APP_STYLE = ",".join(f'.in-app a[href^="{p}"]' for p in APP_VERKAUF) + "{display:none!important}"
+APP_JS = (
+    "(function(){var k='dranzeit:app',a=null;try{a=sessionStorage.getItem(k)}catch(e){}"
+    "if(a!=='android'&&a!=='ios'){var p=new URLSearchParams(location.search).get('app');"
+    "a=p==='android'||p==='ios'?p:document.referrer.indexOf('android-app://de.dranzeit.app')===0?'android'"
+    ":/\\bDranzeitApp\\/ios\\b/.test(navigator.userAgent)?'ios':null;"
+    "if(a)try{sessionStorage.setItem(k,a)}catch(e){}}"
+    "if(!a)return;document.documentElement.classList.add('in-app');"
+    "if(/\\/hilfe\\/(" + "|".join(p.split("/")[-1] for p in APP_VERKAUF if p.startswith("/hilfe/")) + ")\\/?$/"
+    ".test(location.pathname))location.replace('/hilfe')})();"
+)
+
+
 STYLE = """
 :root{--bg:#eeede7;--card:#fff;--ink:#141414;--muted:#5a5a52;--line:#d8d6cc;--signal:#ffc83d}
 @media (prefers-color-scheme:dark){:root{--bg:#121211;--card:#1c1c1a;--ink:#f2f1eb;--muted:#a8a79e;--line:#34332e}}
@@ -153,7 +170,7 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
     return (
         "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">"
-        f"<title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
+        f"<script>{APP_JS}</script><title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
         + (f"<meta name=\"robots\" content=\"{_e(robots)}\">" if robots else "") +
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
@@ -161,7 +178,7 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         "<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"de_DE\">"
         f"<meta property=\"og:image\" content=\"{_e(public_url())}/og-bild.png\"><meta property=\"og:image:width\" content=\"1200\">"
         "<meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\">"
-        f"<style>{STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
+        f"<style>{STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
         "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
         "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
         f"{body}"

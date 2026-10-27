@@ -5,6 +5,7 @@ import { getAppointmentsInRange, getShopsByOwnerId, type Appointment, type Shop 
 import { hasFeature, euro } from '../utils/plans';
 import { computeStats } from '../utils/stats';
 import { merke, t, tn } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 const RANGES = [
   { days: 7, label: merke('7 Tage') },
@@ -52,9 +53,11 @@ export default function Auswertung() {
       <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-16 sm:px-6">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">{t('Auswertung')}</h1>
         <p>{t('Wie viele Kunden kommen, wie lange sie warten und wann am meisten los ist: Das gehört zum Tarif Laden.')}</p>
-        <Link to="/tarif" className="w-fit rounded-xl bg-foreground px-5 py-3 font-semibold text-background">
-          {t('Tarif ansehen')}
-        </Link>
+        {!inStoreApp() && (
+          <Link to="/tarif" className="w-fit rounded-xl bg-foreground px-5 py-3 font-semibold text-background">
+            {t('Tarif ansehen')}
+          </Link>
+        )}
       </div>
     );
   }

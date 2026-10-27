@@ -95,11 +95,17 @@ const texte: Texte = {
   "Nächste Abrechnung am {datum}.": "Next billing on {datum}.",
   "Von Dranzeit freigeschaltet bis {datum}. Danach gilt wieder dein Abo.": "Unlocked by Dranzeit until {datum}. After that, your subscription applies again.",
   "Von Dranzeit freigeschaltet bis {datum}. Danach Gratis, wenn du kein Abo wählst.": "Unlocked by Dranzeit until {datum}. After that, Free plan unless you choose a subscription.",
+  "Von Dranzeit freigeschaltet bis {datum}.": "Unlocked by Dranzeit until {datum}.",
   "Testphase mit allen Funktionen, noch {n} Tage. Danach Gratis, wenn du kein Abo wählst.": {
     one: "Trial with all features, {n} day left. After that, Free plan unless you choose a subscription.",
     other: "Trial with all features, {n} days left. After that, Free plan unless you choose a subscription.",
   },
+  "Testphase mit allen Funktionen, noch {n} Tage.": {
+    one: "Trial with all features, {n} day left.",
+    other: "Trial with all features, {n} days left.",
+  },
   "Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.": "Free plan. For appointments, notifications and a team, choose a subscription.",
+  "Gratis-Tarif.": "Free plan.",
   "Mein Tarif": "My plan",
   "Laden wählen": "Choose shop",
   "Testphase": "Trial",
@@ -111,6 +117,7 @@ const texte: Texte = {
   "Gründerangebot: noch {n} Plätze": { one: "Founder offer: {n} spot left", other: "Founder offer: {n} spots left" },
   "3 Monate kostenlos, danach den Laden-Tarif dauerhaft für 19 € statt 39 € im Monat. Dafür hängt das QR-Plakat sichtbar an deiner Tür, und du sagst uns in den ersten 3 Monaten einmal im Monat, was dich stört.": "3 months free, then the Shop plan for €19 instead of €39 a month, for good. In return, the QR poster hangs visibly on your door, and for the first 3 months you tell us once a month what bothers you.",
   "Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.": "You're a founder: 3 months free. Then Shop for €19 a month once you subscribe.",
+  "Du bist Gründer: 3 Monate kostenlos.": "You're a founder: 3 months free.",
   "Wird gesichert …": "Claiming …",
   "Tarif wechseln": "Change plan",
   "Abo wählen": "Choose a subscription",
@@ -165,6 +172,10 @@ const texte: Texte = {
   "Gründer: noch {n} Tage kostenlos. Danach Laden für 19 € im Monat, sobald du das Abo abschließt.": {
     one: "Founder: {n} more day free. Then Shop for €19 a month once you subscribe.",
     other: "Founder: {n} more days free. Then Shop for €19 a month once you subscribe.",
+  },
+  "Gründer: noch {n} Tage kostenlos.": {
+    one: "Founder: {n} more day free.",
+    other: "Founder: {n} more days free.",
   },
   "Deine Testphase endet in {n} Tagen. Danach Gratis mit 100 Kunden im Monat.": {
     one: "Your trial ends in {n} day. After that, Free with 100 customers a month.",

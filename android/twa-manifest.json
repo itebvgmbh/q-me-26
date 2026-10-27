@@ -1,0 +1,45 @@
+{
+  "packageId": "de.dranzeit.app",
+  "host": "dranzeit.de",
+  "name": "Dranzeit",
+  "launcherName": "Dranzeit",
+  "display": "standalone",
+  "themeColor": "#141414",
+  "themeColorDark": "#141414",
+  "navigationColor": "#141414",
+  "navigationColorDark": "#141414",
+  "navigationDividerColor": "#141414",
+  "navigationDividerColorDark": "#141414",
+  "backgroundColor": "#EEEDE7",
+  "enableNotifications": true,
+  "startUrl": "/?app=android",
+  "iconUrl": "https://dranzeit.de/icon-512.png",
+  "maskableIconUrl": "https://dranzeit.de/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "../../dranzeit-upload.jks",
+    "alias": "upload"
+  },
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://dranzeit.de/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://dranzeit.de/",
+  "minSdkVersion": 24,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": []
+}

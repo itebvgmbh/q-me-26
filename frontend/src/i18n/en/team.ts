@@ -22,6 +22,7 @@ const texte: Texte = {
     "No one can book with these people, and they can't see “My day”. Once restored, everything is as it was.",
   "Zurückholen": "Restore",
   "Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.": "Your plan is full. Deactivate someone else first or <tarif>change your plan</tarif>.",
+  "Dein Tarif ist voll. Deaktiviere erst jemand anderen.": "Your plan is full. Deactivate someone else first.",
 
   // pages/StaffRegistration.tsx
   "In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.": "Something is missing from this link. Ask your shop to send it again.",

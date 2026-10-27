@@ -40,6 +40,7 @@ import {
 import { entwurfAus, offeneUebernahme, verbindeSeite, Verbindung, vergissUebernahme } from '../utils/uebernahme';
 import type { ShopSetupStatusData } from '../brain/data-contracts';
 import { intlSprache, merke, t, tn, tTeile } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 /**
  * Laden einrichten – eine Frage pro Bildschirm, wie bei einer Steuer-App:
@@ -855,7 +856,7 @@ const SeiteBox = ({ seite, onRetry }: { seite: Verbindung; onRetry?: () => Promi
           <p className="text-muted-foreground">
             {tTeile('Auf <seite/> ziehen Kunden ab sofort eine Nummer. Die Adresse bleibt, so finden dich alle, die dich dort schon gesucht haben.', { seite: () => link })}
           </p>
-          {seite.gruender && <p className="font-semibold">{t('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.')}</p>}
+          {seite.gruender && <p className="font-semibold">{(inStoreApp() ? t('Du bist Gründer: 3 Monate kostenlos.') : t('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.'))}</p>}
         </>
       )}
       {seite.stand === 'pruefen' && (

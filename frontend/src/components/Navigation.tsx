@@ -17,11 +17,15 @@ import { Logo } from './brand/Logo';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
 import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
+import { inStoreApp } from '../utils/app-shell';
 import { istRtl, merke, t } from '@/i18n';
 import { SprachListe, SprachMenue } from './SprachWahl';
 
 /** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link */
 type NavItem = { to: string; label: string; server?: boolean };
+
+// In der App aus dem Store wird nichts verkauft (utils/app-shell.ts)
+const VERKAUF = ['/preise', '/tarif'];
 
 const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   guest: [
@@ -72,7 +76,7 @@ export function Navigation() {
   const [open, setOpen] = useState(false);
 
   const role: UserRole | 'guest' = user && profile ? profile.role : 'guest';
-  const links = user && !profile ? [] : LINKS[role];
+  const links = (user && !profile ? [] : LINKS[role]).filter((item) => !(inStoreApp() && VERKAUF.includes(item.to)));
   const displayName = profile?.displayName || user?.displayName || user?.email || '';
   const initial = (displayName.trim()[0] || 'Q').toUpperCase();
 
