@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { getFoundersLeft, type Interval } from '../utils/billing';
 import { FOUNDER_LIMIT } from '../utils/plans';
 import { HILFE_MAIL } from '../components/HilfeLink';
 import { merke, t, tn, tTeile } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 const FAQ: [string, string][] = [
   [merke('Nehmt ihr Provision?'), merke('Nein. Du zahlst den festen Monatspreis, egal wie viele Kunden über Dranzeit kommen. Auch nicht für Neukunden.')],
@@ -17,6 +18,11 @@ const FAQ: [string, string][] = [
 ];
 
 export default function Preise() {
+  // In der App aus dem Store keine Preise (utils/app-shell.ts)
+  return inStoreApp() ? <Navigate to="/features" replace /> : <PreiseSeite />;
+}
+
+function PreiseSeite() {
   const [interval, setInterval] = useState<Interval>('monat');
   const [foundersLeft, setFoundersLeft] = useState<number | null>(null);
 

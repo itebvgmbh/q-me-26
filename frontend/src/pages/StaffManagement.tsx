@@ -10,6 +10,7 @@ import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
 import { effectivePlan } from '../utils/plans';
 import { t, tn, tTeile } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 /** Team: Personen anlegen, einladen, Leistungen und Arbeitszeiten pflegen */
 const StaffManagement = () => {
@@ -88,10 +89,15 @@ const StaffManagement = () => {
         </div>
         {selectedShop && staffLimitReached ? (
           <p className="max-w-xs text-sm text-muted-foreground">
-            {tn(currentPlan.plan.maxStaff, 'Im Tarif {tarif} ist eine Person dabei.', 'Im Tarif {tarif} sind {n} Personen dabei.', { tarif: t(currentPlan.plan.name) })}{' '}
-            <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
-              {t('Tarif wechseln')}
-            </Link>
+            {tn(currentPlan.plan.maxStaff, 'Im Tarif {tarif} ist eine Person dabei.', 'Im Tarif {tarif} sind {n} Personen dabei.', { tarif: t(currentPlan.plan.name) })}
+            {!inStoreApp() && (
+              <>
+                {' '}
+                <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
+                  {t('Tarif wechseln')}
+                </Link>
+              </>
+            )}
           </p>
         ) : selectedShop && (
           <div className="flex flex-wrap gap-2">
@@ -164,13 +170,15 @@ const StaffManagement = () => {
           </ul>
           {staffLimitReached && (
             <p className="mt-2 text-sm text-muted-foreground">
-              {tTeile('Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.', {
-                tarif: (inhalt) => (
-                  <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
-                    {inhalt}
-                  </Link>
-                ),
-              })}
+              {inStoreApp()
+                ? t('Dein Tarif ist voll. Deaktiviere erst jemand anderen.')
+                : tTeile('Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.', {
+                    tarif: (inhalt) => (
+                      <Link to="/tarif" className="font-semibold text-foreground underline underline-offset-4">
+                        {inhalt}
+                      </Link>
+                    ),
+                  })}
             </p>
           )}
         </details>

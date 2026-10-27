@@ -1,0 +1,9 @@
+.gradle/
+local.properties
+ausgabe/
+# Schlüssel gehören nie ins Repo (öffentlich!) – Upload-Schlüssel liegt bei Stefan, für den Build in GitHub-Secrets
+*.jks
+*.keystore
+*.apk
+*.aab
+*.idsig

@@ -15,8 +15,12 @@ import { claimFounder, getFoundersLeft, openPortal, startCheckout, type Interval
 import { countCustomersThisMonth } from '../utils/plan-usage';
 import { effectivePlan, type PlanId } from '../utils/plans';
 import { datumsLocale, t, tn, tTeile } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
-/** Mein Tarif: Stand, Verbrauch, Rechnungen, Abo abschließen oder verwalten, Gründerangebot */
+/**
+ * Mein Tarif: Stand, Verbrauch, Rechnungen, Abo abschließen oder verwalten, Gründerangebot.
+ * In der App aus dem Store nur Stand, Verbrauch und Rechnungen – dort wird nichts verkauft (utils/app-shell.ts).
+ */
 export default function Tarif() {
   const { user } = useCurrentUser();
   const [params] = useSearchParams();
@@ -90,6 +94,7 @@ export default function Tarif() {
     }
   };
 
+  const app = inStoreApp();
   const planName = t(current.plan.name);
   // Ganze Sätze, damit jede Sprache ihre Wortstellung behält
   const aboStatus = () => {
@@ -108,14 +113,20 @@ export default function Tarif() {
       : current.source === 'freischaltung'
         ? hasAbo
           ? t('Von Dranzeit freigeschaltet bis {datum}. Danach gilt wieder dein Abo.', { datum: grantUntil ?? '' })
-          : t('Von Dranzeit freigeschaltet bis {datum}. Danach Gratis, wenn du kein Abo wählst.', { datum: grantUntil ?? '' })
+          : app
+            ? t('Von Dranzeit freigeschaltet bis {datum}.', { datum: grantUntil ?? '' })
+            : t('Von Dranzeit freigeschaltet bis {datum}. Danach Gratis, wenn du kein Abo wählst.', { datum: grantUntil ?? '' })
         : current.source === 'test'
-          ? tn(
-              current.trialDaysLeft,
-              'Testphase mit allen Funktionen, noch {n} Tag. Danach Gratis, wenn du kein Abo wählst.',
-              'Testphase mit allen Funktionen, noch {n} Tage. Danach Gratis, wenn du kein Abo wählst.',
-            )
-          : t('Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.');
+          ? app
+            ? tn(current.trialDaysLeft, 'Testphase mit allen Funktionen, noch {n} Tag.', 'Testphase mit allen Funktionen, noch {n} Tage.')
+            : tn(
+                current.trialDaysLeft,
+                'Testphase mit allen Funktionen, noch {n} Tag. Danach Gratis, wenn du kein Abo wählst.',
+                'Testphase mit allen Funktionen, noch {n} Tage. Danach Gratis, wenn du kein Abo wählst.',
+              )
+          : app
+            ? t('Gratis-Tarif.')
+            : t('Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.');
 
   const maxCustomers = current.plan.maxCustomersPerMonth;
 
@@ -147,7 +158,7 @@ export default function Tarif() {
             {shop.founder && <span className="ms-3 rounded-full bg-signal px-2.5 py-1 align-middle text-xs font-bold text-signal-foreground">{t('Gründer')}</span>}
           </p>
           <p className="text-background/80">{status}</p>
-          {hasAbo && (
+          {hasAbo && !app && (
             <div>
               <Button variant="signal" onClick={() => run('portal', () => openPortal(shop.id))} disabled={busy !== ''}>
                 {busy === 'portal' ? t('Wird geöffnet …') : t('Abo verwalten, Zahlungsart, kündigen')}
@@ -177,7 +188,7 @@ export default function Tarif() {
         <InvoiceList shopId={shop.id} refreshKey={`${billing.status ?? ''}-${billing.currentPeriodEnd?.seconds ?? ''}`} />
       )}
 
-      {!shop.founder && !hasAbo && foundersLeft !== null && foundersLeft > 0 && (
+      {!app && !shop.founder && !hasAbo && foundersLeft !== null && foundersLeft > 0 && (
         <section className="flex flex-col gap-3 rounded-3xl bg-signal p-6 text-signal-foreground">
           <h2 className="font-display text-2xl font-extrabold">{tn(foundersLeft, 'Gründerangebot: noch {n} Platz', 'Gründerangebot: noch {n} Plätze')}</h2>
           <p className="max-w-2xl">
@@ -200,45 +211,47 @@ export default function Tarif() {
         </section>
       )}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl font-extrabold">{hasAbo ? t('Tarif wechseln') : t('Abo wählen')}</h2>
-          <IntervalSwitch value={interval} onChange={setInterval} />
-        </div>
-        <PlanCards
-          interval={interval}
-          current={hasAbo ? aboPlan : current.source === 'gratis' ? 'gratis' : undefined}
-          founder={Boolean(shop.founder)}
-          action={(plan: PlanId) =>
-            plan === 'gratis' ? null : (
-              <Button
-                variant={plan === 'laden' ? 'default' : 'outline'}
-                disabled={busy !== '' || (hasAbo && plan === aboPlan)}
-                onClick={() => run(plan, () => (hasAbo ? openPortal(shop.id) : startCheckout(shop.id, plan, interval)))}
-              >
-                {busy === plan ? t('Wird geöffnet …') : hasAbo ? (plan === aboPlan ? t('Aktueller Tarif') : t('Wechseln')) : t('Weiter zur Bezahlung')}
-              </Button>
-            )
-          }
-        />
-        <p className="text-sm text-muted-foreground">
-          {tTeile(
-            'Bezahlt wird über Stripe per SEPA-Lastschrift oder Karte. Läuft deine Testphase noch, beginnt die Abrechnung erst danach. Mit „Weiter zur Bezahlung“ akzeptierst du die <agb>AGB</agb>.',
-            {
-              agb: (inhalt) => (
-                <Link to="/agb" className="underline underline-offset-2">
-                  {inhalt}
-                </Link>
-              ),
-            },
-          )}
-        </p>
-        <p className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-          <HilfeLink hilfe="tarife">{t('Welcher Tarif passt zu mir?')}</HilfeLink>
-          <HilfeLink hilfe="gratis-tarif">{t('Was zählt zu den 100 Kunden?')}</HilfeLink>
-          <HilfeLink hilfe="abo">{t('Abo wechseln und kündigen')}</HilfeLink>
-        </p>
-      </section>
+      {!app && (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-2xl font-extrabold">{hasAbo ? t('Tarif wechseln') : t('Abo wählen')}</h2>
+            <IntervalSwitch value={interval} onChange={setInterval} />
+          </div>
+          <PlanCards
+            interval={interval}
+            current={hasAbo ? aboPlan : current.source === 'gratis' ? 'gratis' : undefined}
+            founder={Boolean(shop.founder)}
+            action={(plan: PlanId) =>
+              plan === 'gratis' ? null : (
+                <Button
+                  variant={plan === 'laden' ? 'default' : 'outline'}
+                  disabled={busy !== '' || (hasAbo && plan === aboPlan)}
+                  onClick={() => run(plan, () => (hasAbo ? openPortal(shop.id) : startCheckout(shop.id, plan, interval)))}
+                >
+                  {busy === plan ? t('Wird geöffnet …') : hasAbo ? (plan === aboPlan ? t('Aktueller Tarif') : t('Wechseln')) : t('Weiter zur Bezahlung')}
+                </Button>
+              )
+            }
+          />
+          <p className="text-sm text-muted-foreground">
+            {tTeile(
+              'Bezahlt wird über Stripe per SEPA-Lastschrift oder Karte. Läuft deine Testphase noch, beginnt die Abrechnung erst danach. Mit „Weiter zur Bezahlung“ akzeptierst du die <agb>AGB</agb>.',
+              {
+                agb: (inhalt) => (
+                  <Link to="/agb" className="underline underline-offset-2">
+                    {inhalt}
+                  </Link>
+                ),
+              },
+            )}
+          </p>
+          <p className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <HilfeLink hilfe="tarife">{t('Welcher Tarif passt zu mir?')}</HilfeLink>
+            <HilfeLink hilfe="gratis-tarif">{t('Was zählt zu den 100 Kunden?')}</HilfeLink>
+            <HilfeLink hilfe="abo">{t('Abo wechseln und kündigen')}</HilfeLink>
+          </p>
+        </section>
+      )}
     </div>
   );
 }

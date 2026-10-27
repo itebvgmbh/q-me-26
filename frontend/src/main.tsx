@@ -10,6 +10,10 @@ import './index.css'
 // Polyfill for support react use in react 18
 import "./polyfills/react-polyfill";
 import { starteSprache } from './i18n';
+import { appPlatform } from './utils/app-shell';
+
+// App aus dem Store erkennen, bevor der Router die Adresse (?app=android) umschreibt
+appPlatform();
 
 // Erst die Sprache, dann die App: sonst blitzt jeder Text kurz auf Deutsch auf
 starteSprache().finally(() => {

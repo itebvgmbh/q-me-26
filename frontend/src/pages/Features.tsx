@@ -3,6 +3,7 @@ import { CalendarClock, Megaphone, QrCode, Store, Users, ArrowUpRight } from "lu
 import { Button } from "@/components/ui/button";
 import { Ticket } from "../components/brand/Ticket";
 import { merke, t, tTeile } from "@/i18n";
+import { inStoreApp } from "../utils/app-shell";
 
 // Nur, was die App heute wirklich kann – keine Erinnerungen/SMS versprechen
 const FEATURES = [
@@ -54,9 +55,11 @@ export default function Features() {
             <Button variant="signal" size="lg" asChild>
               <Link to="/register-shop-owner">{t("Laden anmelden")}</Link>
             </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/preise">{t("Preise ansehen")}</Link>
-            </Button>
+            {!inStoreApp() && (
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/preise">{t("Preise ansehen")}</Link>
+              </Button>
+            )}
           </div>
         </div>
         <Ticket
