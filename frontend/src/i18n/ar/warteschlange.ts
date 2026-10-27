@@ -181,8 +181,8 @@ const texte: Texte = {
 
   // components/ShopSelectionStep.tsx
   "Wo möchtest du hin?": "إلى أين تريد الذهاب؟",
-  "Wähl den Shop, in dessen Schlange du dich einreihen willst.": "اختر المحل الذي تريد الانضمام إلى قائمة انتظاره.",
-  "Noch kein Shop eingetragen.": "لا توجد محلات مسجلة بعد.",
+  "Wähl den Laden, in dessen Schlange du dich einreihen willst.": "اختر المحل الذي تريد الانضمام إلى قائمة انتظاره.",
+  "Noch kein Laden eingetragen.": "لا توجد محلات مسجلة بعد.",
   "Zur Startseite": "إلى الصفحة الرئيسية",
 
   // components/StepIndicator.tsx
@@ -208,7 +208,6 @@ const texte: Texte = {
   // components/QRCodeDisplay.tsx
   "Link kopiert.": "تم نسخ الرابط.",
   "Kopieren ging nicht. Halte den Link gedrückt und kopier ihn von Hand.": "تعذّر النسخ. اضغط مطولًا على الرابط وانسخه يدويًا.",
-  "Einreihen per QR-Code": "الانضمام إلى قائمة الانتظار عبر رمز QR",
   "Ausdrucken und an Tür oder Tresen hängen. Kunden scannen und ziehen eine Nummer – ohne App.":
     "اطبعه وعلّقه على الباب أو عند الاستقبال. يمسح العملاء الرمز ويأخذون رقم انتظار – بدون تطبيق.",
   "QR-Code zum Einreihen bei {laden}": "رمز QR للانضمام إلى قائمة انتظار {laden}",
@@ -241,6 +240,10 @@ const texte: Texte = {
     many: "توفّر {n} مكانًا أبكر.",
     other: "توفّر {n} مكان أبكر.",
   },
+
+  // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
+  "Rechne mit {von} bis {bis} Uhr.": "توقّع دورك بين {von} و{bis}.",
+  "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "إذا لم تكن موجودًا عند النداء، يمكن للمحل إلغاء رقمك.",
 };
 
 export default texte;

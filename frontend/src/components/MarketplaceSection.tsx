@@ -96,7 +96,7 @@ export const MarketplaceSection: React.FC = () => {
       </form>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={t('Shops werden geladen')}>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={t('Läden werden geladen')}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5">
               <Skeleton className="h-6 w-2/3 bg-white/10" />
@@ -107,7 +107,7 @@ export const MarketplaceSection: React.FC = () => {
         </div>
       ) : shops.length === 0 ? (
         <div className="rounded-3xl border border-white/10 p-8">
-          <p className="text-lg font-semibold">{t('Hier ist noch kein Shop eingetragen.')}</p>
+          <p className="text-lg font-semibold">{t('Hier ist noch kein Laden eingetragen.')}</p>
           <p className="mt-1 text-white/70">
             {Object.keys(searchFilters).length > 0 ? t('Versuch es mit einem anderen Ort oder einer PLZ.') : t('Schau bald wieder vorbei.')}
           </p>
@@ -121,7 +121,7 @@ export const MarketplaceSection: React.FC = () => {
           </div>
           {shops.length > 6 && (
             <Button variant="outline" className="self-start border-background text-background hover:bg-background hover:text-foreground" onClick={handleViewAllShops}>
-              {t('Alle {anzahl} Shops ansehen', { anzahl: shops.length })}
+              {t('Alle {anzahl} Läden ansehen', { anzahl: shops.length })}
             </Button>
           )}
         </>

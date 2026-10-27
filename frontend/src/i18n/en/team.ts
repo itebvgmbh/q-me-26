@@ -311,7 +311,7 @@ const texte: Texte = {
 
   // utils/hooks/useServiceManagement.ts
   "Fehler beim Laden der Services": "Error loading services",
-  "Kein Shop ausgewählt": "No shop selected",
+  "Kein Laden ausgewählt": "No shop selected",
   "Service erfolgreich erstellt": "Service created",
   "Fehler beim Erstellen des Services": "Couldn't create the service",
   "Service erfolgreich aktualisiert": "Service updated",

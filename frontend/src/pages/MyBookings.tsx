@@ -13,7 +13,7 @@ import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
 import { loadUserNotifications } from '../utils/notifications';
 import { setFrueherDran } from '../utils/frueher-dran';
-import { AppointmentCard, AppointmentWithDetails } from '../components/AppointmentCard';
+import { AppointmentCard, AppointmentWithDetails, nochmalLinks } from '../components/AppointmentCard';
 import { CancelAppointmentDialog } from '../components/CancelAppointmentDialog';
 import { Ticket } from '../components/brand/Ticket';
 import { t, tTeile, datumsLocale } from '@/i18n';
@@ -130,10 +130,27 @@ const MyBookings = () => {
     .sort((a, b) => safelyConvertToDate(b.startTime).getTime() - safelyConvertToDate(a.startTime).getTime());
   const next = upcoming[0];
   const offerFor = (a: AppointmentWithDetails) => notifications.find((n) => n.appointmentId === a.id && n.isAccepted !== true);
+  // „Wie letztes Mal?“: der letzte Besuch – nicht, wenn dort schon etwas gebucht ist
+  const last = past.find((a) => a.status === 'completed');
+  const showLast = !!last && !upcoming.some((a) => a.shopId === last.shopId);
+  const lastLinks = last ? nochmalLinks(last) : null;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Meine Termine')}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Meine Termine')}</h1>
+        {/* Immer erreichbar, auch wenn schon etwas gebucht ist; ohne Buchungen stehen die Knöpfe unten */}
+        {!loading && appointments.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="signal" asChild>
+              <Link to="/public-join-queue">{t('Nummer ziehen')}</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/book-appointment">{t('Termin buchen')}</Link>
+            </Button>
+          </div>
+        )}
+      </div>
 
       {offerFromLink && notificationsLoaded && !loading && !notifications.some((n) => n.id === offerFromLink) && (
         <div role="status" className="rounded-2xl border border-border bg-card p-4 text-sm">
@@ -198,6 +215,38 @@ const MyBookings = () => {
                 onToggleEarlier={handleToggleEarlier}
                 actionsOnly
               />
+            </section>
+          )}
+
+          {showLast && last && lastLinks && (
+            <section className="flex flex-col gap-3" aria-labelledby="wie-letztes-mal">
+              <h2 id="wie-letztes-mal" className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                {t('Wie letztes Mal?')}
+              </h2>
+              <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="font-display text-lg font-bold">
+                    {last.service?.name && last.staff?.name
+                      ? t('{leistung} bei {name}', { leistung: last.service.name, name: last.staff.name })
+                      : last.service?.name || t('Termin')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {[last.shop?.name, t('zuletzt am {datum}', { datum: format(safelyConvertToDate(last.startTime), t('EEEE, d. MMMM'), { locale: datumsLocale() }) })]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {lastLinks.termin && (
+                    <Button asChild>
+                      <Link to={lastLinks.termin}>{t('Nochmal buchen')}</Link>
+                    </Button>
+                  )}
+                  <Button variant={lastLinks.termin ? 'outline' : 'default'} asChild>
+                    <Link to={lastLinks.nummer}>{t('Nummer ziehen')}</Link>
+                  </Button>
+                </div>
+              </div>
             </section>
           )}
 

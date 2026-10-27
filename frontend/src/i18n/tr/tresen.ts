@@ -254,7 +254,7 @@ const texte: Texte = {
 
   // utils/hooks/useEmployeeData.ts, useShopData.ts
   "Laden": "Salon",
-  "Der Shop aus dem QR-Code wurde nicht gefunden": "QR koddaki salon bulunamadı",
+  "Der Laden aus dem QR-Code wurde nicht gefunden": "QR koddaki salon bulunamadı",
 
   // utils/types.ts
   "Inhaber eines Ladens": "Salon sahibi",
@@ -276,6 +276,9 @@ const texte: Texte = {
   "Verschoben: {wann} bei {name}.": "Taşındı: {wann}, {name}.",
   "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder Person.": "Durumunu değiştirmek için randevuya, yeni randevu için boş zamana tıklayın. Bekleyenleri başka bir saate veya kişiye sürükleyin.",
   "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder einen anderen Tag.": "Durumunu değiştirmek için randevuya, yeni randevu için boş zamana tıklayın. Bekleyenleri başka bir saate veya güne sürükleyin.",
+
+  // Eingeklappte Terminliste (pages/ShopDashboard.tsx)
+  "Alle Termine als Liste – zum Bearbeiten": "Tüm randevular liste halinde – düzenlemek için",
 };
 
 export default texte;

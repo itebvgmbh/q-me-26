@@ -177,7 +177,7 @@ const texte: Texte = {
   "Logo wird hochgeladen …": "Logo yükleniyor …",
   "Logo hochgeladen.": "Logo yüklendi.",
   "Das Logo konnte nicht hochgeladen werden.": "Logo yüklenemedi.",
-  "Shop-Profil aktualisiert": "Salon profili güncellendi",
+  "Laden-Profil aktualisiert": "Salon profili güncellendi",
   "Fehler beim Aktualisieren": "Güncelleme başarısız",
   "Name des Ladens": "Salonun adı",
   "Adresse": "Adres",

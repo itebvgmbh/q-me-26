@@ -286,17 +286,17 @@ const ShopMap = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-3 lg:col-span-1">
           <h2 className="font-display text-xl font-bold">
-            {userPosition ? tn(shops.length, '{n} Shop gefunden', '{n} Shops gefunden') : t('Alle Shops')}
+            {userPosition ? tn(shops.length, '{n} Laden gefunden', '{n} Läden gefunden') : t('Alle Läden')}
           </h2>
           {loadError ? (
             <ConnectionProblem error={loadError} />
           ) : loading ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Shops werden geladen')}>
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Läden werden geladen')}>
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
             </div>
           ) : shops.length === 0 && visibleSalons.length === 0 ? (
-            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.')}</p>
+            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.')}</p>
           ) : (
             <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
               {shops.map((shop) => (
@@ -379,7 +379,7 @@ const ShopMap = () => {
                           className="w-full" 
                           onClick={() => navigate(`/public-join-queue?shopId=${shop.id}`)}
                         >
-                          {t('Einreihen')}
+                          {t('Nummer ziehen')}
                         </Button>
                       </div>
                     </div>

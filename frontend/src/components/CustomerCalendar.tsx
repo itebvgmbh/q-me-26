@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,18 +11,39 @@ interface Props {
   shopId: string;
   serviceId: string;
   staffId?: string;
+  /** „Egal wer“: ohne staffId die Zeiten aller dieser Personen zusammen */
+  staffIds?: string[];
   selectedSlot?: CalendarTimeSlot | null;
   onTimeSlotSelect: (timeSlot: CalendarTimeSlot) => void;
   forceRefresh?: boolean;
 }
 
+type Slot = TimeSlot & { staffOptions?: string[] };
+
 const startOfToday = () => new Date(new Date().setHours(0, 0, 0, 0));
 
+/** Zeiten mehrerer Personen zu einer Liste: frei, wenn mindestens eine frei ist; staffOptions = wer */
+const mergeSlots = (staffIds: string[], perStaff: TimeSlot[][]): Slot[] => {
+  const byStart = new Map<number, Slot>();
+  perStaff.forEach((slots, i) => {
+    for (const slot of slots) {
+      const key = slot.start.getTime();
+      const entry = byStart.get(key) ?? { start: slot.start, end: slot.end, isAvailable: false, staffOptions: [] };
+      if (slot.isAvailable) {
+        entry.isAvailable = true;
+        entry.staffOptions!.push(staffIds[i]);
+      }
+      byStart.set(key, entry);
+    }
+  });
+  return [...byStart.values()].sort((a, b) => a.start.getTime() - b.start.getTime());
+};
+
 /** Wochenleiste + freie Uhrzeiten eines Tages */
-export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onTimeSlotSelect, forceRefresh = false }: Props) => {
+export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selectedSlot, onTimeSlotSelect, forceRefresh = false }: Props) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(startOfToday());
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +54,18 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
   const getTimeSlots = useTimeSlotStore((state) => state.getTimeSlots);
   const shouldForceRefresh = forceRefresh !== false;
 
+  // Liste über ihren Inhalt vergleichen – die Seite baut sie bei jedem Zeichnen neu
+  const staffKey = staffId ? '' : (staffIds ?? []).join(',');
+  const anyStaffIds = useMemo(() => (staffKey ? staffKey.split(',') : []), [staffKey]);
+  const slotsFor = useCallback(
+    async (day: Date, force: boolean): Promise<Slot[]> => {
+      if (anyStaffIds.length === 0) return getTimeSlots(shopId, serviceId, staffId || null, day, force);
+      const perStaff = await Promise.all(anyStaffIds.map((id) => getTimeSlots(shopId, serviceId, id, day, force)));
+      return mergeSlots(anyStaffIds, perStaff);
+    },
+    [anyStaffIds, getTimeSlots, shopId, serviceId, staffId],
+  );
+
   useEffect(() => {
     if (!shopId || !serviceId) return;
     let active = true;
@@ -42,7 +75,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
       setLoading(true);
       setError(null);
       try {
-        const timeSlots = await getTimeSlots(shopId, serviceId, staffId || null, selectedDate, shouldForceRefresh);
+        const timeSlots = await slotsFor(selectedDate, shouldForceRefresh);
         if (!active) return;
         setAvailableSlots(timeSlots.filter((slot) => slot.start > new Date()));
       } catch (err) {
@@ -57,7 +90,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
     return () => {
       active = false;
     };
-  }, [selectedDate, shopId, serviceId, staffId, getTimeSlots]);
+  }, [selectedDate, shopId, serviceId, slotsFor]);
 
   const navigateWeek = (forward: boolean) => {
     const next = addDays(currentDate, forward ? 7 : -7);
@@ -77,7 +110,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
     try {
       for (let i = 1; i <= 21; i++) {
         const day = addDays(selectedDate, i);
-        const slots = await getTimeSlots(shopId, serviceId, staffId || null, day, false);
+        const slots = await slotsFor(day, false);
         if (slots.some((slot) => slot.isAvailable && slot.start > new Date())) {
           setCurrentDate(day);
           setSelectedDate(day);
@@ -146,7 +179,11 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
         ) : freeCount === 0 ? (
           <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">
-              {nothingAhead ? t('In den nächsten drei Wochen ist nichts frei. Probier eine andere Person.') : t('An diesem Tag ist nichts mehr frei.')}
+              {nothingAhead
+                ? anyStaffIds.length > 0
+                  ? t('In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.')
+                  : t('In den nächsten drei Wochen ist nichts frei. Probier eine andere Person.')
+                : t('An diesem Tag ist nichts mehr frei.')}
             </p>
             {!nothingAhead && (
               <Button variant="outline" size="sm" onClick={findNextFreeDay} disabled={searching}>
@@ -170,7 +207,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, selectedSlot, onT
                       ? t('{von} bis {bis} Uhr', { von: format(start, 'HH:mm'), bis: format(end, 'HH:mm') })
                       : t('{von} bis {bis} Uhr, belegt', { von: format(start, 'HH:mm'), bis: format(end, 'HH:mm') })
                   }
-                  onClick={() => onTimeSlotSelect({ start, end })}
+                  onClick={() => onTimeSlotSelect({ start, end, staffOptions: slot.staffOptions })}
                   className={cn(
                     'h-11 rounded-full border font-mono text-[15px] font-medium transition-colors',
                     isSelected

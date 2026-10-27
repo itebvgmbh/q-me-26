@@ -23,7 +23,7 @@ export const useBookingValidation = () => {
   }): boolean => {
     // Specific validation checks with clear error messages
     if (!selectedShop) {
-      toast.error(t('Wähl zuerst einen Shop.'));
+      toast.error(t('Wähl zuerst einen Laden.'));
       return false;
     }
     

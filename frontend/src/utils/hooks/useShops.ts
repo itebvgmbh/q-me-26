@@ -33,14 +33,14 @@ export const useShops = (shopIdFromQR: string | null) => {
             setArrivedFromQR(true);
           } else {
             console.error('Shop from QR code not found:', shopIdFromQR);
-            toast.error(t('Der Shop aus dem QR-Code wurde nicht gefunden'));
+            toast.error(t('Der Laden aus dem QR-Code wurde nicht gefunden'));
             setError(new Error('Shop from QR code not found'));
           }
         }
       } catch (error) {
         console.error('Error loading shops:', error);
         setError(error instanceof Error ? error : new Error('Failed to load shops'));
-        toast.error(t('Fehler beim Laden der Shops'));
+        toast.error(t('Die Läden konnten nicht geladen werden.'));
       } finally {
         setLoading(false);
       }
