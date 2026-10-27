@@ -270,6 +270,15 @@ const texte: Texte = {
   "Freitag": "Friday",
   "Samstag": "Saturday",
   "Sonntag": "Sunday",
+
+  // components/counter/CounterCalendar.tsx, pages/ShopDashboard.tsx
+  "Kalender": "Calendar",
+  "Woche": "Week",
+  "Ansicht": "View",
+  "{name} bietet diese Leistung nicht an.": "{name} doesn't offer this service.",
+  "Verschoben: {wann} bei {name}.": "Moved: {wann} with {name}.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder Person.": "Click an appointment to change its status, click free time to add one. Drag waiting customers to another time or team member.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder einen anderen Tag.": "Click an appointment to change its status, click free time to add one. Drag waiting customers to another time or day.",
 };
 
 export default texte;

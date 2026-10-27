@@ -288,6 +288,15 @@ const texte: Texte = {
   "Freitag": "الجمعة",
   "Samstag": "السبت",
   "Sonntag": "الأحد",
+
+  // components/counter/CounterCalendar.tsx, pages/ShopDashboard.tsx
+  "Kalender": "التقويم",
+  "Woche": "الأسبوع",
+  "Ansicht": "العرض",
+  "{name} bietet diese Leistung nicht an.": "{name} لا يقدّم هذه الخدمة.",
+  "Verschoben: {wann} bei {name}.": "تم النقل: {wann} عند {name}.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder Person.": "انقر على الموعد لتغيير حالته، وعلى وقت فارغ لإضافة موعد. اسحب المنتظرين إلى وقت آخر أو شخص آخر.",
+  "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder einen anderen Tag.": "انقر على الموعد لتغيير حالته، وعلى وقت فارغ لإضافة موعد. اسحب المنتظرين إلى وقت آخر أو يوم آخر.",
 };
 
 export default texte;
