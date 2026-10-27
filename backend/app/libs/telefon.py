@@ -51,13 +51,18 @@ def tag_text(day: date, heute: date) -> str:
     return f"{WOCHENTAGE[day.weekday()]}, {day.day}. {MONATE[day.month - 1]}"
 
 
+def uhr(stunde: int, minute: int) -> str:
+    """'14 Uhr 30', '9 Uhr' – so, wie man es sagt. Ohne Doppelpunkt: Vapi macht vor der Stimme aus '14:30' sonst
+    '14.30', und die liest Ziffern vor (Testanruf 27.10.2026)."""
+    return f"{stunde} Uhr" + (f" {minute}" if minute else "")
+
+
 def uhrzeit(t: datetime) -> str:
-    """'9:05 Uhr' – so liest eine Stimme es richtig vor"""
-    return f"{t.hour}:{t.minute:02d} Uhr"
+    return uhr(t.hour, t.minute)
 
 
 def zeit_text(start: datetime, jetzt: datetime) -> str:
-    """'morgen um 14:30 Uhr' (beides Ortszeit)"""
+    """'morgen um 14 Uhr 30' (beides Ortszeit)"""
     return f"{tag_text(start.date(), jetzt.date())} um {uhrzeit(start)}"
 
 
@@ -99,13 +104,23 @@ def ab_zeitpunkt(text: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _hhmm(value) -> Optional[str]:
+def _hhmm(value) -> Optional[Tuple[int, int]]:
     m = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", str(value or ""))
-    return f"{int(m.group(1))}:{m.group(2)}" if m else None
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def _spanne(von, bis) -> Optional[str]:
+    """'9 bis 18 Uhr', '9 Uhr 30 bis 18 Uhr' aus '09:00' und '18:00'; unlesbar → None"""
+    a, b = _hhmm(von), _hhmm(bis)
+    if not a or not b:
+        return None
+    if a[1] == 0 and b[1] == 0:
+        return f"{a[0]} bis {b[0]} Uhr"
+    return f"{uhr(*a)} bis {uhr(*b)}"
 
 
 def oeffnungszeiten(shop: dict) -> list:
-    """Öffnungszeiten je Wochentag ab Montag zum Vorlesen, z. B. 'Montag 9:00–18:00 Uhr, Pause 13:00–14:00'.
+    """Öffnungszeiten je Wochentag ab Montag zum Vorlesen, z. B. 'Montag 9 bis 18 Uhr, Pause 13 bis 14 Uhr'.
 
     Gleiche Felder wie die Buchung (booking-rules.ts, shopWindowForDay): businessHoursByDay, sonst das alte
     Textformat '9:00-18:00' für jeden Tag. Ohne Angabe eine leere Liste.
@@ -115,17 +130,16 @@ def oeffnungszeiten(shop: dict) -> list:
         lines = []
         for name, dow in zip(WOCHENTAGE, FIRESTORE_TAGE):
             entry = next((d for d in by_day if str(d.get("dayOfWeek")) == str(dow)), None)
-            start, end = (_hhmm(entry.get("openTime")), _hhmm(entry.get("closeTime"))) if entry else (None, None)
-            if not entry or not entry.get("isOpen") or not start or not end:
+            offen = _spanne(entry.get("openTime"), entry.get("closeTime")) if entry and entry.get("isOpen") else None
+            if not offen:
                 lines.append(f"{name} geschlossen")
                 continue
-            pausen = [f"{_hhmm(b.get('startTime'))}–{_hhmm(b.get('endTime'))}" for b in entry.get("breaks") or []
-                      if _hhmm(b.get("startTime")) and _hhmm(b.get("endTime"))]
-            lines.append(f"{name} {start}–{end} Uhr" + (f", Pause {', '.join(pausen)}" if pausen else ""))
+            pausen = [p for p in (_spanne(b.get("startTime"), b.get("endTime")) for b in entry.get("breaks") or []) if p]
+            lines.append(f"{name} {offen}" + (f", Pause {', '.join(pausen)}" if pausen else ""))
         return lines
     legacy = re.fullmatch(r"\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*", str(shop.get("businessHours") or ""))
     if legacy:
-        return [f"täglich {_hhmm(legacy.group(1))}–{_hhmm(legacy.group(2))} Uhr"]
+        return [f"täglich {_spanne(legacy.group(1), legacy.group(2))}"]
     return []
 
 

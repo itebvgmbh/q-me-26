@@ -40,15 +40,21 @@ Du bist der KI-Assistent eines Friseursalons bzw. Barbershops am Telefon. Kunden
 Ablauf
 1. Rufe zuerst das Werkzeug laden_info auf. Es liefert Name des Ladens, Datum und Uhrzeit, Adresse, Öffnungszeiten, Leistungen mit Preisen und Dauer und das Team. Erfinde nichts, was dort nicht steht. Für Datum und Uhrzeit gilt nur, was laden_info sagt.
 2. Finde heraus, was der Anrufer möchte: einen Termin, eine Nummer für heute (ohne Termin vorbeikommen, Schlange) oder eine Auskunft.
-3. Termin: Frage nach der Leistung, ob er zu jemand Bestimmtem möchte und wann es ihm passt. Rufe freie_zeiten auf und nenne höchstens drei Zeiten. Sagt er zu, frage nach seinem Namen, wiederhole Tag, Uhrzeit, Leistung und Person und rufe erst nach einem klaren Ja buchen auf. Gib dabei den Wert "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
+3. Termin: Frage nach der Leistung, ob er zu jemand Bestimmtem möchte und wann es ihm passt. Rufe freie_zeiten auf und nenne höchstens drei Zeiten. Hat er eine gewählt, frage nach seinem Namen. Fasse dann in einem Satz zusammen: Tag, Uhrzeit, Leistung, Person und Name. Rufe buchen erst nach einem klaren Ja auf. Gib dabei den Wert "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
 4. Wartezeit oder Nummer: Rufe wartezeit auf. Möchte er eine Nummer, frage nach seinem Namen und rufe nummer_ziehen auf. Nenne die Nummer und die ungefähre Zeit und bitte ihn, rechtzeitig da zu sein.
-5. Jede Werkzeug-Antwort hat "ok" und "ansage". Antworte auf Grundlage von "ansage". Bei ok = false erkläre kurz, woran es liegt, und biete die Alternativen aus der Antwort an.
-6. Kannst du nicht helfen (Beschwerde, Sonderwunsch, der Anrufer möchte einen Menschen sprechen): Sag, dass gerade niemand frei ist, und dass er es später noch einmal versuchen oder online buchen kann.
+5. Nach buchen oder nummer_ziehen merkst du dir "termin_id" aus der Antwort. Buche nie ein zweites Mal, um etwas zu ändern.
+   - Name falsch verstanden: termin_aendern mit termin_id und dem richtigen Namen. Zeit und Platz bleiben.
+   - Doch eine andere Zeit: neue Zeit mit freie_zeiten suchen und bestätigen lassen, dann termin_aendern mit termin_id und absagen = true, danach die neue Zeit buchen.
+   - Doch kein Termin: termin_aendern mit termin_id und absagen = true.
+6. Jede Werkzeug-Antwort hat "ok" und "ansage". Antworte auf Grundlage von "ansage". Sag erst "gebucht", wenn buchen mit ok = true geantwortet hat. Bei ok = false erkläre kurz, woran es liegt, und biete die Alternativen aus der Antwort an.
+7. Kannst du nicht helfen (Beschwerde, Sonderwunsch, der Anrufer möchte einen Menschen sprechen): Sag, dass gerade niemand frei ist, und dass er es später noch einmal versuchen oder online buchen kann.
+8. Ist alles erledigt und der Anrufer verabschiedet sich oder will auflegen: Verabschiede dich in einem kurzen Satz und lege mit dem Werkzeug zum Auflegen auf.
 
 Regeln
 - Sprich kurz und freundlich, höchstens zwei Sätze am Stück. Sieze den Anrufer, außer er duzt dich.
 - Sprich in der Sprache des Anrufers.
-- Nenne Uhrzeiten so: "14:30 Uhr". Lies nie IDs, Kennungen oder Werte wie "platz" vor.
+- Schreib Uhrzeiten so, wie man sie sagt: "14 Uhr 30", "15 Uhr", "9 Uhr 45". Nie mit Doppelpunkt oder Punkt.
+- Lies nie IDs, Kennungen oder Werte wie "platz" oder "termin_id" vor. Erzähl nichts über Technik oder Systeme.
 - Buche nie ohne ausdrückliche Zusage und ohne Namen.
 - Gib nur Auskünfte zum Laden, keine Ratschläge zu anderen Themen.
 ```
@@ -74,7 +80,7 @@ Die Bezeichnungen stammen aus der Vapi-Dokumentation und können in der Oberflä
 - Header Name: `Authorization`
 - Include Bearer Prefix: an
 
-### Fünf Werkzeuge (Typ „API Request“)
+### Sechs Werkzeuge (Typ „API Request“)
 
 „Tools“ → „Create Tool“ → **API Request**. Für jedes Werkzeug gilt:
 
@@ -97,6 +103,7 @@ Die Bezeichnungen stammen aus der Vapi-Dokumentation und können in der Oberflä
 | `buchen` | `https://dranzeit.de/routes/telefon/buchen` | Einen Termin verbindlich buchen, erst nach ausdrücklicher Zusage. |
 | `wartezeit` | `https://dranzeit.de/routes/telefon/wartezeit` | Wie lange man heute ohne Termin warten muss. |
 | `nummer_ziehen` | `https://dranzeit.de/routes/telefon/nummer` | Eine Nummer für die Schlange von heute ziehen. |
+| `termin_aendern` | `https://dranzeit.de/routes/telefon/aendern` | Den eben gebuchten Termin bzw. die eben gezogene Nummer ändern: Namen berichtigen oder absagen. Nie ein zweites Mal buchen. |
 
 Zusätzliche Static Body Fields:
 
@@ -169,6 +176,21 @@ Zusätzliche Static Body Fields:
 }
 ```
 
+`termin_aendern` (geht nur für Termine, die der Assistent in den letzten 30 Minuten in diesem Laden angelegt hat):
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "termin_id": { "type": "string", "description": "Wert termin_id aus der Antwort von buchen bzw. nummer_ziehen, unverändert" },
+    "name": { "type": "string", "description": "Richtiger Name des Anrufers; leer lassen beim Absagen" },
+    "absagen": { "type": "boolean", "description": "true: Termin bzw. Nummer absagen; false: nur den Namen ändern" }
+  },
+  "required": ["termin_id"],
+  "additionalProperties": false
+}
+```
+
 ### Assistent
 
 Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten weiterverwenden:
@@ -176,17 +198,20 @@ Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten we
 - **First Message:** wie in Abschnitt 2, Modus „Assistant speaks first“.
 - **System Prompt:** die Systemanweisung aus Abschnitt 2. In der Code-Ansicht einfügen, damit die Vorlage
   vollständig ersetzt wird.
-- **Tools:** die fünf Werkzeuge anhängen („Add tool“ → „Select all“).
-- **Transcriber:** Soniox (STT RT) mit den Sprachen Deutsch, Englisch, Türkisch und Arabisch. Soniox erkennt die
-  Sprache dann selbst.
+- **Tools:** die sechs Werkzeuge anhängen („Add tool“ → „Select all“), dazu das eingebaute Werkzeug **End Call**,
+  damit der Assistent auflegen kann.
+- **Transcriber:** Soniox (STT RT), Sprache Deutsch, mit den Leistungen des Ladens als Stichwörtern. Mit mehreren
+  Sprachen verhörte sich Soniox bei deutschen Wörtern („Fahrschein“ statt „Haarschnitt“).
 - **Model:** GPT-4.1. Im Probelauf auch ein schnelleres oder größeres Modell zum Vergleich testen.
-- **Voice:** ElevenLabs „Eleven Flash v2.5“ (mehrsprachig, kurze Antwortzeit), Stimme „Sarah“. Hintergrundgeräusch
-  aus.
+- **Voice:** Azure, Stimme `de-DE-SeraphinaMultilingualNeural` (als eigene Voice ID eintragen, die Liste lädt
+  schlecht). ElevenLabs „Sarah“ klang englisch.
+- **Voice formatting aus** (bei der Stimme, „Chunk Plan“ → „Format Plan“): Vapi bereitet den Text sonst für
+  englische Stimmen auf, macht aus „14:30“ „14.30“, und die Stimme liest Ziffern vor. Die Schnittstelle schreibt
+  Uhrzeiten deshalb ohnehin als „14 Uhr 30“.
 - **Datenschutz (Advanced → Recording & Artifacts):** Audio Recording aus. Logging und Transcript bleiben für
   die Auswertung an.
 
-Stand 26.10.2026 ist genau so eingerichtet. Vapi schätzt die Kosten auf etwa 0,11 $ pro Minute und die
-Antwortzeit auf etwa 1,5 Sekunden.
+Vapi schätzte die Kosten am 26.10.2026 auf etwa 0,11 $ pro Minute und die Antwortzeit auf etwa 1,5 Sekunden.
 
 **Hinweise aus der Einrichtung:**
 - Den Haken „Required“ bei den Feldern speichert Vapi nicht immer. Das ist nicht schlimm: Leere Felder kommen als
@@ -250,6 +275,9 @@ Gleiche Systemanweisung und gleiche Werkzeuge. Unterschiede:
 | 8 | Dem Assistenten ins Wort fallen, schnell sprechen, Hintergrundlärm | reagiert sinnvoll |
 | 9 | Mit unterdrückter Nummer anrufen | Buchung klappt, ohne Telefonnummer am Termin |
 | 10 | „Ich will mit einem Menschen sprechen.“ | höflicher Hinweis |
+| 11 | Nach der Buchung: „Moment, der Name ist falsch“ | Name am selben Termin berichtigt, keine zweite Buchung |
+| 12 | Nach der Buchung: „Doch lieber eine Viertelstunde später“ | alter Termin abgesagt, neuer gebucht |
+| 13 | „Danke, tschüss“ | Assistent verabschiedet sich und legt auf |
 
 Zu jedem Anruf notierst du:
 
