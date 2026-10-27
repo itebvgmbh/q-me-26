@@ -8,15 +8,17 @@ Für Wege ohne Browser (Telefon-Assistent, app/apis/telefon). In einer Transakti
   3. Termin speichern, dazu seine öffentliche Kurzfassung (app/libs/public_appointments.py).
 Bucht im selben Moment die Online-Buchung oder der Tresen denselben Platz, kommt nur einer durch.
 Ob ein Kandidat nach den Regeln (Öffnungs- und Arbeitszeiten, Pausen) überhaupt geht, prüft der Aufrufer vorher.
+
+Absagen (cancel_appointment) wie /nummer/absagen: Status, Belegung und Kurzfassung in einer Transaktion.
 """
 import random
 from datetime import date, datetime, time, timedelta, timezone
-from typing import List
+from typing import Callable, List, Optional
 
 from google.cloud import firestore
 
 from app.libs.public_appointments import write_public
-from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, read_placement
+from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, placement_of, read_placement
 
 # Gleichzeitige Buchungen derselben Person laufen nacheinander; im Ansturm braucht die letzte mehrere Anläufe
 # (wie TRANSACTION_OPTIONS im Frontend)
@@ -92,3 +94,27 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
         return created
 
     return run(transaction)
+
+
+def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]], None]) -> dict:
+    """
+    Termin absagen: Status abgesagt, Platz in der Belegung frei, Kurzfassung mit. check(Termin oder None) läuft in
+    der Transaktion vorher und wirft, wenn es nicht geht. Gibt den Termin vor der Absage zurück.
+    """
+    ref = db.collection("appointments").document(appointment_id)
+
+    @firestore.transactional
+    def run(tx) -> dict:
+        snap = ref.get(transaction=tx)
+        appt = (snap.to_dict() or {}) if snap.exists else None
+        check(appt)
+        release = placement_of(appt)
+        change = read_placement(tx, db, appointment_id, appt.get("shopId", ""), release=release) if release else None
+        update = {"status": "cancelled", "updatedAt": datetime.now(timezone.utc)}
+        tx.update(ref, update)
+        write_public(tx, db, appointment_id, {**appt, **update})
+        if change:
+            change.write()
+        return appt
+
+    return run(db.transaction(max_attempts=TRANSACTION_ATTEMPTS))

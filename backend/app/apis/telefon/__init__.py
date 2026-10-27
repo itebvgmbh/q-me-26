@@ -10,6 +10,7 @@ so oder in der Sprache des Anrufers sagen kann; bei ok = false dazu "grund" als 
     POST /telefon/buchen        einen genannten Platz buchen – ist er weg, die nächsten zur Auswahl
     POST /telefon/wartezeit     wie lange es gerade dauert: frühester Platz für eine Nummer heute
     POST /telefon/nummer        Nummer ziehen: frühester Platz heute, wie Nummer ziehen online
+    POST /telefon/aendern       eben gebuchten Termin bzw. gezogene Nummer: Namen berichtigen oder absagen
 
 Welcher Laden: "angerufen" ist die gewählte Rufnummer, die zugehörige Zeile in telefon_leitungen/{Nummer}
 vergibt der Betreiber-Bereich. Ohne Telefon (Probe im Browser) geht "laden_id" – nur für Läden mit Nummer.
@@ -21,7 +22,7 @@ einmal weg, auch wenn im selben Moment online oder am Tresen gebucht wird.
 """
 import hmac
 import os
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -31,7 +32,7 @@ from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
-from app.libs.buchung import PlatzWeg, create_appointment
+from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
 from app.libs.plans import PLANS, effective_plan, has_feature, is_suspended
 from app.libs.queue_notify import project_lane
 from app.libs.schedule import BERLIN, Placement, aware
@@ -56,7 +57,8 @@ MAX_ANZAHL = 5
 NUMMER_KANDIDATEN = 8   # Plätze zur Auswahl beim Nummer ziehen, falls der erste beim Speichern weg ist (wie im Frontend)
 NUMMER_RUNDEN = 3
 MAX_VORLAUF_MINUTEN = 24 * 60
-EGAL = {"", "egal", "egal wer", "beliebig", "alle", "irgendwer", "any", "-", "null", "none"}
+AENDERN_MINUTEN = 30    # so lange nach dem Anlegen ändert der Assistent einen Termin noch – im selben Gespräch
+EGAL ={"", "egal", "egal wer", "beliebig", "alle", "irgendwer", "any", "-", "null", "none"}
 
 
 class Anruf(BaseModel):
@@ -88,6 +90,12 @@ class NummerAnfrage(Anruf):
     person: Optional[str] = None
     name: str
     anrufer: Optional[str] = None
+
+
+class AendernAnfrage(Anruf):
+    termin_id: str                    # "termin_id" aus buchen oder nummer, unverändert
+    name: Optional[str] = None        # richtiger Name
+    absagen: bool = False             # Termin bzw. Nummer zurückgeben
 
 
 class _Nein(Exception):
@@ -314,6 +322,30 @@ def _anlegen(db, shop_id: str, leistung: dict, name: str, anrufer: Optional[str]
     return created
 
 
+def _eigener_termin(appt: Optional[dict], shop_id: str) -> None:
+    """Ändern darf der Assistent nur, was er eben in diesem Laden angelegt hat und was noch nicht dran war –
+    Termine aus anderen Gesprächen nicht, auch wenn ein Anrufer eine Kennung nennt."""
+    if appt is None or appt.get("shopId") != shop_id or appt.get("source") != "telefon":
+        raise _Nein("termin_unbekannt", "Diesen Termin finde ich nicht.")
+    created = appt.get("createdAt")
+    if not isinstance(created, datetime) or datetime.now(timezone.utc) - aware(created) > timedelta(minutes=AENDERN_MINUTEN):
+        raise _Nein("zu_spaet", "Diesen Termin kann ich am Telefon nicht mehr ändern. Bitte im Laden Bescheid sagen.")
+    if appt.get("status") == "cancelled":
+        raise _Nein("abgesagt", "Dieser Termin ist schon abgesagt.")
+    if appt.get("status") != "scheduled":
+        raise _Nein("schon_dran", "Dieser Termin läuft schon. Bitte im Laden Bescheid sagen.")
+
+
+def _frueher_dran(shop_id: str, staff_id: str) -> None:
+    """Platz frei: "Früher dran" gleich neu verteilen (wie nach /nummer/absagen)"""
+    try:
+        from app.apis.check_slots import trigger_check_in_background
+
+        trigger_check_in_background(shop_id, staff_id)
+    except Exception as e:
+        print(f"Früher-dran-Prüfung nach Absage am Telefon nicht angestoßen: {e}")
+
+
 # --- Endpunkte ----------------------------------------------------------------------------------------------------------
 
 @router.post("/telefon/laden")
@@ -474,3 +506,34 @@ def nummer(anfrage: NummerAnfrage) -> dict:
             "person": person["name"], "leistung": leistung["name"],
             "ansage": f"Die Nummer ist {code}. Dran heute gegen {t.uhrzeit(start)} bei {person['name']}, "
                       + ("also gleich." if minuten <= 5 else f"in etwa {t.minuten_text(minuten)}.")}
+
+
+@router.post("/telefon/aendern")
+def aendern(anfrage: AendernAnfrage) -> dict:
+    """Im selben Gespräch: Name falsch verstanden oder doch keine Zeit. Kein zweites Mal buchen – dann ist der Platz
+    vom ersten Termin belegt (Testanruf 27.10.2026). Andere Zeit: hier absagen, dann neu buchen."""
+    db, jetzt = get_firestore_db(), _jetzt()
+    try:
+        shop_id, _ = _laden(db, anfrage)
+        if not t.ID_RE.fullmatch(str(anfrage.termin_id or "")):
+            raise _Nein("termin_unbekannt", "Diesen Termin finde ich nicht.")
+        if anfrage.absagen:
+            appt = cancel_appointment(db, anfrage.termin_id, lambda a: _eigener_termin(a, shop_id))
+        else:
+            name = _name(anfrage.name)
+            ref = db.collection("appointments").document(anfrage.termin_id)
+            snap = ref.get()
+            _eigener_termin((snap.to_dict() or {}) if snap.exists else None, shop_id)
+            ref.update({"customerName": name, "updatedAt": datetime.now(timezone.utc)})
+            print(f"Telefon {shop_id}: Name an Termin {anfrage.termin_id} berichtigt")
+            return {"ok": True, "name": name, "ansage": f"Geändert: Der Termin steht jetzt auf den Namen {name}."}
+    except _Nein as nein:
+        return nein.antwort()
+    start = aware(appt["startTime"]).astimezone(BERLIN).replace(tzinfo=None)
+    invalidate_shop_date_cache(shop_id, start.date().isoformat(), verbose=False)
+    _frueher_dran(shop_id, appt.get("staffId"))
+    print(f"Telefon {shop_id}: Termin {anfrage.termin_id} abgesagt")
+    if appt.get("type") == "queue":
+        return {"ok": True, "ansage": f"Die Nummer {appt.get('referenceCode')} ist zurückgegeben."}
+    person = next((p["name"] for p in _personen(db, shop_id) if p["id"] == appt.get("staffId")), "")
+    return {"ok": True, "ansage": f"Abgesagt: {t.zeit_text(start, jetzt)}" + (f" bei {person}." if person else ".")}

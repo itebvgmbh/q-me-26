@@ -4,7 +4,7 @@ Datenbank. Ohne Firebase-Zugang und ohne pytest lauffähig:
 
     cd backend && uv run python tests/test_telefon.py
 
-Die Zeit steht fest: "jetzt" ist ein Mittwoch in einer Woche um 10:07 Uhr, der Laden hat jeden Tag 9–18 Uhr offen.
+Die Zeit steht fest: "jetzt" ist ein Mittwoch in einer Woche um 10:07 Uhr, der Laden hat jeden Tag 9 bis 18 Uhr offen.
 """
 import itertools
 import os
@@ -59,6 +59,9 @@ class Transaction:
 
     def set(self, ref, values, merge=False):
         self.writes.append(lambda: ref.set(dict(values), merge=merge))
+
+    def update(self, ref, values):
+        self.writes.append(lambda: ref.update(dict(values)))
 
 
 class Db(FakeDb):
@@ -116,6 +119,7 @@ def setup(store=None):
     tel.get_firestore_db = lambda: db
     tel._jetzt = lambda: JETZT
     tel.invalidate_shop_date_cache = lambda *a, **k: 0
+    tel._frueher_dran = lambda *a: None
     buchung.firestore.transactional = transactional
     buchung.random = random.Random(7)
     return db, store
@@ -136,11 +140,11 @@ def test_rufnummern_in_einer_schreibweise():
 
 
 def test_zeiten_zum_vorlesen():
-    assert t.zeit_text(JETZT.replace(hour=14, minute=30), JETZT) == "heute um 14:30 Uhr"
-    assert t.zeit_text(JETZT + timedelta(days=1), JETZT).startswith("morgen um 10:07")
+    assert t.zeit_text(JETZT.replace(hour=14, minute=30), JETZT) == "heute um 14 Uhr 30"
+    assert t.zeit_text(JETZT + timedelta(days=1), JETZT).startswith("morgen um 10 Uhr 7")
     samstag = JETZT + timedelta(days=3)
     assert t.tag_text(samstag.date(), JETZT.date()) == f"Samstag, {samstag.day}. {t.MONATE[samstag.month - 1]}"
-    assert t.uhrzeit(JETZT.replace(hour=9, minute=5)) == "9:05 Uhr"
+    assert t.uhrzeit(JETZT.replace(hour=9, minute=5)) == "9 Uhr 5" and t.uhrzeit(JETZT.replace(hour=15, minute=0)) == "15 Uhr"
     assert t.minuten_text(1) == "eine Minute" and t.minuten_text(75) == "eine Stunde und 15 Minuten"
     assert t.minuten_bis(JETZT + timedelta(seconds=61), JETZT) == 2
     assert t.minuten_bis(JETZT - timedelta(minutes=5), JETZT) == 0
@@ -161,9 +165,10 @@ def test_oeffnungszeiten_ab_montag_mit_pause_und_ruhetag():
     days[0] = {"dayOfWeek": 0, "isOpen": False}
     days[3]["breaks"] = [{"startTime": "13:00", "endTime": "14:00"}]
     lines = t.oeffnungszeiten({"businessHoursByDay": days})
-    assert lines[0] == "Montag 9:00–18:00 Uhr" and lines[6] == "Sonntag geschlossen", lines
-    assert lines[2] == "Mittwoch 9:00–18:00 Uhr, Pause 13:00–14:00", lines
-    assert t.oeffnungszeiten({"businessHours": "9:00-17:00"}) == ["täglich 9:00–17:00 Uhr"]
+    assert lines[0] == "Montag 9 bis 18 Uhr" and lines[6] == "Sonntag geschlossen", lines
+    assert lines[2] == "Mittwoch 9 bis 18 Uhr, Pause 13 bis 14 Uhr", lines
+    assert t.oeffnungszeiten({"businessHours": "9:00-17:00"}) == ["täglich 9 bis 17 Uhr"]
+    assert t.oeffnungszeiten({"businessHours": "9:30-17:00"}) == ["täglich 9 Uhr 30 bis 17 Uhr"]
     assert t.oeffnungszeiten({}) == []
 
 
@@ -237,7 +242,7 @@ def test_freie_zeiten_egal_wer_jede_uhrzeit_einmal():
     r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="herrenschnitt"))
     assert r["ok"], r
     assert [(z["start"][11:], z["person"]) for z in r["zeiten"]] == [("10:15", "Kim"), ("10:30", "Kim"), ("10:45", "Kim")], r["zeiten"]
-    assert r["ansage"] == "Frei für Herrenschnitt: heute um 10:15 Uhr bei Kim; heute um 10:30 Uhr bei Kim; heute um 10:45 Uhr bei Kim."
+    assert r["ansage"] == "Frei für Herrenschnitt: heute um 10 Uhr 15 bei Kim; heute um 10 Uhr 30 bei Kim; heute um 10 Uhr 45 bei Kim."
 
 
 def test_freie_zeiten_bei_einer_person_ab_wunschzeit():
@@ -290,7 +295,7 @@ def test_buchen_wie_ohne_konto_mit_tagesnummer_und_belegung():
     kurz = store["public_appointments"][r["termin_id"]]
     assert kurz["referenceCode"] == code and kurz["shopDay"] == f"laden_{TAG}" and kurz["startTime"] == at("10:30"), kurz
     assert "customerName" not in kurz and "customerPhone" not in kurz, "Name und Nummer nicht öffentlich"
-    assert r["ansage"] == f"Gebucht: heute um 10:30 Uhr bei Robin, Herrenschnitt. Die Nummer für den Aufruf ist {code}."
+    assert r["ansage"] == f"Gebucht: heute um 10 Uhr 30 bei Robin, Herrenschnitt. Die Nummer für den Aufruf ist {code}."
 
 
 def test_platz_weg_bietet_die_naechsten_an():
@@ -322,6 +327,53 @@ def test_buchen_ohne_name_oder_mit_kaputtem_platz():
     assert vorbei["grund"] == "platz_weg", "Zeit ist schon vorbei"
 
 
+# --- Im selben Gespräch ändern ----------------------------------------------------------------------------------------
+
+def test_name_berichtigen_ohne_zweite_buchung():
+    _, store = setup()
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Hella Tittmann"))
+    neu = tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name=" Ella  Tittmann "))
+    assert neu["ok"] and neu["ansage"] == "Geändert: Der Termin steht jetzt auf den Namen Ella Tittmann.", neu
+    assert store["appointments"][r["termin_id"]]["customerName"] == "Ella Tittmann" and len(store["appointments"]) == 1
+    assert store["appointments"][r["termin_id"]]["status"] == "scheduled"
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name=""))["grund"] == "name_fehlt"
+
+
+def test_absagen_gibt_den_platz_frei():
+    _, store = setup()
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex"))
+    weg = tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], absagen=True))
+    assert weg["ok"] and weg["ansage"] == "Abgesagt: heute um 10 Uhr 30 bei Robin.", weg
+    assert store["appointments"][r["termin_id"]]["status"] == "cancelled"
+    assert store["public_appointments"][r["termin_id"]]["status"] == "cancelled"
+    assert r["termin_id"] not in store["schedules"][f"robin_{TAG}"]["slots"]
+    assert tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex"))["ok"], "Platz wieder frei"
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], absagen=True))["grund"] == "abgesagt"
+    nummer = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", name="Sam"))
+    zurueck = tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=nummer["termin_id"], absagen=True))
+    assert zurueck["ansage"] == f"Die Nummer {nummer['nummer']} ist zurückgegeben.", zurueck
+
+
+def test_aendern_nur_eigene_frische_termine():
+    _, store = setup()
+    store["appointments"]["online"] = {"shopId": "laden", "staffId": "robin", "status": "scheduled", "customerName": "Kim",
+                                       "startTime": at("15:00"), "endTime": at("15:30"), "createdAt": datetime.now(timezone.utc)}
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id="online", absagen=True))["grund"] == "termin_unbekannt"
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id="gibtsnicht", name="Alex"))["grund"] == "termin_unbekannt"
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id="../shops/laden", name="Alex"))["grund"] == "termin_unbekannt"
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex"))
+    termin = store["appointments"][r["termin_id"]]
+    store["shops"]["anders"] = {"name": "Anderer Laden"}
+    store[t.LEITUNGEN]["+493099999999"] = {"shopId": "anders"}
+    assert tel.aendern(tel.AendernAnfrage(angerufen="030 99999999", termin_id=r["termin_id"], absagen=True))["grund"] == "termin_unbekannt"
+    termin["createdAt"] = datetime.now(timezone.utc) - timedelta(minutes=tel.AENDERN_MINUTEN + 1)
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], absagen=True))["grund"] == "zu_spaet"
+    termin["createdAt"] = datetime.now(timezone.utc)
+    termin["status"] = "in-progress"
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name="Sam"))["grund"] == "schon_dran"
+    assert store["appointments"]["online"]["status"] == "scheduled" and termin["customerName"] == "Alex"
+
+
 def test_tagesnummer_nicht_doppelt():
     # 12 steht in shop_days, 42 nur an einem abgesagten Termin von vor den Tagesnummern – beide sind vergeben
     _, store = setup()
@@ -351,8 +403,8 @@ def test_nummer_kommt_hinter_die_wartenden():
     termin = store["appointments"][r["termin_id"]]
     # 10:30 wäre nach Plan frei, aber Robin hängt hinterher: Die Wartende von 10:00 ist erst bis ca. 10:50 dran
     assert termin["startTime"] == at("11:00") and termin["type"] == "queue" and "customerPhone" not in termin, termin
-    assert r["zeit"] == "heute gegen 11:00 Uhr" and r["minuten"] == 53
-    assert r["ansage"] == f"Die Nummer ist {r['nummer']}. Dran heute gegen 11:00 Uhr bei Robin, in etwa 53 Minuten."
+    assert r["zeit"] == "heute gegen 11 Uhr" and r["minuten"] == 53
+    assert r["ansage"] == f"Die Nummer ist {r['nummer']}. Dran heute gegen 11 Uhr bei Robin, in etwa 53 Minuten."
     gleich = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", person="egal", name="Sam"))
     assert gleich["ansage"].endswith("bei Kim, in etwa 8 Minuten."), gleich
 
@@ -361,7 +413,7 @@ def test_nummer_egal_wer_nimmt_den_schnellsten():
     _, store = setup()
     _schlange_hinkt(store)
     r = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="schnitt", name="Alex"))
-    assert store["appointments"][r["termin_id"]]["staffId"] == "kim" and r["zeit"] == "heute gegen 10:15 Uhr", r
+    assert store["appointments"][r["termin_id"]]["staffId"] == "kim" and r["zeit"] == "heute gegen 10 Uhr 15", r
 
 
 def test_nummer_nimmt_den_naechsten_wenn_der_erste_beim_speichern_weg_ist():
@@ -376,10 +428,10 @@ def test_wartezeit_wie_nummer_ziehen():
     _, store = setup()
     _schlange_hinkt(store)
     r = tel.wartezeit(tel.WartezeitAnfrage(**anruf(), leistung="Herrenschnitt", person="Robin"))
-    assert r["frei"] and r["minuten"] == 53 and r["zeit"] == "heute gegen 11:00 Uhr", r
-    assert r["ansage"] == "Für Herrenschnitt ist der nächste Platz heute gegen 11:00 Uhr bei Robin, also in etwa 53 Minuten."
+    assert r["frei"] and r["minuten"] == 53 and r["zeit"] == "heute gegen 11 Uhr", r
+    assert r["ansage"] == "Für Herrenschnitt ist der nächste Platz heute gegen 11 Uhr bei Robin, also in etwa 53 Minuten."
     kurz = tel.wartezeit(tel.WartezeitAnfrage(**anruf()))
-    assert kurz["leistung"] == "Bart" and kurz["person"] == "Kim" and kurz["ansage"].startswith("Für Bart ist der nächste Platz heute gegen 10:15 Uhr")
+    assert kurz["leistung"] == "Bart" and kurz["person"] == "Kim" and kurz["ansage"].startswith("Für Bart ist der nächste Platz heute gegen 10 Uhr 15")
 
 
 def test_heute_voll():
