@@ -86,8 +86,9 @@ run(async () => {
     await check('dlg-termin');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Weitere Aktionen' }).click();
-    await page.getByRole('menuitem', { name: 'Laden bearbeiten' }).click();
+    // „Laden bearbeiten“ steht nicht mehr im Tresen-Menü, sondern unter „Mein Laden“
+    await page.goto(`${BASE}/shop-profile`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).first().click({ timeout: 15000 });
     await page.waitForTimeout(800);
     const shopOverflow = await dialogOverflow(page);
     await check('dlg-laden');

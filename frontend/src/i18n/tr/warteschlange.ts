@@ -168,8 +168,8 @@ const texte: Texte = {
 
   // components/ShopSelectionStep.tsx
   "Wo möchtest du hin?": "Hangi salona gitmek istersiniz?",
-  "Wähl den Shop, in dessen Schlange du dich einreihen willst.": "Sırasına girmek istediğiniz salonu seçin.",
-  "Noch kein Shop eingetragen.": "Henüz kayıtlı salon yok.",
+  "Wähl den Laden, in dessen Schlange du dich einreihen willst.": "Sırasına girmek istediğiniz salonu seçin.",
+  "Noch kein Laden eingetragen.": "Henüz kayıtlı salon yok.",
   "Zur Startseite": "Ana sayfaya git",
 
   // components/StepIndicator.tsx
@@ -195,7 +195,6 @@ const texte: Texte = {
   // components/QRCodeDisplay.tsx
   "Link kopiert.": "Bağlantı kopyalandı.",
   "Kopieren ging nicht. Halte den Link gedrückt und kopier ihn von Hand.": "Kopyalanamadı. Bağlantıya basılı tutup elle kopyalayın.",
-  "Einreihen per QR-Code": "QR kodla sıraya girme",
   "Ausdrucken und an Tür oder Tresen hängen. Kunden scannen und ziehen eine Nummer – ohne App.":
     "Yazdırıp kapıya veya tezgâha asın. Müşteriler kodu tarar ve sıra numarası alır – uygulama gerekmez.",
   "QR-Code zum Einreihen bei {laden}": "Sıraya girme QR kodu: {laden}",
@@ -222,6 +221,10 @@ const texte: Texte = {
 
   // utils/notifications.ts
   "{n} frühere Plätze sind frei geworden.": { one: "Daha erken bir yer açıldı.", other: "Daha erken {n} yer açıldı." },
+
+  // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
+  "Rechne mit {von} bis {bis} Uhr.": "Sıranız tahminen {von} ile {bis} arasında.",
+  "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "Sıranız çağrıldığında orada değilseniz salon numaranızı silebilir.",
 };
 
 export default texte;

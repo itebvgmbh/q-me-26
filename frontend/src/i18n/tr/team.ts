@@ -22,6 +22,7 @@ const texte: Texte = {
     "Bu kişilerden kimse randevu alamaz ve onlar “Günüm” sayfasını göremez. Geri alındığında her şey eskisi gibi olur.",
   "Zurückholen": "Geri al",
   "Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.": "Paketiniz dolu. Önce başka birini devre dışı bırakın ya da <tarif>paketi değiştirin</tarif>.",
+  "Dein Tarif ist voll. Deaktiviere erst jemand anderen.": "Paketiniz dolu. Önce başka birini devre dışı bırakın.",
 
   // pages/StaffRegistration.tsx
   "In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.": "Bu bağlantıda bir şey eksik. Lütfen salondan bağlantıyı tekrar göndermesini isteyin.",
@@ -311,7 +312,7 @@ const texte: Texte = {
 
   // utils/hooks/useServiceManagement.ts
   "Fehler beim Laden der Services": "Hizmetler yüklenirken hata oluştu",
-  "Kein Shop ausgewählt": "Salon seçilmedi",
+  "Kein Laden ausgewählt": "Salon seçilmedi",
   "Service erfolgreich erstellt": "Hizmet oluşturuldu",
   "Fehler beim Erstellen des Services": "Hizmet oluşturulamadı",
   "Service erfolgreich aktualisiert": "Hizmet güncellendi",

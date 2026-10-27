@@ -64,14 +64,14 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
 
       <div className="mt-auto flex gap-2">
         <Button variant={dark ? 'signal' : 'default'} className="flex-1" asChild>
-          <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Einreihen')}</Link>
+          <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
         </Button>
         <Button
           variant="outline"
           className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
           asChild
         >
-          <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin')}</Link>
+          <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
         </Button>
       </div>
     </article>

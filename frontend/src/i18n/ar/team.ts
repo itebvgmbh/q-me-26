@@ -29,6 +29,7 @@ const texte: Texte = {
     "لا يمكن لأحد الحجز لدى هؤلاء الأشخاص، ولا يرون «يومي». عند الاستعادة يعود كل شيء كما كان.",
   "Zurückholen": "استعادة",
   "Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.": "باقتك ممتلئة. عطّل شخصًا آخر أولًا أو <tarif>غيّر الباقة</tarif>.",
+  "Dein Tarif ist voll. Deaktiviere erst jemand anderen.": "باقتك ممتلئة. عطّل شخصًا آخر أولًا.",
 
   // pages/StaffRegistration.tsx
   "In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.": "هذا الرابط ناقص. اطلب من المحل إرساله مرة أخرى.",
@@ -336,7 +337,7 @@ const texte: Texte = {
 
   // utils/hooks/useServiceManagement.ts
   "Fehler beim Laden der Services": "خطأ في تحميل الخدمات",
-  "Kein Shop ausgewählt": "لم يتم اختيار محل",
+  "Kein Laden ausgewählt": "لم يتم اختيار محل",
   "Service erfolgreich erstellt": "تم إنشاء الخدمة",
   "Fehler beim Erstellen des Services": "تعذّر إنشاء الخدمة",
   "Service erfolgreich aktualisiert": "تم تحديث الخدمة",

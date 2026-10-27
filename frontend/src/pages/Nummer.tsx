@@ -19,6 +19,7 @@ import { publicFromDoc, publicRef, staffDayQuery, type PublicAppointment } from 
 import { cancelTicket, keyFromHash, rememberTicketKey, storedTicketKey } from '../utils/ticket-key';
 import { hasFeature } from '../utils/plans';
 import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
+import { caFenster } from '../utils/ca-zeit';
 import {
   enableAppPush,
   enablePush,
@@ -172,6 +173,8 @@ export default function Nummer() {
   const open = appt.status === 'scheduled' || appt.status === 'in-progress';
   const number = appt.referenceCode || '—';
   const isQueue = appt.type !== 'booked';
+  // Heute die nachgerechnete ca.-Zeit, sonst die gebuchte
+  const shownTime = isQueue && isToday(start) && expected ? expected : start;
   // Ohne Konto mit dem Schlüssel über das Backend, mit Konto direkt (die Regeln lassen nur den eigenen Termin zu)
   const canCancel = appt.isAnonymous ? Boolean(ticketKey) : Boolean(user);
 
@@ -218,7 +221,7 @@ export default function Nummer() {
           appt.status === 'scheduled'
             ? [
                 isToday(start) && isQueue ? { label: t('Vor dir'), value: String(ahead) } : { label: t('Wann'), value: dayLabel(start) },
-                { label: isQueue ? t('Dran um ca.') : t('Um'), value: format(isQueue && isToday(start) && expected ? expected : start, 'HH:mm') },
+                { label: isQueue ? t('Dran um ca.') : t('Um'), value: format(shownTime, 'HH:mm') },
               ]
             : []
         }
@@ -238,6 +241,13 @@ export default function Nummer() {
                 'Der Laden hängt gerade etwa {n} Minute hinterher. Rechne mit etwas Wartezeit.',
                 'Der Laden hängt gerade etwa {n} Minuten hinterher. Rechne mit etwas Wartezeit.',
               )}
+        </p>
+      )}
+
+      {appt.status === 'scheduled' && isQueue && (
+        <p className="text-sm">
+          <strong>{t('Rechne mit {von} bis {bis} Uhr.', caFenster(shownTime))}</strong>{' '}
+          <span className="text-muted-foreground">{t('Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.')}</span>
         </p>
       )}
 

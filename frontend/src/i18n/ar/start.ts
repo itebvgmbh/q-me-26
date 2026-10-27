@@ -3,7 +3,7 @@ import type { Texte } from "../typen.ts";
 // Startseite, Für Läden, Preise, Mein Tarif, Fehlerseiten
 const texte: Texte = {
   // pages/App.tsx
-  "Shop und Leistung wählen. Ein Konto brauchst du dafür nicht.": "اختر المحل والخدمة. لا تحتاج إلى حساب لذلك.",
+  "Laden und Leistung wählen. Ein Konto brauchst du dafür nicht.": "اختر المحل والخدمة. لا تحتاج إلى حساب لذلك.",
   "Weitermachen": "تابع يومك",
   "Du bekommst eine Nummer und eine ungefähre Uhrzeit. Bis dahin bist du frei.": "تحصل على رقم ووقت تقريبي. وحتى ذلك الحين وقتك ملكك.",
   "Früher dran": "دور أبكر",
@@ -15,7 +15,7 @@ const texte: Texte = {
   "Herrenschnitt": "قص شعر رجالي",
   "Vor dir": "قبلك",
   "Dran um ca.": "دورك حوالي",
-  "Shops in deiner Nähe": "محلات بالقرب منك",
+  "Läden in deiner Nähe": "محلات بالقرب منك",
   "Auf der Karte ansehen": "عرض على الخريطة",
   "So läuft’s": "كيف يعمل",
   "Dein Laden ohne volles Wartezimmer.": "محلك بلا غرفة انتظار مزدحمة.",
@@ -102,6 +102,7 @@ const texte: Texte = {
   "Nächste Abrechnung am {datum}.": "الفوترة التالية في {datum}.",
   "Von Dranzeit freigeschaltet bis {datum}. Danach gilt wieder dein Abo.": "مُفعّلة من Dranzeit حتى {datum}. بعد ذلك يسري اشتراكك مجددًا.",
   "Von Dranzeit freigeschaltet bis {datum}. Danach Gratis, wenn du kein Abo wählst.": "مُفعّلة من Dranzeit حتى {datum}. بعد ذلك تنتقل إلى الباقة المجانية إذا لم تختر اشتراكًا.",
+  "Von Dranzeit freigeschaltet bis {datum}.": "مُفعّلة من Dranzeit حتى {datum}.",
   "Testphase mit allen Funktionen, noch {n} Tage. Danach Gratis, wenn du kein Abo wählst.": {
     zero: "فترة تجريبية بجميع المزايا، المتبقي: {n} يوم. بعد ذلك تنتقل إلى الباقة المجانية إذا لم تختر اشتراكًا.",
     one: "فترة تجريبية بجميع المزايا، المتبقي: يوم واحد. بعد ذلك تنتقل إلى الباقة المجانية إذا لم تختر اشتراكًا.",
@@ -110,7 +111,16 @@ const texte: Texte = {
     many: "فترة تجريبية بجميع المزايا، المتبقي: {n} يومًا. بعد ذلك تنتقل إلى الباقة المجانية إذا لم تختر اشتراكًا.",
     other: "فترة تجريبية بجميع المزايا، المتبقي: {n} يوم. بعد ذلك تنتقل إلى الباقة المجانية إذا لم تختر اشتراكًا.",
   },
+  "Testphase mit allen Funktionen, noch {n} Tage.": {
+    zero: "فترة تجريبية بجميع المزايا، المتبقي: {n} يوم.",
+    one: "فترة تجريبية بجميع المزايا، المتبقي: يوم واحد.",
+    two: "فترة تجريبية بجميع المزايا، المتبقي: يومان.",
+    few: "فترة تجريبية بجميع المزايا، المتبقي: {n} أيام.",
+    many: "فترة تجريبية بجميع المزايا، المتبقي: {n} يومًا.",
+    other: "فترة تجريبية بجميع المزايا، المتبقي: {n} يوم.",
+  },
   "Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.": "الباقة المجانية. للمواعيد والإشعارات والفريق اختر اشتراكًا.",
+  "Gratis-Tarif.": "الباقة المجانية.",
   "Mein Tarif": "باقتي",
   "Laden wählen": "اختر المحل",
   "Testphase": "الفترة التجريبية",
@@ -129,6 +139,7 @@ const texte: Texte = {
   },
   "3 Monate kostenlos, danach den Laden-Tarif dauerhaft für 19 € statt 39 € im Monat. Dafür hängt das QR-Plakat sichtbar an deiner Tür, und du sagst uns in den ersten 3 Monaten einmal im Monat, was dich stört.": "3 أشهر مجانًا، ثم باقة المحل بسعر دائم قدره 19 يورو بدلًا من 39 يورو شهريًا. في المقابل يُعلَّق ملصق QR بشكل واضح على بابك، وتخبرنا مرة في الشهر خلال الأشهر الثلاثة الأولى بما يزعجك.",
   "Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.": "أنت الآن من المؤسسين: 3 أشهر مجانًا. بعدها باقة المحل مقابل 19 يورو شهريًا عند الاشتراك.",
+  "Du bist Gründer: 3 Monate kostenlos.": "أنت الآن من المؤسسين: 3 أشهر مجانًا.",
   "Wird gesichert …": "جارٍ الحجز …",
   "Tarif wechseln": "تغيير الباقة",
   "Abo wählen": "اختر اشتراكًا",
@@ -191,6 +202,14 @@ const texte: Texte = {
     few: "مؤسس: لا يزال أمامك {n} أيام مجانًا. بعدها باقة المحل مقابل 19 يورو شهريًا بمجرد أن تشترك.",
     many: "مؤسس: لا يزال أمامك {n} يومًا مجانًا. بعدها باقة المحل مقابل 19 يورو شهريًا بمجرد أن تشترك.",
     other: "مؤسس: لا يزال أمامك {n} يوم مجانًا. بعدها باقة المحل مقابل 19 يورو شهريًا بمجرد أن تشترك.",
+  },
+  "Gründer: noch {n} Tage kostenlos.": {
+    zero: "مؤسس: لا يزال أمامك {n} يوم مجانًا.",
+    one: "مؤسس: لا يزال أمامك يوم واحد مجانًا.",
+    two: "مؤسس: لا يزال أمامك يومان مجانًا.",
+    few: "مؤسس: لا يزال أمامك {n} أيام مجانًا.",
+    many: "مؤسس: لا يزال أمامك {n} يومًا مجانًا.",
+    other: "مؤسس: لا يزال أمامك {n} يوم مجانًا.",
   },
   "Deine Testphase endet in {n} Tagen. Danach Gratis mit 100 Kunden im Monat.": {
     zero: "تنتهي فترتك التجريبية خلال {n} يوم. بعدها الباقة المجانية مع 100 عميل شهريًا.",

@@ -257,7 +257,7 @@ const texte: Texte = {
 
   // utils/hooks/useEmployeeData.ts, useShopData.ts
   "Laden": "Shop",
-  "Der Shop aus dem QR-Code wurde nicht gefunden": "The shop from the QR code wasn't found",
+  "Der Laden aus dem QR-Code wurde nicht gefunden": "The shop from the QR code wasn't found",
 
   // utils/types.ts
   "Inhaber eines Ladens": "Shop owner",
@@ -279,6 +279,9 @@ const texte: Texte = {
   "Verschoben: {wann} bei {name}.": "Moved: {wann} with {name}.",
   "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder Person.": "Click an appointment to change its status, click free time to add one. Drag waiting customers to another time or team member.",
   "Termin anklicken ändert den Status, in freie Zeit klicken legt einen an. Wartende ziehst du auf eine andere Zeit oder einen anderen Tag.": "Click an appointment to change its status, click free time to add one. Drag waiting customers to another time or day.",
+
+  // Eingeklappte Terminliste (pages/ShopDashboard.tsx)
+  "Alle Termine als Liste – zum Bearbeiten": "All appointments as a list – for editing",
 };
 
 export default texte;

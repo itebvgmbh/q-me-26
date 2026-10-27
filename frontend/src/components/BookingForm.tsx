@@ -65,6 +65,9 @@ const Choice = ({ selected, onClick, children, className }: { selected: boolean;
   </button>
 );
 
+/** selectedStaff bei „Egal wer“: gebucht wird bei der ersten Person, die zur gewählten Zeit frei ist */
+export const EGAL_WER = 'egal';
+
 const shopAddress = (shop: Shop) =>
   [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || shop.address || '';
 
@@ -92,6 +95,8 @@ export function BookingForm({
   const shop = shops.find((s) => s.id === selectedShop);
   const service = services.find((s) => s.id === selectedService);
   const person = staff.find((s) => s.id === selectedStaff);
+  const anyStaff = selectedStaff === EGAL_WER && staff.length > 1;
+  const staffChosen = !!person || anyStaff;
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,10 +112,10 @@ export function BookingForm({
                 </p>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => onShopChange('')}>{t('Anderen Shop wählen')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => onShopChange('')}>{t('Anderen Laden wählen')}</Button>
           </div>
         ) : shops.length === 0 ? (
-          <p className="text-muted-foreground">{t('Noch keine Shops eingetragen.')}</p>
+          <p className="text-muted-foreground">{t('Noch keine Läden eingetragen.')}</p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {shops.map((s) => (
@@ -126,7 +131,7 @@ export function BookingForm({
       {shop && (
         <Step nr={2} title={t('Was?')} done={!!service}>
           {services.length === 0 ? (
-            <p className="text-muted-foreground">{t('Dieser Shop hat noch keine Leistungen eingetragen.')}</p>
+            <p className="text-muted-foreground">{t('Dieser Laden hat noch keine Leistungen eingetragen.')}</p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {services.map((s) => (
@@ -143,11 +148,16 @@ export function BookingForm({
       )}
 
       {shop && service && (
-        <Step nr={3} title={t('Bei wem?')} done={!!person}>
+        <Step nr={3} title={t('Bei wem?')} done={staffChosen}>
           {staff.length === 0 ? (
-            <p className="text-muted-foreground">{t('Für diesen Shop ist noch niemand eingetragen.')}</p>
+            <p className="text-muted-foreground">{t('Für diesen Laden ist noch niemand eingetragen.')}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
+              {staff.length > 1 && (
+                <Choice selected={anyStaff} onClick={() => onStaffChange(EGAL_WER)} className="rounded-full">
+                  <span className="font-semibold">{t('Egal wer')}</span>
+                </Choice>
+              )}
               {staff.map((s) => (
                 <Choice key={s.id} selected={s.id === selectedStaff} onClick={() => onStaffChange(s.id)} className="rounded-full">
                   <span className="font-semibold">{s.name}</span>
@@ -158,12 +168,13 @@ export function BookingForm({
         </Step>
       )}
 
-      {shop && service && person && (
+      {shop && service && staffChosen && (
         <Step nr={4} title={t('Wann?')} done={!!selectedTimeSlot}>
           <CustomerCalendar
             shopId={selectedShop}
             serviceId={selectedService}
-            staffId={selectedStaff}
+            staffId={anyStaff ? undefined : selectedStaff}
+            staffIds={anyStaff ? staff.map((s) => s.id) : undefined}
             selectedSlot={selectedTimeSlot}
             forceRefresh={!!refreshTimestamp}
             onTimeSlotSelect={onTimeSlotSelect}
@@ -171,14 +182,14 @@ export function BookingForm({
         </Step>
       )}
 
-      {shop && service && person && selectedTimeSlot && (
+      {shop && service && staffChosen && selectedTimeSlot && (
         <section className="sticky bottom-3 z-10 flex flex-col gap-4 rounded-3xl bg-foreground p-5 text-background shadow-xl sm:p-6" aria-label={t('Zusammenfassung')}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="font-display text-2xl font-bold">
               {format(selectedTimeSlot.start, t("EEE d. MMM 'um' HH:mm"), { locale: datumsLocale() })}
             </p>
             <p className="text-sm text-background/75">
-              {service.name} · {person.name} · {shop.name}
+              {service.name} · {person?.name ?? t('Egal wer')} · {shop.name}
             </p>
           </div>
           {hasFeature(shop, 'frueherDran') && (

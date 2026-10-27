@@ -6,19 +6,17 @@ const texte: Texte = {
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "The appointment couldn't be booked. Please try again.",
   "Termin buchen": "Book an appointment",
   "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "Pick a fixed time. Rather come now? Then join the queue.",
-  "Shops werden geladen": "Loading shops",
+  "Läden werden geladen": "Loading shops",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "{name} doesn't take fixed appointments online. But you can take a number.",
   "Anderen Laden wählen": "Choose another shop",
 
   // components/BookingForm.tsx
   "Wo?": "Where?",
-  "Anderen Shop wählen": "Choose another shop",
-  "Noch keine Shops eingetragen.": "No shops listed yet.",
+  "Noch keine Läden eingetragen.": "No shops listed yet.",
   "Was?": "What?",
-  "Dieser Shop hat noch keine Leistungen eingetragen.": "This shop hasn't listed any services yet.",
   "{minuten} Min": "{minuten} min",
   "Bei wem?": "With whom?",
-  "Für diesen Shop ist noch niemand eingetragen.": "Nobody is listed for this shop yet.",
+  "Für diesen Laden ist noch niemand eingetragen.": "Nobody is listed for this shop yet.",
   "Wann?": "When?",
   "Zusammenfassung": "Summary",
   "EEE d. MMM 'um' HH:mm": "EEE d MMM 'at' HH:mm",
@@ -123,19 +121,17 @@ const texte: Texte = {
   "Branche": "Category",
   "Alle Branchen": "All categories",
   "Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.": "You haven't shared your location. Just enter a town or postcode above.",
-  "{n} Shops gefunden": { one: "{n} shop found", other: "{n} shops found" },
-  "Alle Shops": "All shops",
-  "Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.": "No shops here yet. Widen the radius or search somewhere else.",
+  "{n} Läden gefunden": { one: "{n} shop found", other: "{n} shops found" },
+  "Alle Läden": "All shops",
+  "Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.": "No shops here yet. Widen the radius or search somewhere else.",
   "Weitere Salons": "More salons",
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "No online numbers here yet – but you'll still find the address, hours and prices.",
   "Du bist hier": "You are here",
   "{km} km entfernt": "{km} km away",
-  "Einreihen": "Join queue",
   "Noch nicht online buchbar": "Not bookable online yet",
   "Ansehen": "View",
 
   // pages/ShopDetails.tsx
-  "Shop wird geladen": "Loading shop",
   "Dieser Laden ist gerade nicht erreichbar.": "This shop isn't available right now.",
   "Laden nicht gefunden.": "Shop not found.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "Taking a number or booking online isn't possible at the moment.",
@@ -146,10 +142,10 @@ const texte: Texte = {
 
   // components/MarketplaceSection.tsx
   "Ort oder PLZ": "Town or postcode",
-  "Hier ist noch kein Shop eingetragen.": "No shop is listed here yet.",
+  "Hier ist noch kein Laden eingetragen.": "No shop is listed here yet.",
   "Versuch es mit einem anderen Ort oder einer PLZ.": "Try another town or postcode.",
   "Schau bald wieder vorbei.": "Check back soon.",
-  "Alle {anzahl} Shops ansehen": "View all {anzahl} shops",
+  "Alle {anzahl} Läden ansehen": "View all {anzahl} shops",
 
   // components/BusinessHours.tsx
   "Geschlossen": "Closed",
@@ -253,21 +249,28 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "Joining the queue didn't work. Please try again.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Shop.": "Choose a shop first.",
+  "Wähl zuerst einen Laden.": "Choose a shop first.",
   "Wähl aus, bei wem.": "Choose who you'd like.",
   "Wähl eine Leistung.": "Choose a service.",
   "Wähl eine Uhrzeit.": "Choose a time.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
-  "Der Shop aus dem QR-Code wurde nicht gefunden": "The shop from the QR code wasn't found",
-  "Fehler beim Laden der Shops": "Error loading shops",
-  "Shop-ID fehlt": "Shop ID missing",
-  "Shop nicht gefunden": "Shop not found",
-  "Fehler beim Laden der Shop-Details": "Error loading shop details",
+  "Der Laden aus dem QR-Code wurde nicht gefunden": "The shop from the QR code wasn't found",
+  "Die Läden konnten nicht geladen werden.": "Error loading shops",
+  "Laden-ID fehlt": "Shop ID missing",
+  "Laden nicht gefunden": "Shop not found",
   "Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.": "The free slots couldn't be loaded. Please try again in a moment.",
   "Fehler beim Laden der Services": "Error loading services",
   "Fehler beim Laden der Mitarbeiter": "Error loading staff",
   "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "This service is no longer available here. Please choose another.",
+
+  // Nochmal buchen, Egal wer beim Termin (MyBookings, AppointmentCard, BookingForm, CustomerCalendar)
+  "Nochmal buchen": "Book again",
+  "Wie letztes Mal?": "Same as last time?",
+  "{leistung} bei {name}": "{leistung} with {name}",
+  "zuletzt am {datum}": "last time on {datum}",
+  "Egal wer": "Anyone",
+  "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "Nothing is free in the next three weeks. Try another service.",
 };
 
 export default texte;

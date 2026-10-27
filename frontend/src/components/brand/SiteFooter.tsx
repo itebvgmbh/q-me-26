@@ -3,6 +3,7 @@ import { useCurrentUser } from 'app';
 import { Logo } from './Logo';
 import { t } from '@/i18n';
 import { SprachListe } from '../SprachWahl';
+import { inStoreApp } from '../../utils/app-shell';
 
 export const SiteFooter = () => {
   const { user } = useCurrentUser();
@@ -15,7 +16,7 @@ export const SiteFooter = () => {
           <Link to="/shop-map" className="hover:text-foreground">{t('Läden finden')}</Link>
           <Link to="/public-join-queue" className="hover:text-foreground">{t('Nummer ziehen')}</Link>
           <Link to="/features" className="hover:text-foreground">{t('Für Läden')}</Link>
-          <Link to="/preise" className="hover:text-foreground">{t('Preise')}</Link>
+          {!inStoreApp() && <Link to="/preise" className="hover:text-foreground">{t('Preise')}</Link>}
           <a href="/hilfe" className="hover:text-foreground">{t('Hilfe')}</a>
           <a href="/friseur-ohne-termin" className="hover:text-foreground">{t('Friseur ohne Termin')}</a>
           {user ? (

@@ -14,10 +14,10 @@ const address = (shop: Shop) =>
   [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || shop.address || '';
 
 export const ShopSelectionStep: React.FC<ShopSelectionStepProps> = ({ shops, selectedShop, onSelectShop }) => (
-  <QueueStepShell title={t('Wo möchtest du hin?')} description={t('Wähl den Shop, in dessen Schlange du dich einreihen willst.')}>
+  <QueueStepShell title={t('Wo möchtest du hin?')} description={t('Wähl den Laden, in dessen Schlange du dich einreihen willst.')}>
     {shops.length === 0 ? (
       <p className="text-muted-foreground">
-        {t('Noch kein Shop eingetragen.')}{' '}
+        {t('Noch kein Laden eingetragen.')}{' '}
         <Link to="/" className="font-semibold underline">
           {t('Zur Startseite')}
         </Link>

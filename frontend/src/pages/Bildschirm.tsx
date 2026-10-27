@@ -14,6 +14,7 @@ import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane'
 import type { Shop, Staff } from '../utils/firestore';
 import { publicFromDoc, shopDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
 import { t, tn } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
@@ -79,7 +80,7 @@ export default function Bildschirm() {
     return <Message title={t('Dieser Laden ist gerade gesperrt.')} text={t('Fragen beantworten wir unter {mail}.', { mail: HILFE_MAIL })} />;
   }
   if (!hasFeature(shop, 'bildschirm', now)) {
-    return <Message title={t('Der Wartezimmer-Bildschirm gehört zum Tarif Laden.')} text={t('Unter „Tarif“ lässt er sich freischalten.')} />;
+    return <Message title={t('Der Wartezimmer-Bildschirm gehört zum Tarif Laden.')} text={inStoreApp() ? '' : t('Unter „Tarif“ lässt er sich freischalten.')} />;
   }
 
   const joinUrl = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shopId}`;

@@ -49,6 +49,14 @@ def test_stadtseite_inhalt_und_strukturierte_daten():
     assert ld["itemListElement"][0]["item"]["address"]["postalCode"] == "50667"
 
 
+def test_app_aus_dem_store_ohne_verkauf():
+    # Erkennung wie frontend/src/utils/app-shell.ts: In der App verschwindet "30 Tage kostenlos testen" (/preise)
+    page = seo.render_city("Köln", "koeln", SHOPS[:1], {}, now=MONDAY)
+    assert f"<script>{seo.APP_JS}</script>" in page.split("</head>")[0]
+    assert 'href="/preise"' in page and '.in-app a[href^="/preise"]' in page and '.in-app a[href^="/tarif"]' in page
+    assert "(tarife|abo|gruenderangebot)" in seo.APP_JS
+
+
 def test_routen_alias_404_und_sitemap():
     seo.load_shops = lambda: SHOPS
     seo.waiting_now = lambda shop_id, now=None: 1

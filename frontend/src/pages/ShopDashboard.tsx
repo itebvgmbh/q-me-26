@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUser, firebaseApp } from 'app';
 import { collection, query, where, onSnapshot, Timestamp, getFirestore } from 'firebase/firestore';
@@ -48,6 +48,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: 'woche', label: merke('Woche') },
 ];
 const VIEW_KEY = 'tresen.ansicht';
+const LIST_KEY = 'tresen.liste';
 const rememberedView = (): View => {
   try {
     const value = localStorage.getItem(VIEW_KEY);
@@ -87,6 +88,21 @@ const ShopDashboard = () => {
     setView(next);
     try {
       localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // nur Komfort
+    }
+  };
+  const [showList, setShowList] = useState(() => {
+    try {
+      return localStorage.getItem(LIST_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleList = () => {
+    setShowList(!showList);
+    try {
+      localStorage.setItem(LIST_KEY, showList ? '0' : '1');
     } catch {
       // nur Komfort
     }
@@ -329,16 +345,13 @@ const ShopDashboard = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {/* Team, Leistungen, Mein Laden und Hilfe stehen schon oben im Menü */}
               <DropdownMenuItem onSelect={() => window.open(`/bildschirm/${shop.id}`, '_blank', 'noopener')}>
                 {t('Wartezimmer-Bildschirm öffnen')}
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate(`/plakat?shopId=${shop.id}`)}>{t('QR-Plakat drucken')}</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/auswertung')}>{t('Auswertung')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/plakat')}>{t('QR-Plakat drucken')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setShowEditShop(true)}>{t('Laden bearbeiten')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/staff-management')}>{t('Team')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/service-management')}>{t('Leistungen')}</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>{t('Weiteren Laden einrichten')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => window.open('/hilfe', '_blank', 'noopener')}>{t('Hilfe und Anleitungen')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -382,15 +395,29 @@ const ShopDashboard = () => {
             />
           )}
 
+          {/* Dieselben Termine wie oben noch einmal – eingeklappt, gebraucht nur zum Bearbeiten (Preis, Leistung, Zeit) */}
           {view !== 'woche' && (
-            <AppointmentsList
-              appointments={appointments}
-              services={services}
-              staff={staff}
-              customers={customers}
-              selectedDate={selectedDate}
-              onAppointmentUpdate={(updated) => setAppointments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))}
-            />
+            <section className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={toggleList}
+                aria-expanded={showList}
+                className="flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-muted-foreground hover:text-foreground"
+              >
+                <ChevronDown className={cn('h-4 w-4 transition-transform', showList && 'rotate-180')} aria-hidden="true" />
+                {showList ? t('Liste ausblenden') : t('Alle Termine als Liste – zum Bearbeiten')}
+              </button>
+              {showList && (
+                <AppointmentsList
+                  appointments={appointments}
+                  services={services}
+                  staff={staff}
+                  customers={customers}
+                  selectedDate={selectedDate}
+                  onAppointmentUpdate={(updated) => setAppointments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))}
+                />
+              )}
+            </section>
           )}
         </div>
 

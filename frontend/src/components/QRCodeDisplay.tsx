@@ -26,7 +26,7 @@ export const QRCodeDisplay = ({ shopId, shopName }: QRCodeDisplayProps) => {
   return (
     <section className="flex flex-col gap-4 rounded-3xl bg-foreground p-5 text-background" aria-labelledby="qr-titel">
       <div>
-        <h3 id="qr-titel" className="font-display text-xl font-bold">{t('Einreihen per QR-Code')}</h3>
+        <h3 id="qr-titel" className="font-display text-xl font-bold">{t('Nummer ziehen per QR-Code')}</h3>
         <p className="text-sm text-background/75">{t('Ausdrucken und an Tür oder Tresen hängen. Kunden scannen und ziehen eine Nummer – ohne App.')}</p>
       </div>
       <div className="self-center rounded-2xl bg-white p-4">
@@ -43,8 +43,16 @@ export const QRCodeDisplay = ({ shopId, shopName }: QRCodeDisplayProps) => {
           {t('Link kopieren')}
         </Button>
         <Button variant="outline" className="border-background/40 text-background hover:bg-background hover:text-foreground sm:flex-1 lg:flex-none" asChild>
-          <Link to={`/public-join-queue?shopId=${shopId}`}>{t('So sieht’s der Kunde')}</Link>
+          <Link to={`/plakat?shopId=${shopId}`}>{t('Plakat drucken')}</Link>
         </Button>
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <Link to={`/public-join-queue?shopId=${shopId}`} className="font-semibold underline underline-offset-2">
+          {t('So sieht’s der Kunde')}
+        </Link>
+        <a href={`/bildschirm/${shopId}`} target="_blank" rel="noopener" className="font-semibold underline underline-offset-2">
+          {t('Wartezimmer-Bildschirm öffnen')}
+        </a>
       </div>
     </section>
   );

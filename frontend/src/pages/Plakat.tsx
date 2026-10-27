@@ -25,7 +25,9 @@ export default function Plakat() {
     if (!user) return;
     getShopsByOwnerId(user.uid).then((list) => {
       setShops(list);
-      setShopId((s) => s || list[0]?.id || '');
+      // ?shopId= vom Tresen oder von „Mein Laden“, sonst der erste Laden
+      const wanted = new URLSearchParams(window.location.search).get('shopId');
+      setShopId((s) => s || list.find((shop) => shop.id === wanted)?.id || list[0]?.id || '');
     });
   }, [user]);
 

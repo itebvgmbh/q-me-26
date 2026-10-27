@@ -20,6 +20,7 @@ import {
   Verbindung,
 } from '../utils/uebernahme';
 import { t, tn, tTeile } from '@/i18n';
+import { inStoreApp } from '../utils/app-shell';
 
 /**
  * Seite übernehmen: Ein Salon aus dem Verzeichnis (/friseur/…) wird Dranzeit-Laden.
@@ -183,7 +184,7 @@ const Uebernehmen = () => {
         }
       >
         <Karte>
-          {seite.stand === 'verbunden' && seite.gruender && <p className="font-semibold">{t('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.')}</p>}
+          {seite.stand === 'verbunden' && seite.gruender && <p className="font-semibold">{(inStoreApp() ? t('Du bist Gründer: 3 Monate kostenlos.') : t('Du bist Gründer: 3 Monate kostenlos. Danach Laden für 19 € im Monat, wenn du das Abo abschließt.'))}</p>}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild size="lg" variant="signal">
               <Link to={`/shop-dashboard?shopId=${shop.id}`}>{t('Zum Tresen')}</Link>
@@ -246,7 +247,7 @@ const Uebernehmen = () => {
           </ul>
         </div>
         <p className="text-sm text-muted-foreground">
-          {plaetze
+          {plaetze && !inStoreApp()
             ? tn(plaetze, '30 Tage kostenlos, ohne Zahlungsdaten. Dazu noch {n} Gründerplatz: 3 Monate gratis, danach Laden für 19 € im Monat.', '30 Tage kostenlos, ohne Zahlungsdaten. Dazu noch {n} Gründerplätze: 3 Monate gratis, danach Laden für 19 € im Monat.')
             : t('30 Tage kostenlos, ohne Zahlungsdaten.')}
         </p>

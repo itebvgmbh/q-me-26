@@ -177,7 +177,7 @@ const texte: Texte = {
   "Logo wird hochgeladen …": "Uploading logo …",
   "Logo hochgeladen.": "Logo uploaded.",
   "Das Logo konnte nicht hochgeladen werden.": "The logo couldn't be uploaded.",
-  "Shop-Profil aktualisiert": "Shop profile updated",
+  "Laden-Profil aktualisiert": "Shop profile updated",
   "Fehler beim Aktualisieren": "Update failed",
   "Name des Ladens": "Shop name",
   "Adresse": "Address",

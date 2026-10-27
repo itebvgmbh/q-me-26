@@ -26,11 +26,29 @@ interface AppointmentCardProps {
   /** „Früher dran“ für diesen Termin ein-/ausschalten; ohne diese Angabe kein Schalter */
   onToggleEarlier?: (appointmentId: string, on: boolean) => Promise<void>;
   notification?: EarlierSlotNotificationType;
-  /** vergangene oder stornierte Termine gedämpft und ohne Aktionen */
+  /** vergangene oder stornierte Termine gedämpft, nur mit „Nochmal buchen“ */
   past?: boolean;
   /** nur Angebot und Absagen – die Details zeigt schon das Ticket darüber */
   actionsOnly?: boolean;
 }
+
+/**
+ * „Nochmal buchen“: Laden, Leistung und Person vom letzten Besuch vorbelegt, nur die Zeit fehlt noch.
+ * Ohne Online-Termine im Tarif des Ladens gibt es nur die Nummer (termin = null).
+ */
+export const nochmalLinks = (appointment: AppointmentWithDetails) => {
+  const termin = new URLSearchParams({ shopId: appointment.shopId });
+  const nummer = new URLSearchParams({ shopId: appointment.shopId });
+  if (appointment.serviceId) {
+    termin.set('serviceId', appointment.serviceId);
+    nummer.set('serviceId', appointment.serviceId);
+  }
+  if (appointment.staffId) termin.set('staffId', appointment.staffId);
+  return {
+    termin: hasFeature(appointment.shop, 'termine') ? `/book-appointment?${termin}` : null,
+    nummer: `/public-join-queue?${nummer}`,
+  };
+};
 
 const STATUS_LABEL: Record<Appointment['status'], string> = {
   scheduled: merke('Gebucht'),
@@ -65,6 +83,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
     start.getTime() - Date.now() > FRUEHER_DRAN_VORLAUF_MINUTEN * 60_000 &&
     hasFeature(appointment.shop, 'frueherDran');
   const switchId = `frueher-dran-${appointment.id}`;
+  const nochmal = past ? nochmalLinks(appointment) : null;
 
   const toggleEarlier = async (on: boolean) => {
     if (!onToggleEarlier) return;
@@ -166,6 +185,14 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           </Button>
           <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancelClick(appointment.id)}>
             {t('Termin absagen')}
+          </Button>
+        </div>
+      )}
+
+      {nochmal && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={nochmal.termin ?? nochmal.nummer}>{t('Nochmal buchen')}</Link>
           </Button>
         </div>
       )}

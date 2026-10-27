@@ -255,6 +255,17 @@ def test_freie_zeiten_bei_einer_person_ab_wunschzeit():
     assert nein["grund"] == "person_unbekannt" and nein["personen"] == ["Kim", "Robin"]
 
 
+def test_ansage_nennt_nur_den_vornamen():
+    _, store = setup()
+    store["staff"]["robin"]["name"] = "Robin Weiß"
+    store["staff"]["kim"]["name"] = "Kim Sommer"
+    store["staff"]["kim2"] = {"shopId": "laden", "name": "Kim Alt", "isActive": True, "workingHours": arbeitet(), "serviceIds": ["bart"]}
+    info = tel.laden(tel.Anruf(**anruf()))
+    assert [p["rufname"] for p in info["personen"]] == ["Kim Alt", "Kim Sommer", "Robin"], "gleicher Vorname: voller Name"
+    r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", person="Robin", anzahl=1))
+    assert r["zeiten"][0]["person"] == "Robin" and r["ansage"].endswith("bei Robin."), r["ansage"]
+
+
 def test_vorlauf_fuer_online_termine_gilt_auch_am_telefon():
     _, store = setup()
     store["shops"]["laden"]["timeSlotBuffer"] = 2 * 60 * 60 * 1000
