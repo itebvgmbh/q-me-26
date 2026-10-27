@@ -7,12 +7,14 @@ Import: app/libs/verzeichnis_import.py, Seiten: app/verzeichnis_seiten.py. Jeder
 import re
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
 from app.libs import protokoll
+from app.libs import uebernahme as ue
 from app.libs import verzeichnis as vz
+from app.libs.links import public_origin
 from app.libs import verzeichnis_import as imp
 from app.libs.konten import _plain
 
@@ -50,7 +52,9 @@ def zeile(e: dict, shops_by_id: dict) -> dict:
     keep = ("id", "status", "shopId", "googlePlaceId", "slug", "stadtSlug", "altePfade", "coordinates", "quelle",
             "wuensche", "vorschlag", "angelegtAm", "geaendertAm", "veroeffentlichtAm", "entferntAm") + FELDER
     row = {k: e.get(k) for k in keep}
+    code = e.get("uebernahme") or {}
     row.update({
+        "uebernahme": {k: code.get(k) for k in ("erstelltAm", "gueltigBis", "eingeloestAm")} if code else None,
         "pfad": vz.pfad(e) if e.get("slug") and e.get("stadtSlug") else "",
         "fehlt": [] if e.get("shopId") else vz.vollstaendigkeit(e),
         "shopName": (shop or {}).get("name", ""),
@@ -350,20 +354,25 @@ def uebernahme(entry_id: str, body: ShopRequest, user: AuthorizedUser) -> dict:
     shop = next((s for s in _shops() if s["id"] == body.shopId), None)
     if not shop:
         raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
-    entries = vz.store().alle()
-    changes = {"shopId": shop["id"], "vorschlag": None, "status": "online", "geaendertAm": vz.now()}
-    if not entry.get("veroeffentlichtAm"):
-        changes["veroeffentlichtAm"] = vz.now()
-    eigene = next((e for e in entries if e.get("shopId") == shop["id"] and e["id"] != entry_id), None)
-    if eigene:  # hatte der Laden inzwischen eine eigene Seite: die leitet jetzt hierher
-        if eigene.get("slug") and eigene.get("stadtSlug"):
-            changes["altePfade"] = sorted(set(entry.get("altePfade") or []) | {vz.pfad(eigene)} | set(eigene.get("altePfade") or []))
-        vz.store().loesche(eigene["id"])
-    vz.store().aendere(entry_id, changes)
+    vz.verknuepfen(entry, shop["id"], vz.store().alle())
     protokoll.write(user, "Verzeichnis: Übernahme bestätigt", {"verzeichnisId": entry_id, "shopId": shop["id"], "name": shop.get("name")},
                     before={"name": entry.get("name"), "status": entry.get("status")}, after={"pfad": vz.pfad(entry)})
     _vergessen()
     return {"ok": True}
+
+
+@router.post("/betreiber/verzeichnis/{entry_id}/code")
+def uebernahme_code(entry_id: str, user: AuthorizedUser, request: Request) -> dict:
+    """Übernahme-Code für den Brief an den Salon. Wird nur jetzt gezeigt (gespeichert ist nur der Hash); ein früherer gilt nicht mehr."""
+    entry = _eintrag(entry_id)
+    try:
+        neu = ue.code_erzeugen(entry)
+    except ue.Fehler as e:
+        raise HTTPException(status_code=e.status, detail=e.text) from e
+    protokoll.write(user, "Verzeichnis: Übernahme-Code erzeugt", {"verzeichnisId": entry_id, "name": entry.get("name")},
+                    after={"gueltigBis": neu["gueltigBis"].isoformat()})
+    link = f"{public_origin(request)}/uebernehmen#code={ue.normalisieren(neu['code'])}"
+    return {"code": neu["code"], "link": link, "gueltigBis": neu["gueltigBis"].isoformat()}
 
 
 @router.post("/betreiber/verzeichnis/{entry_id}/uebernahme-ablehnen")

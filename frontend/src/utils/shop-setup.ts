@@ -57,7 +57,8 @@ export const OWNER_KEY = 'owner';
 
 export interface ShopDraft {
   step: string;
-  source: 'google' | 'manual' | null;
+  /** verzeichnis: vorausgefüllt aus der eigenen Seite im Salon-Verzeichnis (utils/uebernahme.ts) */
+  source: 'google' | 'manual' | 'verzeichnis' | null;
   googlePlaceId: string;
   name: string;
   street: string;
@@ -87,6 +88,8 @@ export interface ShopDraft {
   everyoneDoesAll: boolean | null;
   sameHours: boolean | null;
   progress?: SetupProgress;
+  /** Seite im Salon-Verzeichnis, die dieser Laden übernimmt; mit Code verknüpft das Backend nach dem Anlegen sofort */
+  verzeichnis?: { eintragId: string; pfad: string; code?: string };
 }
 
 export const emptyDraft = (email = '', ownerName = ''): ShopDraft => ({

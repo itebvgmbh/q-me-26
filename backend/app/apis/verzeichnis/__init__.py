@@ -1,12 +1,16 @@
-"""Salon-Verzeichnis, öffentlicher Teil (ohne Anmeldung): Karte, „Wünsch ich mir“, Eintrag entfernen.
+"""Salon-Verzeichnis, öffentlicher Teil (ohne Anmeldung): Karte, „Wünsch ich mir“, Eintrag entfernen, Übernahme.
 
-    GET  /routes/verzeichnis/karte           Salons ohne Dranzeit mit Lage, für die Karte (/shop-map)
-    GET  /routes/verzeichnis/laden/{shopId}  Seite eines Dranzeit-Ladens im Verzeichnis (Canonical der Ladenansicht)
-    POST /routes/verzeichnis/{id}/wunsch     Kunde wünscht sich Online-Nummern bei diesem Salon (zählt nur)
-    POST /routes/verzeichnis/{id}/entfernen  Jemand vom Salon nimmt den Eintrag offline (Formular auf der Seite)
+    GET  /routes/verzeichnis/karte                   Salons ohne Dranzeit mit Lage, für die Karte (/shop-map)
+    GET  /routes/verzeichnis/laden/{shopId}          Seite eines Dranzeit-Ladens im Verzeichnis (Canonical der Ladenansicht)
+    POST /routes/verzeichnis/{id}/wunsch             Kunde wünscht sich Online-Nummern bei diesem Salon (zählt nur)
+    POST /routes/verzeichnis/{id}/entfernen          Jemand vom Salon nimmt den Eintrag offline (Formular auf der Seite)
+    GET  /routes/verzeichnis/{id}/vorschau           Angaben der Seite für den Einrichtungsassistenten („Ist das dein Salon?“)
+    POST /routes/verzeichnis/uebernahme/pruefen      Übernahme-Code aus dem Brief: zu welcher Seite gehört er?
+    POST /routes/verzeichnis/uebernahme/einloesen    Code einlösen (angemeldet, eigener Laden): Seite wird die des Ladens
 
-Die Seiten selbst liefert app/verzeichnis_seiten.py. Grund und Kontakt beim Entfernen stehen nur im Protokoll auf
-dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur gehasht und nur im Speicher gezählt.
+Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Grund und Kontakt beim
+Entfernen stehen nur im Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur
+gehasht und nur im Speicher gezählt.
 """
 
 import hashlib
@@ -19,8 +23,12 @@ from urllib.parse import parse_qs
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel
 
+from app.auth import AuthorizedUser
+from app.auth.access import require_shop_of_owner
 from app.libs import protokoll
+from app.libs import uebernahme as ue
 from app.libs import verzeichnis as vz
 
 router = APIRouter()
@@ -28,9 +36,11 @@ router = APIRouter()
 ID_RE = re.compile(r"[A-Za-z0-9_-]{1,128}")
 _lock = threading.Lock()
 _calls: dict = defaultdict(deque)
-LIMITS = {  # (Anzahl, Sekunden) je IP
+LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "wunsch": (30, 3600),
     "entfernen": (5, 86400),
+    "code": (20, 3600),
+    "einloesen": (10, 3600),
 }
 _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein Wunsch einmal; um Mitternacht vergessen
 
@@ -137,3 +147,67 @@ async def entfernen(entry_id: str, request: Request):
     if _wants_html(request):
         return HTMLResponse(verzeichnis_seiten.render_entfernt(entry.get("name", "")))
     return {"ok": True}
+
+
+# --- Übernahme: der Salon macht seine Seite zum Dranzeit-Laden (app/libs/uebernahme.py) -------------------------------
+
+
+@router.get("/verzeichnis/{entry_id}/vorschau")
+def vorschau(entry_id: str) -> JSONResponse:
+    """Angaben einer Seite für den Einrichtungsassistenten – dieselben, die öffentlich auf der Seite stehen"""
+    entry = _online_eintrag(entry_id)
+    return JSONResponse(ue.vorschau(entry), headers={"Cache-Control": "no-store"})
+
+
+class CodeRequest(BaseModel):
+    code: str
+
+
+class EinloesenRequest(BaseModel):
+    code: str
+    shopId: str
+
+
+def _ue_fehler(e: ue.Fehler) -> HTTPException:
+    return HTTPException(status_code=e.status, detail=e.text)
+
+
+@router.post("/verzeichnis/uebernahme/pruefen")
+def code_pruefen(body: CodeRequest, request: Request) -> dict:
+    """Zu welcher Seite gehört der Code? Zählt jeden Versuch (Raten bremsen)."""
+    _limit("code", _ip(request))
+    try:
+        entry = ue.pruefen(body.code)
+    except ue.Fehler as e:
+        raise _ue_fehler(e) from e
+    return {"code": ue.anzeigen(body.code), "eintrag": ue.vorschau(entry)}
+
+
+def _laden(shop_id: str) -> dict:
+    from app.apis.firebase_utils import get_firestore_db
+
+    snap = get_firestore_db().collection("shops").document(shop_id).get()
+    return {**(snap.to_dict() or {}), "id": snap.id} if snap.exists else {}
+
+
+@router.post("/verzeichnis/uebernahme/einloesen")
+def code_einloesen(body: EinloesenRequest, request: Request, user: AuthorizedUser) -> dict:
+    """Nach dem Anlegen des Ladens: Seite und Laden verknüpfen, ohne dass der Betreiber bestätigt"""
+    _limit("code", _ip(request))
+    _limit("einloesen", user.sub)
+    if not ID_RE.fullmatch(body.shopId or ""):
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    require_shop_of_owner(user, body.shopId)
+    shop = _laden(body.shopId)
+    if not shop:
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    try:
+        entry = ue.einloesen(body.code, shop["id"])
+    except ue.Fehler as e:
+        raise _ue_fehler(e) from e
+    protokoll.write(user, "Verzeichnis: per Code übernommen", {"verzeichnisId": entry["id"], "shopId": shop["id"], "name": shop.get("name")},
+                    before={"name": entry.get("name"), "status": entry.get("status")}, after={"pfad": vz.pfad(entry)})
+    from app import verzeichnis_seiten
+
+    verzeichnis_seiten.vergessen()
+    return {"ok": True, "pfad": vz.pfad(entry)}

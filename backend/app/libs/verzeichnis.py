@@ -230,6 +230,25 @@ def abgleich(entries: list, shops: list) -> dict:
     return {"vorschlaege": vorschlaege, "neu": neu}
 
 
+def verknuepfen(entry: dict, shop_id: str, entries: list, st=None) -> dict:
+    """Eintrag wird die Seite des Ladens (Betreiber bestätigt oder Übernahme-Code). Die Adresse der Seite bleibt.
+
+    Hatte der Laden inzwischen eine eigene Seite (laden-<shopId> aus dem Abgleich), leitet die jetzt hierher.
+    Gibt die gespeicherten Änderungen zurück.
+    """
+    st = st or store()
+    changes = {"shopId": shop_id, "vorschlag": None, "status": "online", "geaendertAm": now()}
+    if not entry.get("veroeffentlichtAm"):
+        changes["veroeffentlichtAm"] = now()
+    for eigene in [e for e in entries if e.get("shopId") == shop_id and e["id"] != entry["id"]]:
+        if eigene.get("slug") and eigene.get("stadtSlug"):
+            alt = set(changes.get("altePfade") or entry.get("altePfade") or [])
+            changes["altePfade"] = sorted(alt | {pfad(eigene)} | set(eigene.get("altePfade") or []))
+        st.loesche(eigene["id"])
+    st.aendere(entry["id"], changes)
+    return changes
+
+
 # --- Speicher ------------------------------------------------------------------------------------------------------
 
 
@@ -262,6 +281,12 @@ class FirestoreStore:
 
         self._col().document(entry_id).update({"wuensche": gcf.Increment(1)})
 
+    def per_code(self, code_hash: str) -> Optional[dict]:
+        """Eintrag zum Übernahme-Code (app/libs/uebernahme.py)"""
+        for d in self._col().where("uebernahme.codeHash", "==", code_hash).limit(1).stream():
+            return {**(d.to_dict() or {}), "id": d.id}
+        return None
+
 
 class MemoryStore:
     """Für Tests"""
@@ -293,6 +318,9 @@ class MemoryStore:
 
     def wunsch(self, entry_id: str) -> None:
         self.data[entry_id]["wuensche"] = int(self.data[entry_id].get("wuensche") or 0) + 1
+
+    def per_code(self, code_hash: str) -> Optional[dict]:
+        return next((e for e in self.alle() if (e.get("uebernahme") or {}).get("codeHash") == code_hash), None)
 
 
 _store = None

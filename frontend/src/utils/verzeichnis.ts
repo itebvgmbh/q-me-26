@@ -55,6 +55,8 @@ export interface Eintrag {
   quelle: { website: string; seiten: string[]; gelesenAm: string } | null;
   wuensche: number;
   vorschlag: { shopId: string; name: string; grund: string; am: string } | null;
+  /** Übernahme-Code für den Brief (nur ob und wann; der Code selbst steht nirgends) */
+  uebernahme: { erstelltAm: string | null; gueltigBis: string | null; eingeloestAm: string | null } | null;
   fehlt: string[];
   angelegtAm: string | null;
   geaendertAm: string | null;
@@ -115,6 +117,8 @@ export const setStatus = (id: string, status: 'online' | 'offline' | 'entwurf') 
 export const deleteEintrag = (id: string) => send<{ deleted: boolean }>(entryPath(id, 'loeschen'), {});
 export const confirmTakeover = (id: string, shopId: string) => send<{ ok: boolean }>(entryPath(id, 'uebernahme'), { shopId });
 export const rejectTakeover = (id: string, shopId: string) => send<{ ok: boolean }>(entryPath(id, 'uebernahme-ablehnen'), { shopId });
+/** Neuer Übernahme-Code: wird nur jetzt gezeigt; ein früherer gilt nicht mehr (backend/app/libs/uebernahme.py) */
+export const createClaimCode = (id: string) => send<{ code: string; link: string; gueltigBis: string }>(entryPath(id, 'code'), {});
 
 /** Für die Karte: Salons ohne Dranzeit (ohne Anmeldung). Fehler → leere Liste, die Karte zeigt dann nur Dranzeit-Läden. */
 export interface KartenSalon {

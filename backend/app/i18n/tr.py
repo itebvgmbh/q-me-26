@@ -224,4 +224,9 @@ TEXTE: dict = {
     "Diesen Eintrag gibt es nicht.": "Bu kayıt mevcut değil.",
     "Dieser Laden hat keine Seite im Verzeichnis.": "Bu salonun rehberde sayfası yok.",
     "Bitte bestätigen, dass du zu diesem Salon gehörst.": "Lütfen bu salona ait olduğunuzu onaylayın.",
+    # Übernahme per Code (app/libs/uebernahme.py)
+    "Diese Seite gehört schon zu einem Dranzeit-Laden.": "Bu sayfa zaten bir Dranzeit dükkânına ait.",
+    "Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal.": "Bu kodu tanımıyoruz. Lütfen bir kez daha kontrol et.",
+    "Dieser Code ist schon eingelöst. Melde dich mit dem Konto an, mit dem du deinen Laden eingerichtet hast.": "Bu kod zaten kullanıldı. Dükkânını kurduğun hesapla giriş yap.",
+    "Dieser Code ist abgelaufen. Schreib uns an hilfe@dranzeit.de, dann bekommst du einen neuen.": "Bu kodun süresi doldu. hilfe@dranzeit.de adresine yaz, sana yenisini gönderelim.",
 }
