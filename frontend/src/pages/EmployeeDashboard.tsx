@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useUserGuardContext } from 'app';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAppointmentsInRange } from '../utils/firestore';
+import { t } from '@/i18n';
 
 // Import utility hooks
 import { useEmployeeData } from '../utils/hooks/useEmployeeData';
@@ -95,8 +96,8 @@ const EmployeeDashboard = () => {
         {/* Im Team mehrerer Läden: hier umschalten */}
         {entries.length > 1 && (
           <Select value={employee.id} onValueChange={selectEntry}>
-            <SelectTrigger className="sm:w-72" aria-label="Laden wählen">
-              <SelectValue placeholder="Laden wählen" />
+            <SelectTrigger className="sm:w-72" aria-label={t('Laden wählen')}>
+              <SelectValue placeholder={t('Laden wählen')} />
             </SelectTrigger>
             <SelectContent>
               {entries.map((entry) => (

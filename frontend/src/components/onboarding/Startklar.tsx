@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { firestore } from '../../utils/firestore-client';
 import type { Appointment, Shop, Staff } from '../../utils/firestore';
 import { HilfeLink } from '../HilfeLink';
+import { t } from '@/i18n';
 
 /**
  * „Startklar“-Liste am Tresen (Vorbild: Shopifys Einrichtungsleitfaden). Höchstens fünf Schritte, keiner Pflicht,
@@ -94,29 +95,29 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
   const joinUrl = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shop.id}`;
   const steps = useMemo<Step[]>(() => {
     const list: Step[] = [
-      { key: 'laden', title: 'Laden eröffnet', done: true },
+      { key: 'laden', title: t('Laden eröffnet'), done: true },
       {
         key: 'testlauf',
-        title: 'Einmal selbst ausprobieren',
+        title: t('Einmal selbst ausprobieren'),
         done: testlauf,
         body: (
-          <ol className="list-decimal space-y-1 pl-4">
-            <li>Scann den QR-Code mit deinem Handy und zieh eine Nummer – so wie später deine Kunden. Nimm ein Gerät, auf dem du nicht angemeldet bist.</li>
-            <li>Die Nummer erscheint hier in deiner Spalte. Tipp auf „Nächste Nummer aufrufen“.</li>
-            <li>Auf dem Handy steht jetzt „Du bist dran“. Tipp hier auf „Fertig“.</li>
+          <ol className="list-decimal space-y-1 ps-4">
+            <li>{t('Scann den QR-Code mit deinem Handy und zieh eine Nummer – so wie später deine Kunden. Nimm ein Gerät, auf dem du nicht angemeldet bist.')}</li>
+            <li>{t('Die Nummer erscheint hier in deiner Spalte. Tipp auf „Nächste Nummer aufrufen“.')}</li>
+            <li>{t('Auf dem Handy steht jetzt „Du bist dran“. Tipp hier auf „Fertig“.')}</li>
           </ol>
         ),
         action: (
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-xl bg-white p-2">
-              <QRCodeSVG value={joinUrl} size={112} level="M" title="QR-Code zum Nummer-Ziehen" />
+              <QRCodeSVG value={joinUrl} size={112} level="M" title={t('QR-Code zum Nummer-Ziehen')} />
             </div>
             <Button
               variant="outline"
-              onClick={() => navigator.clipboard.writeText(joinUrl).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
+              onClick={() => navigator.clipboard.writeText(joinUrl).then(() => toast.success(t('Link kopiert.')), () => toast.error(t('Kopieren ging nicht.')))}
             >
-              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-              Link kopieren
+              <Copy className="me-2 h-4 w-4" aria-hidden="true" />
+              {t('Link kopieren')}
             </Button>
           </div>
         ),
@@ -124,12 +125,12 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
       },
       {
         key: 'plakat',
-        title: 'QR-Plakat aufhängen',
+        title: t('QR-Plakat aufhängen'),
         done: hasFlag(shop, 'plakatAt'),
-        body: 'Druck das Plakat aus und häng es an Tür oder Tresen – dort, wo Kunden es sehen, bevor sie sich hinsetzen.',
+        body: t('Druck das Plakat aus und häng es an Tür oder Tresen – dort, wo Kunden es sehen, bevor sie sich hinsetzen.'),
         action: (
           <Button asChild>
-            <Link to="/plakat">Plakat drucken</Link>
+            <Link to="/plakat">{t('Plakat drucken')}</Link>
           </Button>
         ),
         hilfe: 'plakat',
@@ -138,22 +139,22 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
     if (!shop.city?.trim() || !shop.street?.trim()) {
       list.push({
         key: 'adresse',
-        title: 'Adresse ergänzen',
+        title: t('Adresse ergänzen'),
         done: false,
-        body: 'Ohne Adresse finden dich Kunden nicht auf der Karte und nicht auf den Seiten „Friseur ohne Termin“.',
-        action: <Button onClick={onEditShop}>Laden bearbeiten</Button>,
+        body: t('Ohne Adresse finden dich Kunden nicht auf der Karte und nicht auf den Seiten „Friseur ohne Termin“.'),
+        action: <Button onClick={onEditShop}>{t('Laden bearbeiten')}</Button>,
         hilfe: 'gefunden-werden',
       });
     }
     if (staff.length > 1) {
       list.push({
         key: 'team',
-        title: 'Team einladen',
+        title: t('Team einladen'),
         done: staff.every((s) => Boolean(s.userId)),
-        body: 'Wen du beim Einrichten mit E-Mail eingetragen hast, der hat seine Einladung schon bekommen. Allen anderen schick ihren Link unter „Team“. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag.',
+        body: t('Wen du beim Einrichten mit E-Mail eingetragen hast, der hat seine Einladung schon bekommen. Allen anderen schick ihren Link unter „Team“. Damit legt die Person ein Passwort fest und sieht ihren eigenen Tag.'),
         action: (
           <Button asChild>
-            <Link to="/staff-management">Zum Team</Link>
+            <Link to="/staff-management">{t('Zum Team')}</Link>
           </Button>
         ),
         hilfe: 'team-einladen',
@@ -178,18 +179,18 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
 
   if (allDone) {
     return (
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground p-5 text-background sm:p-6" aria-label="Startklar">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-foreground p-5 text-background sm:p-6" aria-label={t('Startklar')}>
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-signal text-signal-foreground">
             <Check className="h-5 w-5" aria-hidden="true" />
           </span>
           <div>
-            <p className="font-display text-xl font-bold">Startklar.</p>
-            <p className="text-sm text-background/75">Dein Laden ist eingerichtet. Ab jetzt reihen sich Kunden selbst ein.</p>
+            <p className="font-display text-xl font-bold">{t('Startklar.')}</p>
+            <p className="text-sm text-background/75">{t('Dein Laden ist eingerichtet. Ab jetzt reihen sich Kunden selbst ein.')}</p>
           </div>
         </div>
         <Button variant="signal" onClick={dismiss}>
-          Ausblenden
+          {t('Ausblenden')}
         </Button>
       </section>
     );
@@ -200,17 +201,17 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="startklar-titel" className="font-display text-xl font-bold">
-            Startklar machen
+            {t('Startklar machen')}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {doneCount} von {steps.length} erledigt · nichts davon ist Pflicht
+            {t('{erledigt} von {gesamt} erledigt · nichts davon ist Pflicht', { erledigt: doneCount, gesamt: steps.length })}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={dismiss} aria-label="Liste ausblenden" title="Ausblenden">
+        <Button variant="ghost" size="icon" onClick={dismiss} aria-label={t('Liste ausblenden')} title={t('Ausblenden')}>
           <X className="h-5 w-5" aria-hidden="true" />
         </Button>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount} aria-label="Fortschritt">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount} aria-label={t('Fortschritt')}>
         <div className="h-full rounded-full bg-signal transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
       </div>
       <ol className="mt-3 flex flex-col divide-y divide-border">
@@ -220,7 +221,7 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
             <li key={step.key}>
               <button
                 type="button"
-                className="flex min-h-12 w-full items-center gap-3 py-2 text-left disabled:cursor-default"
+                className="flex min-h-12 w-full items-center gap-3 py-2 text-start disabled:cursor-default"
                 aria-expanded={step.body ? open : undefined}
                 disabled={!step.body}
                 onClick={() => setExpanded(open ? '' : step.key)}
@@ -235,12 +236,12 @@ export const Startklar = ({ shop, staff, appointments, onEditShop }: Props) => {
                 </span>
                 <span className={cn('flex-1 font-semibold', step.done && 'text-muted-foreground line-through decoration-2')}>
                   {step.title}
-                  <span className="sr-only">{step.done ? ' (erledigt)' : ' (offen)'}</span>
+                  <span className="sr-only"> {step.done ? t('(erledigt)') : t('(offen)')}</span>
                 </span>
                 {step.body && <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} aria-hidden="true" />}
               </button>
               {open && (
-                <div className="flex flex-col items-start gap-3 pb-4 pl-10 text-sm">
+                <div className="flex flex-col items-start gap-3 pb-4 ps-10 text-sm">
                   <div className="text-muted-foreground">{step.body}</div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {step.action}

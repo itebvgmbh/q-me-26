@@ -1,23 +1,24 @@
 import { ReactNode } from 'react';
 import { ArrowRight, Store, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { merke, t } from '@/i18n';
 
 export const ROLE_CHOICES = [
   {
     role: 'customer' as const,
     icon: Ticket,
-    title: 'Ich will buchen',
-    text: 'Nummer ziehen oder feste Uhrzeit buchen, alles unter „Meine Termine“ sehen und frühere Plätze angeboten bekommen.',
+    title: merke('Ich will buchen'),
+    text: merke('Nummer ziehen oder feste Uhrzeit buchen, alles unter „Meine Termine“ sehen und frühere Plätze angeboten bekommen.'),
   },
   {
     role: 'shopOwner' as const,
     icon: Store,
-    title: 'Ich habe einen Laden',
-    text: 'Schlange und Termine am Tresen steuern, Leistungen und Team pflegen, Kunden per QR-Code einreihen lassen.',
+    title: merke('Ich habe einen Laden'),
+    text: merke('Schlange und Termine am Tresen steuern, Leistungen und Team pflegen, Kunden per QR-Code einreihen lassen.'),
   },
 ];
 
-/** Große Auswahlkarte – als Link oder Button nutzbar */
+/** Große Auswahlkarte – als Link oder Button nutzbar; title und text kommen schon übersetzt */
 export const RoleChoiceCard = ({
   icon: Icon,
   title,
@@ -37,7 +38,7 @@ export const RoleChoiceCard = ({
   return (
     <Tag
       className={cn(
-        'group flex h-full flex-col gap-4 rounded-3xl border p-6 text-left transition-colors',
+        'group flex h-full flex-col gap-4 rounded-3xl border p-6 text-start transition-colors',
         dark ? 'border-foreground bg-foreground text-background' : 'border-border bg-card hover:border-foreground',
       )}
     >
@@ -47,7 +48,7 @@ export const RoleChoiceCard = ({
       <span className="font-display text-2xl font-bold">{title}</span>
       <span className={cn('text-sm', dark ? 'text-background/75' : 'text-muted-foreground')}>{text}</span>
       <span className="mt-auto flex items-center gap-2 font-semibold">
-        {children ?? 'Weiter'}
+        {children ?? t('Weiter')}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
       </span>
     </Tag>

@@ -4,6 +4,7 @@ import brain from 'brain';
 import type { UpdateUserIdRequest } from '../brain/data-contracts';
 import { firestore } from './firestore-client';
 import type { EarlierSlotNotificationType } from './types';
+import { tn } from '@/i18n';
 
 /**
  * Load notifications about earlier available slots for a user
@@ -116,7 +117,7 @@ export const loadUserNotifications = async (userId: string): Promise<EarlierSlot
     // Show toast if active notifications are available
     const activeNotifications = parsedNotifications.filter(n => !n.isAccepted);
     if (activeNotifications.length > 0) {
-      toast.info(activeNotifications.length === 1 ? 'Ein früherer Platz ist frei geworden.' : `${activeNotifications.length} frühere Plätze sind frei geworden.`, {
+      toast.info(tn(activeNotifications.length, 'Ein früherer Platz ist frei geworden.', '{n} frühere Plätze sind frei geworden.'), {
         duration: 5000,
         id: 'earlier-slots-notification' // Prevent duplicate toasts
       });

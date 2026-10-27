@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { HilfeLink } from './HilfeLink';
+import { t } from '@/i18n';
 
 /**
  * Props for the ServiceForm component
@@ -37,7 +38,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   initialService = {},
   onSubmit,
   onCancel,
-  submitLabel = 'Speichern',
+  submitLabel = t('Speichern'),
 }) => {
   // Form state
   const [name, setName] = React.useState(initialService.name || '');
@@ -66,23 +67,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     const newErrors: Record<string, string> = {};
     
     if (!name.trim()) {
-      newErrors.name = 'Name ist erforderlich';
+      newErrors.name = t('Name ist erforderlich');
     }
     
     if (!duration.trim()) {
-      newErrors.duration = 'Dauer ist erforderlich';
+      newErrors.duration = t('Dauer ist erforderlich');
     } else if (isNaN(parseInt(duration)) || parseInt(duration) <= 0) {
-      newErrors.duration = 'Dauer muss eine positive Zahl sein';
+      newErrors.duration = t('Dauer muss eine positive Zahl sein');
     }
     
     if (!price.trim()) {
-      newErrors.price = 'Preis ist erforderlich';
+      newErrors.price = t('Preis ist erforderlich');
     } else if (isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-      newErrors.price = 'Preis muss eine nicht-negative Zahl sein';
+      newErrors.price = t('Preis muss eine nicht-negative Zahl sein');
     }
     
     if (setupTime.trim() && (isNaN(parseInt(setupTime)) || parseInt(setupTime) < 0)) {
-      newErrors.setupTime = 'Vor- und Nachbereitung muss 0 oder mehr Minuten sein';
+      newErrors.setupTime = t('Vor- und Nachbereitung muss 0 oder mehr Minuten sein');
     }
     
     setErrors(newErrors);
@@ -117,33 +118,33 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     <div className="grid gap-4 py-4">
       <div className="grid gap-2">
         <Label htmlFor="name">
-          Name*
-          {errors.name && <span className="text-destructive ml-1 text-sm">{errors.name}</span>}
+          {t('Name')}*
+          {errors.name && <span className="text-destructive ms-1 text-sm">{errors.name}</span>}
         </Label>
         <Input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="z.B. Haarschnitt"
+          placeholder={t('z.B. Haarschnitt')}
           disabled={isSubmitting}
         />
       </div>
       
       <div className="grid gap-2">
-        <Label htmlFor="description">Beschreibung</Label>
+        <Label htmlFor="description">{t('Beschreibung')}</Label>
         <Textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="z. B. Waschen, Schneiden, Föhnen"
+          placeholder={t('z. B. Waschen, Schneiden, Föhnen')}
           disabled={isSubmitting}
         />
       </div>
       
       <div className="grid gap-2">
         <Label htmlFor="duration">
-          Dauer (Minuten)*
-          {errors.duration && <span className="text-destructive ml-1 text-sm">{errors.duration}</span>}
+          {t('Dauer (Minuten)')}*
+          {errors.duration && <span className="text-destructive ms-1 text-sm">{errors.duration}</span>}
         </Label>
         <Input
           id="duration"
@@ -157,8 +158,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       
       <div className="grid gap-2">
         <Label htmlFor="setupTime">
-          Vor- und Nachbereitung (Minuten)
-          {errors.setupTime && <span className="text-destructive ml-1 text-sm">{errors.setupTime}</span>}
+          {t('Vor- und Nachbereitung (Minuten)')}
+          {errors.setupTime && <span className="text-destructive ms-1 text-sm">{errors.setupTime}</span>}
         </Label>
         <Input
           id="setupTime"
@@ -169,14 +170,15 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           disabled={isSubmitting}
         />
         <p className="text-sm text-muted-foreground">
-          Zeit zum Aufräumen und Vorbereiten. Bei Nummern und Online-Terminen wird sie zur Dauer dazugerechnet, damit zwischen zwei Kunden Luft bleibt. <HilfeLink hilfe="leistungen" />
+          {t('Zeit zum Aufräumen und Vorbereiten. Bei Nummern und Online-Terminen wird sie zur Dauer dazugerechnet, damit zwischen zwei Kunden Luft bleibt.')}{' '}
+          <HilfeLink hilfe="leistungen" />
         </p>
       </div>
       
       <div className="grid gap-2">
         <Label htmlFor="price">
-          Preis (€)*
-          {errors.price && <span className="text-destructive ml-1 text-sm">{errors.price}</span>}
+          {t('Preis (€)')}*
+          {errors.price && <span className="text-destructive ms-1 text-sm">{errors.price}</span>}
         </Label>
         <Input
           id="price"
@@ -190,22 +192,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
       </div>
       
       <div className="grid gap-2">
-        <Label htmlFor="category">Kategorie</Label>
+        <Label htmlFor="category">{t('Kategorie')}</Label>
         <Input
           id="category"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="z.B. Haare"
+          placeholder={t('z.B. Haare')}
           disabled={isSubmitting}
         />
       </div>
       
       <div className="flex justify-end gap-2 mt-2">
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Abbrechen
+          {t('Abbrechen')}
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Wird gespeichert...' : submitLabel}
+          {isSubmitting ? t('Wird gespeichert...') : submitLabel}
         </Button>
       </div>
     </div>

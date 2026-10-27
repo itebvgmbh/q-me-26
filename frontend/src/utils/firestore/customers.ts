@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, limi
 import { getFirestore } from 'firebase/firestore';
 import { auth, firebaseApp } from 'app';
 import { Customer } from './types';
+import { t } from '@/i18n';
 
 /**
  * Neuer Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate), z. B. https://dranzeit.de/activate?token=…
@@ -14,10 +15,10 @@ export const createActivationLink = async (customerId: string): Promise<{ link: 
     const headers = { Authorization: await auth.getAuthHeaderValue(), 'Content-Type': 'application/json' };
     res = await fetch('/routes/customer-activation', { method: 'POST', headers, body: JSON.stringify({ customer_id: customerId }) });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof body?.detail === 'string' && body.detail ? body.detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+  if (!res.ok) throw new Error(typeof body?.detail === 'string' && body.detail ? body.detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   return body;
 };
 

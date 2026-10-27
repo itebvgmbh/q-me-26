@@ -4,6 +4,7 @@ import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/f
 import { Shop } from '../firestore';
 import { firestore as db } from '../firestore-client';
 import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { t } from '@/i18n';
 
 /**
  * Custom hook for fetching and managing shop data
@@ -48,7 +49,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
             return;
           }
           console.error('Shop from QR code not found:', shopIdFromQR);
-          toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+          toast.error(t('Der Shop aus dem QR-Code wurde nicht gefunden'));
           setSelectedShop('');
           setArrivedFromQR(false);
         }

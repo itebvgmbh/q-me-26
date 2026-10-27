@@ -25,6 +25,7 @@ import { Spinner } from '../components/queue/SlotStatus';
 import { ConnectionProblem } from '../components/ConnectionProblem';
 import { QueueStepShell } from '../components/queue/QueueStepShell';
 import { Button } from '@/components/ui/button';
+import { t, tTeile } from '@/i18n';
 
 /**
  * Consolidated Queue Join component
@@ -156,7 +157,7 @@ const PublicJoinQueue = () => {
   const processBooking = async () => {
     // Inzwischen vorbei (Seite stand offen)? Dann nicht einreihen, sondern neu suchen.
     if (nextAvailableSlot && nextAvailableSlot.start.getTime() <= Date.now()) {
-      toast.error('Die Zeit ist schon vorbei. Wir suchen dir den nächsten Platz – bitte gleich noch mal bestätigen.');
+      toast.error(t('Die Zeit ist schon vorbei. Wir suchen dir den nächsten Platz – bitte gleich noch mal bestätigen.'));
       refreshSlots();
       return;
     }
@@ -190,7 +191,9 @@ const PublicJoinQueue = () => {
       return (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card" role="status" aria-live="polite">
           <Spinner className="h-9 w-9 border-4" />
-          <span className="font-semibold">Einen Moment – wir holen {!shopIdFromQR && currentStep === 1 ? 'die Läden' : 'die Leistungen'} …</span>
+          <span className="font-semibold">
+            {!shopIdFromQR && currentStep === 1 ? t('Einen Moment – wir holen die Läden …') : t('Einen Moment – wir holen die Leistungen …')}
+          </span>
         </div>
       );
     }
@@ -198,9 +201,12 @@ const PublicJoinQueue = () => {
     // Laden aus dem QR-Code gesperrt: nicht die (leere) Ladenauswahl zeigen, sondern warum es nicht geht
     if (unavailable) {
       return (
-        <QueueStepShell title="Dieser Laden nimmt gerade keine Nummern an." description="Online geht im Moment weder Nummer ziehen noch Termin buchen.">
+        <QueueStepShell
+          title={t('Dieser Laden nimmt gerade keine Nummern an.')}
+          description={t('Online geht im Moment weder Nummer ziehen noch Termin buchen.')}
+        >
           <Button asChild className="self-start">
-            <Link to="/shop-map">Läden finden</Link>
+            <Link to="/shop-map">{t('Läden finden')}</Link>
           </Button>
         </QueueStepShell>
       );
@@ -325,15 +331,23 @@ const PublicJoinQueue = () => {
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
-          {currentStep === 5 ? 'Du bist eingereiht.' : 'Nummer ziehen'}
+          {currentStep === 5 ? t('Du bist eingereiht.') : t('Nummer ziehen')}
         </h1>
         {currentStep !== 5 && (
-          <p className="text-muted-foreground">Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <a href="/book-appointment?fromMarketplace=true" className="font-semibold text-foreground underline">Termin buchen</a></p>
+          <p className="text-muted-foreground">
+            {tTeile('Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <buchen>Termin buchen</buchen>', {
+              buchen: (inhalt) => (
+                <a href="/book-appointment?fromMarketplace=true" className="font-semibold text-foreground underline">
+                  {inhalt}
+                </a>
+              ),
+            })}
+          </p>
         )}
       </div>
 
       {currentStep !== 5 && (
-        <StepIndicator currentStep={currentStep} totalSteps={4} labels={['Laden', 'Leistung', 'Person', 'Bestätigen']} />
+        <StepIndicator currentStep={currentStep} totalSteps={4} labels={[t('Laden'), t('Leistung'), t('Person'), t('Bestätigen')]} />
       )}
 
       {renderContent()}

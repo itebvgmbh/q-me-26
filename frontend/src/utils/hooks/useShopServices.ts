@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Service, getServicesByShopId, offeredServices } from '../firestore';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 
 /**
  * Custom hook to fetch services for a selected shop
@@ -25,7 +26,7 @@ export const useShopServices = (shopId: string | null) => {
       } catch (error) {
         console.error('Error loading services:', error);
         setError(error instanceof Error ? error : new Error('Failed to load services'));
-        toast.error('Fehler beim Laden der Services');
+        toast.error(t('Fehler beim Laden der Services'));
       } finally {
         setLoading(false);
       }

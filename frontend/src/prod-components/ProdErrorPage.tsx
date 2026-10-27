@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { t } from "@/i18n";
 
 interface Props {
   /** große Zahl/Marke oben, z. B. "404" */
@@ -13,7 +14,7 @@ export const ProdErrorPage = ({ code, title, text, canRefresh }: Props) => (
   <div className="mx-auto flex min-h-[60vh] w-full max-w-xl flex-col justify-center gap-6 px-4 py-16">
     {code && (
       <div className="flex w-fit flex-col rounded-3xl bg-signal px-6 py-5 text-signal-foreground">
-        <span className="text-xs font-semibold uppercase tracking-[0.08em]">Deine Nummer</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.08em]">{t("Deine Nummer")}</span>
         <span className="font-mono text-7xl font-bold leading-none tracking-[-0.05em]">{code}</span>
       </div>
     )}
@@ -28,11 +29,11 @@ export const ProdErrorPage = ({ code, title, text, canRefresh }: Props) => (
           onClick={() => window.location.reload()}
           className="inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
         >
-          Neu laden
+          {t("Neu laden")}
         </button>
       )}
       <a href="/" className="inline-flex h-11 items-center rounded-full border-2 border-foreground px-5 text-sm font-semibold">
-        Zur Startseite
+        {t("Zur Startseite")}
       </a>
     </div>
   </div>

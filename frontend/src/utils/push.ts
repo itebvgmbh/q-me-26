@@ -1,4 +1,5 @@
 import { auth } from 'app';
+import { t } from '@/i18n';
 
 // Benachrichtigungen für eine Nummer: Web-Push oder E-Mail.
 // Backend: backend/app/apis/push (Anmelden), backend/app/libs/notify_worker.py (Versand).
@@ -18,7 +19,7 @@ const post = async (path: string, body: unknown) => {
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) {
-    let detail = 'Das hat nicht geklappt. Versuch es gleich noch einmal.';
+    let detail = t('Das hat nicht geklappt. Versuch es gleich noch einmal.');
     try {
       const data = await res.json();
       if (typeof data?.detail === 'string') detail = data.detail;
@@ -135,7 +136,7 @@ export interface StoredTicket {
 
 export const rememberTicket = (ticket: StoredTicket) => {
   try {
-    const list = getRememberedTickets().filter((t) => t.id !== ticket.id);
+    const list = getRememberedTickets().filter((stored) => stored.id !== ticket.id);
     list.unshift(ticket);
     localStorage.setItem(TICKETS_KEY, JSON.stringify(list.slice(0, 10)));
   } catch {
@@ -147,7 +148,7 @@ export const getRememberedTickets = (): StoredTicket[] => {
   try {
     const raw = localStorage.getItem(TICKETS_KEY);
     const list = raw ? (JSON.parse(raw) as StoredTicket[]) : [];
-    return Array.isArray(list) ? list.filter((t) => t && typeof t.id === 'string') : [];
+    return Array.isArray(list) ? list.filter((stored) => stored && typeof stored.id === 'string') : [];
   } catch {
     return [];
   }

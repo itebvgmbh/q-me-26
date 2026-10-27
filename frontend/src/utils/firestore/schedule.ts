@@ -1,6 +1,7 @@
 import { doc, DocumentReference, DocumentSnapshot, Firestore, Timestamp, Transaction } from 'firebase/firestore';
 import { occupiedWindow } from '../queue-lane';
 import { PUBLIC_APPOINTMENTS } from './public-appointments';
+import { intlSprache, t } from '@/i18n';
 
 /**
  * Belegung je Person und Tag – damit ein Platz nur einmal vergeben wird.
@@ -57,7 +58,7 @@ export const samePlacement = (a: Placement | null, b: Placement | null): boolean
 /** Tage, die ein Platz berührt (meist einer; über Mitternacht zwei) */
 const daysOf = (p: Placement): string[] => [...new Set([dayKey(p.start), dayKey(new Date(p.end.getTime() - 1))])];
 
-const hhmm = (d: Date) => d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+const hhmm = (d: Date) => d.toLocaleTimeString(intlSprache(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 type Entry = { start: Timestamp; end: Timestamp };
 interface DayDoc {
@@ -120,7 +121,7 @@ export async function readPlacement(
   for (const { id, snap } of checked) {
     const actual = snap.exists() ? placementOf(snap.data() as any) : null;
     if (actual && occupy && actual.staffId === occupy.staffId && actual.start < occupy.end && occupy.start < actual.end) {
-      conflict ??= `Da ist schon ein Termin (${hhmm(actual.start)}–${hhmm(actual.end)}).`;
+      conflict ??= t('Da ist schon ein Termin ({von}–{bis}).', { von: hhmm(actual.start), bis: hhmm(actual.end) });
     }
     fixes.set(id, actual);
   }

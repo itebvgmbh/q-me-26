@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { Service, getServicesByShopId, offeredServices } from '../firestore';
 
 /**
@@ -35,7 +36,7 @@ export const useServiceData = (shopId: string, serviceIdFromURL: string | null) 
             setSelectedService(serviceIdFromURL);
           } else {
             console.error('Service from URL not found:', serviceIdFromURL);
-            toast.error('Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.');
+            toast.error(t('Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.'));
           }
         } else {
           // Reset selected service when services are loaded without a preselection
@@ -43,7 +44,7 @@ export const useServiceData = (shopId: string, serviceIdFromURL: string | null) 
         }
       } catch (error) {
         console.error('Error loading services:', error);
-        if (active) toast.error('Fehler beim Laden der Services');
+        if (active) toast.error(t('Fehler beim Laden der Services'));
       } finally {
         if (active) setLoading(false);
       }

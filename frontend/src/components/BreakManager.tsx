@@ -9,11 +9,11 @@ import { Break, createBreak, getBreaksByStaffAndDate, updateBreak, deleteBreak, 
 import { Staff } from '../utils/firestore/types';
 import { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '../utils/cn';
 import { CalendarIcon, Trash2 } from 'lucide-react';
+import { datumsLocale, t } from '@/i18n';
 
 interface BreakManagerProps {
   staff: Staff;
@@ -32,12 +32,12 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
   const [endTime, setEndTime] = useState('');
   const [breakType, setBreakType] = useState('lunch'); // Default: Mittagspause
   
-  // Pausentypen
+  // Pausentypen: gespeichert wird nur die id, der Name ist nur Anzeige
   const breakTypes = [
-    { id: 'lunch', name: 'Mittagspause' },
-    { id: 'coffee', name: 'Kaffeepause' },
-    { id: 'personal', name: 'Persönliche Pause' },
-    { id: 'other', name: 'Sonstige Pause' }
+    { id: 'lunch', name: t('Mittagspause') },
+    { id: 'coffee', name: t('Kaffeepause') },
+    { id: 'personal', name: t('Persönliche Pause') },
+    { id: 'other', name: t('Sonstige Pause') }
   ];
   
   // Laden der Pausen für den ausgewählten Tag
@@ -49,7 +49,7 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
         setBreaks(breaksList);
       } catch (error) {
         console.error('Error loading breaks:', error);
-        toast.error('Fehler beim Laden der Pausen');
+        toast.error(t('Fehler beim Laden der Pausen'));
       } finally {
         setLoading(false);
       }
@@ -84,17 +84,17 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
     try {
       await deleteBreak(breakId);
       setBreaks(breaks.filter(b => b.id !== breakId));
-      toast.success('Pause erfolgreich gelöscht');
+      toast.success(t('Pause erfolgreich gelöscht'));
     } catch (error) {
       console.error('Error deleting break:', error);
-      toast.error('Fehler beim Löschen der Pause');
+      toast.error(t('Fehler beim Löschen der Pause'));
     }
   };
   
   // Pause speichern (erstellen oder aktualisieren)
   const handleSaveBreak = async () => {
     if (!startTime || !endTime) {
-      toast.error('Bitte Start- und Endzeit auswählen');
+      toast.error(t('Bitte Start- und Endzeit auswählen'));
       return;
     }
     
@@ -111,7 +111,7 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
       
       // Überprüfe, ob die Endzeit nach der Startzeit liegt
       if (endDateTime <= startDateTime) {
-        toast.error('Die Endzeit muss nach der Startzeit liegen');
+        toast.error(t('Die Endzeit muss nach der Startzeit liegen'));
         return;
       }
       
@@ -129,7 +129,7 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
       );
       
       if (hasConflict) {
-        toast.error('Diese Pause überschneidet sich mit einer bestehenden Pause');
+        toast.error(t('Diese Pause überschneidet sich mit einer bestehenden Pause'));
         return;
       }
       
@@ -142,7 +142,7 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
         });
         
         setBreaks(breaks.map(b => b.id === updatedBreak.id ? updatedBreak : b));
-        toast.success('Pause erfolgreich aktualisiert');
+        toast.success(t('Pause erfolgreich aktualisiert'));
       } else {
         // Neue Pause erstellen
         const newBreak = await createBreak({
@@ -155,14 +155,14 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
         });
         
         setBreaks([...breaks, newBreak]);
-        toast.success('Pause erfolgreich erstellt');
+        toast.success(t('Pause erfolgreich erstellt'));
       }
       
       // Formular zurücksetzen
       resetForm();
     } catch (error) {
       console.error('Error saving break:', error);
-      toast.error('Fehler beim Speichern der Pause');
+      toast.error(t('Fehler beim Speichern der Pause'));
     }
   };
 
@@ -171,27 +171,27 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
       <div className="flex flex-col md:flex-row gap-4">
         <Card className="flex-1">
           <CardHeader>
-            <CardTitle>Pausenverwaltung für {staff.name}</CardTitle>
+            <CardTitle>{t('Pausenverwaltung für {name}', { name: staff.name })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row items-start gap-4">
               <div className="w-full md:w-auto">
                 <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="date">Datum</Label>
+                  <Label htmlFor="date">{t('Datum')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full justify-start text-start font-normal",
                           !selectedDate && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="me-2 h-4 w-4" />
                         {selectedDate ? (
-                          format(selectedDate, "PPP", { locale: de })
+                          format(selectedDate, "PPP", { locale: datumsLocale() })
                         ) : (
-                          <span>Datum auswählen</span>
+                          <span>{t('Datum auswählen')}</span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -210,16 +210,16 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
               <div className="w-full md:w-auto mt-4 md:mt-0">
                 {!isAddingBreak ? (
                   <Button onClick={() => setIsAddingBreak(true)} className="w-full md:w-auto">
-                    Neue Pause hinzufügen
+                    {t('Neue Pause hinzufügen')}
                   </Button>
                 ) : (
                   <div className="space-y-4 bg-muted p-4 rounded-md w-full">
                     <h3 className="font-medium">
-                      {editingBreak ? 'Pause bearbeiten' : 'Neue Pause hinzufügen'}
+                      {editingBreak ? t('Pause bearbeiten') : t('Neue Pause hinzufügen')}
                     </h3>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="startTime">Startzeit</Label>
+                      <Label htmlFor="startTime">{t('Startzeit')}</Label>
                       <Input
                         id="startTime"
                         type="time"
@@ -229,7 +229,7 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="endTime">Endzeit</Label>
+                      <Label htmlFor="endTime">{t('Endzeit')}</Label>
                       <Input
                         id="endTime"
                         type="time"
@@ -239,10 +239,10 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="breakType">Pausentyp</Label>
+                      <Label htmlFor="breakType">{t('Pausentyp')}</Label>
                       <Select value={breakType} onValueChange={setBreakType}>
                         <SelectTrigger id="breakType">
-                          <SelectValue placeholder="Pausentyp auswählen" />
+                          <SelectValue placeholder={t('Pausentyp auswählen')} />
                         </SelectTrigger>
                         <SelectContent>
                           {breakTypes.map((type) => (
@@ -256,10 +256,10 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
                     
                     <div className="flex gap-2">
                       <Button onClick={handleSaveBreak} className="flex-1">
-                        Speichern
+                        {t('Speichern')}
                       </Button>
                       <Button onClick={resetForm} variant="outline" className="flex-1">
-                        Abbrechen
+                        {t('Abbrechen')}
                       </Button>
                     </div>
                   </div>
@@ -272,31 +272,31 @@ export function BreakManager({ staff, shopId }: BreakManagerProps) {
       
       <Card>
         <CardHeader>
-          <CardTitle>Pausen am {format(selectedDate, "PPP", { locale: de })}</CardTitle>
+          <CardTitle>{t('Pausen am {datum}', { datum: format(selectedDate, 'PPP', { locale: datumsLocale() }) })}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p>Lädt...</p>
+            <p>{t('Lädt...')}</p>
           ) : breaks.length === 0 ? (
-            <p className="text-muted-foreground">Keine Pausen für diesen Tag eingetragen.</p>
+            <p className="text-muted-foreground">{t('Keine Pausen für diesen Tag eingetragen.')}</p>
           ) : (
             <div className="space-y-2">
               {breaks.map((breakItem) => {
                 const startDateTime = breakItem.startTime.toDate();
                 const endDateTime = breakItem.endTime.toDate();
-                const breakTypeName = breakTypes.find(t => t.id === breakItem.type)?.name || 'Pause';
+                const breakTypeName = breakTypes.find((typ) => typ.id === breakItem.type)?.name || t('Pause');
                 
                 return (
                   <div key={breakItem.id} className="flex items-center justify-between p-3 border rounded-md">
                     <div>
                       <div className="font-medium">{breakTypeName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {format(startDateTime, 'HH:mm')} - {format(endDateTime, 'HH:mm')} Uhr
+                        {t('{start} - {ende} Uhr', { start: format(startDateTime, 'HH:mm'), ende: format(endDateTime, 'HH:mm') })}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleEditBreak(breakItem)}>
-                        Bearbeiten
+                        {t('Bearbeiten')}
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDeleteBreak(breakItem.id)}>
                         <Trash2 className="h-4 w-4" />

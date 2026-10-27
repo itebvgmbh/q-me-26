@@ -21,6 +21,7 @@ import { StaffInvitePanel } from './StaffInvitePanel';
 import { BreakManager } from './BreakManager';
 import { RecurringBreakManager } from './RecurringBreakManager';
 import { getDayName, defaultWorkingHours } from '../utils/staff-utils';
+import { t } from '@/i18n';
 
 /**
  * Interface for EditStaffDialog component props
@@ -85,7 +86,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       return await uploadImage(file, path);
     } catch (error) {
       console.error('Error uploading staff profile image:', error);
-      toast.error('Fehler beim Hochladen des Profilbilds');
+      toast.error(t('Fehler beim Hochladen des Profilbilds'));
       throw error;
     }
   };
@@ -99,7 +100,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
 
     // Pflicht ist nur der Name: Der Assistent legt Personen ohne Telefon an, E-Mail ist freiwillig
     if (!name.trim()) {
-      toast.error('Bitte trag einen Namen ein.');
+      toast.error(t('Bitte trag einen Namen ein.'));
       return;
     }
 
@@ -121,7 +122,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       if (mail && mail.toLowerCase() !== (staff.email || '').trim().toLowerCase()) {
         if (!isEmail(mail)) {
           setActiveTab('profile');
-          setEmailError('Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.');
+          setEmailError(t('Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.'));
           return;
         }
         const existing = await findTeamMemberByEmail(shop.id || staff.shopId, mail, staff.id);
@@ -142,25 +143,25 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
         workingHours,
       });
 
-      toast.success('Gespeichert.');
+      toast.success(t('Gespeichert.'));
       onStaffUpdated();
       setOpen(false);
     } catch (error) {
       console.error('Error updating staff:', error);
-      toast.error('Speichern hat nicht geklappt. Bitte noch einmal.');
+      toast.error(t('Speichern hat nicht geklappt. Bitte noch einmal.'));
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Bearbeiten</Button>
+        <Button variant="outline">{t('Bearbeiten')}</Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{staff.name} bearbeiten</DialogTitle>
+          <DialogTitle>{t('{name} bearbeiten', { name: staff.name })}</DialogTitle>
           <DialogDescription>
-            Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, lädst du sie hier ein.
+            {t('Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, lädst du sie hier ein.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -170,44 +171,44 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'profile' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('profile')}
             >
-              Profil
+              {t('Profil')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'services' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('services')}
             >
-              Leistungen
+              {t('Leistungen')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'working-hours' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('working-hours')}
             >
-              Arbeitszeiten
+              {t('Arbeitszeiten')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('breaks')}
             >
-              Einzelne Pausen
+              {t('Einzelne Pausen')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'recurring-breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('recurring-breaks')}
             >
-              Wöchentliche Pausen
+              {t('Wöchentliche Pausen')}
             </button>
           </div>
 
           <TabsContent value="profile" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="profileImage">Profilbild</Label>
+                <Label htmlFor="profileImage">{t('Profilbild')}</Label>
                 <div className="flex flex-col items-center gap-4">
                   {(profileImageUrl || staff.profileImageUrl) && (
                     <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary">
                       <img
                         src={profileImageUrl || staff.profileImageUrl}
-                        alt={`${staff.name} Profilbild`}
+                        alt={t('{name} Profilbild', { name: staff.name })}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -229,16 +230,16 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t('Name')}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Max Mustermann"
+                  placeholder={t('Max Mustermann')}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">E-Mail (freiwillig, für die Einladung)</Label>
+                <Label htmlFor="email">{t('E-Mail (freiwillig, für die Einladung)')}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -255,7 +256,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">Telefon (freiwillig)</Label>
+                <Label htmlFor="phone">{t('Telefon (freiwillig)')}</Label>
                 <Input
                   id="phone"
                   value={phone}
@@ -264,17 +265,17 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="role">Aufgabe (freiwillig)</Label>
+                <Label htmlFor="role">{t('Aufgabe (freiwillig)')}</Label>
                 <Input
                   id="role"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="z. B. Friseurin"
+                  placeholder={t('z. B. Friseurin')}
                 />
               </div>
 
               <div className="flex flex-col gap-2 border-t pt-4">
-                <Label>Einladung</Label>
+                <Label>{t('Einladung')}</Label>
                 <StaffInvitePanel
                   staff={staff}
                   emailUnsaved={email.trim().toLowerCase() !== (staff.email || '').trim().toLowerCase()}
@@ -282,7 +283,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 />
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
@@ -290,7 +291,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
           <TabsContent value="services" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Leistungen</Label>
+                <Label>{t('Leistungen')}</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {services.map((service) => (
                     <div
@@ -302,7 +303,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                     >
                       <div>
                         <div className="font-medium">{service.name}</div>
-                        <div className="text-sm text-muted-foreground">{service.duration} Min. | {service.price.toFixed(2)} €</div>
+                        <div className="text-sm text-muted-foreground">{t('{dauer} Min. | {preis} €', { dauer: service.duration, preis: service.price.toFixed(2) })}</div>
                       </div>
                       <Switch checked={selectedServiceIds.includes(service.id)} />
                     </div>
@@ -310,7 +311,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 </div>
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
@@ -318,7 +319,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
           <TabsContent value="working-hours" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Arbeitszeiten</Label>
+                <Label>{t('Arbeitszeiten')}</Label>
                 {workingHours.map((hours, index) => (
                   <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-2">
                     <div className="w-24">
@@ -336,7 +337,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                           onChange={(e) => updateWorkingHours(index, 'startTime', e.target.value)}
                           className="w-32"
                         />
-                        <span>bis</span>
+                        <span>{t('bis')}</span>
                         <Input
                           type="time"
                           value={hours.endTime}
@@ -349,14 +350,14 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 ))}
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="breaks" className="mt-4">
             <p className="mb-3 text-sm text-muted-foreground">
-              Gilt nur an einem bestimmten Tag, z. B. für einen Arzttermin. Für jede Woche gleich: „Wöchentliche Pausen“. Die Mittagspause des ganzen Ladens steht bei den Öffnungszeiten.{' '}
+              {t('Gilt nur an einem bestimmten Tag, z. B. für einen Arzttermin. Für jede Woche gleich: „Wöchentliche Pausen“. Die Mittagspause des ganzen Ladens steht bei den Öffnungszeiten.')}{' '}
               <HilfeLink hilfe="arbeitszeiten-und-pausen" />
             </p>
             <BreakManager staff={staff} shopId={shop.id} />
@@ -364,7 +365,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
 
           <TabsContent value="recurring-breaks" className="mt-4">
             <p className="mb-3 text-sm text-muted-foreground">
-              Jede Woche zur selben Zeit, z. B. dienstags 12–13 Uhr. In dieser Zeit bekommt die Person keine Kunden.{' '}
+              {t('Jede Woche zur selben Zeit, z. B. dienstags 12–13 Uhr. In dieser Zeit bekommt die Person keine Kunden.')}{' '}
               <HilfeLink hilfe="arbeitszeiten-und-pausen" />
             </p>
             <RecurringBreakManager staff={staff} shopId={shop.id} />

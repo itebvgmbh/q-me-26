@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 import { createAppointment } from '../firestore';
 import { assertOnlineLead, isSlotConflict } from '../booking-rules';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import useTimeSlotStore from '../timeSlotStore';
 import { CalendarTimeSlot } from '../types';
 
@@ -51,7 +52,7 @@ export const useAppointmentBooking = () => {
       // Invalidate the cache
       useTimeSlotStore.getState().invalidateCache(shopId, startTime);
       
-      toast.success('Dein Termin ist gebucht.');
+      toast.success(t('Dein Termin ist gebucht.'));
       return { success: true, appointmentId: created.id };
     } catch (error) {
       console.error('Error booking appointment:', error);
@@ -59,10 +60,10 @@ export const useAppointmentBooking = () => {
       if (isSlotConflict(error)) {
         // Platz inzwischen vergeben oder nicht (mehr) buchbar – Liste neu laden lassen
         useTimeSlotStore.getState().invalidateCache(shopId, selectedTimeSlot.start);
-        toast.error(`Diese Uhrzeit geht leider nicht: ${error.message} Such dir bitte eine andere aus.`);
+        toast.error(t('Diese Uhrzeit geht leider nicht: {grund} Such dir bitte eine andere aus.', { grund: error.message }));
         return { success: false, reason: 'slot-unavailable' };
       }
-      toast.error('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.');
+      toast.error(t('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.'));
       return { success: false, reason: 'error' };
     } finally {
       setLoading(false);

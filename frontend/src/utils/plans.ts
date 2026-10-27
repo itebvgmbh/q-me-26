@@ -2,12 +2,14 @@
 // Preise netto in Euro. Grundlage: Preisstrategie (Gratis, Solo 19 €, Laden 39 €, Team 59 €; Jahr = 10 Monate).
 import { Timestamp } from 'firebase/firestore';
 import { safelyConvertToDate } from './datetime';
+import { intlSprache, merke } from '@/i18n';
 
 export type PlanId = 'gratis' | 'solo' | 'laden' | 'team';
 export type Feature = 'termine' | 'frueherDran' | 'benachrichtigung' | 'erinnerung' | 'team' | 'bildschirm' | 'auswertung';
 
 export interface PlanInfo {
   id: PlanId;
+  /** deutscher Anzeigename; anzeigen mit t(plan.name), vergleichen immer über id */
   name: string;
   /** netto je Monat bei monatlicher Zahlung */
   monthly: number;
@@ -23,10 +25,10 @@ const SOLO_FEATURES: Feature[] = ['termine', 'frueherDran', 'benachrichtigung', 
 const LADEN_FEATURES: Feature[] = [...SOLO_FEATURES, 'team', 'bildschirm', 'auswertung'];
 
 export const PLANS: Record<PlanId, PlanInfo> = {
-  gratis: { id: 'gratis', name: 'Gratis', monthly: 0, yearly: 0, maxStaff: 1, maxCustomersPerMonth: 100, features: [] },
-  solo: { id: 'solo', name: 'Solo', monthly: 19, yearly: 190, maxStaff: 1, maxCustomersPerMonth: null, features: SOLO_FEATURES },
-  laden: { id: 'laden', name: 'Laden', monthly: 39, yearly: 390, maxStaff: 4, maxCustomersPerMonth: null, features: LADEN_FEATURES },
-  team: { id: 'team', name: 'Team', monthly: 59, yearly: 590, maxStaff: 10, maxCustomersPerMonth: null, features: LADEN_FEATURES },
+  gratis: { id: 'gratis', name: merke('Gratis'), monthly: 0, yearly: 0, maxStaff: 1, maxCustomersPerMonth: 100, features: [] },
+  solo: { id: 'solo', name: merke('Solo'), monthly: 19, yearly: 190, maxStaff: 1, maxCustomersPerMonth: null, features: SOLO_FEATURES },
+  laden: { id: 'laden', name: merke('Laden'), monthly: 39, yearly: 390, maxStaff: 4, maxCustomersPerMonth: null, features: LADEN_FEATURES },
+  team: { id: 'team', name: merke('Team'), monthly: 59, yearly: 590, maxStaff: 10, maxCustomersPerMonth: null, features: LADEN_FEATURES },
 };
 
 export const PAID_PLANS: PlanId[] = ['solo', 'laden', 'team'];
@@ -129,7 +131,7 @@ export const hasFeature = (shop: ShopPlanFields | null | undefined, feature: Fea
 export const gross = (net: number) => Math.round(net * (1 + VAT_RATE) * 100) / 100;
 
 export const euro = (amount: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: amount % 1 === 0 ? 0 : 2 }).format(amount);
+  new Intl.NumberFormat(intlSprache(), { style: 'currency', currency: 'EUR', minimumFractionDigits: amount % 1 === 0 ? 0 : 2 }).format(amount);
 
 /** Felder für einen neu angelegten Laden: 30 Tage alles testen */
 export const newShopPlanFields = (now: Date = new Date()) => ({

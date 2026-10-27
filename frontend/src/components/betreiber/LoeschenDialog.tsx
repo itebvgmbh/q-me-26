@@ -122,7 +122,7 @@ export function LoeschenDialog({ target, onClose, onDone }: { target: DeleteTarg
             {probe.problems.length > 0 && (
               <div className="rounded-2xl bg-destructive/10 p-3 text-destructive">
                 <p className="font-semibold">So geht es nicht:</p>
-                <ul className="list-disc pl-5">
+                <ul className="list-disc ps-5">
                   {probe.problems.map((p) => (
                     <li key={p}>{p}</li>
                   ))}

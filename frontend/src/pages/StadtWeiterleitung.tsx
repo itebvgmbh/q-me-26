@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { t } from '@/i18n';
 
 /**
  * Stadtseiten, Salon-Verzeichnis, Hilfe und Einbau-Kasten liefert das Backend (backend/app/seo.py,
@@ -11,5 +12,5 @@ export default function StadtWeiterleitung() {
   useEffect(() => {
     window.location.replace(`/routes/seo${pathname}${window.location.search}${window.location.hash}`);
   }, [pathname]);
-  return <div className="mx-auto max-w-xl px-4 py-24 text-center text-muted-foreground">Einen Moment …</div>;
+  return <div className="mx-auto max-w-xl px-4 py-24 text-center text-muted-foreground">{t("Einen Moment …")}</div>;
 }

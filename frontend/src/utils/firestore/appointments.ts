@@ -6,6 +6,7 @@ import { firebaseApp, firebaseAuth } from 'app';
 import { Appointment } from './types';
 import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef, type PlacementChange } from './schedule';
 import { shopDayQuery, writePublic } from './public-appointments';
+import { t } from '@/i18n';
 
 // Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
 // braucht die letzte mehrere Anläufe
@@ -262,7 +263,7 @@ export const createAppointment = async (
     const newStart = toDateValue(data.startTime);
     const newEnd = toDateValue(data.endTime);
     if (!newStart || !newEnd) {
-      throw new Error('Ungültige Zeitangabe für den Termin.');
+      throw new Error(t('Ungültige Zeitangabe für den Termin.'));
     }
     // Mögliche Plätze: der gewünschte (override null = so wie in data), dahinter die Ausweichplätze desselben
     // Tages (die Tagesnummer hängt am Tag). Alle nach denselben Regeln geprüft; ohne Ausweichplätze wie bisher.
@@ -522,7 +523,7 @@ export const updateAppointment = async (
     if ((timeOrStaffChanged || reactivated) && merged.status !== 'cancelled') {
       const start = toDateValue(merged.startTime);
       const end = toDateValue(merged.endTime);
-      if (!start || !end) throw new Error('Ungültige Zeitangabe für den Termin.');
+      if (!start || !end) throw new Error(t('Ungültige Zeitangabe für den Termin.'));
       await assertBookable({ shopId: merged.shopId, staffId: merged.staffId, start, end, excludeAppointmentId: appointmentId });
     }
     

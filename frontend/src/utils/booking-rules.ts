@@ -2,6 +2,7 @@ import { collection, doc, DocumentData, getDoc, getDocs, query, where } from 'fi
 import { firestore as db } from './firestore-client';
 import { occupiedWindow, projectLane } from './queue-lane';
 import { publicOfStaffBetween } from './firestore/public-appointments';
+import { merke, t, tn, intlSprache } from '@/i18n';
 
 /**
  * Eine Regel für alle Termine: Was hier nicht frei ist, darf weder angezeigt noch gespeichert werden.
@@ -32,10 +33,11 @@ export interface StaffDayContext {
   blocked: Blocked[];
 }
 
-const WEEKDAYS = ['sonntags', 'montags', 'dienstags', 'mittwochs', 'donnerstags', 'freitags', 'samstags'];
-const BREAK_LABEL: Record<string, string> = { lunch: 'Mittagspause', coffee: 'Kaffeepause', personal: 'Private Pause', other: 'Pause' };
+// Nur für die Meldungen, übersetzt mit t() beim Zusammensetzen; die Schlüssel von BREAK_LABEL sind Daten (recurring-breaks.type)
+const WEEKDAYS = [merke('sonntags'), merke('montags'), merke('dienstags'), merke('mittwochs'), merke('donnerstags'), merke('freitags'), merke('samstags')];
+const BREAK_LABEL: Record<string, string> = { lunch: merke('Mittagspause'), coffee: merke('Kaffeepause'), personal: merke('Private Pause'), other: merke('Pause') };
 
-const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+const hhmm = (ms: number) => new Date(ms).toLocaleTimeString(intlSprache(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const parseHHMM = (value: unknown): number | null => {
   const m = typeof value === 'string' ? value.trim().match(/^(\d{1,2}):(\d{2})$/) : null;
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
@@ -149,29 +151,29 @@ export const buildDayContext = (
   const at = (minutes: number) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate(), Math.floor(minutes / 60), minutes % 60).getTime();
 
   // Vom Betreiber gesperrt (Betreiber-Bereich): nichts buchbar, auch nicht vom Tresen
-  if (data.shop?.suspended) return { open: null, closedReason: 'Dieser Laden nimmt gerade keine Buchungen an.', blocked: [] };
+  if (data.shop?.suspended) return { open: null, closedReason: t('Dieser Laden nimmt gerade keine Buchungen an.'), blocked: [] };
   const shopWin = shopWindowForDay(data.shop, dayOfWeek);
-  if (shopWin === 'closed') return { open: null, closedReason: `Der Laden hat ${WEEKDAYS[dayOfWeek]} geschlossen.`, blocked: [] };
+  if (shopWin === 'closed') return { open: null, closedReason: t('Der Laden hat {tag} geschlossen.', { tag: t(WEEKDAYS[dayOfWeek]) }), blocked: [] };
 
   let window: Window = shopWin ? { start: at(shopWin.start), end: at(shopWin.end) } : { start: dayStart, end: dayEnd };
   const blocked: Blocked[] = shopBreaksForDay(data.shop, dayOfWeek).map((b) => ({
     start: at(b.start),
     end: at(b.end),
-    reason: `Der Laden macht Pause von ${hhmm(at(b.start))} bis ${hhmm(at(b.end))}.`,
+    reason: t('Der Laden macht Pause von {von} bis {bis}.', { von: hhmm(at(b.start)), bis: hhmm(at(b.end)) }),
   }));
 
   if (data.staffId) {
     const staff = data.staff;
-    const name = staff?.name || 'Diese Person';
-    if (!staff) return { open: null, closedReason: 'Diese Person gibt es nicht mehr.', blocked: [] };
-    if (staff.isActive === false) return { open: null, closedReason: `${name} ist deaktiviert.`, blocked: [] };
+    const name = staff?.name || t('Diese Person');
+    if (!staff) return { open: null, closedReason: t('Diese Person gibt es nicht mehr.'), blocked: [] };
+    if (staff.isActive === false) return { open: null, closedReason: t('{name} ist deaktiviert.', { name }), blocked: [] };
     const hours = Array.isArray(staff.workingHours) ? staff.workingHours : [];
-    if (hours.length === 0) return { open: null, closedReason: `Für ${name} sind keine Arbeitszeiten hinterlegt.`, blocked: [] };
+    if (hours.length === 0) return { open: null, closedReason: t('Für {name} sind keine Arbeitszeiten hinterlegt.', { name }), blocked: [] };
     const today = hours.find((h: any) => Number(h.dayOfWeek) === dayOfWeek);
     const ws = parseHHMM(today?.startTime);
     const we = parseHHMM(today?.endTime);
     if (!today || !today.isWorking || ws === null || we === null || we <= ws) {
-      return { open: null, closedReason: `${name} arbeitet ${WEEKDAYS[dayOfWeek]} nicht.`, blocked: [] };
+      return { open: null, closedReason: t('{name} arbeitet {tag} nicht.', { name, tag: t(WEEKDAYS[dayOfWeek]) }), blocked: [] };
     }
     window = { start: Math.max(window.start, at(ws)), end: Math.min(window.end, at(we)) };
 
@@ -180,20 +182,20 @@ export const buildDayContext = (
       const s = parseHHMM(b.startTime);
       const e = parseHHMM(b.endTime);
       if (s === null || e === null || e <= s) return;
-      const label = BREAK_LABEL[b.type] || 'Pause';
-      blocked.push({ start: at(s), end: at(e), reason: `${label} von ${hhmm(at(s))} bis ${hhmm(at(e))}.` });
+      const label = t(BREAK_LABEL[b.type] || 'Pause');
+      blocked.push({ start: at(s), end: at(e), reason: t('{pause} von {von} bis {bis}.', { pause: label, von: hhmm(at(s)), bis: hhmm(at(e)) }) });
     });
     data.breaks.forEach((b) => {
       const s = toMs(b.startTime);
       const e = toMs(b.endTime);
       if (s === null || e === null || e <= s || e <= dayStart || s >= dayEnd) return;
-      blocked.push({ start: s, end: e, reason: `Pause von ${hhmm(s)} bis ${hhmm(e)}.` });
+      blocked.push({ start: s, end: e, reason: t('Pause von {von} bis {bis}.', { von: hhmm(s), bis: hhmm(e) }) });
     });
     const others = data.appointments.filter(({ id }) => id !== excludeAppointmentId);
     others.forEach(({ id, data: a }) => {
       const w = occupiedWindow({ ...a, id });
       if (!w || w.end <= dayStart || w.start >= dayEnd) return;
-      blocked.push({ ...w, reason: `Da ist schon ein Termin (${hhmm(w.start)}–${hhmm(w.end)}).` });
+      blocked.push({ ...w, reason: t('Da ist schon ein Termin ({von}–{bis}).', { von: hhmm(w.start), bis: hhmm(w.end) }) });
     });
     const now = options.projectAt;
     if (now !== undefined && now >= dayStart && now < dayEnd) {
@@ -204,13 +206,13 @@ export const buildDayContext = (
         })
         .map(({ id, data: a }) => ({ ...a, id }));
       projectLane(lane, now).forEach((w) => {
-        blocked.push({ ...w, reason: `Die Schlange ist bis ca. ${hhmm(w.end)} belegt.` });
+        blocked.push({ ...w, reason: t('Die Schlange ist bis ca. {zeit} belegt.', { zeit: hhmm(w.end) }) });
       });
     }
   }
 
   if (window.end <= window.start) {
-    return { open: null, closedReason: 'Öffnungs- und Arbeitszeiten überschneiden sich an diesem Tag nicht.', blocked: [] };
+    return { open: null, closedReason: t('Öffnungs- und Arbeitszeiten überschneiden sich an diesem Tag nicht.'), blocked: [] };
   }
   return { open: window, closedReason: null, blocked };
 };
@@ -230,10 +232,10 @@ export const loadStaffDayContext = async (
 
 /** Grund, warum der Zeitraum nicht geht, oder null, wenn er frei ist */
 export const findConflict = (ctx: StaffDayContext, start: number, end: number): string | null => {
-  if (end <= start) return 'Ende liegt vor dem Beginn.';
-  if (!ctx.open) return ctx.closedReason || 'An diesem Tag ist nichts buchbar.';
+  if (end <= start) return t('Ende liegt vor dem Beginn.');
+  if (!ctx.open) return ctx.closedReason || t('An diesem Tag ist nichts buchbar.');
   if (start < ctx.open.start || end > ctx.open.end) {
-    return `Außerhalb der buchbaren Zeit (${hhmm(ctx.open.start)}–${hhmm(ctx.open.end)}).`;
+    return t('Außerhalb der buchbaren Zeit ({von}–{bis}).', { von: hhmm(ctx.open.start), bis: hhmm(ctx.open.end) });
   }
   const hit = ctx.blocked.find((b) => overlaps(b, { start, end }));
   return hit ? hit.reason : null;
@@ -276,7 +278,7 @@ export const bookableOf = async <T extends { staffId?: string | null; start: Dat
   };
   const reasons = await Promise.all(slots.map(async (slot) => findConflict(await contextOf(slot), slot.start.getTime(), slot.end.getTime())));
   const allowed = slots.filter((_, i) => !reasons[i]);
-  if (allowed.length === 0) throw new SlotConflictError(reasons[0] || 'An diesem Tag ist nichts buchbar.');
+  if (allowed.length === 0) throw new SlotConflictError(reasons[0] || t('An diesem Tag ist nichts buchbar.'));
   return allowed;
 };
 
@@ -297,14 +299,15 @@ export const onlineLeadMinutes = (shop: { timeSlotBuffer?: unknown } | null | un
 export const earliestOnlineStart = (shop: { timeSlotBuffer?: unknown } | null | undefined, now = Date.now()): number =>
   now + onlineLeadMinutes(shop) * 60000;
 
-const leadText = (minutes: number) =>
-  minutes % 60 === 0 ? (minutes === 60 ? 'eine Stunde' : `${minutes / 60} Stunden`) : `${minutes} Minuten`;
-
 /** Wirft SlotConflictError, wenn ein Online-Termin zu kurzfristig ist (vor dem Speichern der Kundenbuchung) */
 export const assertOnlineLead = async (shopId: string, start: Date): Promise<void> => {
   const shop = await loadShopData(shopId);
   const minutes = onlineLeadMinutes(shop);
   if (minutes > 0 && start.getTime() < earliestOnlineStart(shop)) {
-    throw new SlotConflictError(`Online geht es hier frühestens ${leadText(minutes)} im Voraus.`);
+    throw new SlotConflictError(
+      minutes % 60 === 0
+        ? tn(minutes / 60, 'Online geht es hier frühestens eine Stunde im Voraus.', 'Online geht es hier frühestens {n} Stunden im Voraus.')
+        : tn(minutes, 'Online geht es hier frühestens eine Minute im Voraus.', 'Online geht es hier frühestens {n} Minuten im Voraus.'),
+    );
   }
 };

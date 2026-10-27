@@ -10,15 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addMinutes } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import { de } from 'date-fns/locale';
 import { Appointment, Service, Staff, Customer, updateAppointment, getUniqueCustomers, appointmentCustomerId, isOffered } from '../utils/firestore';
 import { customerLabel } from './counter/CounterLane';
+import { datumsLocale, merke, t } from '@/i18n';
 
+/** Deutsch als Schlüssel – angezeigt mit t(STATUS_LABEL[status]) */
 export const STATUS_LABEL: Record<Appointment['status'], string> = {
-  scheduled: 'Wartet',
-  'in-progress': 'Ist dran',
-  completed: 'Fertig',
-  cancelled: 'Abgesagt',
+  scheduled: merke('Wartet'),
+  'in-progress': merke('Ist dran'),
+  completed: merke('Fertig'),
+  cancelled: merke('Abgesagt'),
 };
 
 interface Props {
@@ -56,11 +57,11 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
       // Sagt der Laden ab, bekommt der Kunde Bescheid (Push/E-Mail, siehe updateAppointment)
       const updatedAppointment = await updateAppointment(selectedAppointment.id, { status }, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
-      toast.success(`Status: ${STATUS_LABEL[status]}`);
+      toast.success(t('Status: {status}', { status: t(STATUS_LABEL[status]) }));
       setShowStatusDialog(false);
     } catch (error) {
       console.error('Error updating appointment status:', error);
-      toast.error('Der Status konnte nicht geändert werden.');
+      toast.error(t('Der Status konnte nicht geändert werden.'));
     }
   };
   const handleAppointmentEdit = async () => {
@@ -92,11 +93,11 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
       
       const updatedAppointment = await updateAppointment(selectedAppointment.id, updatedData, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
-      toast.success('Termin gespeichert.');
+      toast.success(t('Termin gespeichert.'));
       setShowEditDialog(false);
     } catch (error: any) {
       console.error('Error updating appointment:', error);
-      toast.error('Speichern hat nicht geklappt: ' + (error.message || 'unbekannter Fehler'));
+      toast.error(t('Speichern hat nicht geklappt: {fehler}', { fehler: error.message || t('unbekannter Fehler') }));
     }
   };
   
@@ -151,10 +152,10 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
   return (
     <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-labelledby="tagesliste">
       <h3 id="tagesliste" className="font-display text-xl font-bold">
-        Alle Termine am {format(selectedDate, 'EEEE, d. MMMM', { locale: de })}
+        {t('Alle Termine am {datum}', { datum: format(selectedDate, t('EEEE, d. MMMM'), { locale: datumsLocale() }) })}
       </h3>
       {sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground">An diesem Tag ist nichts eingetragen.</p>
+        <p className="text-sm text-muted-foreground">{t('An diesem Tag ist nichts eingetragen.')}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {sorted.map((appointment) => {
@@ -164,16 +165,16 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
               <li key={appointment.id} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 py-3 sm:flex-nowrap sm:gap-x-4', appointment.status === 'cancelled' && 'opacity-60')}>
                 <span className="flex w-14 shrink-0 flex-col whitespace-nowrap">
                   <span className="font-mono text-[15px] font-semibold">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
-                  <span className="text-xs text-muted-foreground">bis {format(appointment.endTime.toDate(), 'HH:mm')}</span>
+                  <span className="text-xs text-muted-foreground">{t('bis {zeit}', { zeit: format(appointment.endTime.toDate(), 'HH:mm') })}</span>
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{customerLabel(appointment)}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {[service?.name || 'Leistung', person?.name || 'nicht zugeordnet', appointment.type === 'queue' ? 'Schlange' : 'Termin'].join(' · ')}
+                    {[service?.name || t('Leistung'), person?.name || t('nicht zugeordnet'), appointment.type === 'queue' ? t('Schlange') : t('Termin')].join(' · ')}
                   </span>
                 </span>
-                <span className={statusChip(appointment.status)}>{STATUS_LABEL[appointment.status] ?? appointment.status}</span>
-                <span className="ml-auto flex gap-1 sm:ml-0">
+                <span className={statusChip(appointment.status)}>{STATUS_LABEL[appointment.status] ? t(STATUS_LABEL[appointment.status]) : appointment.status}</span>
+                <span className="ms-auto flex gap-1 sm:ms-0">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -182,10 +183,10 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                       setShowStatusDialog(true);
                     }}
                   >
-                    Status
+                    {t('Status')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEditDialog(appointment)}>
-                    Bearbeiten
+                    {t('Bearbeiten')}
                   </Button>
                 </span>
               </li>
@@ -198,12 +199,12 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Status ändern</DialogTitle>
+            <DialogTitle>{t('Status ändern')}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2">
             {(Object.keys(STATUS_LABEL) as Appointment['status'][]).map((status) => (
               <Button key={status} variant={selectedAppointment?.status === status ? 'default' : 'outline'} onClick={() => handleStatusChange(status)}>
-                {STATUS_LABEL[status]}
+                {t(STATUS_LABEL[status])}
               </Button>
             ))}
           </div>
@@ -214,20 +215,20 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Termin bearbeiten</DialogTitle>
+            <DialogTitle>{t('Termin bearbeiten')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="customerId">Kunde auswählen</Label>
+              <Label htmlFor="customerId">{t('Kunde auswählen')}</Label>
               <Select
                 value={appointmentFormData.customerId || 'walk-in'}
                 onValueChange={(value) => handleInputChange('customerId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Kunde auswählen" />
+                  <SelectValue placeholder={t('Kunde auswählen')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="walk-in">Kein Bestandskunde</SelectItem>
+                  <SelectItem value="walk-in">{t('Kein Bestandskunde')}</SelectItem>
                   {/* Robuste Deduplizierung von Kunden */}
                   {getUniqueCustomers(customers).map((customer) => (
                       <SelectItem key={customer.id} value={appointmentCustomerId(customer)}>
@@ -239,7 +240,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="customerName">Kundenname</Label>
+              <Label htmlFor="customerName">{t('Kundenname')}</Label>
               <Input
                 id="customerName"
                 value={appointmentFormData.customerName || ''}
@@ -248,18 +249,18 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="serviceId">Leistung</Label>
+              <Label htmlFor="serviceId">{t('Leistung')}</Label>
               <Select
                 value={appointmentFormData.serviceId}
                 onValueChange={(value) => handleInputChange('serviceId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Leistung wählen" />
+                  <SelectValue placeholder={t('Leistung wählen')} />
                 </SelectTrigger>
                 <SelectContent>
                   {services.filter((s) => isOffered(s) || s.id === appointmentFormData.serviceId).map((service) => (
                     <SelectItem key={service.id} value={service.id}>
-                      {service.name} ({service.duration} Min, {Number(service.price || 0).toFixed(2)} €)
+                      {t('{name} ({dauer} Min, {preis} €)', { name: service.name, dauer: service.duration, preis: Number(service.price || 0).toFixed(2) })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -267,13 +268,13 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="staffId">Person</Label>
+              <Label htmlFor="staffId">{t('Person')}</Label>
               <Select
                 value={appointmentFormData.staffId || ''}
                 onValueChange={(value) => handleInputChange('staffId', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Person wählen" />
+                  <SelectValue placeholder={t('Person wählen')} />
                 </SelectTrigger>
                 <SelectContent>
                   {staff.map((staffMember) => (
@@ -286,7 +287,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label>Datum</Label>
+              <Label>{t('Datum')}</Label>
               <div className="flex items-center">
                 <Input
                   type="date"
@@ -302,9 +303,9 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="time">Uhrzeit</Label>
+              <Label htmlFor="time">{t('Uhrzeit')}</Label>
               <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <Clock className="me-2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="time"
                   type="time"
@@ -316,7 +317,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="duration">Dauer (Minuten)</Label>
+              <Label htmlFor="duration">{t('Dauer (Minuten)')}</Label>
               <Input
                 id="duration"
                 type="number"
@@ -328,7 +329,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="price">Preis (€)</Label>
+              <Label htmlFor="price">{t('Preis (€)')}</Label>
               <Input
                 id="price"
                 type="number"
@@ -339,7 +340,7 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="type">Termintyp</Label>
+              <Label htmlFor="type">{t('Termintyp')}</Label>
               <Select
                 value={appointmentFormData.type || 'booked'}
                 onValueChange={(value: 'queue' | 'booked') => 
@@ -347,17 +348,17 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Termintyp auswählen" />
+                  <SelectValue placeholder={t('Termintyp auswählen')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="booked">Termin</SelectItem>
-                  <SelectItem value="queue">Nummer</SelectItem>
+                  <SelectItem value="booked">{t('Termin')}</SelectItem>
+                  <SelectItem value="queue">{t('Nummer')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">{t('Status')}</Label>
               <Select
                 value={appointmentFormData.status}
                 onValueChange={(value: 'scheduled' | 'in-progress' | 'completed' | 'cancelled') => 
@@ -365,34 +366,34 @@ export const AppointmentsList = ({ appointments, services, staff, customers = []
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Status auswählen" />
+                  <SelectValue placeholder={t('Status auswählen')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="scheduled">{STATUS_LABEL.scheduled}</SelectItem>
-                  <SelectItem value="in-progress">{STATUS_LABEL['in-progress']}</SelectItem>
-                  <SelectItem value="completed">{STATUS_LABEL.completed}</SelectItem>
-                  <SelectItem value="cancelled">{STATUS_LABEL.cancelled}</SelectItem>
+                  <SelectItem value="scheduled">{t(STATUS_LABEL.scheduled)}</SelectItem>
+                  <SelectItem value="in-progress">{t(STATUS_LABEL['in-progress'])}</SelectItem>
+                  <SelectItem value="completed">{t(STATUS_LABEL.completed)}</SelectItem>
+                  <SelectItem value="cancelled">{t(STATUS_LABEL.cancelled)}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             {/* Angebote sieht der Kunde nur in seinem Konto – bei Nummern ohne Konto käme nichts an */}
             {selectedAppointment?.customerId && selectedAppointment.customerId !== 'walk-in' ? (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <Checkbox
                   id="checkEarlierOptions"
                   checked={appointmentFormData.checkEarlierOptions || false}
                   onCheckedChange={(v) => handleInputChange('checkEarlierOptions', v === true)}
                 />
-                <Label htmlFor="checkEarlierOptions">Bei früherem freien Termin benachrichtigen</Label>
+                <Label htmlFor="checkEarlierOptions">{t('Bei früherem freien Termin benachrichtigen')}</Label>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">„Früher dran“ geht nur bei Kunden mit Konto – sonst erreicht sie das Angebot nicht.</p>
+              <p className="text-sm text-muted-foreground">{t('„Früher dran“ geht nur bei Kunden mit Konto – sonst erreicht sie das Angebot nicht.')}</p>
             )}
             
-            <div className="pt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>Abbrechen</Button>
-              <Button onClick={handleAppointmentEdit}>Speichern</Button>
+            <div className="pt-4 flex justify-end space-x-2 rtl:space-x-reverse">
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>{t('Abbrechen')}</Button>
+              <Button onClick={handleAppointmentEdit}>{t('Speichern')}</Button>
             </div>
           </div>
         </DialogContent>

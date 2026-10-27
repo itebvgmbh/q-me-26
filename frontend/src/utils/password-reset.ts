@@ -1,5 +1,6 @@
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseAuth } from 'app';
+import { t } from '@/i18n';
 
 // Passwort vergessen: Die Mail verschickt das Backend über Resend (backend/app/apis/password_reset), der Link darin
 // führt auf /passwort-neu?code=… (pages/PasswortNeu.tsx). Ist dort kein Resend eingerichtet oder der Server nicht
@@ -28,7 +29,7 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   await sendPasswordResetEmail(firebaseAuth, email);
 };

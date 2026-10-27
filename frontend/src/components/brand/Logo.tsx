@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { t } from '@/i18n';
 
 interface Props {
   to?: string;
@@ -34,7 +35,7 @@ export const BrandMark = ({ inverted = false, className }: { inverted?: boolean;
 
 /** Wortmarke "Dranzeit" mit Wartemarke */
 export const Logo = ({ to = '/', className, inverted = false }: Props) => (
-  <Link to={to} className={cn('flex min-h-11 items-center gap-2.5 rounded-lg', className)} aria-label="Dranzeit – zur Startseite">
+  <Link to={to} className={cn('flex min-h-11 items-center gap-2.5 rounded-lg', className)} aria-label={t('Dranzeit – zur Startseite')}>
     <BrandMark inverted={inverted} />
     <span className={cn('font-display text-[22px] font-extrabold leading-none tracking-[-0.03em]', inverted && 'text-background')}>
       Dranzeit

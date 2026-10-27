@@ -9,9 +9,13 @@ import '@fontsource/jetbrains-mono/700.css'
 import './index.css'
 // Polyfill for support react use in react 18
 import "./polyfills/react-polyfill";
+import { starteSprache } from './i18n';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppWrapper />
-  </StrictMode>,
-)
+// Erst die Sprache, dann die App: sonst blitzt jeder Text kurz auf Deutsch auf
+starteSprache().finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <AppWrapper />
+    </StrictMode>,
+  )
+})

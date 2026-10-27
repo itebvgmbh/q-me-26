@@ -10,6 +10,7 @@ import { sendVerificationMailAfterSignUp } from '../utils/email-verification';
 import { emitProfileSaved, getUserProfile } from '../utils/user-profile-service';
 import { acceptStaffInvite, getStaffInviteInfo, StaffInviteInfo } from '../utils/staff-invitation';
 import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
+import { t, tTeile } from '@/i18n';
 
 // Einladungslink fürs Team: Der Inhaber hat die Person unter "Team" angelegt und ihr diesen Link geschickt.
 // Neues Konto anlegen oder mit dem bestehenden anmelden (auch ein Kundenkonto oder das Konto eines anderen Ladens) –
@@ -34,7 +35,7 @@ const StaffRegistration = () => {
 
   useEffect(() => {
     if (!token) {
-      setInfoError('In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.');
+      setInfoError(t('In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.'));
       return;
     }
     getStaffInviteInfo(token)
@@ -51,7 +52,7 @@ const StaffRegistration = () => {
       const res = await acceptStaffInvite(token);
       const profile = await getUserProfile(uid);
       if (profile) emitProfileSaved(uid, profile);
-      toast.success(`Willkommen im Team von ${res.shopName}!`);
+      toast.success(t('Willkommen im Team von {laden}!', { laden: res.shopName }));
       navigate(`/employee-dashboard?staffId=${encodeURIComponent(res.staffId)}`, { replace: true });
     },
     [token, navigate],
@@ -64,7 +65,7 @@ const StaffRegistration = () => {
     try {
       await finish(user.uid);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      setError(e instanceof Error ? e.message : t('Das hat nicht geklappt.'));
     } finally {
       setBusy(false);
     }
@@ -91,7 +92,7 @@ const StaffRegistration = () => {
       } catch (err) {
         if ((err as { code?: string })?.code === 'auth/email-already-in-use') {
           setAccountExists(true);
-          setError('Mit dieser E-Mail gibt es schon ein Konto. Melde dich damit an, dann nimmst du die Einladung an.');
+          setError(t('Mit dieser E-Mail gibt es schon ein Konto. Melde dich damit an, dann nimmst du die Einladung an.'));
         } else {
           setError(authErrorMessage(err));
         }
@@ -105,7 +106,7 @@ const StaffRegistration = () => {
         // Konto wieder entfernen, sonst ist die E-Mail verbraucht und der Link nutzlos
         await created.delete().catch((deleteError) => console.error('Rollback of auth user failed:', deleteError));
         setRegistering(false);
-        setError(err instanceof Error ? err.message : 'Das hat nicht geklappt.');
+        setError(err instanceof Error ? err.message : t('Das hat nicht geklappt.'));
       }
     } finally {
       setBusy(false);
@@ -117,9 +118,9 @@ const StaffRegistration = () => {
 
   if (infoError) {
     return (
-      <AuthShell title="Dieser Link klappt nicht." intro={infoError}>
+      <AuthShell title={t('Dieser Link klappt nicht.')} intro={infoError}>
         <Button asChild variant="outline">
-          <Link to="/">Zur Startseite</Link>
+          <Link to="/">{t('Zur Startseite')}</Link>
         </Button>
       </AuthShell>
     );
@@ -127,7 +128,7 @@ const StaffRegistration = () => {
 
   if (!info || userLoading) {
     return (
-      <AuthShell title="Einladung wird geprüft …">
+      <AuthShell title={t('Einladung wird geprüft …')}>
         <div className="h-24 animate-pulse rounded-2xl bg-muted" aria-busy="true" />
       </AuthShell>
     );
@@ -135,9 +136,12 @@ const StaffRegistration = () => {
 
   if (info.status === 'abgelaufen') {
     return (
-      <AuthShell title="Die Einladung gilt nicht mehr." intro={`Bitte ${info.shopName} um einen neuen Link. Im Team unter „Bearbeiten“ geht das in einer Minute.`}>
+      <AuthShell
+        title={t('Die Einladung gilt nicht mehr.')}
+        intro={t('Bitte {laden} um einen neuen Link. Im Team unter „Bearbeiten“ geht das in einer Minute.', { laden: info.shopName })}
+      >
         <Button asChild variant="outline">
-          <Link to="/">Zur Startseite</Link>
+          <Link to="/">{t('Zur Startseite')}</Link>
         </Button>
       </AuthShell>
     );
@@ -145,18 +149,21 @@ const StaffRegistration = () => {
 
   if (info.status === 'verbunden') {
     return (
-      <AuthShell title="Schon angenommen." intro={`Diese Einladung ist schon mit einem Konto verbunden. Melde dich damit an, dann siehst du deinen Tag bei ${info.shopName}.`}>
+      <AuthShell
+        title={t('Schon angenommen.')}
+        intro={t('Diese Einladung ist schon mit einem Konto verbunden. Melde dich damit an, dann siehst du deinen Tag bei {laden}.', { laden: info.shopName })}
+      >
         <Button asChild size="lg" className="w-full">
-          <Link to={user ? '/employee-dashboard' : `/login?next=${encodeURIComponent('/employee-dashboard')}`}>{user ? 'Zu Mein Tag' : 'Anmelden'}</Link>
+          <Link to={user ? '/employee-dashboard' : `/login?next=${encodeURIComponent('/employee-dashboard')}`}>{user ? t('Zu Mein Tag') : t('Anmelden')}</Link>
         </Button>
       </AuthShell>
     );
   }
 
-  const title = `Willkommen im Team von ${info.shopName}.`;
+  const title = t('Willkommen im Team von {laden}.', { laden: info.shopName });
   const help = (
     <HilfeLink hilfe="fuers-team" className="self-start text-sm">
-      So arbeitest du mit Dranzeit
+      {t('So arbeitest du mit Dranzeit')}
     </HilfeLink>
   );
 
@@ -164,12 +171,16 @@ const StaffRegistration = () => {
     return (
       <AuthShell
         title={title}
-        intro={`${info.shopName} hat dich${info.name ? ` als ${info.name}` : ''} ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.`}
+        intro={
+          info.name
+            ? t('{laden} hat dich als {name} ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName, name: info.name })
+            : t('{laden} hat dich ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName })
+        }
         footer={
           <p>
-            Nicht dein Konto?{' '}
+            {t('Nicht dein Konto?')}{' '}
             <button type="button" onClick={() => auth.signOut()} className="font-semibold text-foreground underline-offset-4 hover:underline">
-              Abmelden
+              {t('Abmelden')}
             </button>
           </p>
         }
@@ -177,10 +188,20 @@ const StaffRegistration = () => {
         <div className="flex flex-col gap-4">
           {error && <FormError>{error}</FormError>}
           <p className="text-sm text-muted-foreground">
-            Angemeldet als <strong className="text-foreground">{user.email}</strong>
+            {tTeile(
+              'Angemeldet als <konto>{email}</konto>',
+              {
+                konto: (inhalt) => (
+                  <bdi>
+                    <strong className="text-foreground">{inhalt}</strong>
+                  </bdi>
+                ),
+              },
+              { email: user.email ?? '' },
+            )}
           </p>
           <Button size="lg" onClick={accept} disabled={busy}>
-            {busy ? 'Wird angenommen …' : 'Einladung annehmen'}
+            {busy ? t('Wird angenommen …') : t('Einladung annehmen')}
           </Button>
           {help}
         </div>
@@ -191,12 +212,16 @@ const StaffRegistration = () => {
   return (
     <AuthShell
       title={title}
-      intro={`${info.shopName} hat dich${info.name ? ` als ${info.name}` : ''} ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.`}
+      intro={
+        info.name
+          ? t('{laden} hat dich als {name} ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName, name: info.name })
+          : t('{laden} hat dich ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName })
+      }
       footer={
         <p>
-          Schon ein Konto bei Dranzeit?{' '}
+          {t('Schon ein Konto bei Dranzeit?')}{' '}
           <Link to={loginLink} className="font-semibold text-foreground underline-offset-4 hover:underline">
-            Anmelden und annehmen
+            {t('Anmelden und annehmen')}
           </Link>
         </p>
       }
@@ -205,7 +230,7 @@ const StaffRegistration = () => {
         {error && <FormError>{error}</FormError>}
         {accountExists && (
           <Button asChild size="lg" variant="signal">
-            <Link to={loginLink}>Anmelden und annehmen</Link>
+            <Link to={loginLink}>{t('Anmelden und annehmen')}</Link>
           </Button>
         )}
         <EmailField
@@ -219,7 +244,7 @@ const StaffRegistration = () => {
         />
         <PasswordField value={password} onChange={setPassword} isNew />
         <Button type="submit" size="lg" variant={accountExists ? 'outline' : 'default'} disabled={busy}>
-          {busy ? 'Wird angelegt …' : 'Konto anlegen'}
+          {busy ? t('Wird angelegt …') : t('Konto anlegen')}
         </Button>
         {help}
       </form>

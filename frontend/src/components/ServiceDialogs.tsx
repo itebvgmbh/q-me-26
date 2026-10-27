@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Service, Shop } from '../utils/firestore';
 import { ServiceForm } from './ServiceForm';
+import { t, tn } from '@/i18n';
 import {
   Dialog,
   DialogContent,
@@ -56,13 +57,13 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
       
       await createService(serviceWithShopId);
       
-      toast.success('Leistung angelegt.');
+      toast.success(t('Leistung angelegt.'));
       onServiceAdded(true);
       setOpen(false);
       return true;
     } catch (error) {
       console.error('Error creating service:', error);
-      toast.error('Die Leistung konnte nicht angelegt werden.');
+      toast.error(t('Die Leistung konnte nicht angelegt werden.'));
       return false;
     }
   }, [shop, onServiceAdded]);
@@ -70,19 +71,19 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="signal">Leistung anlegen</Button>
+        <Button variant="signal">{t('Leistung anlegen')}</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neue Leistung</DialogTitle>
+          <DialogTitle>{t('Neue Leistung')}</DialogTitle>
           <DialogDescription>
-            Was kann man bei dir buchen? Dauer und Preis bestimmen die freien Zeiten.
+            {t('Was kann man bei dir buchen? Dauer und Preis bestimmen die freien Zeiten.')}
           </DialogDescription>
         </DialogHeader>
         <ServiceForm
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
-          submitLabel="Leistung anlegen"
+          submitLabel={t('Leistung anlegen')}
         />
       </DialogContent>
     </Dialog>
@@ -118,13 +119,13 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
     try {
       await updateService(service.id, serviceData);
       
-      toast.success('Leistung gespeichert.');
+      toast.success(t('Leistung gespeichert.'));
       onServiceUpdated(true);
       setOpen(false);
       return true;
     } catch (error) {
       console.error('Error updating service:', error);
-      toast.error('Die Leistung konnte nicht gespeichert werden.');
+      toast.error(t('Die Leistung konnte nicht gespeichert werden.'));
       return false;
     }
   }, [service.id, onServiceUpdated]);
@@ -132,20 +133,20 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">Bearbeiten</Button>
+        <Button variant="ghost" size="sm">{t('Bearbeiten')}</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Leistung bearbeiten</DialogTitle>
+          <DialogTitle>{t('Leistung bearbeiten')}</DialogTitle>
           <DialogDescription>
-            Änderungen gelten für neue Buchungen.
+            {t('Änderungen gelten für neue Buchungen.')}
           </DialogDescription>
         </DialogHeader>
         <ServiceForm
           initialService={service}
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
-          submitLabel="Änderungen speichern"
+          submitLabel={t('Änderungen speichern')}
         />
       </DialogContent>
     </Dialog>
@@ -171,43 +172,43 @@ export const DeleteServiceDialog: React.FC<{ service: Service; onServiceUpdated:
   const handleDelete = async () => {
     try {
       await archiveService(service.id);
-      toast.success(`„${service.name}“ ist gelöscht.`, {
-        action: { label: 'Rückgängig', onClick: () => restoreService(service.id).then(() => onServiceUpdated(true)) },
+      toast.success(t('„{name}“ ist gelöscht.', { name: service.name }), {
+        action: { label: t('Rückgängig'), onClick: () => restoreService(service.id).then(() => onServiceUpdated(true)) },
       });
       onServiceUpdated(true);
     } catch (error) {
       console.error('Error archiving service:', error);
-      toast.error('Löschen hat nicht geklappt.');
+      toast.error(t('Löschen hat nicht geklappt.'));
     }
   };
 
   return (
     <>
       <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={openDialog}>
-        Löschen
+        {t('Löschen')}
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">„{service.name}“ löschen?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">{t('„{name}“ löschen?', { name: service.name })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="flex flex-col gap-2">
-                <p>Kunden können die Leistung dann nicht mehr buchen, und sie verschwindet bei den Personen im Team.</p>
+                <p>{t('Kunden können die Leistung dann nicht mehr buchen, und sie verschwindet bei den Personen im Team.')}</p>
                 <p>
                   {upcoming === null
-                    ? 'Termine, die schon gebucht sind, bleiben.'
+                    ? t('Termine, die schon gebucht sind, bleiben.')
                     : upcoming === 0
-                      ? 'Es ist kein kommender Termin damit gebucht.'
-                      : `${upcoming === 1 ? 'Ein kommender Termin ist' : `${upcoming} kommende Termine sind`} damit gebucht. ${upcoming === 1 ? 'Er bleibt' : 'Sie bleiben'} bestehen.`}
+                      ? t('Es ist kein kommender Termin damit gebucht.')
+                      : tn(upcoming, 'Ein kommender Termin ist damit gebucht. Er bleibt bestehen.', '{n} kommende Termine sind damit gebucht. Sie bleiben bestehen.')}
                 </p>
-                <p>Unter „Gelöschte Leistungen“ kannst du sie jederzeit zurückholen.</p>
+                <p>{t('Unter „Gelöschte Leistungen“ kannst du sie jederzeit zurückholen.')}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">Abbrechen</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">{t('Abbrechen')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Löschen
+              {t('Löschen')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -60,7 +60,7 @@ const Tile = ({ label, value, hint, tone, onClick }: { label: string; value: Rea
     </>
   );
   const cls = cn(
-    'flex flex-col gap-1 rounded-3xl p-5 text-left',
+    'flex flex-col gap-1 rounded-3xl p-5 text-start',
     tone === 'alarm' ? 'bg-destructive text-destructive-foreground' : tone === 'signal' ? 'bg-signal text-signal-foreground' : 'border border-border bg-card',
     onClick && 'transition-transform hover:-translate-y-0.5',
   );
@@ -80,7 +80,7 @@ const KindBadge = ({ kind, markers }: { kind: 'echt' | 'test' | 'intern'; marker
     <span
       title={`Zählt in der Übersicht nicht mit: ${markers.join(', ')}`}
       className={cn(
-        'ml-2 rounded-full px-2 py-0.5 text-xs font-semibold',
+        'ms-2 rounded-full px-2 py-0.5 text-xs font-semibold',
         kind === 'intern' ? 'bg-foreground text-background' : 'border border-border bg-muted text-muted-foreground',
       )}
     >
@@ -232,7 +232,7 @@ export default function Betreiber() {
               <p className="text-background/80">
                 {st.paying} zahlend · {st.inTrial} in der Testphase · {st.granted} freigeschaltet ·{' '}
                 {st.byPlan.gratis} gratis
-                {data.system.stripe === 'test' && <span className="ml-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Stripe-Testmodus</span>}
+                {data.system.stripe === 'test' && <span className="ms-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Stripe-Testmodus</span>}
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {(Object.keys(PLANS) as PlanId[]).map((p) => (
@@ -285,7 +285,7 @@ export default function Betreiber() {
               <ul className="divide-y divide-border">
                 {attention.map((s) => (
                   <li key={s.id}>
-                    <button type="button" className="flex w-full flex-wrap items-center justify-between gap-2 py-3 text-left" onClick={() => setSelected({ kind: 'shop', id: s.id })}>
+                    <button type="button" className="flex w-full flex-wrap items-center justify-between gap-2 py-3 text-start" onClick={() => setSelected({ kind: 'shop', id: s.id })}>
                       <span className="font-semibold">
                         {s.name}
                         {s.city && <span className="font-normal text-muted-foreground"> · {s.city}</span>}
@@ -312,13 +312,13 @@ export default function Betreiber() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 aria-label="Suchen"
                 placeholder={tab === 'laeden' ? 'Name, Ort, E-Mail, ID' : 'E-Mail, Name, UID'}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
+                className="ps-9"
               />
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -383,13 +383,13 @@ function ShopTable({ shops, owners, onOpen }: { shops: AdminShop[]; owners: Map<
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card">
       <table className="w-full text-sm">
-        <thead className="hidden bg-muted/60 text-left text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
+        <thead className="hidden bg-muted/60 text-start text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
           <tr>
             <th className="px-4 py-3 font-semibold">Laden</th>
             <th className="px-4 py-3 font-semibold">Inhaber</th>
             <th className="px-4 py-3 font-semibold">Tarif</th>
             <th className="px-4 py-3 font-semibold">Abo</th>
-            <th className="px-4 py-3 text-right font-semibold">Monat</th>
+            <th className="px-4 py-3 text-end font-semibold">Monat</th>
             <th className="px-4 py-3 font-semibold">Angelegt</th>
           </tr>
         </thead>
@@ -404,8 +404,8 @@ function ShopTable({ shops, owners, onOpen }: { shops: AdminShop[]; owners: Map<
             >
               <td className="col-span-2 md:px-4 md:py-3">
                 <span className="font-semibold">{s.name}</span>
-                {s.suspended && <span className="ml-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
-                {s.founder && <span className="ml-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Gründer</span>}
+                {s.suspended && <span className="ms-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
+                {s.founder && <span className="ms-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Gründer</span>}
                 <KindBadge kind={s.kind} markers={s.markers} />
                 <span className="block text-xs text-muted-foreground">{s.city || '–'}</span>
               </td>
@@ -415,7 +415,7 @@ function ShopTable({ shops, owners, onOpen }: { shops: AdminShop[]; owners: Map<
                 {s.billing ? BILLING_LABEL[s.billing] || s.billing : '–'}
                 {s.cancelAtPeriodEnd && <span className="block text-xs text-muted-foreground">gekündigt zum {fmtDate(s.currentPeriodEnd)}</span>}
               </td>
-              <td className="tabular-nums md:px-4 md:py-3 md:text-right">
+              <td className="tabular-nums md:px-4 md:py-3 md:text-end">
                 <span className="md:hidden">Diesen Monat: </span>
                 {s.thisMonth}
               </td>
@@ -433,7 +433,7 @@ function AccountTable({ accounts, shops, onOpen }: { accounts: AdminAccount[]; s
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card">
       <table className="w-full text-sm">
-        <thead className="hidden bg-muted/60 text-left text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
+        <thead className="hidden bg-muted/60 text-start text-xs uppercase tracking-[0.06em] text-muted-foreground md:table-header-group">
           <tr>
             <th className="px-4 py-3 font-semibold">Konto</th>
             <th className="px-4 py-3 font-semibold">Rolle</th>
@@ -455,7 +455,7 @@ function AccountTable({ accounts, shops, onOpen }: { accounts: AdminAccount[]; s
               >
                 <td className="col-span-2 min-w-0 md:px-4 md:py-3">
                   <span className="break-all font-semibold">{a.email || '(ohne E-Mail)'}</span>
-                  {a.disabled && <span className="ml-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
+                  {a.disabled && <span className="ms-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
                   <KindBadge kind={a.kind} markers={a.markers} />
                   {a.name && <span className="block text-xs text-muted-foreground">{a.name}</span>}
                 </td>

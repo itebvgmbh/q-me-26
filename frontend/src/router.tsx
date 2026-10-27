@@ -8,13 +8,14 @@ import { AppProvider } from "./components/AppProvider";
 import { Navigation } from "./components/Navigation";
 import { SiteFooter } from "./components/brand/SiteFooter";
 import { SeitenKopf } from "./components/SeitenKopf";
+import { t } from "@/i18n";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
   return (
     <Suspense fallback={
       <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
         <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
-        <span className="sr-only">Wird geladen …</span>
+        <span className="sr-only">{t("Wird geladen …")}</span>
       </div>
     }>
       {children}

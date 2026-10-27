@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import type { BusinessHoursDay } from '../utils/firestore/types';
 import { DAY_NAMES, HOUR_PRESETS, normalizeHours, WEEK_ORDER } from '../utils/opening-hours';
+import { t } from '@/i18n';
 
 interface Props {
   value: BusinessHoursDay[];
@@ -34,7 +35,7 @@ export const OpeningHoursEditor = ({ value, onChange, presets = false }: Props) 
   return (
     <div className="flex flex-col gap-3">
       {presets && (
-        <div className="flex flex-wrap gap-2" aria-label="Vorlagen">
+        <div className="flex flex-wrap gap-2" aria-label={t('Vorlagen')}>
           {HOUR_PRESETS.map((p) => (
             <Button key={p.label} type="button" variant="secondary" size="sm" onClick={() => onChange(p.hours())}>
               {p.label}
@@ -51,21 +52,21 @@ export const OpeningHoursEditor = ({ value, onChange, presets = false }: Props) 
               <div className="flex items-center justify-between gap-3">
                 <span className="font-semibold">{DAY_NAMES[d]}</span>
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {h.isOpen ? 'geöffnet' : 'geschlossen'}
-                  <Switch checked={h.isOpen} onCheckedChange={(isOpen) => set(d, { isOpen })} aria-label={`${DAY_NAMES[d]} geöffnet`} />
+                  {h.isOpen ? t('geöffnet') : t('geschlossen')}
+                  <Switch checked={h.isOpen} onCheckedChange={(isOpen) => set(d, { isOpen })} aria-label={t('{tag} geöffnet', { tag: DAY_NAMES[d] })} />
                 </label>
               </div>
               {h.isOpen && (
                 <>
                   <div className="flex gap-3">
-                    <TimeField label="von" value={h.openTime} onChange={(openTime) => set(d, { openTime })} />
-                    <TimeField label="bis" value={h.closeTime} onChange={(closeTime) => set(d, { closeTime })} />
+                    <TimeField label={t('von')} value={h.openTime} onChange={(openTime) => set(d, { openTime })} />
+                    <TimeField label={t('bis')} value={h.closeTime} onChange={(closeTime) => set(d, { closeTime })} />
                   </div>
                   {breaks.map((b, i) => (
                     <div key={i} className="flex items-end gap-3 rounded-xl bg-muted/60 p-2">
-                      <TimeField label="Pause von" value={b.startTime} onChange={(startTime) => set(d, { breaks: breaks.map((x, j) => (j === i ? { ...x, startTime } : x)) })} />
-                      <TimeField label="bis" value={b.endTime} onChange={(endTime) => set(d, { breaks: breaks.map((x, j) => (j === i ? { ...x, endTime } : x)) })} />
-                      <Button type="button" variant="ghost" size="icon" onClick={() => set(d, { breaks: breaks.filter((_, j) => j !== i) })} aria-label={`Pause am ${DAY_NAMES[d]} entfernen`}>
+                      <TimeField label={t('Pause von')} value={b.startTime} onChange={(startTime) => set(d, { breaks: breaks.map((x, j) => (j === i ? { ...x, startTime } : x)) })} />
+                      <TimeField label={t('bis')} value={b.endTime} onChange={(endTime) => set(d, { breaks: breaks.map((x, j) => (j === i ? { ...x, endTime } : x)) })} />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => set(d, { breaks: breaks.filter((_, j) => j !== i) })} aria-label={t('Pause am {tag} entfernen', { tag: DAY_NAMES[d] })}>
                         <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
@@ -73,7 +74,7 @@ export const OpeningHoursEditor = ({ value, onChange, presets = false }: Props) 
                   {breaks.length === 0 && (
                     <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => set(d, { breaks: [{ startTime: '12:30', endTime: '13:30' }] })}>
                       <Plus className="h-4 w-4" aria-hidden="true" />
-                      Mittagspause
+                      {t('Mittagspause')}
                     </Button>
                   )}
                 </>
@@ -84,7 +85,7 @@ export const OpeningHoursEditor = ({ value, onChange, presets = false }: Props) 
       </ul>
       {firstOpen && hours.filter((h) => h.isOpen).length > 1 && (
         <Button type="button" variant="outline" size="sm" className="self-start" onClick={copyToAll}>
-          Zeiten vom {DAY_NAMES[firstOpen.dayOfWeek]} für alle offenen Tage
+          {t('Zeiten vom {tag} für alle offenen Tage', { tag: DAY_NAMES[firstOpen.dayOfWeek] })}
         </Button>
       )}
     </div>

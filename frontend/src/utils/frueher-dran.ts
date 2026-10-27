@@ -1,4 +1,5 @@
 import { auth } from 'app';
+import { t } from '@/i18n';
 
 // „Früher dran“ für einen eigenen, kommenden Termin ein- oder ausschalten (Meine Termine).
 // Prüfen und Speichern macht das Backend (backend/app/apis/frueher_dran): nur der eigene Termin,
@@ -16,7 +17,7 @@ export const setFrueherDran = async (appointmentId: string, an: boolean): Promis
       body: JSON.stringify({ an }),
     });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -25,7 +26,7 @@ export const setFrueherDran = async (appointmentId: string, an: boolean): Promis
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   return ((await res.json()) as { checkEarlierOptions: boolean }).checkEarlierOptions;
 };

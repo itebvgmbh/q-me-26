@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { createUserProfile, getRedirectPath, getUserProfile } from '../utils/user-profile-service';
 import { authErrorMessage } from '../utils/auth-errors';
 import { ROLE_CHOICES, RoleChoiceCard } from '../components/auth/RoleChoice';
@@ -35,7 +36,7 @@ const RoleSelection = () => {
     setError(null);
     try {
       await createUserProfile(user.uid, user.email || '', role);
-      toast.success('Alles klar, los geht’s.');
+      toast.success(t('Alles klar, los geht’s.'));
       navigate(await getRedirectPath(user.uid), { replace: true });
     } catch (err) {
       console.error('Firestore Error:', err);
@@ -50,15 +51,15 @@ const RoleSelection = () => {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-16">
       <div className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Fast fertig.</h1>
-        <p className="text-muted-foreground">Sag uns noch, wie du Dranzeit nutzt. Das lässt sich später nicht selbst ändern.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Fast fertig.')}</h1>
+        <p className="text-muted-foreground">{t('Sag uns noch, wie du Dranzeit nutzt. Das lässt sich später nicht selbst ändern.')}</p>
       </div>
       {error && <FormError>{error}</FormError>}
       <div className="grid gap-4 sm:grid-cols-2">
         {ROLE_CHOICES.map((choice, i) => (
           <button key={choice.role} type="button" onClick={() => choose(choice.role)} disabled={!!saving} className="rounded-3xl disabled:opacity-60">
-            <RoleChoiceCard icon={choice.icon} title={choice.title} text={choice.text} as="span" dark={i === 0}>
-              {saving === choice.role ? 'Wird gespeichert …' : 'Auswählen'}
+            <RoleChoiceCard icon={choice.icon} title={t(choice.title)} text={t(choice.text)} as="span" dark={i === 0}>
+              {saving === choice.role ? t('Wird gespeichert …') : t('Auswählen')}
             </RoleChoiceCard>
           </button>
         ))}

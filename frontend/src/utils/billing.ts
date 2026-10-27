@@ -2,6 +2,7 @@
 // backend/app/apis/stripe_webhook (öffentlich).
 import { auth } from 'app';
 import type { PlanId } from './plans';
+import { t } from '@/i18n';
 
 const send = async (path: string, body?: unknown, authenticated = true): Promise<Response> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -10,7 +11,7 @@ const send = async (path: string, body?: unknown, authenticated = true): Promise
   try {
     res = await fetch(path, { method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
   if (!res.ok) {
     let detail = '';
@@ -19,7 +20,7 @@ const send = async (path: string, body?: unknown, authenticated = true): Promise
     } catch {
       /* keine JSON-Antwort */
     }
-    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
   }
   return res;
 };

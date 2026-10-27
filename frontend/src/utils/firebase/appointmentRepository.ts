@@ -4,6 +4,7 @@ import { AppEventType, emitAppointmentUpdated, useEventStore } from './event-sys
 import useTimeSlotStore from '../timeSlotStore';
 import { safelyConvertToDate } from '../datetime';
 import brain from 'brain';
+import { t } from '@/i18n';
 
 /** Server hat die Annahme abgelehnt; message ist für den Kunden */
 export class EarlierSlotRefused extends Error {
@@ -78,7 +79,7 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
     // Vorher galt jede 200 als Erfolg – der Kunde sah "Du hast den früheren Platz", der Termin blieb aber, wo er war.
     const responseData = await response.json().catch(() => null);
     if (responseData?.status !== 'success') {
-      throw new EarlierSlotRefused(responseData?.message || 'Der Platz ist leider schon weg.');
+      throw new EarlierSlotRefused(responseData?.message || t('Der Platz ist leider schon weg.'));
     }
     console.log('Successfully accepted earlier slot:', responseData);
     

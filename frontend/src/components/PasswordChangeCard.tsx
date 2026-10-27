@@ -3,6 +3,7 @@ import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 
 import { toast } from 'sonner';
 import { firebaseAuth } from 'app';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import { FormError, PasswordField } from './auth/AuthShell';
 import { authErrorMessage } from '../utils/auth-errors';
 import { requestPasswordReset } from '../utils/password-reset';
@@ -28,8 +29,8 @@ export const PasswordChangeCard = () => {
   const change = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !email) return;
-    if (next.length < MIN_LENGTH) return setError(`Das neue Passwort ist zu kurz. Nimm mindestens ${MIN_LENGTH} Zeichen.`);
-    if (next === current) return setError('Das neue Passwort ist dasselbe wie das alte.');
+    if (next.length < MIN_LENGTH) return setError(t('Das neue Passwort ist zu kurz. Nimm mindestens {anzahl} Zeichen.', { anzahl: MIN_LENGTH }));
+    if (next === current) return setError(t('Das neue Passwort ist dasselbe wie das alte.'));
     setBusy(true);
     setError(null);
     try {
@@ -37,10 +38,10 @@ export const PasswordChangeCard = () => {
       await updatePassword(user, next);
       setCurrent('');
       setNext('');
-      toast.success('Dein Passwort ist geändert.');
+      toast.success(t('Dein Passwort ist geändert.'));
     } catch (err) {
       const code = (err as { code?: string })?.code || '';
-      setError(WRONG_CURRENT.has(code) ? 'Das aktuelle Passwort stimmt nicht.' : authErrorMessage(err));
+      setError(WRONG_CURRENT.has(code) ? t('Das aktuelle Passwort stimmt nicht.') : authErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -50,7 +51,7 @@ export const PasswordChangeCard = () => {
     setResetting(true);
     try {
       await requestPasswordReset(email);
-      toast.success(`Wir haben dir eine E-Mail an ${email} geschickt. Über den Link darin legst du ein neues Passwort fest.`);
+      toast.success(t('Wir haben dir eine E-Mail an {email} geschickt. Über den Link darin legst du ein neues Passwort fest.', { email }));
     } catch (err) {
       toast.error(authErrorMessage(err));
     } finally {
@@ -61,7 +62,7 @@ export const PasswordChangeCard = () => {
   return (
     <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="passwort-aendern">
       <h2 id="passwort-aendern" className="font-display text-xl font-bold">
-        Passwort ändern
+        {t('Passwort ändern')}
       </h2>
       {hasPassword ? (
         <form onSubmit={change} className="flex flex-col gap-4">
@@ -71,7 +72,7 @@ export const PasswordChangeCard = () => {
           <div className="grid gap-4 sm:grid-cols-2">
             <PasswordField
               id="current-password"
-              label="Aktuelles Passwort"
+              label={t('Aktuelles Passwort')}
               value={current}
               onChange={(v) => {
                 setCurrent(v);
@@ -80,7 +81,7 @@ export const PasswordChangeCard = () => {
             />
             <PasswordField
               id="new-password"
-              label="Neues Passwort"
+              label={t('Neues Passwort')}
               isNew
               value={next}
               onChange={(v) => {
@@ -89,23 +90,25 @@ export const PasswordChangeCard = () => {
               }}
             />
           </div>
-          <p className="text-sm text-muted-foreground">Auf deinen anderen Geräten musst du dich danach neu anmelden.</p>
+          <p className="text-sm text-muted-foreground">{t('Auf deinen anderen Geräten musst du dich danach neu anmelden.')}</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" disabled={busy}>
-              {busy ? 'Wird geändert …' : 'Passwort ändern'}
+              {busy ? t('Wird geändert …') : t('Passwort ändern')}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={sendReset} disabled={resetting}>
-              {resetting ? 'Wird gesendet …' : 'Aktuelles Passwort vergessen?'}
+              {resetting ? t('Wird gesendet …') : t('Aktuelles Passwort vergessen?')}
             </Button>
           </div>
         </form>
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            Dein Konto hat noch kein Passwort. Wir schicken dir eine E-Mail an {email || 'deine Adresse'}, über den Link darin legst du eins fest.
+            {email
+              ? t('Dein Konto hat noch kein Passwort. Wir schicken dir eine E-Mail an {email}, über den Link darin legst du eins fest.', { email })
+              : t('Dein Konto hat noch kein Passwort. Wir schicken dir eine E-Mail an deine Adresse, über den Link darin legst du eins fest.')}
           </p>
           <Button variant="outline" className="self-start" onClick={sendReset} disabled={resetting || !email}>
-            {resetting ? 'Wird gesendet …' : 'Passwort festlegen'}
+            {resetting ? t('Wird gesendet …') : t('Passwort festlegen')}
           </Button>
         </div>
       )}

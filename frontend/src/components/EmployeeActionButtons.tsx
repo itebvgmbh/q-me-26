@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CustomerListDialog } from './CustomerListDialog';
+import { t } from '@/i18n';
 
 interface Props {
   shopId: string;
@@ -14,13 +15,13 @@ export const EmployeeActionButtons = ({ shopId, onCreateCustomer, onEditWorkingH
   return (
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" onClick={onCreateCustomer}>
-        Kunde anlegen
+        {t('Kunde anlegen')}
       </Button>
       <Button size="sm" variant="outline" onClick={() => setShowCustomers(true)}>
-        Kundenliste
+        {t('Kundenliste')}
       </Button>
       <Button size="sm" variant="outline" onClick={onEditWorkingHours}>
-        Meine Arbeitszeiten
+        {t('Meine Arbeitszeiten')}
       </Button>
       <CustomerListDialog shopId={shopId} open={showCustomers} onOpenChange={setShowCustomers} />
     </div>

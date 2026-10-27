@@ -38,6 +38,7 @@ import {
   withTemplates,
 } from '../utils/shop-setup';
 import type { ShopSetupStatusData } from '../brain/data-contracts';
+import { intlSprache, merke, t, tn, tTeile } from '@/i18n';
 
 /**
  * Laden einrichten – eine Frage pro Bildschirm, wie bei einer Steuer-App:
@@ -49,11 +50,11 @@ import type { ShopSetupStatusData } from '../brain/data-contracts';
 type Step = 'find' | 'check' | 'industry' | 'hours' | 'services' | 'owner' | 'team' | 'skills' | 'staffHours' | 'summary';
 const ORDER: Step[] = ['find', 'check', 'industry', 'hours', 'services', 'owner', 'team', 'skills', 'staffHours', 'summary'];
 const GROUPS: { label: string; steps: Step[] }[] = [
-  { label: 'Laden', steps: ['find', 'check', 'industry'] },
-  { label: 'Zeiten', steps: ['hours'] },
-  { label: 'Leistungen', steps: ['services'] },
-  { label: 'Team', steps: ['owner', 'team', 'skills', 'staffHours'] },
-  { label: 'Fertig', steps: ['summary'] },
+  { label: merke('Laden'), steps: ['find', 'check', 'industry'] },
+  { label: merke('Zeiten'), steps: ['hours'] },
+  { label: merke('Leistungen'), steps: ['services'] },
+  { label: merke('Team'), steps: ['owner', 'team', 'skills', 'staffHours'] },
+  { label: merke('Fertig'), steps: ['summary'] },
 ];
 
 const host = (url: string) => {
@@ -62,6 +63,12 @@ const host = (url: string) => {
   } catch {
     return url;
   }
+};
+
+/** "28 €" bzw. "ab 28 €" */
+const preisText = (s: { price: number; priceFrom?: boolean }) => {
+  const preis = s.price.toLocaleString(intlSprache());
+  return s.priceFrom ? t('ab {preis} €', { preis }) : t('{preis} €', { preis });
 };
 
 const Problem = ({ children }: { children: ReactNode }) => (
@@ -184,8 +191,13 @@ const ShopSetup = () => {
       setWebsite({
         state: 'done',
         text: found.services.length
-          ? `${found.services.length} Leistungen von ${host(url)} übernommen. Prüf kurz Dauer und Preis.`
-          : `Auf ${host(url)} habe ich keine Preisliste gefunden. Nimm die Vorschläge unten oder trag selbst ein.`,
+          ? tn(
+              found.services.length,
+              '{n} Leistung von {seite} übernommen. Prüf kurz Dauer und Preis.',
+              '{n} Leistungen von {seite} übernommen. Prüf kurz Dauer und Preis.',
+              { seite: host(url) },
+            )
+          : t('Auf {seite} habe ich keine Preisliste gefunden. Nimm die Vorschläge unten oder trag selbst ein.', { seite: host(url) }),
       });
     } catch (e) {
       setWebsite({ state: 'failed', text: (e as Error).message });
@@ -194,7 +206,7 @@ const ShopSetup = () => {
 
   if (loading || !user || !draft) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10 sm:px-6" aria-busy="true" aria-label="Wird geladen">
+      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-10 sm:px-6" aria-busy="true" aria-label={t('Wird geladen')}>
         <div className="h-10 w-56 animate-pulse rounded-2xl bg-muted" />
         <div className="h-80 animate-pulse rounded-3xl bg-muted" />
       </div>
@@ -209,22 +221,23 @@ const ShopSetup = () => {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10 sm:px-6">
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Fertig</p>
-          <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{shop.name} ist startklar.</h1>
-          <p className="text-muted-foreground">Ab jetzt können Kunden eine Nummer ziehen und Termine buchen. Alles lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Fertig')}</p>
+          <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('{name} ist startklar.', { name: shop.name })}</h1>
+          <p className="text-muted-foreground">{t('Ab jetzt können Kunden eine Nummer ziehen und Termine buchen. Alles lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.')}</p>
           <p className="text-muted-foreground">
-            Am Tresen zeigt dir eine kurze Liste, was als Nächstes kommt: einmal selbst ausprobieren, Plakat aufhängen, fertig.{' '}
-            <HilfeLink hilfe="in-10-minuten-startklar">Anleitung</HilfeLink>
+            {tTeile('Am Tresen zeigt dir eine kurze Liste, was als Nächstes kommt: einmal selbst ausprobieren, Plakat aufhängen, fertig. <hilfe>Anleitung</hilfe>', {
+              hilfe: (inhalt) => <HilfeLink hilfe="in-10-minuten-startklar">{inhalt}</HilfeLink>,
+            })}
           </p>
         </div>
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:p-6" aria-labelledby="einladungen">
-            <h2 id="einladungen" className="font-display text-xl font-bold">Einladungen fürs Team</h2>
+            <h2 id="einladungen" className="font-display text-xl font-bold">{t('Einladungen fürs Team')}</h2>
             <p className="text-sm text-muted-foreground">
               {invitations.every((inv) => inv.emailSent)
-                ? 'Jede Person hat ihren Einladungslink per E-Mail bekommen.'
-                : 'Wer keine E-Mail bekommen hat, dem schick den Link selbst, z. B. per WhatsApp.'}{' '}
-              Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.
+                ? t('Jede Person hat ihren Einladungslink per E-Mail bekommen.')
+                : t('Wer keine E-Mail bekommen hat, dem schick den Link selbst, z. B. per WhatsApp.')}{' '}
+              {t('Damit legt die Person ihr Konto an und sieht ihren eigenen Tag. Die Links gelten 14 Tage, neue erstellst du unter „Team“ bei „Bearbeiten“.')}
             </p>
             <ul className="flex flex-col gap-2">
               {invitations.map((inv) => (
@@ -235,10 +248,10 @@ const ShopSetup = () => {
                     {inv.emailSent ? (
                       <span className="flex items-center gap-1 text-sm font-medium">
                         <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        E-Mail verschickt
+                        {t('E-Mail verschickt')}
                       </span>
                     ) : (
-                      inv.link && <span className="text-sm text-destructive">{inv.emailProblem || 'Keine E-Mail verschickt.'} Schick den Link selbst.</span>
+                      inv.link && <span className="text-sm text-destructive">{inv.emailProblem || t('Keine E-Mail verschickt.')} {t('Schick den Link selbst.')}</span>
                     )}
                   </span>
                   {inv.link ? (
@@ -246,13 +259,13 @@ const ShopSetup = () => {
                       variant="outline"
                       size="sm"
                       className="self-start sm:self-auto"
-                      onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success('Link kopiert.'), () => toast.error('Kopieren ging nicht.'))}
+                      onClick={() => navigator.clipboard.writeText(inv.link).then(() => toast.success(t('Link kopiert.')), () => toast.error(t('Kopieren ging nicht.')))}
                     >
                       <Copy className="h-4 w-4" aria-hidden="true" />
-                      Link kopieren
+                      {t('Link kopieren')}
                     </Button>
                   ) : (
-                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-right">Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.</span>
+                    <span className="text-sm text-destructive sm:max-w-[12rem] sm:text-end">{t('Link fehlt. Unter „Team“ bei „Bearbeiten“ erstellen.')}</span>
                   )}
                 </li>
               ))}
@@ -261,7 +274,7 @@ const ShopSetup = () => {
         )}
         <QRCodeDisplay shopId={shop.id} shopName={shop.name} />
         <Button variant="signal" size="lg" className="self-start" onClick={() => navigate(`/shop-dashboard?shopId=${shop.id}`)}>
-          Zum Tresen
+          {t('Zum Tresen')}
         </Button>
       </div>
     );
@@ -285,8 +298,8 @@ const ShopSetup = () => {
       console.error('Laden einrichten fehlgeschlagen:', e);
       setProblem(
         started
-          ? 'Ein Teil ist schon gespeichert, der Rest noch nicht. Prüf dein Internet und tipp auf „Weiter anlegen“ – es entsteht kein zweiter Laden.'
-          : 'Das Speichern hat nicht geklappt. Prüf dein Internet und versuch es noch einmal.',
+          ? t('Ein Teil ist schon gespeichert, der Rest noch nicht. Prüf dein Internet und tipp auf „Weiter anlegen“ – es entsteht kein zweiter Laden.')
+          : t('Das Speichern hat nicht geklappt. Prüf dein Internet und versuch es noch einmal.'),
       );
     } finally {
       setCreating('');
@@ -297,74 +310,75 @@ const ShopSetup = () => {
   let title = '';
   let intro: ReactNode = null;
   let body: ReactNode = null;
-  let primary: { label: string; onClick: () => void; disabled?: boolean } | null = { label: 'Weiter', onClick: () => next() };
+  let primary: { label: string; onClick: () => void; disabled?: boolean } | null = { label: t('Weiter'), onClick: () => next() };
 
   switch (step) {
     case 'find': {
-      title = 'Wie heißt dein Laden?';
+      title = t('Wie heißt dein Laden?');
       intro = status.google
-        ? 'Tipp den Namen und den Ort und wähl deinen Laden aus der Liste. Dann übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google. Nicht dabei? Einfach „Weiter“.'
-        : 'Wie er draußen am Schild steht.';
+        ? t('Tipp den Namen und den Ort und wähl deinen Laden aus der Liste. Dann übernehme ich Adresse, Telefon, Webseite und Öffnungszeiten von Google. Nicht dabei? Einfach „Weiter“.')
+        : t('Wie er draußen am Schild steht.');
       body = status.google ? (
         <div className="flex flex-col gap-4">
           <PlaceSearch
             query={query}
             onQueryChange={setQuery}
             onPicked={(place) => {
-              if (place.closedPermanently) toast.warning('Google führt diesen Laden als dauerhaft geschlossen. Prüf die Angaben.');
+              if (place.closedPermanently) toast.warning(t('Google führt diesen Laden als dauerhaft geschlossen. Prüf die Angaben.'));
               next({ ...applyPlace(draft, place), step: 'find' });
             }}
           />
           <Button
             variant="ghost"
-            className="h-auto min-h-11 self-start whitespace-normal text-left"
+            className="h-auto min-h-11 self-start whitespace-normal text-start"
             onClick={() => next({ ...draft, source: 'manual', name: query.trim() || draft.name, step: 'find' })}
           >
-            Nicht bei Google? Selbst eintragen
+            {t('Nicht bei Google? Selbst eintragen')}
           </Button>
         </div>
       ) : (
-        <Field id="laden-name" label="Name des Ladens" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Field id="laden-name" label={t('Name des Ladens')} autoFocus value={query} onChange={(e) => setQuery(e.target.value)} />
       );
       // Auch mit Google-Suche ein „Weiter“: wer keinen Vorschlag antippt, trägt selbst ein
       primary = {
-        label: 'Weiter',
+        label: t('Weiter'),
         disabled: !query.trim(),
         onClick: () => next({ ...draft, source: 'manual', name: query.trim(), step: 'find' }),
       };
       break;
     }
     case 'check': {
-      title = 'Stimmt das so?';
-      intro = draft.source === 'google' ? 'Von Google übernommen. Du kannst alles ändern.' : 'So finden dich deine Kunden. Nur der Name und die E-Mail sind Pflicht.';
+      title = t('Stimmt das so?');
+      intro = draft.source === 'google' ? t('Von Google übernommen. Du kannst alles ändern.') : t('So finden dich deine Kunden. Nur der Name und die E-Mail sind Pflicht.');
       body = (
         <div className="grid gap-4 sm:grid-cols-6">
           <div className="sm:col-span-6">
-            <Field id="name" label="Name des Ladens" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
+            <Field id="name" label={t('Name des Ladens')} value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
           </div>
           <div className="sm:col-span-6">
-            <Field id="strasse" label="Straße und Hausnummer" autoComplete="street-address" value={draft.street} onChange={(e) => patch({ street: e.target.value })} />
+            <Field id="strasse" label={t('Straße und Hausnummer')} autoComplete="street-address" value={draft.street} onChange={(e) => patch({ street: e.target.value })} />
           </div>
           <div className="sm:col-span-2">
-            <Field id="plz" label="PLZ" inputMode="numeric" autoComplete="postal-code" value={draft.postalCode} onChange={(e) => patch({ postalCode: e.target.value })} />
+            <Field id="plz" label={t('PLZ')} inputMode="numeric" autoComplete="postal-code" value={draft.postalCode} onChange={(e) => patch({ postalCode: e.target.value })} />
           </div>
           <div className="sm:col-span-4">
-            <Field id="ort" label="Ort" autoComplete="address-level2" hint="Mit Adresse findet man dich auf der Karte." value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
+            <Field id="ort" label={t('Ort')} autoComplete="address-level2" hint={t('Mit Adresse findet man dich auf der Karte.')} value={draft.city} onChange={(e) => patch({ city: e.target.value })} />
           </div>
           <div className="sm:col-span-3">
-            <Field id="telefon" label="Telefon" type="tel" autoComplete="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} />
+            <Field id="telefon" label={t('Telefon')} type="tel" dir="ltr" autoComplete="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} />
           </div>
           <div className="sm:col-span-3">
-            <Field id="email" label="E-Mail" type="email" autoComplete="email" value={draft.email} onChange={(e) => patch({ email: e.target.value })} />
+            <Field id="email" label={t('E-Mail')} type="email" dir="ltr" autoComplete="email" value={draft.email} onChange={(e) => patch({ email: e.target.value })} />
           </div>
           <div className="sm:col-span-6">
             <Field
               id="webseite"
-              label="Webseite"
+              label={t('Webseite')}
               type="url"
               inputMode="url"
-              placeholder="www.dein-laden.de"
-              hint={status.ai ? 'Steht hier eine Webseite, liest eine KI gleich deine Preisliste aus. Du prüfst die Vorschläge.' : undefined}
+              dir="ltr"
+              placeholder={t('www.dein-laden.de')}
+              hint={status.ai ? t('Steht hier eine Webseite, liest eine KI gleich deine Preisliste aus. Du prüfst die Vorschläge.') : undefined}
               value={draft.website}
               onChange={(e) => patch({ website: e.target.value })}
             />
@@ -372,18 +386,21 @@ const ShopSetup = () => {
         </div>
       );
       primary = {
-        label: 'Ja, weiter',
+        label: t('Ja, weiter'),
         onClick: () => {
-          if (!draft.name.trim()) return setProblem('Wie heißt dein Laden?');
-          if (!isEmail(draft.email)) return setProblem('Bitte eine gültige E-Mail eintragen.');
+          if (!draft.name.trim()) return setProblem(t('Wie heißt dein Laden?'));
+          if (!isEmail(draft.email)) return setProblem(t('Bitte eine gültige E-Mail eintragen.'));
           next();
         },
       };
       break;
     }
     case 'industry': {
-      title = 'Was für ein Laden ist das?';
-      intro = draft.industryGuessed && industryName ? `Laut Google: ${industryName}. Stimmt das?` : 'Danach richten sich die Vorschläge für deine Leistungen.';
+      title = t('Was für ein Laden ist das?');
+      intro =
+        draft.industryGuessed && industryName
+          ? t('Laut Google: {branche}. Stimmt das?', { branche: industryName })
+          : t('Danach richten sich die Vorschläge für deine Leistungen.');
       body = (
         <div className="flex flex-col gap-2">
           {INDUSTRIES.map((i) => (
@@ -398,8 +415,8 @@ const ShopSetup = () => {
           {/* Vorlagen tauscht der Schritt "Leistungen" bei einem Wechsel selbst aus; eigene Anpassungen bleiben */}
           <QueueOption
             selected={draft.industryConfirmed && draft.industry === ''}
-            title="Etwas anderes"
-            meta="Du trägst deine Leistungen selbst ein"
+            title={t('Etwas anderes')}
+            meta={t('Du trägst deine Leistungen selbst ein')}
             onClick={() => next({ ...draft, industry: '', industryGuessed: false, industryConfirmed: true })}
           />
         </div>
@@ -408,13 +425,13 @@ const ShopSetup = () => {
       break;
     }
     case 'hours': {
-      title = 'Wann hast du geöffnet?';
+      title = t('Wann hast du geöffnet?');
       intro = draft.hoursFromGoogle
-        ? 'So steht es bei Google. Mittagspausen gelten für alle – in der Zeit bucht niemand.'
-        : 'Tipp eine Vorlage an und pass sie an. Machst du mittags zu, trag eine Pause ein.';
+        ? t('So steht es bei Google. Mittagspausen gelten für alle – in der Zeit bucht niemand.')
+        : t('Tipp eine Vorlage an und pass sie an. Machst du mittags zu, trag eine Pause ein.');
       body = <OpeningHoursEditor value={draft.hours} onChange={(hours) => patch({ hours })} presets={!draft.hoursFromGoogle} />;
       primary = {
-        label: 'Weiter',
+        label: t('Weiter'),
         onClick: () => {
           const p = hoursProblem(normalizeHours(draft.hours));
           if (p) return setProblem(p);
@@ -424,8 +441,8 @@ const ShopSetup = () => {
       break;
     }
     case 'services': {
-      title = 'Was bietest du an?';
-      intro = 'Tipp an, was man bei dir buchen kann. Dauer und Preis änderst du direkt.';
+      title = t('Was bietest du an?');
+      intro = t('Tipp an, was man bei dir buchen kann. Dauer und Preis änderst du direkt.');
       body = (
         <div className="flex flex-col gap-5">
           {status.ai && (
@@ -441,101 +458,108 @@ const ShopSetup = () => {
           <ServicePicker
             services={draft.services}
             onChange={(services) => patch({ services })}
-            templateTitle={industryName ? `Typisch für ${industryName}` : 'Vorschläge'}
+            templateTitle={industryName ? t('Typisch für {branche}', { branche: industryName }) : t('Vorschläge')}
           />
         </div>
       );
       primary = {
-        label: 'Weiter',
+        label: t('Weiter'),
         disabled: website.state === 'reading',
         onClick: () => {
           const selected = draft.services.filter((s) => s.selected);
-          if (selected.length === 0) return setProblem('Wähl mindestens eine Leistung aus – sonst kann niemand buchen.');
-          if (selected.some((s) => !s.name.trim())) return setProblem('Eine Leistung hat noch keinen Namen.');
-          if (selected.some((s) => !(s.duration >= 5))) return setProblem('Jede Leistung braucht eine Dauer von mindestens 5 Minuten.');
+          if (selected.length === 0) return setProblem(t('Wähl mindestens eine Leistung aus – sonst kann niemand buchen.'));
+          if (selected.some((s) => !s.name.trim())) return setProblem(t('Eine Leistung hat noch keinen Namen.'));
+          if (selected.some((s) => !(s.duration >= 5))) return setProblem(t('Jede Leistung braucht eine Dauer von mindestens 5 Minuten.'));
           next();
         },
       };
       break;
     }
     case 'owner': {
-      title = 'Nimmst du selbst Kundschaft an?';
-      intro = 'Dann bekommst du eigene Termine und eine eigene Schlange am Tresen.';
+      title = t('Nimmst du selbst Kundschaft an?');
+      intro = t('Dann bekommst du eigene Termine und eine eigene Schlange am Tresen.');
       body = (
         <div className="flex flex-col gap-2">
-          <QueueOption selected={draft.ownerWorks === true} title="Ja, ich arbeite selbst mit" onClick={() => next({ ...draft, ownerWorks: true })} />
-          <QueueOption selected={draft.ownerWorks === false} title="Nein, nur mein Team" onClick={() => next({ ...draft, ownerWorks: false })} />
+          <QueueOption selected={draft.ownerWorks === true} title={t('Ja, ich arbeite selbst mit')} onClick={() => next({ ...draft, ownerWorks: true })} />
+          <QueueOption selected={draft.ownerWorks === false} title={t('Nein, nur mein Team')} onClick={() => next({ ...draft, ownerWorks: false })} />
         </div>
       );
       primary = null;
       break;
     }
     case 'team': {
-      title = draft.ownerWorks ? 'Wer arbeitet noch mit?' : 'Wer arbeitet bei dir?';
-      intro = 'Der Vorname reicht. Mit E-Mail bekommt die Person beim Eröffnen automatisch eine Einladung für ihren eigenen Tagesplan.';
-      const setPerson = (key: string, p: Partial<{ name: string; email: string }>) => patch({ team: draft.team.map((t) => (t.key === key ? { ...t, ...p } : t)) });
+      title = draft.ownerWorks ? t('Wer arbeitet noch mit?') : t('Wer arbeitet bei dir?');
+      intro = t('Der Vorname reicht. Mit E-Mail bekommt die Person beim Eröffnen automatisch eine Einladung für ihren eigenen Tagesplan.');
+      const setPerson = (key: string, p: Partial<{ name: string; email: string }>) =>
+        patch({ team: draft.team.map((person) => (person.key === key ? { ...person, ...p } : person)) });
       body = (
         <div className="flex flex-col gap-3">
           {draft.ownerWorks && (
             <div className="rounded-2xl border border-foreground bg-background p-3">
-              <Field id="ich" label="Du – so sehen Kunden dich" placeholder="Dein Vorname" value={draft.ownerName} onChange={(e) => patch({ ownerName: e.target.value })} />
+              <Field id="ich" label={t('Du – so sehen Kunden dich')} placeholder={t('Dein Vorname')} value={draft.ownerName} onChange={(e) => patch({ ownerName: e.target.value })} />
             </div>
           )}
-          {draft.team.map((t, i) => (
-            <div key={t.key} className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-3 sm:flex-row sm:items-end">
+          {draft.team.map((person, i) => (
+            <div key={person.key} className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-3 sm:flex-row sm:items-end">
               <div className="flex-1">
-                <Field id={`name-${t.key}`} label="Name" autoFocus={!t.name && i === draft.team.length - 1} value={t.name} onChange={(e) => setPerson(t.key, { name: e.target.value })} />
+                <Field id={`name-${person.key}`} label={t('Name')} autoFocus={!person.name && i === draft.team.length - 1} value={person.name} onChange={(e) => setPerson(person.key, { name: e.target.value })} />
               </div>
               <div className="flex-1">
-                <Field id={`mail-${t.key}`} label="E-Mail (freiwillig)" type="email" value={t.email} onChange={(e) => setPerson(t.key, { email: e.target.value })} />
+                <Field id={`mail-${person.key}`} label={t('E-Mail (freiwillig)')} type="email" dir="ltr" value={person.email} onChange={(e) => setPerson(person.key, { email: e.target.value })} />
               </div>
-              <Button variant="ghost" size="icon" className="self-end" onClick={() => patch({ team: draft.team.filter((x) => x.key !== t.key) })} aria-label={`${t.name || 'Person'} entfernen`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="self-end"
+                onClick={() => patch({ team: draft.team.filter((x) => x.key !== person.key) })}
+                aria-label={t('{name} entfernen', { name: person.name || t('Person') })}
+              >
                 <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           ))}
           <Button variant="outline" className="self-start" onClick={() => patch({ team: [...draft.team, { key: newKey('p'), name: '', email: '' }] })}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Person hinzufügen
+            {t('Person hinzufügen')}
           </Button>
         </div>
       );
-      const others = draft.team.filter((t) => t.name.trim());
+      const others = draft.team.filter((person) => person.name.trim());
       primary = {
-        label: draft.ownerWorks && others.length === 0 ? 'Nur ich, weiter' : 'Weiter',
+        label: draft.ownerWorks && others.length === 0 ? t('Nur ich, weiter') : t('Weiter'),
         onClick: async () => {
-          if (draft.ownerWorks && !draft.ownerName.trim()) return setProblem('Wie sollen Kunden dich sehen? Trag deinen Vornamen ein.');
-          if (draft.team.some((t) => !t.name.trim() && t.email.trim())) return setProblem('Bei einer Person fehlt der Name.');
-          if (peopleOf(draft).length === 0) return setProblem('Mindestens eine Person muss Termine annehmen – sonst gibt es keine freien Zeiten.');
-          const bad = others.find((t) => t.email.trim() && !isEmail(t.email));
-          if (bad) return setProblem(`Die E-Mail von ${bad.name} stimmt nicht.`);
-          const emails = others.map((t) => t.email.trim().toLowerCase()).filter(Boolean);
+          if (draft.ownerWorks && !draft.ownerName.trim()) return setProblem(t('Wie sollen Kunden dich sehen? Trag deinen Vornamen ein.'));
+          if (draft.team.some((person) => !person.name.trim() && person.email.trim())) return setProblem(t('Bei einer Person fehlt der Name.'));
+          if (peopleOf(draft).length === 0) return setProblem(t('Mindestens eine Person muss Termine annehmen – sonst gibt es keine freien Zeiten.'));
+          const bad = others.find((person) => person.email.trim() && !isEmail(person.email));
+          if (bad) return setProblem(t('Die E-Mail von {name} stimmt nicht.', { name: bad.name }));
+          const emails = others.map((person) => person.email.trim().toLowerCase()).filter(Boolean);
           if (new Set(emails).size !== emails.length || (draft.ownerWorks && emails.includes(draft.email.trim().toLowerCase()))) {
-            return setProblem('Jede E-Mail darf nur einmal vorkommen.');
+            return setProblem(t('Jede E-Mail darf nur einmal vorkommen.'));
           }
           // Hat jemand schon ein Konto (z. B. als Kunde), meldet er sich beim Einladungslink damit an – kein Hindernis
-          next({ ...draft, team: draft.team.filter((t) => t.name.trim()) });
+          next({ ...draft, team: draft.team.filter((person) => person.name.trim()) });
         },
       };
       break;
     }
     case 'skills': {
-      title = 'Kann jeder alles?';
-      intro = 'Bei der Buchung sieht der Kunde dann nur, wer die gewählte Leistung auch macht.';
+      title = t('Kann jeder alles?');
+      intro = t('Bei der Buchung sieht der Kunde dann nur, wer die gewählte Leistung auch macht.');
       const toggle = (personKey: string, serviceKey: string) => {
         const a = assignmentOf(draft, personKey);
         const current = a.serviceKeys.length ? a.serviceKeys : chosenServices.map((s) => s.key);
         const serviceKeys = current.includes(serviceKey) ? current.filter((k) => k !== serviceKey) : [...current, serviceKey];
         // leer hieße "alle" – also die letzte Leistung nicht abwählen lassen
-        if (serviceKeys.length === 0) return setProblem('Jede Person braucht mindestens eine Leistung.');
+        if (serviceKeys.length === 0) return setProblem(t('Jede Person braucht mindestens eine Leistung.'));
         setProblem('');
         patch({ assignments: { ...draft.assignments, [personKey]: { ...a, serviceKeys } } });
       };
       body = (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <QueueOption selected={draft.everyoneDoesAll === true} title="Ja, jeder macht alle Leistungen" onClick={() => next({ ...draft, everyoneDoesAll: true })} />
-            <QueueOption selected={draft.everyoneDoesAll === false} title="Nein, das ist verteilt" onClick={() => patch({ everyoneDoesAll: false })} />
+            <QueueOption selected={draft.everyoneDoesAll === true} title={t('Ja, jeder macht alle Leistungen')} onClick={() => next({ ...draft, everyoneDoesAll: true })} />
+            <QueueOption selected={draft.everyoneDoesAll === false} title={t('Nein, das ist verteilt')} onClick={() => patch({ everyoneDoesAll: false })} />
           </div>
           {draft.everyoneDoesAll === false &&
             people.map((p) => {
@@ -543,7 +567,7 @@ const ShopSetup = () => {
               const picked = a.serviceKeys.length ? a.serviceKeys : chosenServices.map((s) => s.key);
               return (
                 <fieldset key={p.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-3">
-                  <legend className="px-1 font-semibold">{p.isOwner ? `${p.name} (du)` : p.name}</legend>
+                  <legend className="px-1 font-semibold">{p.isOwner ? t('{name} (du)', { name: p.name }) : p.name}</legend>
                   <div className="flex flex-wrap gap-2">
                     {chosenServices.map((s) => (
                       <Chip key={s.key} on={picked.includes(s.key)} onClick={() => toggle(p.key, s.key)}>
@@ -559,15 +583,15 @@ const ShopSetup = () => {
       primary =
         draft.everyoneDoesAll === false
           ? {
-              label: 'Weiter',
+              label: t('Weiter'),
               onClick: () => {
                 const empty = people.find((p) => {
                   const keys = assignmentOf(draft, p.key).serviceKeys;
                   return keys.length > 0 && !keys.some((k) => chosenServices.some((s) => s.key === k));
                 });
-                if (empty) return setProblem(`${empty.name} braucht mindestens eine Leistung.`);
+                if (empty) return setProblem(t('{name} braucht mindestens eine Leistung.', { name: empty.name }));
                 const orphan = unassignedServices(draft);
-                if (orphan.length) return setProblem(`„${orphan[0].name}“ macht noch niemand – sonst kann man es nicht buchen.`);
+                if (orphan.length) return setProblem(t('„{leistung}“ macht noch niemand – sonst kann man es nicht buchen.', { leistung: orphan[0].name }));
                 next();
               },
             }
@@ -575,22 +599,22 @@ const ShopSetup = () => {
       break;
     }
     case 'staffHours': {
-      title = 'Arbeiten alle, wenn offen ist?';
-      intro = 'Genauere Zeiten und Pausen einzelner Leute stellst du später unter „Team“ ein.';
+      title = t('Arbeiten alle, wenn offen ist?');
+      intro = t('Genauere Zeiten und Pausen einzelner Leute stellst du später unter „Team“ ein.');
       const openDays = WEEK_ORDER.filter((d) => normalizeHours(draft.hours)[d].isOpen);
       const toggleDay = (personKey: string, day: number) => {
         const a = assignmentOf(draft, personKey);
         const current = a.days.length ? a.days : openDays;
         const days = current.includes(day) ? current.filter((x) => x !== day) : [...current, day];
-        if (days.length === 0) return setProblem('Jede Person braucht mindestens einen Arbeitstag.');
+        if (days.length === 0) return setProblem(t('Jede Person braucht mindestens einen Arbeitstag.'));
         setProblem('');
         patch({ assignments: { ...draft.assignments, [personKey]: { ...a, days } } });
       };
       body = (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <QueueOption selected={draft.sameHours === true} title="Ja, immer zu den Öffnungszeiten" onClick={() => next({ ...draft, sameHours: true })} />
-            <QueueOption selected={draft.sameHours === false} title="Nein, an unterschiedlichen Tagen" onClick={() => patch({ sameHours: false })} />
+            <QueueOption selected={draft.sameHours === true} title={t('Ja, immer zu den Öffnungszeiten')} onClick={() => next({ ...draft, sameHours: true })} />
+            <QueueOption selected={draft.sameHours === false} title={t('Nein, an unterschiedlichen Tagen')} onClick={() => patch({ sameHours: false })} />
           </div>
           {draft.sameHours === false &&
             people.map((p) => {
@@ -598,10 +622,10 @@ const ShopSetup = () => {
               const days = a.days.length ? a.days : openDays;
               return (
                 <fieldset key={p.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-3">
-                  <legend className="px-1 font-semibold">{p.isOwner ? `${p.name} (du)` : p.name}</legend>
+                  <legend className="px-1 font-semibold">{p.isOwner ? t('{name} (du)', { name: p.name }) : p.name}</legend>
                   <div className="flex flex-wrap gap-2">
                     {openDays.map((d) => (
-                      <Chip key={d} on={days.includes(d)} onClick={() => toggleDay(p.key, d)} label={`${p.name} arbeitet ${DAY_SHORT[d]}`}>
+                      <Chip key={d} on={days.includes(d)} onClick={() => toggleDay(p.key, d)} label={t('{name} arbeitet {tag}', { name: p.name, tag: DAY_SHORT[d] })}>
                         {DAY_SHORT[d]}
                       </Chip>
                     ))}
@@ -614,13 +638,13 @@ const ShopSetup = () => {
       primary =
         draft.sameHours === false
           ? {
-              label: 'Weiter',
+              label: t('Weiter'),
               onClick: () => {
                 const none = people.find((p) => {
                   const days = assignmentOf(draft, p.key).days;
                   return days.length > 0 && !days.some((d) => openDays.includes(d));
                 });
-                if (none) return setProblem(`${none.name} braucht mindestens einen Arbeitstag.`);
+                if (none) return setProblem(t('{name} braucht mindestens einen Arbeitstag.', { name: none.name }));
                 next();
               },
             }
@@ -628,17 +652,17 @@ const ShopSetup = () => {
       break;
     }
     case 'summary': {
-      title = 'Alles bereit?';
+      title = t('Alles bereit?');
       intro = draft.progress?.shopId
-        ? 'Ein Teil ist schon gespeichert. „Weiter anlegen“ ergänzt den Rest – ohne zweiten Laden.'
-        : 'Prüf kurz. Mit „Laden eröffnen“ wird alles angelegt.';
+        ? t('Ein Teil ist schon gespeichert. „Weiter anlegen“ ergänzt den Rest – ohne zweiten Laden.')
+        : t('Prüf kurz. Mit „Laden eröffnen“ wird alles angelegt.');
       const hours = normalizeHours(draft.hours);
       const Section = ({ label, to, children }: { label: string; to: Step; children: ReactNode }) => (
         <section className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</h3>
             <Button variant="ghost" size="sm" onClick={() => go(to)} disabled={Boolean(creating)}>
-              Ändern
+              {t('Ändern')}
             </Button>
           </div>
           {children}
@@ -646,14 +670,14 @@ const ShopSetup = () => {
       );
       body = (
         <div className="flex flex-col gap-3">
-          <Section label="Laden" to="check">
+          <Section label={t('Laden')} to="check">
             <p className="font-semibold">{draft.name}</p>
             <p className="text-sm text-muted-foreground">
-              {[draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || 'ohne Adresse'}
+              {[draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || t('ohne Adresse')}
               {industryName ? ` · ${industryName}` : ''}
             </p>
           </Section>
-          <Section label="Öffnungszeiten" to="hours">
+          <Section label={t('Öffnungszeiten')} to="hours">
             <dl className="grid grid-cols-[3rem_1fr] gap-x-3 gap-y-1 text-sm">
               {WEEK_ORDER.map((d) => (
                 <div key={d} className="contents">
@@ -663,45 +687,48 @@ const ShopSetup = () => {
               ))}
             </dl>
           </Section>
-          <Section label={`${chosenServices.length} Leistungen`} to="services">
+          <Section label={tn(chosenServices.length, '{n} Leistung', '{n} Leistungen')} to="services">
             <ul className="flex flex-col gap-1 text-sm">
               {chosenServices.map((s) => (
                 <li key={s.key} className="flex justify-between gap-3">
                   <span>{s.name}</span>
                   <span className="shrink-0 font-mono text-muted-foreground">
-                    {s.duration} Min. · {s.price ? `${s.priceFrom ? 'ab ' : ''}${s.price.toLocaleString('de-DE')} €` : '–'}
+                    {t('{dauer} Min.', { dauer: s.duration })} · {s.price ? preisText(s) : '–'}
                   </span>
                 </li>
               ))}
             </ul>
           </Section>
-          <Section label="Team" to="team">
+          <Section label={t('Team')} to="team">
             <ul className="flex flex-col gap-1 text-sm">
               {people.map((p) => {
                 const a = effectiveAssignment(draft, p.key);
                 const openDays = WEEK_ORDER.filter((d) => hours[d].isOpen);
                 const detail = [
-                  a.serviceKeys.length < chosenServices.length ? `${a.serviceKeys.length} von ${chosenServices.length} Leistungen` : '',
+                  a.serviceKeys.length < chosenServices.length
+                    ? tn(chosenServices.length, '{anzahl} von {n} Leistung', '{anzahl} von {n} Leistungen', { anzahl: a.serviceKeys.length })
+                    : '',
                   a.days.length < openDays.length ? WEEK_ORDER.filter((d) => a.days.includes(d)).map((d) => DAY_SHORT[d]).join(' ') : '',
                 ].filter(Boolean).join(' · ');
                 return (
                   <li key={p.key} className="flex justify-between gap-3">
-                    <span>{p.isOwner ? `${p.name} (du)` : p.name}</span>
-                    <span className="shrink-0 text-muted-foreground">{detail || 'alles, wenn offen ist'}</span>
+                    <span>{p.isOwner ? t('{name} (du)', { name: p.name }) : p.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{detail || t('alles, wenn offen ist')}</span>
                   </li>
                 );
               })}
             </ul>
             {people.some((p) => !p.isOwner && p.email.trim()) && (
               <p className="text-sm text-muted-foreground">
-                Beim Eröffnen geht eine Einladung per E-Mail an{' '}
-                {people.filter((p) => !p.isOwner && p.email.trim()).map((p) => p.name).join(', ')}.
+                {t('Beim Eröffnen geht eine Einladung per E-Mail an {namen}.', {
+                  namen: people.filter((p) => !p.isOwner && p.email.trim()).map((p) => p.name).join(', '),
+                })}
               </p>
             )}
           </Section>
         </div>
       );
-      primary = { label: creating || (draft.progress?.shopId ? 'Weiter anlegen' : 'Laden eröffnen'), disabled: Boolean(creating), onClick: finish };
+      primary = { label: creating || (draft.progress?.shopId ? t('Weiter anlegen') : t('Laden eröffnen')), disabled: Boolean(creating), onClick: finish };
       break;
     }
   }
@@ -711,8 +738,8 @@ const ShopSetup = () => {
   return (
     <div ref={top} className="mx-auto flex max-w-2xl scroll-mt-20 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Laden einrichten</p>
-        <StepIndicator currentStep={groupIndex + 1} totalSteps={GROUPS.length} labels={GROUPS.map((g) => g.label)} />
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Laden einrichten')}</p>
+        <StepIndicator currentStep={groupIndex + 1} totalSteps={GROUPS.length} labels={GROUPS.map((g) => t(g.label))} />
       </div>
       <section className="flex flex-col gap-5 rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="frage">
         <div className="flex flex-col gap-1">
@@ -727,11 +754,11 @@ const ShopSetup = () => {
           {step !== 'find' ? (
             <Button variant="ghost" onClick={back} disabled={Boolean(creating)}>
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Zurück
+              {t('Zurück')}
             </Button>
           ) : (
             <Link to="/shop-dashboard" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
-              Später weitermachen
+              {t('Später weitermachen')}
             </Link>
           )}
           {primary && (
@@ -743,10 +770,13 @@ const ShopSetup = () => {
         </div>
       </section>
       <p className="text-center text-xs text-muted-foreground">
-        Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist. Unsicher?{' '}
-        <HilfeLink hilfe="in-10-minuten-startklar" className="text-xs">
-          Schritt für Schritt erklärt
-        </HilfeLink>
+        {tTeile('Deine Antworten bleiben auf diesem Gerät gespeichert, bis der Laden angelegt ist. Unsicher? <hilfe>Schritt für Schritt erklärt</hilfe>', {
+          hilfe: (inhalt) => (
+            <HilfeLink hilfe="in-10-minuten-startklar" className="text-xs">
+              {inhalt}
+            </HilfeLink>
+          ),
+        })}
       </p>
     </div>
   );
@@ -768,8 +798,8 @@ const WebsiteBox = ({
       <div className="flex items-start gap-3 rounded-2xl bg-foreground p-4 text-background" role="status">
         <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" aria-hidden="true" />
         <div>
-          <p className="font-semibold">Ich lese die Preisliste auf {host(website || url)} …</p>
-          <p className="text-sm text-background/75">Das dauert bis zu einer Minute. Unten kannst du schon Vorschläge ankreuzen.</p>
+          <p className="font-semibold">{t('Ich lese die Preisliste auf {seite} …', { seite: host(website || url) })}</p>
+          <p className="text-sm text-background/75">{t('Das dauert bis zu einer Minute. Unten kannst du schon Vorschläge ankreuzen.')}</p>
         </div>
       </div>
     );
@@ -779,7 +809,7 @@ const WebsiteBox = ({
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4" role="status">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <p className="text-sm">
-          {state.text} <span className="text-muted-foreground">Automatisch per KI ausgelesen – bitte Dauer und Preise prüfen.</span>
+          {state.text} <span className="text-muted-foreground">{t('Automatisch per KI ausgelesen – bitte Dauer und Preise prüfen.')}</span>
         </p>
       </div>
     );
@@ -789,9 +819,9 @@ const WebsiteBox = ({
       <div className="flex items-start gap-3">
         <Globe className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <div>
-          <p className="font-semibold">Preisliste von deiner Webseite holen</p>
+          <p className="font-semibold">{t('Preisliste von deiner Webseite holen')}</p>
           <p className="text-sm text-muted-foreground">
-            {state.state === 'failed' ? state.text : 'Steht deine Preisliste online, liest eine KI Leistungen, Dauer und Preise aus. Prüf die Vorschläge, bevor du weitergehst.'}
+            {state.state === 'failed' ? state.text : t('Steht deine Preisliste online, liest eine KI Leistungen, Dauer und Preise aus. Prüf die Vorschläge, bevor du weitergehst.')}
           </p>
         </div>
       </div>
@@ -803,11 +833,11 @@ const WebsiteBox = ({
         }}
       >
         <label htmlFor="preisliste-url" className="sr-only">
-          Adresse deiner Webseite
+          {t('Adresse deiner Webseite')}
         </label>
-        <Input id="preisliste-url" type="text" inputMode="url" placeholder="www.dein-laden.de" value={url} onChange={(e) => setUrl(e.target.value)} className="h-11 flex-1" />
+        <Input id="preisliste-url" type="text" inputMode="url" dir="ltr" placeholder={t('www.dein-laden.de')} value={url} onChange={(e) => setUrl(e.target.value)} className="h-11 flex-1" />
         <Button type="submit" variant="outline" disabled={!url.trim()}>
-          {state.state === 'failed' ? 'Noch einmal' : 'Auslesen'}
+          {state.state === 'failed' ? t('Noch einmal') : t('Auslesen')}
         </Button>
       </form>
     </div>

@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { merke } from '@/i18n';
 
 export type UserRole = 'shopOwner' | 'employee' | 'customer';
 
@@ -12,22 +13,24 @@ export interface UserProfile {
   updatedAt: Timestamp;
 }
 
+/** Deutsch als Schlüssel – angezeigt mit t(USER_ROLES[rolle]) */
 export const USER_ROLES: { [key in UserRole]: string } = {
-  shopOwner: 'Inhaber eines Ladens',
-  employee: 'Im Team eines Ladens',
-  customer: 'Kunde'
+  shopOwner: merke('Inhaber eines Ladens'),
+  employee: merke('Im Team eines Ladens'),
+  customer: merke('Kunde')
 };
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
+/** Deutsch als Schlüssel – angezeigt mit t(DAYS_OF_WEEK[tag]) */
 export const DAYS_OF_WEEK: { [key in DayOfWeek]: string } = {
-  monday: 'Montag',
-  tuesday: 'Dienstag',
-  wednesday: 'Mittwoch',
-  thursday: 'Donnerstag',
-  friday: 'Freitag',
-  saturday: 'Samstag',
-  sunday: 'Sonntag'
+  monday: merke('Montag'),
+  tuesday: merke('Dienstag'),
+  wednesday: merke('Mittwoch'),
+  thursday: merke('Donnerstag'),
+  friday: merke('Freitag'),
+  saturday: merke('Samstag'),
+  sunday: merke('Sonntag')
 };
 
 export interface BusinessHours {

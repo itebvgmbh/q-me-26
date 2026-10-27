@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '../utils/cn';
+import { t } from '@/i18n';
 
 interface TimePickerProps {
   id?: string;
@@ -59,7 +60,7 @@ export const TimePicker = ({ id, value, onChange, className, disabled = false }:
   ));
 
   return (
-    <div className={cn('flex space-x-2 items-center', className)}>
+    <div className={cn('flex space-x-2 items-center rtl:space-x-reverse', className)}>
       {/* Hours select */}
       <Select
         disabled={disabled}
@@ -67,7 +68,7 @@ export const TimePicker = ({ id, value, onChange, className, disabled = false }:
         onValueChange={handleHoursChange}
       >
         <SelectTrigger className="w-[70px]" id={id ? `${id}-hours` : undefined}>
-          <SelectValue placeholder="Std" />
+          <SelectValue placeholder={t('Std')} />
         </SelectTrigger>
         <SelectContent>
           {hoursOptions}
@@ -83,7 +84,7 @@ export const TimePicker = ({ id, value, onChange, className, disabled = false }:
         onValueChange={handleMinutesChange}
       >
         <SelectTrigger className="w-[70px]" id={id ? `${id}-minutes` : undefined}>
-          <SelectValue placeholder="Min" />
+          <SelectValue placeholder={t('Min')} />
         </SelectTrigger>
         <SelectContent>
           {minutesOptions}

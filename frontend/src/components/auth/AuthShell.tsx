@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { t } from '@/i18n';
 
 /** Rahmen für Anmelden/Registrieren: große Überschrift, eine Karte, Links darunter */
 export const AuthShell = ({ title, intro, children, footer }: { title: string; intro?: ReactNode; children: ReactNode; footer?: ReactNode }) => (
@@ -23,7 +24,7 @@ export const FormError = ({ children }: { children: ReactNode }) => (
 
 export const EmailField = ({ value, onChange, invalid }: { value: string; onChange: (v: string) => void; invalid?: boolean }) => (
   <div className="flex flex-col gap-2">
-    <Label htmlFor="email">E-Mail</Label>
+    <Label htmlFor="email">{t('E-Mail')}</Label>
     <Input
       id="email"
       type="email"
@@ -42,7 +43,7 @@ export const PasswordField = ({
   value,
   onChange,
   isNew = false,
-  label = 'Passwort',
+  label,
   id = 'password',
 }: {
   value: string;
@@ -54,7 +55,7 @@ export const PasswordField = ({
   const [visible, setVisible] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>{label ?? t('Passwort')}</Label>
       <div className="relative">
         <Input
           id={id}
@@ -63,15 +64,15 @@ export const PasswordField = ({
           minLength={isNew ? 6 : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pr-12"
+          className="pe-12"
           aria-describedby={isNew ? `${id}-hint` : undefined}
           required
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-          aria-label={visible ? 'Passwort verbergen' : 'Passwort anzeigen'}
+          className="absolute end-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          aria-label={visible ? t('Passwort verbergen') : t('Passwort anzeigen')}
           aria-pressed={visible}
         >
           {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -79,7 +80,7 @@ export const PasswordField = ({
       </div>
       {isNew && (
         <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-          Mindestens 6 Zeichen.
+          {t('Mindestens 6 Zeichen.')}
         </p>
       )}
     </div>

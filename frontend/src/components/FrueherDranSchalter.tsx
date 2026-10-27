@@ -6,6 +6,7 @@ import { useCurrentUser } from 'app';
 import { Switch } from '@/components/ui/switch';
 import { firestore } from '../utils/firestore-client';
 import { FRUEHER_DRAN_VORLAUF_MINUTEN, setFrueherDran } from '../utils/frueher-dran';
+import { t, tTeile } from '@/i18n';
 
 /**
  * „Früher dran“ auf der Nummernseite für eine Nummer im eigenen Konto – etwa gleich nach „Konto anlegen und Nummer
@@ -42,9 +43,9 @@ export function FrueherDranSchalter({ appointmentId, start, claimedKey }: { appo
     try {
       const now = await setFrueherDran(appointmentId, next);
       setOn(now);
-      toast.success(now ? 'Früher dran ist an. Wird ein Platz frei, bekommst du ein Angebot.' : 'Früher dran ist aus.');
+      toast.success(now ? t('Früher dran ist an. Wird ein Platz frei, bekommst du ein Angebot.') : t('Früher dran ist aus.'));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Das hat nicht geklappt. Versuch es noch einmal.');
+      toast.error(error instanceof Error ? error.message : t('Das hat nicht geklappt. Versuch es noch einmal.'));
     } finally {
       setSwitching(false);
     }
@@ -53,19 +54,20 @@ export function FrueherDranSchalter({ appointmentId, start, claimedKey }: { appo
   return (
     <div className="flex items-start justify-between gap-4 rounded-2xl border border-border p-4">
       <label htmlFor="frueher-dran-nummer" className="flex cursor-pointer flex-col text-sm">
-        <strong className="text-foreground">Früher dran, wenn etwas frei wird</strong>
+        <strong className="text-foreground">{t('Früher dran, wenn etwas frei wird')}</strong>
         <span className="text-muted-foreground">
-          {on ? (
-            <>
-              Ist an. Wird vorher ein Platz frei, bieten wir ihn dir an – annehmen unter{' '}
-              <Link to="/my-bookings" className="font-semibold underline underline-offset-2">
-                Meine Termine
-              </Link>
-              . Deine Nummer bleibt sicher, bis du zusagst.
-            </>
-          ) : (
-            'Wir bieten dir einen früheren Platz an, wenn einer frei wird. Deine Nummer bleibt sicher, bis du zusagst.'
-          )}
+          {on
+            ? tTeile(
+                'Ist an. Wird vorher ein Platz frei, bieten wir ihn dir an – annehmen unter <termine>Meine Termine</termine>. Deine Nummer bleibt sicher, bis du zusagst.',
+                {
+                  termine: (inhalt) => (
+                    <Link to="/my-bookings" className="font-semibold underline underline-offset-2">
+                      {inhalt}
+                    </Link>
+                  ),
+                },
+              )
+            : t('Wir bieten dir einen früheren Platz an, wenn einer frei wird. Deine Nummer bleibt sicher, bis du zusagst.')}
         </span>
       </label>
       <Switch id="frueher-dran-nummer" checked={on} disabled={switching} onCheckedChange={toggle} className="mt-0.5" />
