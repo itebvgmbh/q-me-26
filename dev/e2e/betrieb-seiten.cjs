@@ -161,7 +161,7 @@ run(async () => {
       { name: `${device}: Dialoge ragen nicht über den Rand`, pass: !queueDialog.overflow.length && !bookedOverflow.length && !shopOverflow.length && !staffOverflow.length, detail: [...queueDialog.overflow, ...bookedOverflow, ...shopOverflow, ...staffOverflow].join(', ') },
       { name: `${device}: Person ohne Telefon speicherbar`, pass: saved && pflicht === 0 },
       { name: `${device}: Leistungsname überlappt Dauer nicht`, pass: !listOverlap },
-      { name: `${device}: Mein Tag erklärt sich für Inhaber`, pass: /Du nimmst noch keine Termine an/.test(meinTagText) },
+      { name: `${device}: Mein Tag zeigt Inhabern den Weg zum Tresen`, pass: /Termine deines Teams stehen am Tresen/.test(meinTagText) && /Zum Tresen/.test(meinTagText) },
       { name: `${device}: Früher dran ohne Steuerknöpfe`, pass: controls === 0 },
       { name: `${device}: Verlauf nur eigene Läden`, pass: api.histStatus === 200 && api.foreign === 0, detail: `${api.histStatus}, fremd ${api.foreign}` },
       { name: `${device}: Steuerung gesperrt, Dienst läuft`, pass: api.stop === 403 && api.canControl === false && api.running === true, detail: `${api.stop}, läuft ${api.running}` },

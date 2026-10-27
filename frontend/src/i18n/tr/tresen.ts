@@ -91,10 +91,11 @@ const texte: Texte = {
   "Hallo {name}": "Merhaba {name}",
 
   // components/NoEmployeeState.tsx
-  "Du nimmst noch keine Termine an.": "Henüz randevu kabul etmiyorsunuz.",
+  "Die Termine deines Teams stehen am Tresen.": "Ekibinizin randevularını resepsiyonda görürsünüz.",
   "Noch mit keinem Laden verknüpft.": "Henüz bir salona bağlı değilsiniz.",
-  "Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.": "Salonda kendiniz de çalışıyorsanız “Ekip” bölümüne e-posta adresinizle kendinizi ekleyin. Ardından randevularınızı ve molalarınızı burada görürsünüz.",
+  "„Mein Tag“ zeigt nur die Termine, die du selbst annimmst. Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein.": "“Günüm” yalnızca kendi kabul ettiğiniz randevuları gösterir. Salonda kendiniz de çalışıyorsanız “Ekip” bölümüne e-posta adresinizle kendinizi ekleyin.",
   "Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.": "Salonunuzdan bir davet bağlantısı isteyin. Bununla hesabınızı oluşturur ve gününüzü burada görürsünüz.",
+  "Zum Tresen": "Resepsiyona git",
   "Zum Team": "Ekibe git",
   "Zur Startseite": "Ana sayfaya git",
 

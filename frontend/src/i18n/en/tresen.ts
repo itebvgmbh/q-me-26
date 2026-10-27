@@ -91,10 +91,11 @@ const texte: Texte = {
   "Hallo {name}": "Hello {name}",
 
   // components/NoEmployeeState.tsx
-  "Du nimmst noch keine Termine an.": "You're not taking appointments yet.",
+  "Die Termine deines Teams stehen am Tresen.": "Your team's appointments are at the front desk.",
   "Noch mit keinem Laden verknüpft.": "Not linked to a shop yet.",
-  "Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein. Dann siehst du hier deine Termine und Pausen.": "If you also work in the shop yourself, add yourself under “Team” with your email. Then you'll see your appointments and breaks here.",
+  "„Mein Tag“ zeigt nur die Termine, die du selbst annimmst. Arbeitest du selbst mit, trag dich unter „Team“ mit deiner E-Mail ein.": "“My day” only shows the appointments you take yourself. If you also work in the shop yourself, add yourself under “Team” with your email.",
   "Frag in deinem Laden nach einem Einladungslink. Damit legst du dein Konto an und siehst hier deinen Tag.": "Ask your shop for an invitation link. Use it to create your account, then you'll see your day here.",
+  "Zum Tresen": "Go to front desk",
   "Zum Team": "Go to team",
   "Zur Startseite": "Go to home page",
 
