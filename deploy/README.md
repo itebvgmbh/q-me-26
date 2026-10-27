@@ -203,6 +203,9 @@ Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schl
 - **Web-Push:** Die Schlüssel (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) erzeugt `update.sh` beim ersten Lauf
   selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
   der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
+- **Push an die iPhone/iPad-App:** über Firebase Cloud Messaging mit demselben Dienstkonto wie Firestore
+  (`app/libs/fcm.py`), kein weiterer Schlüssel auf dem Server. Was dafür bei Apple und in Firebase
+  einzurichten ist, steht in `mobile/README.md`.
 - **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
   `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar), das Logo im Kopf
   der Mails ebenso (`/img/mail/logo.png`, neu erzeugen mit `node dev/mail-logo.cjs`). Auch „Passwort vergessen“

@@ -26,6 +26,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
         Messaging.messaging().apnsToken = deviceToken
+        // token(completion:) ist seit Firebase 13 als veraltet markiert (Nachfolger: Anmeldung über die Installations-ID).
+        // Das Backend schickt aber an Registrierungs-Tokens (firebase_admin, Message.token) – deshalb bleibt es dabei.
         Messaging.messaging().token { token, error in
             if let token = token {
                 NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
