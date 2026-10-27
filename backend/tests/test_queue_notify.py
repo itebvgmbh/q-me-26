@@ -350,6 +350,107 @@ def test_durchlauf_schickt_in_der_sprache_der_anmeldung_und_des_termins():
     assert by_mail["kundin@example.com"][0] == en.TEXTE["Du bist dran"]  # Termin ohne Sprache: die des Kontos
 
 
+
+# --- Push an die App (iPhone/iPad, app/libs/fcm.py) ------------------------------------------------
+
+from app.libs import fcm  # noqa: E402
+
+
+def _nur_app_kanal(sent):
+    """Server ohne VAPID-Schlüssel, aber mit Firebase: nur die App bekommt Push."""
+    notify_worker.push_configured = lambda: False
+    notify_worker.fcm_configured = lambda: True
+    notify_worker.mail_configured = lambda: False
+    notify_worker.send_push = lambda *a: sent.append(("web",) + a)
+    notify_worker.send_app_push = lambda token, title, body, url, tag: sent.append((token, title, url, tag))
+
+
+def test_durchlauf_schickt_an_die_app():
+    sent = []
+    _nur_app_kanal(sent)
+    try:
+        store = {
+            "shops": {"laden": {"name": "Barber Ali"}},
+            "appointments": {"dran": appt("dran", -5, status="in-progress"), "naechste": appt("naechste", 15)},
+            "push_subscriptions": {
+                "a1": {"appointmentId": "dran", "token": "fcm-token-iphone-1234567890", "platform": "ios"},
+                "a2": {"appointmentId": "naechste", "token": "fcm-token-ipad-1234567890", "platform": "ios", "language": "en"},
+                # Browser-Anmeldung, aber auf diesem Server kein Web-Push: nicht versuchen
+                "w1": {"appointmentId": "dran", "endpoint": "https://push/1", "p256dh": "k", "auth": "a"},
+            },
+        }
+        result = notify_worker.run_once(FakeDb(store), now=NOW)
+        assert ("fcm-token-iphone-1234567890", "Du bist dran", "/nummer/dran", "called-dran") in sent
+        assert ("fcm-token-ipad-1234567890", en.TEXTE["Gleich bist du dran"], "/nummer/naechste", "soon-naechste") in sent
+        assert all(s[0] != "web" for s in sent)
+        assert result["gesendet"] == 2
+        assert store["appointments"]["dran"]["notifiedCalledAt"] == NOW
+        sent.clear()
+        notify_worker.run_once(FakeDb(store), now=NOW)
+        assert sent == []
+    finally:
+        notify_worker.fcm_configured = lambda: False
+
+
+def test_app_und_browser_zusammen():
+    sent = []
+    _nur_app_kanal(sent)
+    notify_worker.push_configured = lambda: True
+    try:
+        store = {
+            "shops": {"laden": {"name": "Barber Ali"}},
+            "appointments": {"dran": appt("dran", -5, status="in-progress")},
+            "push_subscriptions": {
+                "a1": {"appointmentId": "dran", "token": "fcm-token-iphone-1234567890", "platform": "ios"},
+                "w1": {"appointmentId": "dran", "endpoint": "https://push/1", "p256dh": "k", "auth": "a"},
+            },
+        }
+        notify_worker.run_once(FakeDb(store), now=NOW)
+        assert {s[0] for s in sent} == {"fcm-token-iphone-1234567890", "web"}
+    finally:
+        notify_worker.fcm_configured = lambda: False
+
+
+def test_geloeschte_app_wird_abgemeldet():
+    def gone(*_a):
+        raise fcm.TokenGone()
+    _nur_app_kanal([])
+    notify_worker.send_app_push = gone
+    try:
+        store = {
+            "shops": {},
+            "appointments": {"dran": appt("dran", -5, status="in-progress")},
+            "push_subscriptions": {"a1": {"appointmentId": "dran", "token": "fcm-token-iphone-1234567890", "platform": "ios"}},
+        }
+        notify_worker.run_once(FakeDb(store), now=NOW)
+        assert store["push_subscriptions"] == {}
+    finally:
+        notify_worker.fcm_configured = lambda: False
+
+
+def test_app_nachricht_wie_web_push():
+    message = fcm.build_message("fcm-token-iphone-1234567890", "Du bist dran", "Barber Ali ruft dich auf.", "/nummer/dran", "called-dran")
+    assert message.token == "fcm-token-iphone-1234567890"
+    assert message.notification.title == "Du bist dran"
+    # url öffnet die Nummer beim Antippen, tag ersetzt die ältere Nachricht zur selben Nummer
+    assert message.data == {"url": "/nummer/dran", "tag": "called-dran"}
+    assert message.apns.headers["apns-collapse-id"] == "called-dran"
+    assert message.apns.headers["apns-priority"] == "10"
+    assert message.apns.payload.aps.sound == "default"
+    assert message.android.collapse_key == "called-dran"
+
+
+def test_ohne_dienstkonto_kein_app_kanal():
+    alt = {k: os.environ.pop(k, None) for k in ("FIREBASE_SERVICE_ACCOUNT_KEY", "FIREBASE_SERVICE_ACCOUNT_KEY_FILE")}
+    try:
+        assert fcm.fcm_configured() is False
+        os.environ["FIREBASE_SERVICE_ACCOUNT_KEY_FILE"] = "/etc/q-me-firebase.json"
+        assert fcm.fcm_configured() is True
+    finally:
+        os.environ.pop("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", None)
+        os.environ.update({k: v for k, v in alt.items() if v is not None})
+
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:

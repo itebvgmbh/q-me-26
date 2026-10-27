@@ -2,11 +2,13 @@
 
 Anmelden darf, wer den Schlüssel der Nummer hat (Nummer ohne Konto, app/libs/ticket.py) oder mit dem Konto des
 Termins angemeldet ist. Zusätzlich nur für Termine, die heute oder später anstehen, und mit einer Bremse je Absender.
+Die App für iPhone/iPad (mobile/) meldet statt eines Browsers ein FCM-Token an (/push/subscribe-app, app/libs/fcm.py).
 Versand: app/libs/notify_worker.py. Die Sprache (language, sonst Accept-Language) steht an der Anmeldung und am Termin –
 so kommen Nachrichten in der Sprache, die der Kunde zuletzt gewählt hat.
 """
 
 import hashlib
+from typing import Literal
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +16,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.apis.firebase_utils import get_firestore_db
 from app.i18n import aus_anfrage, sprache_von
+from app.libs.fcm import fcm_configured
 from app.libs.mail import mail_configured
 from app.libs.notify_worker import wake
 from app.libs.plans import has_feature
@@ -62,12 +65,16 @@ class PushConfig(BaseModel):
     push: bool
     email: bool
     publicKey: str
+    # Push an die App (Firebase Cloud Messaging) – im Browser egal
+    app: bool = False
 
 
 @router.get("/push/config")
 def push_config() -> PushConfig:
     """Welche Kanäle gibt es? Die Nummernseite blendet danach die Knöpfe ein."""
-    return PushConfig(push=push_configured(), email=mail_configured(), publicKey=public_key() if push_configured() else "")
+    return PushConfig(
+        push=push_configured(), email=mail_configured(), publicKey=public_key() if push_configured() else "", app=fcm_configured()
+    )
 
 
 class SubscribeRequest(BaseModel):
@@ -92,26 +99,45 @@ def subscribe(body: SubscribeRequest, request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Ungültige Push-Adresse.")
     appt = _open_appointment(body.appointment_id, body.key, request)
     _require_notifications(appt.get("shopId"))
+    _save_subscription(
+        appt, body.appointment_id, body.endpoint, {"endpoint": body.endpoint, "p256dh": body.p256dh, "auth": body.auth},
+        _language(body.language, request),
+    )
+    return {"status": "ok"}
+
+
+def _save_subscription(appt: dict, appointment_id: str, device: str, fields: dict, language: str) -> None:
+    """Ein Gerät je Nummer anmelden (Browser: endpoint, App: token) – höchstens MAX_SUBSCRIPTIONS_PER_APPOINTMENT."""
     db = get_firestore_db()
-    language = _language(body.language, request)
-    existing = list(db.collection("push_subscriptions").where("appointmentId", "==", body.appointment_id).limit(MAX_SUBSCRIPTIONS_PER_APPOINTMENT + 1).stream())
-    doc_id = hashlib.sha256(f"{body.appointment_id}|{body.endpoint}".encode()).hexdigest()[:40]
+    existing = list(db.collection("push_subscriptions").where("appointmentId", "==", appointment_id).limit(MAX_SUBSCRIPTIONS_PER_APPOINTMENT + 1).stream())
+    doc_id = hashlib.sha256(f"{appointment_id}|{device}".encode()).hexdigest()[:40]
     if len(existing) >= MAX_SUBSCRIPTIONS_PER_APPOINTMENT and all(d.id != doc_id for d in existing):
         raise HTTPException(status_code=409, detail="Für diese Nummer sind schon genug Geräte angemeldet.")
     db.collection("push_subscriptions").document(doc_id).set(
-        {
-            "appointmentId": body.appointment_id,
-            "shopId": appt.get("shopId"),
-            "endpoint": body.endpoint,
-            "p256dh": body.p256dh,
-            "auth": body.auth,
-            "language": language,
-            "createdAt": datetime.now(timezone.utc),
-        }
+        {"appointmentId": appointment_id, "shopId": appt.get("shopId"), **fields, "language": language, "createdAt": datetime.now(timezone.utc)}
     )
     if appt.get("language") != language:
-        db.collection("appointments").document(body.appointment_id).update({"language": language})
+        db.collection("appointments").document(appointment_id).update({"language": language})
     wake()
+
+
+class SubscribeAppRequest(BaseModel):
+    appointment_id: str
+    key: str | None = Field(default=None, max_length=64)
+    token: str = Field(min_length=20, max_length=4096)
+    platform: Literal["ios", "android"]
+    language: str | None = Field(default=None, max_length=10)
+
+
+@router.post("/push/subscribe-app")
+def subscribe_app(body: SubscribeAppRequest, request: Request) -> dict:
+    """Die App (mobile/) meldet ihr FCM-Token für eine Nummer an – sonst wie /push/subscribe."""
+    _throttle(request)
+    if not fcm_configured():
+        raise HTTPException(status_code=503, detail="Benachrichtigungen sind gerade nicht eingerichtet.")
+    appt = _open_appointment(body.appointment_id, body.key, request)
+    _require_notifications(appt.get("shopId"))
+    _save_subscription(appt, body.appointment_id, body.token, {"token": body.token, "platform": body.platform}, _language(body.language, request))
     return {"status": "ok"}
 
 

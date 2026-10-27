@@ -62,6 +62,11 @@ def test_block_leitet_stadtseiten_ans_backend():
     assert b.count("{") == b.count("}")
 
 
+def test_universal_links_der_app_als_json():
+    b = cd.block("dranzeit.de", "8091", [])
+    assert "@app_links path /.well-known/apple-app-site-association\n\theader @app_links Content-Type application/json" in b
+
+
 def test_bausteine_ehrlich_404_und_html_immer_frisch():
     b = cd.block("dranzeit.de", "8091", [])
     assets, rest = b.split("handle /assets/* {", 1)[1].split("\n\t}\n", 1)

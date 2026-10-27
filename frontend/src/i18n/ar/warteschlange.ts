@@ -60,6 +60,8 @@ const texte: Texte = {
   "Wir sagen dir Bescheid, kurz bevor du dran bist.": "سنُعلمك قبل دورك بقليل.",
   "Benachrichtigungen sind für diese Seite blockiert. Du kannst sie in den Browser-Einstellungen erlauben.":
     "الإشعارات محظورة لهذه الصفحة. يمكنك السماح بها من إعدادات المتصفح.",
+  "Mitteilungen für Dranzeit sind aus. Du kannst sie in den Einstellungen deines Geräts unter Dranzeit einschalten.":
+    "إشعارات Dranzeit متوقفة. يمكنك تشغيلها من إعدادات جهازك ضمن Dranzeit.",
   "Dein Browser kann keine Benachrichtigungen. Nimm die E-Mail.": "متصفحك لا يدعم الإشعارات. استخدم البريد الإلكتروني.",
   "Das hat nicht geklappt.": "لم ينجح ذلك.",
   "Wir schicken dir eine E-Mail, kurz bevor du dran bist.": "سنرسل إليك بريدًا إلكترونيًا قبل دورك بقليل.",

@@ -9,6 +9,7 @@ import { HILFE_MAIL } from '../components/HilfeLink';
 import { ShopLogo } from '../components/brand/ShopLogo';
 import { firestore } from '../utils/firestore-client';
 import { hasFeature } from '../utils/plans';
+import { useKeepScreenOn } from '../utils/native-app';
 import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane';
 import type { Shop, Staff } from '../utils/firestore';
 import { publicFromDoc, shopDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
@@ -35,15 +36,8 @@ export default function Bildschirm() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // Bildschirm bleibt an, wo der Browser es erlaubt
-  useEffect(() => {
-    let lock: { release: () => Promise<void> } | null = null;
-    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request('screen').then((l) => (lock = l)).catch(() => {});
-    return () => {
-      lock?.release().catch(() => {});
-    };
-  }, []);
+  // Bildschirm bleibt an: in der App immer, im Browser, wo er es erlaubt
+  useKeepScreenOn();
 
   useEffect(() => {
     if (!shopId) return;

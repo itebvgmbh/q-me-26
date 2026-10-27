@@ -73,6 +73,10 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 		-Server
 	}}
 
+	# Universal Links der iPhone/iPad-App (mobile/README.md): Die Datei hat keine Endung, Apple will sie als JSON
+	@app_links path /.well-known/apple-app-site-association
+	header @app_links Content-Type application/json
+
 	# Einbetten nur für den Kasten auf Webseiten der Läden
 	@nicht_einbettbar not path {EMBEDDABLE_PATHS}
 	header @nicht_einbettbar {{
