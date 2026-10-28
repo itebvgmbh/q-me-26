@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { EmployeeNavigation } from './EmployeeNavigation';
+import { TeamPushSchalter } from './TeamPushSchalter';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
 import { t } from '@/i18n';
 
@@ -42,6 +43,12 @@ export const NoEmployeeState = ({ user }: Props) => {
           <Button variant="signal" asChild>
             <Link to="/">{t('Zur Startseite')}</Link>
           </Button>
+        )}
+        {/* Auch ohne eigenen Eintrag im Team: Inhaber bekommen alles aus dem Laden */}
+        {owner && (
+          <div className="mt-4 w-full">
+            <TeamPushSchalter />
+          </div>
         )}
       </div>
     </div>

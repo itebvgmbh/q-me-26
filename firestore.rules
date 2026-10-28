@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
-// Fassung: 2026-10-24 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+// Fassung: 2026-10-28 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
 //
 // Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
 // Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
@@ -161,10 +161,12 @@ service cloud.firestore {
     // public_appointments (unten).
     // ------------------------------------------------------------------------------------------------------------
 
-    // Was nur Laden und Backend an einen Termin schreiben (Aufrufen, Fertig, Nachricht an den Kunden …)
+    // Was nur Laden und Backend an einen Termin schreiben (Aufrufen, Fertig, Nachricht an den Kunden oder ans Team …).
+    // Die Merker team… setzt nur das Backend (backend/app/libs/team_notify.py), auch für Nummern ohne Konto.
     function shopOnlyFields() {
       return ['calledAt', 'lastCalledAt', 'completedAt', 'noShow', 'notifiedCalledAt', 'notifyEmail',
-              'customerNotice', 'customerNoticeAt', 'customerNoticePreviousStart'];
+              'customerNotice', 'customerNoticeAt', 'customerNoticePreviousStart',
+              'teamNotice', 'teamNoticeAt', 'teamNewAt', 'teamCancelledAt', 'teamNoticeSentAt'];
     }
 
     // Nummer ohne Konto (Nummer ziehen ohne Anmeldung, QueueBookingService) – mit dem Hash ihres Schlüssels, den nur
@@ -362,6 +364,7 @@ service cloud.firestore {
     // Keine Regel, also für den Browser zu – nur das Backend:
     //   meta                 Zähler der Gründerplätze (meta/gruender). Wer ihn zurücksetzt, bekäme Gründerpreise.
     //   push_subscriptions   Push-Adressen der Geräte (anmelden über /routes/push)
+    //   team_push_subscriptions  Geräte von Inhaber und Team für Nachrichten über Kunden (/routes/team-push)
     //   staff-invitations    alt; Einladungen stehen gehasht am staff-Eintrag
     //   verzeichnis          Salon-Verzeichnis (/friseur/…); Seiten und Karte liefert das Backend
     //   telefon_leitungen    Rufnummer des Telefon-Assistenten → Laden (vergibt der Betreiber-Bereich)

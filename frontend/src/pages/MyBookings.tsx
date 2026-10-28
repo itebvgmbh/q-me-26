@@ -13,6 +13,7 @@ import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
 import { loadUserNotifications } from '../utils/notifications';
 import { setFrueherDran } from '../utils/frueher-dran';
+import { announceToTeam } from '../utils/team-push';
 import { AppointmentCard, AppointmentWithDetails, nochmalLinks } from '../components/AppointmentCard';
 import { CancelAppointmentDialog } from '../components/CancelAppointmentDialog';
 import { Ticket } from '../components/brand/Ticket';
@@ -111,6 +112,7 @@ const MyBookings = () => {
       const snap = await getDoc(doc(firestore, 'appointments', id));
       const data = snap.exists() ? snap.data() : null;
       await cancelAppointment(id);
+      announceToTeam(id, 'cancelled');
       toast.success(t('Termin abgesagt.'));
       if (data?.shopId && data?.startTime) {
         useTimeSlotStore.getState().invalidateCache(data.shopId, safelyConvertToDate(data.startTime));

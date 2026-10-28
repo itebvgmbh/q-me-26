@@ -1,5 +1,6 @@
 """
-Tests für app/libs/queue_notify.py: Wer bekommt wann "Gleich dran", "Du bist dran" oder eine Erinnerung?
+Tests für app/libs/queue_notify.py: Wer bekommt wann "Gleich dran", "Du bist dran" oder eine Erinnerung? Dazu die
+Nachrichten an das Team (app/libs/team_notify.py) und der Durchlauf des Benachrichtigungsdienstes.
 Ohne Firebase lauffähig:
 
     cd backend && .venv/bin/python tests/test_queue_notify.py
@@ -449,6 +450,201 @@ def test_ohne_dienstkonto_kein_app_kanal():
     finally:
         os.environ.pop("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", None)
         os.environ.update({k: v for k, v in alt.items() if v is not None})
+
+
+# --- Nachrichten an das Team (app/libs/team_notify.py) ---------------------------------------------
+
+from app.libs.team_notify import digest_message, event_of, notice_fields, plan_team_messages, quiet, team_message, wants  # noqa: E402
+
+# 23:30 und 8:05 deutscher Zeit (Oktober, Sommerzeit)
+NIGHT = datetime(2026, 10, 19, 21, 30, tzinfo=timezone.utc)
+MORNING = datetime(2026, 10, 20, 6, 5, tzinfo=timezone.utc)
+TODAY = NOW.replace(hour=0, minute=0)
+
+
+def team_sub(doc_id, uid, staff=None, shop="laden", **extra):
+    return {"doc_id": doc_id, "uid": uid, "shopId": shop, "staffId": staff, "endpoint": f"https://push/{doc_id}", "p256dh": "k",
+            "auth": "a", **extra}
+
+
+def test_team_merker_je_ereignis_nur_einmal():
+    new = notice_fields({}, "new", NOW)
+    assert new == {"teamNotice": "new", "teamNoticeAt": NOW, "teamNewAt": NOW}
+    assert notice_fields(new, "new", NOW) is None  # zweimal melden geht nicht
+    # Schon gemeldet, dann abgesagt: Absage kommt
+    sent = {**new, "teamNotice": None}
+    assert notice_fields(sent, "cancelled", NOW)["teamNotice"] == "cancelled"
+    # Noch nicht gemeldet (Nachtruhe), schon wieder abgesagt: keine Nachricht, auch keine Absage
+    assert notice_fields(new, "cancelled", NOW) == {"teamNotice": None, "teamNoticeAt": None, "teamCancelledAt": NOW}
+    assert notice_fields({"teamCancelledAt": NOW}, "cancelled", NOW) is None
+
+
+def test_team_ereignis_nur_wenn_es_noch_stimmt():
+    assert event_of(appt("a", 30, type="queue", teamNotice="new"), TODAY) == "nummer"
+    assert event_of(appt("a", 30, type="booked", teamNotice="new"), TODAY) == "buchung"
+    assert event_of(appt("a", 30, status="cancelled", teamNotice="cancelled"), TODAY) == "absage"
+    # Neue Buchung, die der Laden inzwischen selbst abgesagt hat
+    assert event_of(appt("a", 30, status="cancelled", teamNotice="new"), TODAY) is None
+    assert event_of(appt("a", -24 * 60, teamNotice="new"), TODAY) is None  # gestern
+    assert event_of(appt("a", 30), TODAY) is None
+
+
+def test_team_inhaber_alles_person_nur_eigenes():
+    owner, robin, kim = team_sub("o", "inhaber"), team_sub("r", "konto-robin", "robin"), team_sub("k", "konto-kim", "kim")
+    staff_uids = {"robin": "konto-robin", "kim": "konto-kim"}
+    termin = appt("a", 30, staff="robin")
+    assert wants(owner, termin, "buchung", "inhaber", staff_uids)
+    assert wants(robin, termin, "buchung", "inhaber", staff_uids)
+    assert not wants(kim, termin, "buchung", "inhaber", staff_uids)
+    # Robin ist nicht mehr im Team (oder ein anderes Konto steht jetzt an der Person)
+    assert not wants(robin, termin, "buchung", "inhaber", {"kim": "konto-kim"})
+    assert not wants(robin, termin, "buchung", "inhaber", {"robin": "anderes-konto"})
+    # Ereignis abgewählt, anderer Laden
+    assert not wants({**robin, "events": {"buchung": False}}, termin, "buchung", "inhaber", staff_uids)
+    assert wants({**robin, "events": {"buchung": False}}, termin, "absage", "inhaber", staff_uids)
+    assert not wants({**owner, "shopId": "anderer"}, termin, "buchung", "inhaber", staff_uids)
+
+
+def test_team_plan_sammelt_je_geraet():
+    pending = [appt("b", 90, teamNotice="new", teamNoticeAt=NOW, type="booked"),
+               appt("a", 30, teamNotice="new", teamNoticeAt=NOW - timedelta(minutes=5), type="queue"),
+               appt("c", 60, staff="kim", status="cancelled", teamNotice="cancelled", teamNoticeAt=NOW)]
+    subs = [team_sub("o", "inhaber"), team_sub("r", "konto-robin", "robin")]
+    plan = {sub["doc_id"]: [(a["id"], e) for a, e in items] for sub, items in plan_team_messages(pending, subs, "inhaber", {"robin": "konto-robin"}, TODAY)}
+    assert plan == {"o": [("a", "nummer"), ("b", "buchung"), ("c", "absage")], "r": [("a", "nummer"), ("b", "buchung")]}
+
+
+def test_team_nachtruhe():
+    assert quiet(NIGHT) and quiet(MORNING - timedelta(minutes=10)) and not quiet(MORNING) and not quiet(NOW)
+    assert quiet(datetime(2026, 10, 19, 19, 0, tzinfo=timezone.utc))  # 21 Uhr
+
+
+def test_team_texte():
+    at = lambda h, m, day=19: datetime(2026, 10, day, h, m, tzinfo=timezone.utc)  # noqa: E731 – 10:00 UTC = 12:00 Uhr
+    nummer = {"id": "a", "type": "queue", "referenceCode": "A12", "startTime": at(12, 30)}
+    assert team_message(nummer, "nummer", "de", at(10, 0), "Herrenschnitt") == ("Neue Nummer A12", "Herrenschnitt, heute gegen 14:30")
+    buchung = {"id": "b", "type": "booked", "startTime": at(13, 0, 22), "source": "telefon"}
+    assert team_message(buchung, "buchung", "de", at(10, 0), "Bart", "Anna") == (
+        "Neue Buchung", "Bart, am Do 22.10. um 15:00 bei Anna (per Telefon)")
+    assert team_message(nummer, "absage", "de", at(10, 0)) == ("Nummer A12 zurückgegeben", "Heute gegen 14:30")
+    assert team_message({**buchung, "source": None}, "absage", "de", at(10, 0), "Bart")[0] == "Termin abgesagt"
+    title, body = team_message(buchung, "buchung", "en", at(10, 0), "Beard", "Anna")
+    assert title == "New booking" and body == "Beard, on Thu 22/10 at 15:00 with Anna (by phone)"
+    title, body = team_message(nummer, "nummer", "tr", at(10, 0), "Saç kesimi")
+    assert title == "Yeni numara A12" and "14:30" in body and tr.TEXTE["heute"] in body
+    title, body = team_message(nummer, "absage", "ar", at(10, 0))
+    assert "A12" in title and "14:30" in body and ar.TEXTE["heute"] in body
+
+
+def test_team_sammelnachricht():
+    assert digest_message(["buchung", "nummer", "buchung", "absage"], "de", "Barber Ali") == (
+        "Neu bei Barber Ali", "1 neue Nummer, 2 neue Buchungen, 1 Absage")
+    assert digest_message(["absage", "absage"], "en", "") == ("New at Dranzeit", "2 cancellations")
+    assert digest_message(["buchung", "buchung"], "ar", "Barber Ali")[1] == ar.TEXTE["{n} neue Buchungen"]["two"]
+    assert digest_message(["nummer"] * 3, "tr", "X")[1] == "3 yeni numara"
+
+
+def _team_store(**appointments):
+    return {
+        "shops": {"laden": {"name": "Barber Ali", "owner": "inhaber"}},  # im Probemonat: Tarif Team
+        "staff": {
+            "robin": {"shopId": "laden", "name": "Robin", "userId": "konto-robin"},
+            "kim": {"shopId": "laden", "name": "Kim", "userId": "konto-kim"},
+        },
+        "services": {"schnitt": {"name": "Herrenschnitt"}},
+        "appointments": appointments,
+        "team_push_subscriptions": {
+            "o": {**team_sub("o", "inhaber"), "language": "de"},
+            "r": {**team_sub("r", "konto-robin", "robin"), "language": "en"},
+            "k": team_sub("k", "konto-kim", "kim"),
+        },
+    }
+
+
+def _team_channel(sent):
+    notify_worker.push_configured = lambda: True
+    notify_worker.fcm_configured = lambda: False
+    notify_worker.mail_configured = lambda: False
+    notify_worker.send_push = lambda sub, title, body, url, tag: sent.append((sub["endpoint"], title, body, url, tag))
+
+
+def test_durchlauf_selbst_gezogene_nummer_an_inhaber_und_person():
+    sent = []
+    _team_channel(sent)
+    nummer = appt("a", 30, type="queue", referenceCode="A12", serviceId="schnitt", teamNotice="new", teamNoticeAt=NOW)
+    store = _team_store(a=nummer)
+    result = notify_worker.run_once(FakeDb(store), now=NOW)
+    assert result["team"] == 2
+    by_device = {endpoint: (title, body, url, tag) for endpoint, title, body, url, tag in sent}
+    assert by_device["https://push/o"] == ("Neue Nummer A12", "Herrenschnitt, heute gegen 12:30 bei Robin", "/shop-dashboard", "team-a")
+    assert by_device["https://push/r"] == ("New number A12", "Herrenschnitt, today around 12:30", "/employee-dashboard?staffId=robin", "team-a")
+    assert "https://push/k" not in by_device  # Kim ist nicht gebucht
+    assert store["appointments"]["a"]["teamNotice"] is None and store["appointments"]["a"]["teamNoticeSentAt"] == NOW
+    sent.clear()
+    notify_worker.run_once(FakeDb(store), now=NOW)
+    assert sent == []
+
+
+def test_durchlauf_team_nachts_still_morgens_gesammelt():
+    sent = []
+    _team_channel(sent)
+    night_start = lambda minutes: NIGHT + timedelta(hours=10, minutes=minutes)  # noqa: E731 – morgen Vormittag
+    store = _team_store(
+        a={**appt("a", 0, type="booked", teamNotice="new", teamNoticeAt=NIGHT), "startTime": night_start(0)},
+        b={**appt("b", 0, type="booked", teamNotice="new", teamNoticeAt=NIGHT), "startTime": night_start(60)},
+        c={**appt("c", 0, status="cancelled", teamNotice="cancelled", teamNoticeAt=NIGHT), "startTime": night_start(120)},
+    )
+    assert notify_worker.run_once(FakeDb(store), now=NIGHT)["team"] == 0
+    assert sent == [] and store["appointments"]["a"]["teamNotice"] == "new"  # bleibt liegen
+    notify_worker.run_once(FakeDb(store), now=MORNING)
+    by_device = {endpoint: (title, body, tag) for endpoint, title, body, _url, tag in sent}
+    assert by_device["https://push/o"] == ("Neu bei Barber Ali", "2 neue Buchungen, 1 Absage", "team-laden")
+    assert by_device["https://push/r"] == ("New at Barber Ali", "2 new bookings, 1 cancellation", "team-laden")
+    assert len(sent) == 2
+    assert all(a["teamNotice"] is None for a in store["appointments"].values())
+
+
+def test_durchlauf_team_ohne_tarif_oder_vom_tresen_nichts():
+    sent = []
+    _team_channel(sent)
+    store = _team_store(a=appt("a", 30, type="queue", teamNotice="new", teamNoticeAt=NOW), b=appt("b", 40, type="queue"))
+    store["shops"]["laden"]["trialEndsAt"] = NOW - timedelta(days=1)  # Gratis-Tarif
+    notify_worker.run_once(FakeDb(store), now=NOW)
+    assert sent == []
+    # Merker trotzdem weg – sonst käme die Nachricht Tage später, wenn der Laden bucht
+    assert store["appointments"]["a"]["teamNotice"] is None and "teamNoticeSentAt" not in store["appointments"]["a"]
+
+
+def test_durchlauf_team_an_die_app_und_abbestellt():
+    sent = []
+    _nur_app_kanal(sent)
+    gone = []
+
+    def push(token, title, body, url, tag):
+        if token == "fcm-token-alt-1234567890":
+            gone.append(token)
+            raise fcm.TokenGone()
+        sent.append((token, title, url, tag))
+
+    notify_worker.send_app_push = push
+    try:
+        store = _team_store(a=appt("a", 30, type="queue", teamNotice="new", teamNoticeAt=NOW))
+        store["team_push_subscriptions"] = {
+            "o": {"uid": "inhaber", "shopId": "laden", "token": "fcm-token-iphone-1234567890", "platform": "ios"},
+            "alt": {"uid": "inhaber", "shopId": "laden", "token": "fcm-token-alt-1234567890", "platform": "ios"},
+            "w": team_sub("w", "inhaber"),  # Browser, aber auf diesem Server kein Web-Push
+        }
+        notify_worker.run_once(FakeDb(store), now=NOW)
+        assert [s[0] for s in sent] == ["fcm-token-iphone-1234567890"] and gone == ["fcm-token-alt-1234567890"]
+        assert set(store["team_push_subscriptions"]) == {"o", "w"}  # abbestellte App abgemeldet
+    finally:
+        notify_worker.fcm_configured = lambda: False
+
+
+def test_alte_team_geraete_fallen_raus():
+    store = {"team_push_subscriptions": {"neu": {"updatedAt": NOW - timedelta(days=3)}, "alt": {"updatedAt": NOW - timedelta(days=200)}}}
+    assert notify_worker.cleanup_team_subscriptions(FakeDb(store), now=NOW) == 1
+    assert set(store["team_push_subscriptions"]) == {"neu"}
 
 
 if __name__ == "__main__":

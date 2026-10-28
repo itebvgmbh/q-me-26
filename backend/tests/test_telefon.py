@@ -299,6 +299,7 @@ def test_buchen_wie_ohne_konto_mit_tagesnummer_und_belegung():
     assert termin["type"] == "booked" and termin["isAnonymous"] is True and termin["source"] == "telefon"
     assert termin["customerName"] == "Alex Muster" and termin["customerPhone"] == "+491512345678"
     assert termin["checkEarlierOptions"] is False and "customerId" not in termin
+    assert termin["teamNotice"] == "new"  # Inhaber und Person bekommen Bescheid (app/libs/team_notify.py)
     code = termin["referenceCode"]
     assert 10 <= int(code) <= 99 and r["nummer"] == code
     assert store["shop_days"][f"laden_{TAG}"]["codes"] == [code]
@@ -359,13 +360,17 @@ def test_absagen_gibt_den_platz_frei():
     weg = tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], absagen=True))
     assert weg["ok"] and weg["ansage"] == "Abgesagt: heute um 10 Uhr 30 bei Robin.", weg
     assert store["appointments"][r["termin_id"]]["status"] == "cancelled"
+    # Neue Buchung noch nicht gemeldet und gleich wieder abgesagt: das Team bekommt gar nichts
+    assert store["appointments"][r["termin_id"]]["teamNotice"] is None
     assert store["public_appointments"][r["termin_id"]]["status"] == "cancelled"
     assert r["termin_id"] not in store["schedules"][f"robin_{TAG}"]["slots"]
     assert tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex"))["ok"], "Platz wieder frei"
     assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], absagen=True))["grund"] == "abgesagt"
     nummer = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", name="Sam"))
+    store["appointments"][nummer["termin_id"]]["teamNotice"] = None  # neue Nummer ist schon gemeldet
     zurueck = tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=nummer["termin_id"], absagen=True))
     assert zurueck["ansage"] == f"Die Nummer {nummer['nummer']} ist zurückgegeben.", zurueck
+    assert store["appointments"][nummer["termin_id"]]["teamNotice"] == "cancelled"
 
 
 def test_aendern_nur_eigene_frische_termine():

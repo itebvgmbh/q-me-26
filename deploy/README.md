@@ -263,7 +263,7 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung 2026-10-24 (Kopfzeile `// Fassung:` in `firestore.rules`):
+Fassung 2026-10-28 (Kopfzeile `// Fassung:` in `firestore.rules`):
 - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen ohne Kontaktdaten,
   Leistungen, Pausen, Kurzfassung der Termine, Belegung, Tagesnummern).
 - Termine selbst (Name, Handynummer, E-Mail, Konto) lesen nur Inhaber, Team und das eigene Konto; E-Mail und Telefon
@@ -272,7 +272,8 @@ Fassung 2026-10-24 (Kopfzeile `// Fassung:` in `firestore.rules`):
   buchen und den eigenen Termin absagen. Eine Nummer ohne Konto zurückgeben oder übernehmen geht über das Backend,
   mit dem Schlüssel aus dem Link der Nummernseite.
 - Kundenliste nur für Inhaber und Team, Profile nur für das eigene Konto, Angebote „Früher dran“ nur für das eigene.
-- Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `staff-invitations`, `verzeichnis` sind zu.
+- Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `team_push_subscriptions`, `staff-invitations`,
+  `verzeichnis` sind zu. Die Merker für Nachrichten ans Team (`teamNotice` …) am Termin setzt nur das Backend.
 
 **Team** erkennen die Regeln an einem Vermerk `shops/{shopId}/members/{uid}`. Ihn setzt das Backend beim Annehmen
 einer Einladung und gleicht ihn bei jedem Start mit den Personen ab (`backend/app/libs/team.py`, im Log „Team-Vermerke

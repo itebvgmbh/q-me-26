@@ -349,6 +349,19 @@ const texte: Texte = {
   // utils/staff-invitation.ts
   "Keine Verbindung zum Server. Bitte prüf dein Internet.": "لا يوجد اتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.",
   "Das hat nicht geklappt (Fehler {status}).": "لم ينجح ذلك (خطأ {status}).",
+  // components/TeamPushSchalter.tsx
+  "Benachrichtigungen auf diesem Gerät": "الإشعارات على هذا الجهاز",
+  "Wenn Kunden selbst eine Nummer ziehen, online oder am Telefon buchen oder absagen – für deine Termine, als Inhaber für den ganzen Laden.":
+    "عندما يأخذ العملاء رقمًا بأنفسهم أو يحجزون عبر الإنترنت أو الهاتف أو يلغون – لمواعيدك، وبصفتك صاحب المحل للمحل كله.",
+  "Zwischen 21 und 8 Uhr ist Ruhe; was nachts passiert, kommt morgens zusammengefasst.":
+    "لا إشعارات بين الساعة 21 و8؛ ما يحدث ليلًا يصلك صباحًا كملخص.",
+  "Neue Nummern": "أرقام جديدة",
+  "Neue Buchungen": "حجوزات جديدة",
+  "Benachrichtigungen sind an.": "الإشعارات مفعّلة.",
+  "Benachrichtigungen sind aus.": "الإشعارات متوقفة.",
+  "Dieser Browser kann keine Benachrichtigungen.": "هذا المتصفح لا يدعم الإشعارات.",
+  "Auf dem iPhone geht das nur mit Dranzeit auf dem Home-Bildschirm: in Safari „Teilen“ → „Zum Home-Bildschirm“, dann von dort öffnen.":
+    "على iPhone يعمل هذا فقط عندما يكون Dranzeit على الشاشة الرئيسية: في Safari اضغط „مشاركة“ ثم „إضافة إلى الشاشة الرئيسية“، وافتحه من هناك.",
 };
 
 export default texte;
