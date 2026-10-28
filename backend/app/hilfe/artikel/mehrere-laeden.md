@@ -9,15 +9,15 @@ Mit einem Konto kannst du mehrere Läden führen. Jeder Laden hat eigene Öffnun
 
 ## Weiteren Laden einrichten
 
-1. Tipp am [Tresen](/shop-dashboard) auf **„…“ → „Weiteren Laden einrichten“**.
+1. Tipp oben auf [Laden](/shop-profile) und dann auf **„Weiterer Laden“**.
 2. Der Einrichtungsassistent startet wie beim ersten Mal: Laden finden, Angaben, Branche, Öffnungszeiten, Leistungen und Team. Wie das geht, steht in [In 10 Minuten startklar](/hilfe/in-10-minuten-startklar).
 3. Tipp am Ende auf **„Laden eröffnen“** und dann auf **„Zum Tresen“**.
 
 ## Zwischen Läden wechseln
 
-Am Tresen steht oben der Name des Ladens. Tipp darauf und wähl einen anderen Laden. Der Tresen startet immer mit demselben Laden, wechsle also bei Bedarf oben.
+Unter **„Heute“** und **„Kalender“** steht oben der Name des Ladens. Tipp darauf und wähl einen anderen Laden. Der Tresen startet immer mit demselben Laden, wechsle also bei Bedarf oben.
 
-**„Wartezimmer-Bildschirm öffnen“** und **„Laden bearbeiten“** im Menü **„…“** gelten für den Laden, den du gerade am Tresen gewählt hast. Plakat, Auswertung, Team, Tarif, Leistungen und Mein Laden haben oben eine eigene Auswahl für den Laden.
+Unter **„Laden“** wählst du oben ebenfalls den Laden. **„Bearbeiten“**, der QR-Code, **„Plakat drucken“** und **„Wartezimmer-Bildschirm öffnen“** gelten dann für diesen Laden. Team, Leistungen, Auswertung und Tarif haben oben eine eigene Auswahl für den Laden.
 
 ## Was für jeden Laden einzeln gilt
 
@@ -27,4 +27,4 @@ Am Tresen steht oben der Name des Ladens. Tipp darauf und wähl einen anderen La
 
 > **Achtung:** Arbeitest du in mehreren Läden selbst mit, zeigt „Mein Tag“ nur einen davon.
 
-[Zum Tresen](/shop-dashboard){knopf}
+[Laden öffnen](/shop-profile){knopf}

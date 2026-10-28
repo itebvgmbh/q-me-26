@@ -9,7 +9,7 @@ Dein Abo schließt du unter **„Tarif“** ab. Bezahlt wird über Stripe per SE
 
 ## Abo abschließen
 
-1. Tipp in der Navigation auf **„Tarif“**. Es öffnet sich **„Mein Tarif“**.
+1. Tipp oben auf **„Laden“** und dann auf **„Tarif“**. Es öffnet sich **„Mein Tarif“**.
 2. Wähl **„Monatlich“** oder **„Jährlich · 2 Monate geschenkt“**.
 3. Tipp beim passenden Tarif auf **„Weiter zur Bezahlung“**. Damit akzeptierst du die [AGB](/agb).
 4. Bei Stripe gibst du Rechnungsadresse und Zahlungsart ein, auf Wunsch auch deine Umsatzsteuer-ID.

@@ -9,7 +9,7 @@ Leistungen sind das, was Kunden beim Nummer-Ziehen und Buchen auswählen. Am wic
 
 ## Neue Leistung anlegen
 
-1. Öffne [Leistungen](/service-management) und tipp auf **„Leistung anlegen“**.
+1. Öffne unter **„Laden“** die [Leistungen](/service-management) und tipp auf **„Leistung anlegen“**.
 2. Trag Name, Dauer und Preis ein. Die anderen Felder sind freiwillig.
 3. Tipp auf **„Leistung anlegen“**.
 

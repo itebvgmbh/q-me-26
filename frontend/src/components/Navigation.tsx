@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { firebaseAuth } from 'app';
 import { Button } from '@/components/ui/button';
@@ -22,8 +22,8 @@ import { stopTeamPushBeforeLogout } from '../utils/team-push';
 import { istRtl, merke, t } from '@/i18n';
 import { SprachListe, SprachMenue } from './SprachWahl';
 
-/** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link */
-type NavItem = { to: string; label: string; server?: boolean };
+/** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link; also: Seiten, die zu diesem Bereich gehören */
+type NavItem = { to: string; label: string; server?: boolean; also?: string[] };
 
 // In der App aus dem Store wird nichts verkauft (utils/app-shell.ts)
 const VERKAUF = ['/preise', '/tarif'];
@@ -42,15 +42,18 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     { to: '/book-appointment', label: merke('Termin buchen') },
     { to: '/shop-map', label: merke('Läden finden') },
   ],
+  // Drei Bereiche: Heute (Tresen, „Nur ich“ statt eigener Seite), Kalender (planen), Laden (alles Übrige, pages/ShopProfile.tsx)
   shopOwner: [
-    { to: '/shop-dashboard', label: merke('Tresen') },
-    { to: '/employee-dashboard', label: merke('Mein Tag') },
-    { to: '/staff-management', label: merke('Team') },
-    { to: '/service-management', label: merke('Leistungen') },
-    { to: '/shop-profile', label: merke('Mein Laden') },
-    { to: '/tarif', label: merke('Tarif') },
+    { to: '/shop-dashboard', label: merke('Heute') },
+    { to: '/kalender', label: merke('Kalender') },
+    {
+      to: '/shop-profile',
+      label: merke('Laden'),
+      also: ['/staff-management', '/service-management', '/tarif', '/auswertung', '/plakat', '/shop-setup', '/employee-dashboard'],
+    },
   ],
   employee: [
+    // „Mein Tag“ ist für Mitarbeiter ihr „Heute, nur ich“ – der Name steht so auch in Einladungen und Hilfe
     { to: '/employee-dashboard', label: merke('Mein Tag') },
     // Wer vorher Kunde war, behält seine eigenen Buchungen
     { to: '/my-bookings', label: merke('Meine Termine') },
@@ -63,6 +66,8 @@ const PROFILE_PATH: Record<UserRole, string> = {
   employee: '/profile',
 };
 
+const inBereich = (item: NavItem, pathname: string) => !!item.also?.some((p) => pathname.startsWith(p));
+
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[15px] font-medium transition-colors lg:px-4',
@@ -72,6 +77,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 /** Einheitliche Kopfzeile für alle Seiten, abhängig von der Rolle */
 export function Navigation() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user, profile, loading } = useUserProfile();
   const betreiber = useIsBetreiber();
   const [open, setOpen] = useState(false);
@@ -101,7 +107,7 @@ export function Navigation() {
                 {t(item.label)}
               </a>
             ) : (
-              <NavLink key={item.to} to={item.to} className={linkClass}>
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => linkClass({ isActive: isActive || inBereich(item, pathname) })}>
                 {t(item.label)}
               </NavLink>
             ),
@@ -195,7 +201,7 @@ export function Navigation() {
                       className={({ isActive }) =>
                         cn(
                           'flex h-12 items-center rounded-xl px-4 text-lg font-medium',
-                          isActive ? 'bg-signal text-signal-foreground' : 'hover:bg-foreground/5',
+                          isActive || inBereich(item, pathname) ? 'bg-signal text-signal-foreground' : 'hover:bg-foreground/5',
                         )
                       }
                     >

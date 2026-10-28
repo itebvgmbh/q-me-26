@@ -6,6 +6,7 @@ import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { ShopSwitcher } from '../components/ShopSwitcher';
 import { WebseiteEinbau } from '../components/WebseiteEinbau';
+import { LadenUebersicht } from '../components/LadenUebersicht';
 import { useOwnedShops } from '../utils/hooks/useOwnedShops';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,10 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
   </div>
 );
 
-/** Mein Laden: so sehen Kunden den Laden, plus QR-Code zum Aufhängen und Einbau auf der eigenen Webseite; bei mehreren Läden mit Ladenauswahl */
+/**
+ * „Laden“ im Menü: Verwalten (Team, Leistungen, Auswertung, Tarif …), was auf diesem Gerät gilt, so sehen Kunden den
+ * Laden, QR-Code mit Plakat und Wartezimmer-Bildschirm, Einbau auf der eigenen Webseite; bei mehreren Läden mit Ladenauswahl
+ */
 const ShopProfile = () => {
   const { user } = useUserGuardContext();
   const { shops, shop, selectShop, replaceShop, failed } = useOwnedShops(user.uid);
@@ -83,6 +87,8 @@ const ShopProfile = () => {
       </div>
 
       <ShopSwitcher shops={shops} shopId={shop.id} onChange={selectShop} />
+
+      <LadenUebersicht shopId={shop.id} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <section className="grid gap-6 rounded-3xl border border-border bg-card p-5 sm:grid-cols-2 sm:p-6" aria-label={t('Angaben zum Laden')}>

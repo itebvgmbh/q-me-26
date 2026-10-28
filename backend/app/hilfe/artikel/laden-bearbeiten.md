@@ -9,7 +9,7 @@ Alle Angaben zu deinem Laden änderst du an einer Stelle. Sie gelten sofort, auc
 
 ## So geht's
 
-1. Tipp am [Tresen](/shop-dashboard) auf **„…“ → „Laden bearbeiten“**. Oder oben auf „Mein Laden“ und dann **„Bearbeiten“**.
+1. Tipp oben auf [Laden](/shop-profile) und dann auf **„Bearbeiten“**.
 2. Ändere, was du brauchst.
 3. Tipp ganz unten auf **„Änderungen speichern“**.
 
@@ -28,10 +28,10 @@ Alle Angaben zu deinem Laden änderst du an einer Stelle. Sie gelten sofort, auc
 
 ## Wo Kunden das sehen
 
-Name, Adresse, Telefon, Branche, Logo und Beschreibung stehen auf deiner Ladenseite. Wie sie aussieht, siehst du unter „Mein Laden“ → **„Kundenansicht“**. Das Logo erscheint außerdem auf dem [Wartezimmer-Bildschirm](/hilfe/bildschirm).
+Name, Adresse, Telefon, Branche, Logo und Beschreibung stehen auf deiner Ladenseite. Wie sie aussieht, siehst du unter „Laden“ → **„Kundenansicht“**. Das Logo erscheint außerdem auf dem [Wartezimmer-Bildschirm](/hilfe/bildschirm).
 
 Der QR-Code bleibt gleich, egal was du hier änderst. Nur wenn du den Namen änderst, druck das [QR-Plakat](/hilfe/plakat) neu: Der Name steht oben drauf.
 
-[Zu Mein Laden](/shop-profile){knopf}
+[Laden öffnen](/shop-profile){knopf}
 
 Hast du mehrere Läden? Dann lies [Mehrere Läden verwalten](/hilfe/mehrere-laeden).

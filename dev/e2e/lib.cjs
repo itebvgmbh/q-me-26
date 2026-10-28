@@ -14,8 +14,18 @@ const FIXTURE = path.join(__dirname, '..', '.local', 'fixture.json');
 const launch = () => chromium.launch({ args: (process.env.QME_BROWSER_ARGS || '').split(' ').filter(Boolean) });
 
 /** Neue Seite in deutscher Zeit; Handygröße, wenn nichts anderes angegeben */
-const newPage = async (browser, options = {}) =>
-  (await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE', ...options })).newPage();
+const newPage = async (browser, options = {}) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE', ...options });
+  // „Wofür nutzt du dieses Gerät?“ (frontend/src/utils/geraet.ts) nicht fragen – sonst liegt der Dialog über dem Tresen
+  await context.addInitScript(() => {
+    try {
+      sessionStorage.setItem('dranzeit-geraet-spaeter', '1');
+    } catch {
+      /* about:blank */
+    }
+  });
+  return context.newPage();
+};
 
 /** "2026-10-19T11:50" als deutsche Ortszeit (Sommer-/Winterzeit richtig), egal in welcher Zeitzone dieser Rechner läuft */
 const berlin = (local) => {

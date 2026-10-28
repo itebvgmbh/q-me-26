@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
 import { listShopsOfOwner, getStaffByUserId } from './firestore';
+import { gespeichertesGeraet, startseite } from './geraet';
 import { sprache, spracheGewaehlt } from '@/i18n';
 
 export interface UpdateProfileData {
@@ -120,7 +121,10 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
       // Noch kein Laden: gleich in den Einrichtungsassistenten. Im Zweifel (Fehler beim Laden) an den
       // Tresen – sonst landet ein bestehender Betrieb im Assistenten und legt womöglich einen zweiten Laden an.
       try {
-        return (await listShopsOfOwner(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
+        if ((await listShopsOfOwner(userId)).length === 0) return '/shop-setup';
+        // Das Gerät weiß, wofür es da ist (Tresen, eigenes Handy, Büro – utils/geraet.ts)
+        const geraet = gespeichertesGeraet();
+        return geraet ? startseite(geraet, true) : '/shop-dashboard';
       } catch (error) {
         console.error('Läden konnten nicht geladen werden:', error);
         return '/shop-dashboard';

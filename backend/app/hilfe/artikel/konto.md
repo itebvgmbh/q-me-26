@@ -28,7 +28,7 @@ Keine E-Mail da? Schau im Spam-Ordner nach. Unter **„Mein Profil“** schickst
 
 ## Anmelden
 
-Tipp oben auf **„Anmelden“** (am Handy im Menü), gib E-Mail und Passwort ein und tipp auf **„Anmelden“**. Du landest direkt am Tresen, oder im Einrichtungsassistenten, wenn du noch keinen Laden angelegt hast.
+Tipp oben auf **„Anmelden“** (am Handy im Menü), gib E-Mail und Passwort ein und tipp auf **„Anmelden“**. Du landest direkt unter **„Heute“** am Tresen (oder dort, wofür du das Gerät festgelegt hast), oder im Einrichtungsassistenten, wenn du noch keinen Laden angelegt hast.
 
 Steht da „E-Mail oder Passwort stimmen nicht.“, prüf die Schreibweise oder setz dein Passwort zurück. Nach zu vielen Versuchen musst du kurz warten.
 

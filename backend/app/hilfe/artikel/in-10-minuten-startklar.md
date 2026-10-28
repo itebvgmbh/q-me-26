@@ -23,7 +23,7 @@ Direkt danach startet der Einrichtungsassistent. Er stellt dir eine Frage pro Bi
 6. **Wer arbeitet mit?** Sag, ob du selbst Kunden bedienst und wer sonst noch. Für jede Person legst du fest, welche Leistungen sie macht und an welchen Tagen sie da ist. Wer eine E-Mail-Adresse bekommt, erhält beim Eröffnen automatisch seine Einladung.
 7. **Laden eröffnen:** Prüf die Zusammenfassung und tipp auf **„Laden eröffnen“**.
 
-> **Tipp:** Du musst nicht alles perfekt machen. Jede Angabe lässt sich später unter „Mein Laden“, „Leistungen“ und „Team“ ändern.
+> **Tipp:** Du musst nicht alles perfekt machen. Jede Angabe lässt sich später unter „Laden“ ändern, dort findest du auch „Leistungen“ und „Team“.
 
 Mehr dazu: [Öffnungszeiten](/hilfe/oeffnungszeiten), [Leistungen anlegen](/hilfe/leistungen), [Team einladen](/hilfe/team-einladen).
 
@@ -33,8 +33,8 @@ Bevor der erste Kunde kommt, spiel es einmal durch. Das dauert zwei Minuten und 
 
 ![Die Liste „Startklar“ oben am Tresen zeigt dir die nächsten Schritte.](/img/hilfe/tresen-startklar.jpg)
 
-1. Öffne am Computer oder Tablet den **Tresen**. Das ist deine Ansicht im Laden.
-2. Scann mit deinem Handy den QR-Code am Tresen und zieh eine Nummer, so wie es später deine Kunden tun. Bist du am Handy bei Dranzeit angemeldet, melde dich dort vorher ab.
+1. Öffne am Computer oder Tablet **„Heute“**. Das ist der Tresen, deine Ansicht im Laden. Fragt Dranzeit, wofür du das Gerät nutzt, tipp auf **„Tresen-Tablet“** oder erst einmal auf **„Später“**.
+2. Scann mit deinem Handy den QR-Code in der Liste „Startklar“ und zieh eine Nummer, so wie es später deine Kunden tun. Bist du am Handy bei Dranzeit angemeldet, melde dich dort vorher ab.
 3. Die Nummer erscheint sofort am Tresen unter **„Als Nächstes“**.
 4. Tipp am Tresen auf **„Nächste Nummer aufrufen“**. Auf dem Handy erscheint: **„Du bist dran“**.
 5. Tipp auf **„Fertig“**. Geschafft.
@@ -43,7 +43,7 @@ Wie du die Testnummer wieder aus der Auswertung bekommst, steht unter [Testlauf 
 
 ## 4. Plakat aufhängen
 
-Im Tresen unter **„…“ → „QR-Plakat drucken“** bekommst du ein fertiges A4-Plakat mit deinem QR-Code. Häng es dort auf, wo Kunden es sehen, bevor sie sich hinsetzen: an die Tür, ans Schaufenster oder an den Tresen. Mehr dazu: [Plakat drucken und aufhängen](/hilfe/plakat).
+Unter **„Laden“ → „Plakat drucken“** bekommst du ein fertiges A4-Plakat mit deinem QR-Code. Häng es dort auf, wo Kunden es sehen, bevor sie sich hinsetzen: an die Tür, ans Schaufenster oder an den Tresen. Mehr dazu: [Plakat drucken und aufhängen](/hilfe/plakat).
 
 ## 5. Der erste echte Kunde
 
@@ -51,7 +51,7 @@ Kunden scannen den Code, wählen eine Leistung und ziehen eine Nummer. Sie sehen
 
 ![So sieht ein Kunde seine Nummer: wie viele vor ihm sind und wann er ungefähr dran ist.](/img/hilfe/kunde-nummer.jpg)
 
-Steht jemand ohne Handy vor dir? Tipp am Tresen auf **„Nummer vergeben“**. Dann reihst du ihn selbst ein. So steht jeder in derselben Schlange. Mehr dazu: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
+Steht jemand ohne Handy vor dir? Tipp unter „Heute“ auf **„Kunde eintragen“**. Dann reihst du ihn selbst ein. So steht jeder in derselben Schlange. Mehr dazu: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
 
 [Zum Tresen](/shop-dashboard){knopf}
 

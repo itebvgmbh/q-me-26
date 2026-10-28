@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
-import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Maximize, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUser, firebaseApp } from 'app';
 import { collection, query, where, onSnapshot, Timestamp, getFirestore } from 'firebase/firestore';
@@ -10,10 +10,12 @@ import { collection, query, where, onSnapshot, Timestamp, getFirestore } from 'f
 import { AppointmentsList } from '../components/AppointmentsList';
 import { EditShopForm } from '../components/EditShopForm';
 import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
-import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { CounterLane } from '../components/counter/CounterLane';
 import { CounterCalendar } from '../components/counter/CounterCalendar';
 import { Startklar } from '../components/onboarding/Startklar';
+import { GeraetWahl } from '../components/GeraetWahl';
+import { TeamPushSchalter } from '../components/TeamPushSchalter';
+import { gespeichertesGeraet, jetztFragen, merkeGeraet, spaeterFragen, type GeraetRolle } from '../utils/geraet';
 import { weekDays } from '../utils/calendar-layout';
 import { useKeepScreenOn } from '../utils/native-app';
 import {
@@ -34,27 +36,39 @@ import { getUserProfile } from '../utils/user-profile-service';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { datumsLocale, intlSprache, merke, t } from '@/i18n';
+import { datumsLocale, intlSprache, merke, t, tn } from '@/i18n';
 
-/** Ansichten am Tresen: Schlange je Person, Kalender des Tages (Spalte je Person), Woche einer Person */
-type View = 'schlange' | 'tag' | 'woche';
+/**
+ * Zwei Bereiche aus denselben Daten:
+ *  - heute:    der Tresen – nur heute, eine Reihe je Person (Nummern und Termine gemischt), „Fertig – Nächster“
+ *  - kalender: planen – Tag (Spalte je Person) oder Woche einer Person, mit Zahlen und Liste zum Bearbeiten
+ * „Nur ich“ zeigt nur die eigene Reihe bzw. Spalte (Inhaber mit eigenem Eintrag im Team).
+ */
+type Bereich = 'heute' | 'kalender';
+type View = 'tag' | 'woche';
 const VIEWS: { id: View; label: string }[] = [
-  { id: 'schlange', label: merke('Schlange') },
-  { id: 'tag', label: merke('Kalender') },
+  { id: 'tag', label: merke('Tag') },
   { id: 'woche', label: merke('Woche') },
 ];
-const VIEW_KEY = 'tresen.ansicht';
+const VIEW_KEY = 'kalender.ansicht';
 const LIST_KEY = 'tresen.liste';
+const NUR_ICH_KEY = 'heute.nurIch';
 const rememberedView = (): View => {
   try {
     const value = localStorage.getItem(VIEW_KEY);
-    return VIEWS.some((v) => v.id === value) ? (value as View) : 'schlange';
+    return VIEWS.some((v) => v.id === value) ? (value as View) : 'tag';
   } catch {
-    return 'schlange';
+    return 'tag';
+  }
+};
+const remember = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // nur Komfort
   }
 };
 
@@ -65,10 +79,11 @@ const Stat =({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-/** Tresen: Schlange und Termine des Tages je Person, mit "Nächste Nummer aufrufen"; dazu Kalender (Tag, Woche) */
-const ShopDashboard = () => {
+/** Heute (Tresen) und Kalender für Inhaber – siehe oben */
+const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const heute = bereich === 'heute';
   const { user, loading: userLoading } = useCurrentUser();
   const [shops, setShops] = useState<Shop[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -86,12 +101,22 @@ const ShopDashboard = () => {
   const [view, setView] = useState<View>(rememberedView);
   const chooseView = (next: View) => {
     setView(next);
-    try {
-      localStorage.setItem(VIEW_KEY, next);
-    } catch {
-      // nur Komfort
-    }
+    remember(VIEW_KEY, next);
   };
+  // Nur die eigene Reihe: über ?nur=ich (Gerät „Mein Handy“) oder wie zuletzt auf diesem Gerät
+  const [nurIch, setNurIch] = useState(() => {
+    if (searchParams.get('nur') === 'ich') return true;
+    try {
+      return localStorage.getItem(NUR_ICH_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const chooseNurIch = (next: boolean) => {
+    setNurIch(next);
+    remember(NUR_ICH_KEY, next ? '1' : '0');
+  };
+  const [geraetFragen, setGeraetFragen] = useState(false);
   const [showList, setShowList] = useState(() => {
     try {
       return localStorage.getItem(LIST_KEY) === '1';
@@ -101,23 +126,23 @@ const ShopDashboard = () => {
   });
   const toggleList = () => {
     setShowList(!showList);
-    try {
-      localStorage.setItem(LIST_KEY, showList ? '0' : '1');
-    } catch {
-      // nur Komfort
-    }
+    remember(LIST_KEY, showList ? '0' : '1');
   };
   // In der Wochenansicht blättern die Pfeile um eine Woche
   const step = view === 'woche' ? 7 : 1;
 
   // Am Tresen geht der Bildschirm nicht aus (Tablet an der Theke, iPad-App)
-  useKeepScreenOn();
+  useKeepScreenOn(heute);
 
-  // Uhr für Aufruf und Verzug am Tresen – alle 30 Sekunden
+  // Uhr für Aufruf und Verzug am Tresen – alle 30 Sekunden. „Heute“ bleibt heute, auch wenn das Tablet über Nacht läuft.
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30000);
+    const timer = setInterval(() => {
+      const jetzt = new Date();
+      setNow(jetzt);
+      if (heute) setSelectedDate((d) => (isToday(d) ? d : jetzt));
+    }, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [heute]);
 
   const loadShopData = async (shopId: string) => {
     setIsLoading(true);
@@ -205,18 +230,42 @@ const ShopDashboard = () => {
     };
   }, [appointments, services]);
 
+  // Eigener Eintrag im Team (Inhaber, der selbst mitarbeitet): nur dann gibt es „Nur ich“
+  const ownStaff = staff.find((s) => s.userId === user?.uid);
+  const showOnlyMe = nurIch && !!ownStaff;
+  const visibleStaff = useMemo(() => (showOnlyMe && ownStaff ? [ownStaff] : staff), [showOnlyMe, ownStaff, staff]);
+
   // Spuren: je aktive Person, dazu Termine ohne (bekannte) Person
   const lanes = useMemo(() => {
-    const list = staff.map((s) => ({ key: s.id, title: s.name, items: appointments.filter((a) => a.staffId === s.id && a.status !== 'cancelled') }));
+    const list = visibleStaff.map((s) => ({ key: s.id, title: s.name, items: appointments.filter((a) => a.staffId === s.id && a.status !== 'cancelled') }));
     const orphan = appointments.filter((a) => a.status !== 'cancelled' && !staff.some((s) => s.id === a.staffId));
-    if (orphan.length) list.push({ key: 'ohne', title: t('Ohne Zuordnung'), items: orphan });
+    if (orphan.length && !showOnlyMe) list.push({ key: 'ohne', title: t('Ohne Zuordnung'), items: orphan });
     return list;
-  }, [staff, appointments]);
+  }, [visibleStaff, staff, appointments, showOnlyMe]);
 
   const openCreate = (type: 'booked' | 'queue') => {
     setAppointmentType(type);
     setShowCreateAppointmentDialog(true);
   };
+
+  // Einmal je Gerät fragen, wofür es da ist (utils/geraet.ts) – am Tresen, sobald der Laden steht
+  useEffect(() => {
+    if (heute && shop) setGeraetFragen(jetztFragen());
+  }, [heute, shop?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const waehleGeraet = (rolle: GeraetRolle) => {
+    if (!shop) return;
+    merkeGeraet({ rolle, shopId: shop.id });
+    setGeraetFragen(false);
+    if (rolle === 'tresen') {
+      chooseNurIch(false);
+      // Der Tipp ist die Erlaubnis, die der Browser für Vollbild braucht
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else if (rolle === 'handy') chooseNurIch(true);
+    else if (rolle === 'bildschirm') navigate(`/bildschirm/${shop.id}`);
+    else navigate('/shop-profile');
+  };
+  const vollbild = typeof document !== 'undefined' && document.fullscreenEnabled;
 
   if (userLoading || !user) return null;
 
@@ -265,10 +314,12 @@ const ShopDashboard = () => {
       <PlanBanner shop={shop} />
       <Startklar key={shop.id} shop={shop} staff={staff} appointments={live ? appointments : []} onEditShop={() => setShowEditShop(true)} />
 
-      {/* Kopf: Laden, Tag, Aktionen */}
+      {/* Kopf: Bereich, Laden, (Kalender: Tag und Ansicht), Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Tresen')}</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {heute ? `${t('Heute')} · ${format(selectedDate, t('EEEE, d. MMMM'), { locale: datumsLocale() })}` : t('Kalender')}
+          </p>
           {shops.length > 1 ? (
             <Select value={shop.id} onValueChange={loadShopData}>
               <SelectTrigger className="h-auto w-auto gap-3 border-none bg-transparent p-0 font-display text-3xl font-extrabold sm:text-4xl" aria-label={t('Laden wechseln')}>
@@ -285,80 +336,107 @@ const ShopDashboard = () => {
           ) : (
             <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{shop.name}</h1>
           )}
-          <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, -step))} aria-label={view === 'woche' ? t('Vorherige Woche') : t('Vorheriger Tag')}>
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </Button>
-            <label className="sr-only" htmlFor="tresen-datum">
-              {t('Tag wählen')}
-            </label>
-            <Input
-              id="tresen-datum"
-              type="date"
-              value={dayKey}
-              onChange={(e) => e.target.value && setSelectedDate(new Date(`${e.target.value}T12:00:00`))}
-              className="h-11 w-auto font-mono"
-            />
-            <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, step))} aria-label={view === 'woche' ? t('Nächste Woche') : t('Nächster Tag')}>
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </Button>
-            {!live && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())}>
-                {t('Heute')}
-              </Button>
-            )}
-            <span className="ms-1 text-sm text-muted-foreground">
-              {view === 'woche'
-                ? `${format(weekDays(selectedDate)[0], t('dd.MM.'))}–${format(weekDays(selectedDate)[6], t('dd.MM.'))}`
-                : format(selectedDate, 'EEEE', { locale: datumsLocale() })}
-            </span>
-          </div>
-          <div role="group" aria-label={t('Ansicht')} className="flex flex-wrap gap-2">
-            {VIEWS.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => chooseView(v.id)}
-                aria-pressed={view === v.id}
-                className={cn(
-                  'h-9 rounded-full px-3.5 text-sm font-semibold transition-colors',
-                  view === v.id ? 'bg-foreground text-background' : 'bg-muted text-foreground hover:bg-foreground/10',
+          {heute ? (
+            <p className="font-semibold" aria-live="polite">
+              {[
+                tn(stats.waiting, '{n} wartet', '{n} warten'),
+                tn(stats.running, '{n} ist dran', '{n} sind dran'),
+                tn(stats.done, '{n} fertig', '{n} fertig'),
+              ].join(' · ')}
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, -step))} aria-label={view === 'woche' ? t('Vorherige Woche') : t('Vorheriger Tag')}>
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </Button>
+                <label className="sr-only" htmlFor="tresen-datum">
+                  {t('Tag wählen')}
+                </label>
+                <Input
+                  id="tresen-datum"
+                  type="date"
+                  value={dayKey}
+                  onChange={(e) => e.target.value && setSelectedDate(new Date(`${e.target.value}T12:00:00`))}
+                  className="h-11 w-auto font-mono"
+                />
+                <Button variant="ghost" size="icon" onClick={() => setSelectedDate((d) => addDays(d, step))} aria-label={view === 'woche' ? t('Nächste Woche') : t('Nächster Tag')}>
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </Button>
+                {!live && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())}>
+                    {t('Heute')}
+                  </Button>
                 )}
-              >
-                {t(v.label)}
-              </button>
-            ))}
-          </div>
+                <span className="ms-1 text-sm text-muted-foreground">
+                  {view === 'woche'
+                    ? `${format(weekDays(selectedDate)[0], t('dd.MM.'))}–${format(weekDays(selectedDate)[6], t('dd.MM.'))}`
+                    : format(selectedDate, 'EEEE', { locale: datumsLocale() })}
+                </span>
+              </div>
+              <div role="group" aria-label={t('Ansicht')} className="flex flex-wrap gap-2">
+                {VIEWS.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => chooseView(v.id)}
+                    aria-pressed={view === v.id}
+                    className={cn(
+                      'h-9 rounded-full px-3.5 text-sm font-semibold transition-colors',
+                      view === v.id ? 'bg-foreground text-background' : 'bg-muted text-foreground hover:bg-foreground/10',
+                    )}
+                  >
+                    {t(v.label)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="signal" onClick={() => openCreate('queue')}>
-            <Plus className="me-1.5 h-4 w-4" aria-hidden="true" />
-            {t('Nummer vergeben')}
-          </Button>
-          <Button variant="outline" onClick={() => openCreate('booked')}>
-            {t('Termin eintragen')}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t('Weitere Aktionen')}>
-                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {/* Team, Leistungen, Mein Laden und Hilfe stehen schon oben im Menü */}
-              <DropdownMenuItem onSelect={() => window.open(`/bildschirm/${shop.id}`, '_blank', 'noopener')}>
-                {t('Wartezimmer-Bildschirm öffnen')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate(`/plakat?shopId=${shop.id}`)}>{t('QR-Plakat drucken')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/auswertung')}>{t('Auswertung')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/shop-setup')}>{t('Weiteren Laden einrichten')}</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex flex-wrap items-center gap-2">
+          {ownStaff && (
+            <div role="group" aria-label={t('Wessen Kunden?')} className="flex rounded-full bg-muted p-1">
+              {[
+                { only: false, label: t('Alle') },
+                { only: true, label: t('Nur ich') },
+              ].map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  aria-pressed={nurIch === o.only}
+                  onClick={() => chooseNurIch(o.only)}
+                  className={cn(
+                    'h-9 rounded-full px-4 text-sm font-semibold transition-colors',
+                    nurIch === o.only ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {heute && vollbild && (
+            <Button variant="ghost" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}>
+              <Maximize className="me-1.5 h-4 w-4" aria-hidden="true" />
+              {t('Vollbild')}
+            </Button>
+          )}
+          {heute ? (
+            <Button variant="signal" size="lg" onClick={() => openCreate('queue')}>
+              <Plus className="me-1.5 h-5 w-5" aria-hidden="true" />
+              {t('Kunde eintragen')}
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => openCreate('booked')}>
+              <Plus className="me-1.5 h-4 w-4" aria-hidden="true" />
+              {t('Termin eintragen')}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Zahlen gelten für den gewählten Tag – in der Wochenansicht nicht */}
-      {view !== 'woche' && (
+      {/* Zahlen für den gewählten Tag: im Kalender (Tag) – am Tresen genügt die Zeile oben */}
+      {!heute && view === 'tag' && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label={live ? t('Wartet noch') : t('Gebucht')} value={String(stats.waiting)} />
           <Stat label={t('Ist dran')} value={String(stats.running)} />
@@ -367,36 +445,32 @@ const ShopDashboard = () => {
         </div>
       )}
 
-      {/* Kalender brauchen die ganze Breite; der QR-Code steht nur bei der Schlange daneben */}
-      <div className={cn('grid gap-6', view === 'schlange' && 'lg:grid-cols-[1fr_300px]')}>
-        <div className="flex min-w-0 flex-col gap-6">
-          {staff.length === 0 ? (
-            <div className="flex flex-col items-start gap-3 rounded-3xl border border-border bg-card p-6">
-              <p className="font-display text-xl font-bold">{t('Noch niemand im Team.')}</p>
-              <p className="text-sm text-muted-foreground">{t('Ohne Team gibt es keine freien Zeiten. Leg dich selbst oder deine Leute an.')}</p>
-              <Button onClick={() => navigate('/staff-management')}>{t('Team anlegen')}</Button>
-            </div>
-          ) : view === 'schlange' ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {lanes.map((lane) => (
-                <CounterLane key={lane.key} title={lane.title} appointments={lane.items} services={services} now={now} live={live} />
-              ))}
-            </div>
-          ) : (
-            <CounterCalendar
-              key={shop.id}
-              mode={view}
-              shop={shop}
-              staff={staff}
-              services={services}
-              dayAppointments={appointments}
-              selectedDate={selectedDate}
-              now={now}
-            />
-          )}
-
-          {/* Dieselben Termine wie oben noch einmal – eingeklappt, gebraucht nur zum Bearbeiten (Preis, Leistung, Zeit) */}
-          {view !== 'woche' && (
+      {staff.length === 0 ? (
+        <div className="flex flex-col items-start gap-3 rounded-3xl border border-border bg-card p-6">
+          <p className="font-display text-xl font-bold">{t('Noch niemand im Team.')}</p>
+          <p className="text-sm text-muted-foreground">{t('Ohne Team gibt es keine freien Zeiten. Leg dich selbst oder deine Leute an.')}</p>
+          <Button onClick={() => navigate('/staff-management')}>{t('Team anlegen')}</Button>
+        </div>
+      ) : heute ? (
+        <div className={cn('grid gap-4', lanes.length > 1 && 'md:grid-cols-2 xl:grid-cols-3')}>
+          {lanes.map((lane) => (
+            <CounterLane key={lane.key} title={lane.title} appointments={lane.items} services={services} now={now} live={live} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <CounterCalendar
+            key={`${shop.id}-${showOnlyMe ? 'ich' : 'alle'}`}
+            mode={view}
+            shop={shop}
+            staff={visibleStaff}
+            services={services}
+            dayAppointments={appointments}
+            selectedDate={selectedDate}
+            now={now}
+          />
+          {/* Alle Termine des Tages als Liste – zum Bearbeiten (Preis, Leistung, Zeit) */}
+          {view === 'tag' && (
             <section className="flex flex-col gap-3">
               <button
                 type="button"
@@ -419,14 +493,20 @@ const ShopDashboard = () => {
               )}
             </section>
           )}
-        </div>
+        </>
+      )}
 
-        {view === 'schlange' && (
-          <aside className="flex flex-col gap-4">
-            <QRCodeDisplay shopId={shop.id} shopName={shop.name} />
-          </aside>
-        )}
-      </div>
+      {/* Auf dem eigenen Handy: Bescheid bekommen, wenn ein Kunde bucht oder absagt (utils/team-push.ts) */}
+      {heute && gespeichertesGeraet()?.rolle === 'handy' && <TeamPushSchalter />}
+
+      <GeraetWahl
+        open={geraetFragen}
+        onChoose={waehleGeraet}
+        onLater={() => {
+          spaeterFragen();
+          setGeraetFragen(false);
+        }}
+      />
 
       <Dialog open={showEditShop} onOpenChange={setShowEditShop}>
         <DialogContent className="max-w-2xl">
@@ -448,7 +528,7 @@ const ShopDashboard = () => {
       <Dialog open={showCreateAppointmentDialog} onOpenChange={setShowCreateAppointmentDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{appointmentType === 'queue' ? t('Nummer vergeben') : t('Termin eintragen')}</DialogTitle>
+            <DialogTitle>{appointmentType === 'queue' ? t('Kunde eintragen') : t('Termin eintragen')}</DialogTitle>
           </DialogHeader>
           <CreateAppointmentForm
             services={services}

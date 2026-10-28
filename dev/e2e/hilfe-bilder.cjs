@@ -100,7 +100,7 @@ run(async () => {
 
     await step('Tresen: Nummer vergeben', async () => {
       for (const [i, name] of NAMES.slice(1).entries()) {
-        await owner.getByRole('button', { name: 'Nummer vergeben' }).first().click();
+        await owner.getByRole('button', { name: 'Kunde eintragen' }).first().click();
         const dialog = owner.locator('[role="dialog"]');
         await dialog.getByText(/^Dran$|nichts frei/).first().waitFor({ timeout: 20000 });
         await dialog.locator('#customerName').fill(name);
@@ -188,7 +188,7 @@ run(async () => {
       await owner.getByRole('heading', { name: 'Startklar machen' }).waitFor({ timeout: 20000 });
       await owner.getByRole('button', { name: 'Liste ausblenden' }).click();
       await owner.reload({ waitUntil: 'domcontentloaded' });
-      await owner.getByRole('button', { name: 'Nummer vergeben' }).first().waitFor({ timeout: 20000 });
+      await owner.getByRole('button', { name: 'Kunde eintragen' }).first().waitFor({ timeout: 20000 });
       await owner.waitForTimeout(1500);
       const still = await owner.getByRole('heading', { name: 'Startklar machen' }).count();
       if (still) throw new Error('Liste nach dem Ausblenden noch da');

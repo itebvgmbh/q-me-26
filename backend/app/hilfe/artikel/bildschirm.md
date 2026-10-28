@@ -20,9 +20,11 @@ Kundennamen stehen dort nicht, nur Nummern. Termine ohne Nummer erscheinen als P
 
 ## Öffnen
 
-1. Tipp am [Tresen](/shop-dashboard) auf **„…“ → „Wartezimmer-Bildschirm öffnen“**. Hast du mehrere Läden, wähl vorher oben am Tresen den richtigen.
+1. Tipp oben auf [Laden](/shop-profile) und beim QR-Code auf **„Wartezimmer-Bildschirm öffnen“**. Hast du mehrere Läden, wähl vorher oben den richtigen.
 2. Der Bildschirm öffnet sich in einem neuen Tab. Seine Adresse endet auf /bildschirm/ und eine lange Kennung.
 3. Öffne genau diese Adresse auf dem Gerät im Wartebereich. Anmelden musst du dich dort nicht.
+
+> **Tipp:** Kannst du dich auf dem Gerät im Wartebereich einmal anmelden, leg es fest: unter **„Laden“** → **„Auf diesem Gerät“** → **„Festlegen“** → **„Wartezimmer-Bildschirm“**. Danach öffnet es beim Start von Dranzeit immer den Bildschirm, auch ohne Anmeldung.
 
 > **Achtung:** Wer die Adresse kennt, kann den Bildschirm öffnen. Zu sehen sind dort nur Nummern, Uhrzeiten und die Namen deines Teams.
 
@@ -36,6 +38,6 @@ Kundennamen stehen dort nicht, nur Nummern. Termine ohne Nummer erscheinen als P
 
 Die Seite bittet den Browser, den Bildschirm nicht abzuschalten. Nicht jedes Gerät macht da mit, viele Fernseher nicht. Schalte deshalb am Gerät selbst Energiesparmodus, automatisches Ausschalten und Bildschirmsperre aus und lass es am Strom.
 
-[Zum Tresen](/shop-dashboard){knopf}
+[Laden öffnen](/shop-profile){knopf}
 
 Mehr dazu: [Tarife im Überblick](/hilfe/tarife).

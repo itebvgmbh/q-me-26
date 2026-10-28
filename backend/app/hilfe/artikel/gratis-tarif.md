@@ -10,7 +10,7 @@ Im Gratis-Tarif zählt jede Nummer und jeder Termin im laufenden Kalendermonat m
 ## Was mitzählt
 
 - Nummern, die Kunden per QR-Code ziehen
-- Nummern, die du am Tresen mit **„Nummer vergeben“** vergibst
+- Nummern, die du unter **„Heute“** mit **„Kunde eintragen“** vergibst
 - Termine, die du mit **„Termin eintragen“** einträgst
 - alles mit dem Status **Wartet**, **Ist dran** oder **Fertig**
 
@@ -26,7 +26,7 @@ Oben am Tresen steht zum Beispiel „Gratis-Tarif: 42 von 100 Kunden diesen Mona
 
 - Am Tresen erscheint: „Die 100 Gratis-Kunden für diesen Monat sind erreicht. Online kann gerade niemand eine Nummer ziehen.“
 - Wer den QR-Code scannt, sieht statt des Knopfs: „Online sind bei … gerade keine Nummern mehr frei. Frag bitte direkt im Laden.“
-- Am Tresen kannst du Kunden weiter mit **„Nummer vergeben“** einreihen.
+- Unter **„Heute“** kannst du Kunden weiter mit **„Kunde eintragen“** einreihen.
 
 Am 1. des nächsten Monats können Kunden von selbst wieder online Nummern ziehen. Willst du nicht so lange warten, wähl ein Abo: Ab Solo gibt es keine Grenze mehr. Mehr dazu: [Abo abschließen, wechseln und kündigen](/hilfe/abo).
 

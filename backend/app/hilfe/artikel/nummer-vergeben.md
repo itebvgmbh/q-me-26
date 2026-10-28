@@ -9,7 +9,7 @@ Steht jemand ohne Handy vor dir, reihst du ihn selbst ein. Dranzeit sucht dabei 
 
 ## So geht’s
 
-1. Tipp am [Tresen](/shop-dashboard) oben auf **„Nummer vergeben“**.
+1. Tipp unter [Heute](/shop-dashboard) oben auf **„Kunde eintragen“**. Im Fenster ist **„Nummer (nächster Platz)“** gewählt.
 2. Wähl die **Leistung**. Dranzeit zeigt sofort, wann der Kunde dran ist und bei wem.
 3. Unter **„Bei wem?“** ist **„Egal wer – wer zuerst frei ist“** vorgewählt. Möchte der Kunde zu einer bestimmten Person, wähl sie aus. Zur Auswahl stehen nur Personen, die diese Leistung machen.
 4. Trag bei **„Name zum Aufrufen (freiwillig)“** ein, wie du ihn nachher rufst, zum Beispiel „Herr Krause“.
@@ -31,7 +31,7 @@ Ein Kunde, dem du die Nummer vergibst, bekommt keine Nachricht aufs Handy. Er wa
 
 Ist heute kein Platz mehr frei, zeigt Dranzeit den nächsten an einem anderen Tag und schreibt dazu: „Heute ist nichts mehr frei.“ Du kannst die Nummer trotzdem vergeben, sie gilt dann für diesen Tag.
 
-Erscheint stattdessen „In den nächsten 14 Tagen ist nichts frei“ oder „Für diese Leistung ist niemand im Team eingetragen“, fehlt etwas in der Einrichtung: Prüf unter **Team**, ob die Person diese Leistung macht und Arbeitszeiten hat. Mehr dazu: [Arbeitszeiten und Pausen](/hilfe/arbeitszeiten-und-pausen).
+Erscheint stattdessen „In den nächsten 14 Tagen ist nichts frei“ oder „Für diese Leistung ist niemand im Team eingetragen“, fehlt etwas in der Einrichtung: Prüf unter **„Laden“** → **„Team“**, ob die Person diese Leistung macht und Arbeitszeiten hat. Mehr dazu: [Arbeitszeiten und Pausen](/hilfe/arbeitszeiten-und-pausen).
 
 ## Und dann?
 

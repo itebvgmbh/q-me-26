@@ -14,11 +14,11 @@ Provision und Gebühren je Kunde oder Termin gibt es nicht. Du zahlst einen fest
 
 ### Brauchen meine Kunden eine App oder ein Konto?
 
-Nein. Sie scannen den QR-Code an deiner Tür, ziehen die Nummer im Browser und geben nur ihren Vornamen an. Ein Konto brauchen sie nur, wenn sie online einen festen Termin buchen oder „Früher dran“ nutzen wollen. Mehr: [So funktioniert die Nummer](/hilfe/so-funktioniert-die-nummer)
+Nein. Sie scannen den QR-Code an deiner Tür, ziehen die Nummer im Browser und geben nur ihren Vornamen an. Ein Konto brauchen sie nur für „Früher dran“. Auch einen festen Termin buchen sie ohne Konto, wenn dein Tarif Online-Termine hat. Mehr: [So funktioniert die Nummer](/hilfe/so-funktioniert-die-nummer)
 
 ### Was ist mit Kunden ohne Smartphone?
 
-Die reihst du am Tresen mit **„Nummer vergeben“** selbst ein. Sie stehen dann in derselben Schlange wie alle anderen, und du siehst sofort, um wie viel Uhr sie ungefähr dran sind. Mehr: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben)
+Die reihst du unter **„Heute“** mit **„Kunde eintragen“** selbst ein. Sie stehen dann in derselben Schlange wie alle anderen, und du siehst sofort, um wie viel Uhr sie ungefähr dran sind. Mehr: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben)
 
 ### Wie lange kann ich testen, und was passiert danach?
 
@@ -26,11 +26,13 @@ Die reihst du am Tresen mit **„Nummer vergeben“** selbst ein. Sie stehen dan
 
 ### Kann ich jederzeit kündigen?
 
-Ja. Unter **„Tarif“** → **„Abo verwalten, Rechnungen, kündigen“** kündigst du zum Ende des bezahlten Monats oder Jahres. Danach läuft dein Laden im Gratis-Tarif weiter. Mehr: [Abo abschließen, wechseln und kündigen](/hilfe/abo)
+Ja. Unter **„Laden“** → **„Tarif“** → **„Abo verwalten, Rechnungen, kündigen“** kündigst du zum Ende des bezahlten Monats oder Jahres. Danach läuft dein Laden im Gratis-Tarif weiter. Mehr: [Abo abschließen, wechseln und kündigen](/hilfe/abo)
 
 ### Welche Geräte brauche ich?
 
 Für den Tresen ein Handy, Tablet oder einen Computer mit Internet und Browser, installieren musst du nichts. Dazu einmal das QR-Plakat auf A4 ausdrucken. Für den [Wartezimmer-Bildschirm](/hilfe/bildschirm) reicht ein Fernseher oder Bildschirm mit Browser.
+
+Beim ersten Öffnen von **„Heute“** fragt Dranzeit, wofür du das Gerät nutzt: **„Tresen-Tablet“**, **„Mein Handy“**, **„Wartezimmer-Bildschirm“** oder **„Büro“**. Danach startet es immer dort. Ändern kannst du das unter **„Laden“** → **„Auf diesem Gerät“**.
 
 ### Funktioniert das mit Terminen und Laufkundschaft gleichzeitig?
 
@@ -46,7 +48,7 @@ Gratis und Solo sind für eine Person, Laden für bis zu 4 und Team für bis zu 
 
 ### Was ist mit Datenschutz?
 
-Deine Kunden geben nur ihren Vornamen an, Handynummer und E-Mail-Adresse sind freiwillig. Bei Nummern und Terminen ohne Konto entfernen wir Namen und Kontaktdaten 90 Tage nach dem Termin. Kunden, die du selbst anlegst, löschen wir, wenn 12 Monate kein Termin mit ihnen war, oder du löschst sie vorher unter „Mein Tag“ → **„Kundenliste“**. Die Vereinbarung zur Auftragsverarbeitung steht in Abschnitt 7 der [AGB](/agb). Mehr: [Datenschutz: welche Daten Dranzeit speichert](/hilfe/datenschutz)
+Deine Kunden geben nur ihren Vornamen an, Handynummer und E-Mail-Adresse sind freiwillig. Bei Nummern und Terminen ohne Konto entfernen wir Namen und Kontaktdaten 90 Tage nach dem Termin. Kunden, die du selbst anlegst, löschen wir, wenn 12 Monate kein Termin mit ihnen war, oder du löschst sie vorher unter „Laden“ → „Mein Tag“ → **„Kundenliste“**. Die Vereinbarung zur Auftragsverarbeitung steht in Abschnitt 7 der [AGB](/agb). Mehr: [Datenschutz: welche Daten Dranzeit speichert](/hilfe/datenschutz)
 
 ### Wie finden mich neue Kunden?
 

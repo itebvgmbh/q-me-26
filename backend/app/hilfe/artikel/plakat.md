@@ -9,7 +9,7 @@ Dranzeit macht dir ein fertiges A4-Plakat mit deinem QR-Code. Kunden scannen ihn
 
 ## Drucken
 
-1. Tipp am [Tresen](/shop-dashboard) auf **„…“ → „QR-Plakat drucken“**.
+1. Tipp oben auf [Laden](/shop-profile) und beim QR-Code auf **„Plakat drucken“**.
 2. Hast du mehrere Läden, wähl oben den richtigen aus.
 3. Tipp auf **„Drucken“**. Das Druckfenster deines Browsers öffnet sich, das Plakat ist schon auf A4 hoch eingestellt.
 4. Wähl deinen Drucker und druck.
@@ -35,6 +35,6 @@ Der QR-Code bleibt gleich, auch wenn du Adresse, Öffnungszeiten oder Leistungen
 
 ## Link zusätzlich teilen
 
-Am Tresen in der Box **„Einreihen per QR-Code“** steht **„Link kopieren“**. Der Link führt zum selben Ziel wie der QR-Code. Stell ihn in dein Google-Unternehmensprofil, deine Instagram-Bio oder deinen WhatsApp-Status. Mehr dazu: [Damit Kunden dich finden](/hilfe/gefunden-werden). Für deine eigene Webseite gibt es einen fertigen Kasten: [Dranzeit auf deiner Webseite](/hilfe/auf-der-webseite).
+Unter **„Laden“** im Kasten **„Nummer ziehen per QR-Code“** steht **„Link kopieren“**. Der Link führt zum selben Ziel wie der QR-Code. Stell ihn in dein Google-Unternehmensprofil, deine Instagram-Bio oder deinen WhatsApp-Status. Mehr dazu: [Damit Kunden dich finden](/hilfe/gefunden-werden). Für deine eigene Webseite gibt es einen fertigen Kasten: [Dranzeit auf deiner Webseite](/hilfe/auf-der-webseite).
 
 [Plakat öffnen](/plakat){knopf}

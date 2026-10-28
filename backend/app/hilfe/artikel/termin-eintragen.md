@@ -5,11 +5,11 @@ thema: tresen
 reihenfolge: 3
 stichworte: termin, eintragen, telefon, anruf, feste uhrzeit, buchen, bestandskunde, stammkunde, freie zeiten, reservieren, verschieben
 ---
-Will ein Kunde eine feste Uhrzeit, etwa am Telefon, trägst du den Termin am Tresen ein. Dranzeit lässt dich nur Zeiten wählen, die bei der Person wirklich frei sind. Doppelt vergeben kannst du so nichts. Am Termintag steht der Kunde in derselben Schlange wie die Nummern.
+Will ein Kunde eine feste Uhrzeit, etwa am Telefon, trägst du den Termin selbst ein. Dranzeit lässt dich nur Zeiten wählen, die bei der Person wirklich frei sind. Doppelt vergeben kannst du so nichts. Am Termintag steht der Kunde in derselben Schlange wie die Nummern.
 
 ## So geht’s
 
-1. Tipp am [Tresen](/shop-dashboard) oben auf **„Termin eintragen“**. Im Fenster ist **„Feste Uhrzeit“** gewählt.
+1. Tipp unter [Kalender](/kalender) oben auf **„Termin eintragen“**. Im Fenster ist **„Feste Uhrzeit“** gewählt. Unter **„Heute“** geht es genauso: **„Kunde eintragen“** und dann **„Feste Uhrzeit“**.
 2. Wähl die **Leistung**.
 3. Wähl unter **„Bei wem?“** die Person. Für einen Termin legst du dich fest, „Egal wer“ gibt es hier nicht.
 4. Trag den **Namen** ein. Hast du den Kunden schon einmal eingetragen, wähl ihn unter **„Bestandskunde (freiwillig)“**, dann steht der Name gleich da.
@@ -25,12 +25,12 @@ Zur Bestätigung erscheint zum Beispiel „Termin eingetragen: 24.10. um 14:00.�
 
 Nichts. Dranzeit schickt ihm keine Bestätigung und keine Erinnerung, denn für einen eingetragenen Termin hat er keine eigene Seite. Sag ihm Tag und Uhrzeit am Telefon.
 
-Möchte er erinnert werden, kann er den Termin selbst online buchen. Dafür braucht er ein Konto, und dein Tarif muss Online-Termine enthalten (ab Solo). Dann bekommt er zwei Stunden vorher eine Erinnerung. Mehr dazu: [Welche Nachrichten deine Kunden bekommen](/hilfe/benachrichtigungen).
+Möchte er erinnert werden, kann er den Termin selbst online buchen, auch ohne Konto. Dafür muss dein Tarif Online-Termine enthalten (ab Solo). Schaltet er auf seiner Nummernseite Benachrichtigungen ein oder hat er ein Konto, bekommt er zwei Stunden vorher eine Erinnerung. Mehr dazu: [Welche Nachrichten deine Kunden bekommen](/hilfe/benachrichtigungen).
 
 ## Termin ändern oder absagen
 
-Blätter oben am Tresen zum Tag des Termins. In der Liste **„Alle Termine am …“** tippst du beim Kunden auf **„Bearbeiten“**, um Uhrzeit, Person oder Leistung zu ändern, oder auf **„Status“** → **„Abgesagt“**.
+Blätter im **„Kalender“** zum Tag des Termins und tipp unten auf **„Alle Termine als Liste – zum Bearbeiten“**. In der Liste **„Alle Termine am …“** tippst du beim Kunden auf **„Bearbeiten“**, um Uhrzeit, Person oder Leistung zu ändern, oder auf **„Status“** → **„Abgesagt“**.
 
 Dein Team trägt Termine auch selbst ein, direkt in der eigenen Zeitleiste: [Mein Tag](/hilfe/mein-tag).
 
-[Zum Tresen](/shop-dashboard){knopf}
+[Zum Kalender](/kalender){knopf}

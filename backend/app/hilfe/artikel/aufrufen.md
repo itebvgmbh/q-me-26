@@ -21,15 +21,17 @@ Hat der Kunde beim Nummer-Ziehen oder in seinem Profil eine Handynummer angegebe
 
 Wer wartet, bleibt in der Spalte, bis du ihn aufrufst oder absagst, auch wenn seine geplante Zeit schon vorbei ist.
 
+Arbeitest du selbst mit, tipp oben auf **„Nur ich“**: Dann siehst du nur deine eigene Spalte. **„Alle“** zeigt wieder das ganze Team.
+
 ## Aufrufen
 
 1. Tipp in der Spalte auf **„Nächste Nummer aufrufen“**. Der oberste Kunde aus „Als Nächstes“ wandert nach „Jetzt dran“.
 2. Bist du mit ihm fertig und wartet noch jemand, heißt der Knopf **„Fertig – nächste Nummer“**. Ein Tipp schließt den Kunden ab und ruft den nächsten auf.
-3. Wartet niemand mehr, heißt er nur **„Fertig“**. Tipp auch beim letzten Kunden darauf, sonst fehlt er oben im **Umsatz**.
+3. Wartet niemand mehr, heißt er nur **„Fertig“**. Tipp auch beim letzten Kunden darauf, sonst fehlt er bei den Fertigen und im **Umsatz** unter „Kalender“.
 
 ![Nach dem Aufrufen: Lea ist dran, der Knopf heißt jetzt „Fertig – nächste Nummer“.](/img/hilfe/tresen-aufgerufen.jpg)
 
-Aufrufen geht nur heute. Blätterst du zu einem anderen Tag, fehlt der Knopf.
+Aufrufen geht nur unter **„Heute“**. Andere Tage siehst du unter **„Kalender“**, dort gibt es den Knopf nicht.
 
 ## Wenn der Nächste erst später kommt
 
@@ -47,7 +49,7 @@ Auf seiner Nummernseite steht sofort **„Du bist dran. Komm rein.“** Hat er B
 
 ## Status von Hand ändern
 
-Unter den Spalten steht die Liste **„Alle Termine am …“** mit allen Kunden des Tages.
+Unter **„Kalender“** steht in der Ansicht **„Tag“** unten die Liste **„Alle Termine am …“** mit allen Kunden des Tages. Du klappst sie mit **„Alle Termine als Liste – zum Bearbeiten“** auf.
 
 1. Tipp beim Kunden auf **„Status“**.
 2. Wähl **Wartet**, **Ist dran**, **Fertig** oder **Abgesagt**.
