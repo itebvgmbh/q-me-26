@@ -19,17 +19,17 @@ Enthält dein Tarif Benachrichtigungen (ab Solo), sag noch dazu:
 
 ## Kunden ohne Smartphone
 
-Niemand muss scannen. Wer ohne Handy kommt, bekommt seinen Platz von dir: Tipp am Tresen auf **„Nummer vergeben“**, trag seinen Namen ein und sag ihm die Uhrzeit, die Dranzeit dir anzeigt. Er steht dann in derselben Schlange wie alle anderen. Mehr dazu: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
+Niemand muss scannen. Wer ohne Handy kommt, bekommt seinen Platz von dir: Tipp unter „Heute“ auf **„Kunde eintragen“**, trag seinen Namen ein und sag ihm die Uhrzeit, die Dranzeit dir anzeigt. Er steht dann in derselben Schlange wie alle anderen. Mehr dazu: [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
 
 ## Stammkunden
 
-- Wer lieber eine feste Uhrzeit hat, bucht online einen Termin. Dafür braucht er ein Konto, und dein Tarif muss Online-Termine enthalten (ab Solo). Oder du trägst ihn selbst ein: [Termin eintragen](/hilfe/termin-eintragen).
+- Wer lieber eine feste Uhrzeit hat, wählt beim Nummer-Ziehen **„Wunschzeit“** und bucht einen Termin, auch ohne Konto. Dafür muss dein Tarif Online-Termine enthalten (ab Solo). Oder du trägst ihn selbst ein: [Termin eintragen](/hilfe/termin-eintragen).
 - Mit Konto sehen Stammkunden alles unter „Meine Termine“ und können **„Früher dran“** nutzen. Mehr dazu: [Früher dran](/hilfe/frueher-dran).
 - Für Kunden gibt es eine eigene Anleitung, deren Link du weitergeben kannst: [So funktioniert deine Nummer](/hilfe/so-funktioniert-die-nummer).
 
 ## Text für Instagram, WhatsApp und Google
 
-Deinen Link zum Nummer-Ziehen findest du am [Tresen](/shop-dashboard) im Kasten **„Einreihen per QR-Code“**. Tipp auf **„Link kopieren“**. Der Link führt direkt zu deinem Laden, genau wie der QR-Code.
+Deinen Link zum Nummer-Ziehen findest du unter [Laden](/shop-profile) im Kasten **„Nummer ziehen per QR-Code“**. Tipp auf **„Link kopieren“**. Der Link führt direkt zu deinem Laden, genau wie der QR-Code.
 
 Vorschlag zum Einfügen:
 

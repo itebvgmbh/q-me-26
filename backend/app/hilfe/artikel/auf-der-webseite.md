@@ -5,7 +5,7 @@ thema: laden
 reihenfolge: 5
 stichworte: webseite, homepage, website, einbauen, einbetten, iframe, widget, html, code, knopf, button, wordpress, wix, jimdo, qr, qr-code, png, svg, google, unternehmensprofil
 ---
-Unter [Mein Laden](/shop-profile) findest du im Abschnitt **„Auf deiner Webseite“** drei fertige Bausteine. Du wählst einen aus, tippst auf **„Code kopieren“** und fügst ihn auf deiner Webseite ein. Das Nummer-Ziehen und Buchen selbst läuft immer bei Dranzeit in einem neuen Tab. So klappen Anmeldung, die Seite mit der Nummer und die Nachricht „Du bist dran“ wie gewohnt.
+Unter [Laden](/shop-profile) findest du im Abschnitt **„Auf deiner Webseite“** drei fertige Bausteine. Du wählst einen aus, tippst auf **„Code kopieren“** und fügst ihn auf deiner Webseite ein. Das Nummer-Ziehen und Buchen selbst läuft immer bei Dranzeit in einem neuen Tab. So klappen Anmeldung, die Seite mit der Nummer und die Nachricht „Du bist dran“ wie gewohnt.
 
 ## Kasten
 
@@ -31,4 +31,4 @@ Füg den Code dort ein, wo dein Baukasten **„HTML“**, **„Code“** oder **
 
 > **Tipp:** Trag den Link zu deiner Seite bei Dranzeit auch in dein Google-Unternehmensprofil ein, als Link für Termine oder Buchungen. Den Link kopierst du unten im Abschnitt „Auf deiner Webseite“. Mehr dazu: [Damit Kunden dich finden](/hilfe/gefunden-werden).
 
-[Zu Mein Laden](/shop-profile){knopf}
+[Laden öffnen](/shop-profile){knopf}

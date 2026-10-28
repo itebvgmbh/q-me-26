@@ -120,8 +120,10 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/servicebooking", element: <RedirectKeepQuery to="/book-appointment" />},
 	{ path: "/service-management", element: <UserGuard><ServiceManagement /></UserGuard>},
 	{ path: "/servicemanagement", element: <UserGuard><ServiceManagement /></UserGuard>},
+	// Inhaber: Heute (Tresen) und Kalender sind dieselbe Seite mit denselben Daten (pages/ShopDashboard.tsx)
 	{ path: "/shop-dashboard", element: <UserGuard><ShopDashboard /></UserGuard>},
 	{ path: "/shopdashboard", element: <UserGuard><ShopDashboard /></UserGuard>},
+	{ path: "/kalender", element: <UserGuard><ShopDashboard bereich="kalender" /></UserGuard>},
 	{ path: "/shop-details", element: <ShopDetails />},
 	{ path: "/shopdetails", element: <ShopDetails />},
 	{ path: "/shop-map", element: <ShopMap />},

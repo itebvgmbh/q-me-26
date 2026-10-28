@@ -9,13 +9,13 @@ Jede Person, die Kunden bedient, braucht einen Eintrag im Team, auch du selbst. 
 
 ## Person anlegen
 
-1. Öffne [Team](/staff-management) und tipp auf **„Person anlegen“**.
+1. Öffne unter **„Laden“** das [Team](/staff-management) und tipp auf **„Person anlegen“**.
 2. Trag den **Namen** ein. E-Mail, Telefon und Aufgabe sind freiwillig.
 3. Unter **Leistungen** ist alles angehakt. Nimm raus, was die Person nicht macht.
 4. Die **Arbeitszeiten** sind mit deinen Öffnungszeiten vorbelegt. Pass Tage und Uhrzeiten an.
 5. Tipp auf **„Anlegen“**. Danach kannst du die Person gleich einladen (siehe unten) oder auf **„Fertig“** tippen.
 
-Bedienst du selbst Kunden, leg dich mit deiner eigenen E-Mail-Adresse an. Dann siehst du deine Kunden sofort unter „Mein Tag“, ohne Einladung. Hast du mehrere Läden und arbeitest in mehreren mit, leg dich in jedem davon so an.
+Bedienst du selbst Kunden, leg dich mit deiner eigenen E-Mail-Adresse an. Dann siehst du deine Kunden sofort unter **„Heute“** mit **„Nur ich“** und unter „Laden“ → „Mein Tag“, ohne Einladung. Hast du mehrere Läden und arbeitest in mehreren mit, leg dich in jedem davon so an.
 
 ## Einladen, damit die Person ihren Tag sieht
 

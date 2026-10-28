@@ -18,9 +18,9 @@ Ohne Konto geht es nicht, denn angenommen wird das Angebot unter „Meine Termin
 
 - **Beim Nummer-Ziehen oder Termin-Buchen:** Der Kunde hakt **„Früher dran, wenn etwas frei wird“** an.
 - **Später unter „Meine Termine“:** Bei jedem kommenden Termin steht der Schalter **„Früher dran, wenn etwas frei wird“**. Damit schaltet der Kunde es selbst ein oder wieder aus, bis 15 Minuten vor Beginn. Das geht auch bei Terminen, die du für ihn eingetragen hast, sobald er sein Konto über deinen Link verbunden hat ([Mein Tag](/hilfe/mein-tag), Abschnitt „Kunde anlegen“).
-- **Von dir am Tresen:** in der Liste **„Alle Termine am …“** unter **„Bearbeiten“** → **„Bei früherem freien Termin benachrichtigen“**. Das wirkt nur bei Kunden mit Konto.
+- **Von dir im Kalender:** in der Liste **„Alle Termine am …“** unter **„Bearbeiten“** → **„Bei früherem freien Termin benachrichtigen“**. Das wirkt nur bei Kunden mit Konto.
 
-Schaltet ein Kunde es aus, während ihm gerade ein Platz angeboten wird, verschwindet das Angebot und der Platz geht an den Nächsten.
+Schaltet ein Kunde es aus, während ihm gerade ein Platz angeboten wird, verschwindet das Angebot und der Platz geht an den Nächsten. Wählt ein Kunde mit **„Platz ändern“** selbst eine andere Zeit, ist „Früher dran“ danach aus.
 
 ## So läuft es ab
 

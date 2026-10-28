@@ -13,15 +13,17 @@ Du scannst den QR-Code im Laden, wählst, was gemacht werden soll, und ziehst ei
 1. Scann den QR-Code an der Tür oder am Tresen mit der Kamera deines Handys.
 2. Wähl unter **„Was soll gemacht werden?“** deine Leistung.
 3. Wähl unter **„Bei wem?“** eine Person oder **„Egal wer – Hauptsache schnell“**. Bei jeder Person steht ihr nächster freier Platz.
-4. Prüf die Uhrzeit, gib deinen Vornamen ein und tipp auf **„Nummer ziehen“**. Deine Handynummer ist freiwillig.
+4. Unter **„Wann passt es dir?“** siehst du, um wie viel Uhr du ungefähr dran bist. Gib deinen Vornamen ein und tipp auf **„Nummer ziehen“**. Deine Handynummer ist freiwillig.
 
 ![Nach dem Scannen wählst du, was du machen lassen willst.](/img/hilfe/kunde-leistung.jpg)
+
+Lieber eine feste Uhrzeit? Bietet der Laden Termine an, wähl dort statt **„So früh wie möglich“** die **„Wunschzeit“**, such dir Tag und Uhrzeit aus und tipp auf **„Termin buchen“**. Auch dafür brauchst du kein Konto.
 
 Kein QR-Code zur Hand? Tipp auf dranzeit.de im Menü auf **„Nummer ziehen“** und wähl deinen Laden.
 
 ## Während du wartest
 
-Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran um ca.“** mit der Uhrzeit. Sie aktualisiert sich von selbst. Ruft der Laden dich auf, steht dort **„Du bist dran. Komm rein.“** Seite geschlossen? Auf der Startseite von Dranzeit findest du sie am selben Tag wieder, auf demselben Handy. Oder du merkst dir den Link der Seite (Lesezeichen oder Home-Bildschirm): Mit ihm kannst du die Nummer auch zurückgeben.
+Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran um ca.“** mit der Uhrzeit, dazu ein Zeitfenster wie „Rechne mit 11:52 bis 12:10 Uhr.“ Sie aktualisiert sich von selbst. Ruft der Laden dich auf, steht dort **„Du bist dran. Komm rein.“** Seite geschlossen? Auf der Startseite von Dranzeit findest du sie am selben Tag wieder, auf demselben Handy. Oder du merkst dir den Link der Seite (Lesezeichen oder Home-Bildschirm): Mit ihm kannst du die Nummer auch zurückgeben.
 
 ![Deine Nummer: wie viele vor dir sind und wann du ungefähr dran bist.](/img/hilfe/kunde-nummer.jpg)
 
@@ -29,7 +31,7 @@ Deine Nummernseite zeigt deine Nummer, wie viele vor dir dran sind und **„Dran
 
 ### Brauche ich eine App oder ein Konto?
 
-Nein. Alles läuft im Browser deines Handys, für eine Nummer brauchst du kein Konto. Mit Konto siehst du deine Nummern und Termine unter „Meine Termine“, kannst „Früher dran“ nutzen und feste Termine online buchen, wenn der Laden das anbietet. Hast du schon eine Nummer, tipp auf **„Konto anlegen und Nummer behalten“**.
+Nein. Alles läuft im Browser deines Handys, für eine Nummer brauchst du kein Konto. Mit Konto siehst du deine Nummern und Termine unter „Meine Termine“ und kannst „Früher dran“ nutzen. Feste Termine buchst du auch ohne Konto, wenn der Laden das anbietet. Hast du schon eine Nummer, tipp auf **„Konto anlegen und Nummer behalten“**.
 
 ### Wie entsteht die „ca.“-Uhrzeit?
 
@@ -50,6 +52,10 @@ Deine Nummer verfällt nicht von selbst. Ruft der Laden dich auf und du bist nic
 ### Kann ich meine Nummer zurückgeben?
 
 Ja. Tipp auf deiner Nummernseite auf **„Nummer zurückgeben“** und bestätige mit **„Ja, zurückgeben“**. Dein Platz wird damit frei. Ohne Konto geht das auf dem Handy, mit dem du die Nummer gezogen hast, oder über den Link deiner Nummernseite – ein Link aus einer Benachrichtigungs-Mail zeigt nur, wann du dran bist. Sonst sag am Tresen Bescheid. Mit Konto geht es auch unter „Meine Termine“ mit **„Termin absagen“**.
+
+### Kann ich eine andere Zeit nehmen?
+
+Ja, wenn der Laden Online-Termine anbietet. Tipp auf deiner Nummernseite oder unter „Meine Termine“ auf **„Platz ändern“** und such dir eine andere Zeit aus, auf Wunsch auch bei einer anderen Person. Dein jetziger Platz bleibt, bis der neue sicher ist. Danach hast du einen festen Termin, „Früher dran“ ist dann aus. Auch wenn du auf **„Nummer zurückgeben“** tippst, bietet Dranzeit dir mit **„Lieber eine andere Zeit?“** eine andere Zeit an. Ohne Konto geht das wie das Zurückgeben nur auf dem Handy, mit dem du gezogen oder gebucht hast, oder über den Link deiner Nummernseite.
 
 ### Was passiert mit meinen Daten?
 

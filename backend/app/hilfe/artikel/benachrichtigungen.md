@@ -22,7 +22,7 @@ Für Termine an vergangenen Tagen schickt Dranzeit nichts, auch wenn du sie nach
 
 ## Push oder E-Mail: Der Kunde wählt
 
-Nach dem Nummer-Ziehen sieht der Kunde auf seiner Nummernseite den Kasten **„Bescheid bekommen“**:
+Nach dem Nummer-Ziehen oder Buchen sieht der Kunde auf seiner Nummernseite den Kasten **„Bescheid bekommen“**:
 
 - **„Benachrichtigung einschalten“** schickt die Nachricht direkt aufs Handy, wie bei einer App. Der Browser fragt einmal nach Erlaubnis.
 - Bei **„Per E-Mail“** trägt er seine Adresse ein, nur für diese Nummer. Dranzeit löscht sie spätestens 90 Tage nach dem Termin.
@@ -35,7 +35,7 @@ Auf dem iPhone erlaubt Apple Nachrichten aus dem Browser nur für Apps auf dem H
 
 ## Wer keine Nachricht bekommt
 
-- Kunden, denen du am Tresen eine Nummer vergibst oder einen Termin ohne Konto einträgst. Sie haben keine eigene Nummernseite. Sag ihnen die Nummer und die Uhrzeit, siehe [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
+- Kunden, denen du unter „Heute“ mit „Kunde eintragen“ eine Nummer vergibst oder für die du einen Termin ohne Konto einträgst. Sie haben keine eigene Nummernseite. Sag ihnen die Nummer und die Uhrzeit, siehe [Nummer am Tresen vergeben](/hilfe/nummer-vergeben).
 - Kunden ohne Konto, die weder Push noch E-Mail eingeschaltet haben.
 
 Mehr dazu: [Tarife im Vergleich](/hilfe/tarife), [Früher dran](/hilfe/frueher-dran).

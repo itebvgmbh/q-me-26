@@ -13,7 +13,7 @@ Der bezahlte Tarif deines Ladens: Solo, Laden oder Team, monatlich oder jährlic
 
 ### Auswertung
 
-Zeigt, wie viele Kunden kommen, wie lange sie warten und wann am meisten los ist. Du findest sie am Tresen unter „…“ → „Auswertung“, ab dem Tarif Laden. [Welcher Tarif passt zu mir?](/hilfe/tarife)
+Zeigt, wie viele Kunden kommen, wie lange sie warten und wann am meisten los ist. Du findest sie unter „Laden“ → „Auswertung“, ab dem Tarif Laden. [Welcher Tarif passt zu mir?](/hilfe/tarife)
 
 ### Einladungslink
 
@@ -35,13 +35,21 @@ Der kostenlose Tarif für eine Person und bis zu 100 Kunden im Monat, ohne Onlin
 
 Für die ersten 100 Läden: 3 Monate kostenlos, danach der Tarif Laden für 19 € statt 39 € im Monat (netto). [Gründerangebot](/hilfe/gruenderangebot)
 
+### Heute
+
+So heißt der Tresen im Menü: nur der heutige Tag, eine Spalte je Person. Bist du selbst im Team, zeigt „Nur ich“ nur deine eigenen Kunden. [Kunden aufrufen](/hilfe/aufrufen)
+
+### Kalender
+
+Im Menü für Inhaber: Hier blätterst du durch die Tage, als „Tag“ mit einer Spalte je Person oder als „Woche“ einer Person. Dort trägst du Termine ein und bearbeitest sie in der Liste „Alle Termine am …“. [Termin eintragen](/hilfe/termin-eintragen)
+
 ### Kunde
 
 Jeder, der bei dir eine Nummer oder einen Termin hat, mit oder ohne Konto. [So funktioniert die Nummer](/hilfe/so-funktioniert-die-nummer)
 
 ### Laden
 
-Dein Geschäft bei Dranzeit, mit Adresse, Öffnungszeiten, Leistungen und Team. Mit einem Konto kannst du mehrere Läden führen. [Laden bearbeiten](/hilfe/laden-bearbeiten)
+Dein Geschäft bei Dranzeit, mit Adresse, Öffnungszeiten, Leistungen und Team. Mit einem Konto kannst du mehrere Läden führen. Im Menü findest du unter „Laden“ alles zum Verwalten: Team, Leistungen, Tarif, QR-Code und mehr. [Laden bearbeiten](/hilfe/laden-bearbeiten)
 
 ### Leistung
 
@@ -49,11 +57,11 @@ Was du anbietest, zum Beispiel einen Haarschnitt, mit Dauer und Preis. Aus der D
 
 ### Mein Tag
 
-Die Zeitleiste einer Person mit allen Terminen und Nummern des Tages. Jede Person im Team sieht dort ihre eigenen Kunden. [Mein Tag](/hilfe/mein-tag)
+Die Zeitleiste einer Person mit allen Terminen und Nummern des Tages. Jede Person im Team sieht dort ihre eigenen Kunden. Mitarbeiter finden sie oben im Menü, Inhaber unter „Laden“ → „Mein Tag“. [Mein Tag](/hilfe/mein-tag)
 
 ### Nummer
 
-Ein Platz in der Schlange ohne feste Uhrzeit. Kunden ziehen sie per QR-Code, oder du vergibst sie am Tresen mit „Nummer vergeben“. Dazu zeigt Dranzeit, um wie viel Uhr man ungefähr dran ist. [So funktioniert die Nummer](/hilfe/so-funktioniert-die-nummer)
+Ein Platz in der Schlange ohne feste Uhrzeit. Kunden ziehen sie per QR-Code, oder du vergibst sie unter „Heute“ mit „Kunde eintragen“. Dazu zeigt Dranzeit, um wie viel Uhr man ungefähr dran ist. [So funktioniert die Nummer](/hilfe/so-funktioniert-die-nummer)
 
 ### Öffnungszeiten und Arbeitszeiten
 
@@ -65,7 +73,7 @@ Eine Person ist jeder, der bei dir Kunden bedient, du selbst eingeschlossen. All
 
 ### QR-Plakat
 
-Ein A4-Plakat mit dem QR-Code deines Ladens. Kunden scannen ihn und ziehen eine Nummer. Du druckst es am Tresen unter „…“ → „QR-Plakat drucken“. [Plakat drucken und aufhängen](/hilfe/plakat)
+Ein A4-Plakat mit dem QR-Code deines Ladens. Kunden scannen ihn und ziehen eine Nummer. Du druckst es unter „Laden“ → „Plakat drucken“. [Plakat drucken und aufhängen](/hilfe/plakat)
 
 ### Schlange
 
@@ -77,7 +85,7 @@ Am Tresen hat jede Nummer und jeder Termin einen Status: **Wartet**, **Ist dran*
 
 ### Termin
 
-Ein Platz mit fester Uhrzeit. Kunden buchen ihn online, mit Konto und ab dem Tarif Solo, oder du trägst ihn am Tresen mit „Termin eintragen“ ein. [Termin eintragen](/hilfe/termin-eintragen)
+Ein Platz mit fester Uhrzeit. Kunden buchen ihn online ab dem Tarif Solo, auch ohne Konto, oder du trägst ihn im „Kalender“ mit „Termin eintragen“ ein. [Termin eintragen](/hilfe/termin-eintragen)
 
 ### Testphase
 
@@ -85,7 +93,7 @@ Die ersten 30 Tage ab dem Eröffnen deines Ladens. Du nutzt alles wie im Tarif T
 
 ### Tresen
 
-Deine Ansicht im Laden: Pro Person siehst du, wer dran ist und wer als Nächstes kommt, und rufst mit „Nächste Nummer aufrufen“ den nächsten Kunden auf. [Kunden aufrufen](/hilfe/aufrufen)
+Deine Ansicht im Laden, im Menü „Heute“: Pro Person siehst du, wer dran ist und wer als Nächstes kommt, und rufst mit „Nächste Nummer aufrufen“ den nächsten Kunden auf. [Kunden aufrufen](/hilfe/aufrufen)
 
 ### Vor- und Nachbereitung
 
@@ -93,8 +101,8 @@ Minuten, die Dranzeit zur Dauer einer Leistung dazurechnet, zum Beispiel zum Auf
 
 ### Vorlaufzeit
 
-So viele Minuten im Voraus muss ein Kunde online buchen. Nummer ziehen und Termine, die du selbst einträgst, betrifft sie nicht. Du stellst sie unter „Mein Laden“ → „Bearbeiten“ ein. [Laden bearbeiten](/hilfe/laden-bearbeiten)
+So viele Minuten im Voraus muss ein Kunde online buchen. Nummer ziehen und Termine, die du selbst einträgst, betrifft sie nicht. Du stellst sie unter „Laden“ → „Bearbeiten“ ein. [Laden bearbeiten](/hilfe/laden-bearbeiten)
 
 ### Wartezimmer-Bildschirm
 
-Eine Ansicht für den Fernseher im Laden: Wer gerade dran ist, wer als Nächstes kommt, und ein QR-Code zum Nummer ziehen. Du öffnest ihn am Tresen unter „…“ → „Wartezimmer-Bildschirm öffnen“, ab dem Tarif Laden. [Wartezimmer-Bildschirm](/hilfe/bildschirm)
+Eine Ansicht für den Fernseher im Laden: Wer gerade dran ist, wer als Nächstes kommt, und ein QR-Code zum Nummer ziehen. Du öffnest ihn unter „Laden“ → „Wartezimmer-Bildschirm öffnen“, ab dem Tarif Laden. [Wartezimmer-Bildschirm](/hilfe/bildschirm)

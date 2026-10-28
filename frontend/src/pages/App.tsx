@@ -3,6 +3,7 @@ import { ActiveTicketBanner } from '../components/queue/ActiveTicketBanner';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnonymousBookingHandler } from '../components/AnonymousBookingHandler';
+import { GeraetStart } from '../components/GeraetStart';
 import { MarketplaceSection } from '../components/MarketplaceSection';
 import { Ticket } from '../components/brand/Ticket';
 import { merke, t } from '@/i18n';
@@ -31,6 +32,8 @@ export default function App() {
     <div>
       {/* Verknüpft anonyme Buchungen nach dem Anmelden */}
       <AnonymousBookingHandler />
+      {/* Tablet am Tresen, Fernseher im Wartezimmer: beim Start gleich in ihre Ansicht */}
+      <GeraetStart />
       <ActiveTicketBanner />
 
       <section className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-14 gap-y-12 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">

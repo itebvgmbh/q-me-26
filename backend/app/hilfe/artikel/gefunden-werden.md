@@ -9,11 +9,11 @@ Kunden finden dich bei Dranzeit auf drei Wegen: über die Karte [Läden finden](
 
 ## 1. Adresse vollständig eintragen
 
-1. Tipp am [Tresen](/shop-dashboard) auf **„…“ → „Laden bearbeiten“**.
+1. Tipp oben auf [Laden](/shop-profile) und dann auf **„Bearbeiten“**.
 2. Füll **Straße und Hausnummer**, **Postleitzahl** und **Ort** aus.
 3. Tipp auf **„Änderungen speichern“**.
 
-Mit Adresse erscheint dein Laden als Punkt auf der Karte. Kunden suchen dort nach Ort oder PLZ oder tippen auf **„In meiner Nähe“**. Fehlt die Adresse, siehst du unter „Mein Laden“ einen Hinweis.
+Mit Adresse erscheint dein Laden als Punkt auf der Karte. Kunden suchen dort nach Ort oder PLZ oder tippen auf **„In meiner Nähe“**. Fehlt die Adresse, siehst du unter „Laden“ einen Hinweis.
 
 ## 2. Branche wählen
 
@@ -23,11 +23,11 @@ Stadtseiten gibt es bisher nur für Friseure und Barbershops. Ist als Branche �
 
 ## 3. Ladenseite pflegen
 
-Jeder Laden hat eine eigene Seite mit Logo, Adresse, Telefon, Beschreibung, Leistungen mit Dauer und Preis, Öffnungszeiten und Team. Wie sie aussieht, siehst du unter „Mein Laden“ → **„Kundenansicht“**. Ein Logo und zwei Sätze Beschreibung machen sie persönlicher: [Name, Adresse, Logo und Beschreibung ändern](/hilfe/laden-bearbeiten).
+Jeder Laden hat eine eigene Seite mit Logo, Adresse, Telefon, Beschreibung, Leistungen mit Dauer und Preis, Öffnungszeiten und Team. Wie sie aussieht, siehst du unter „Laden“ → **„Kundenansicht“**. Ein Logo und zwei Sätze Beschreibung machen sie persönlicher: [Name, Adresse, Logo und Beschreibung ändern](/hilfe/laden-bearbeiten).
 
 ## 4. Deinen Link teilen
 
-Am Tresen in der Box **„Einreihen per QR-Code“** tippst du auf **„Link kopieren“**. Der Link öffnet direkt das Nummer-Ziehen bei dir. Gute Stellen dafür:
+Unter **„Laden“** im Kasten **„Nummer ziehen per QR-Code“** tippst du auf **„Link kopieren“**. Der Link öffnet direkt das Nummer-Ziehen bei dir. Gute Stellen dafür:
 
 - **Google-Unternehmensprofil:** als Link für Termine oder als Webseite
 - **Instagram:** in die Bio
@@ -36,4 +36,4 @@ Am Tresen in der Box **„Einreihen per QR-Code“** tippst du auf **„Link kop
 
 Im Laden selbst hilft das [QR-Plakat](/hilfe/plakat).
 
-[Zum Tresen](/shop-dashboard){knopf}
+[Laden öffnen](/shop-profile){knopf}

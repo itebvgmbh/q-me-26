@@ -198,7 +198,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
         {waiting.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {appointments.length === 0 && live
-              ? t('Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Nummer vergeben“.')
+              ? t('Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Kunde eintragen“.')
               : t('Keiner mehr in der Schlange.')}
           </p>
         ) : (

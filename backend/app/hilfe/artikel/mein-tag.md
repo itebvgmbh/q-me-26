@@ -7,7 +7,9 @@ stichworte: mein tag, zeitleiste, kalender, woche, tage, verschieben, ziehen, ko
 ---
 „Mein Tag“ ist die Ansicht für jede Person im Team. Sie zeigt nur die eigenen Nummern und Termine, Stunde für Stunde. Der Tresen zeigt den ganzen Laden, „Mein Tag“ nur dich.
 
-Du findest „Mein Tag“ oben im Menü. Arbeitest du als Inhaber selbst mit, trag dich unter **Team** mit deiner E-Mail ein, sonst steht dort „Du nimmst noch keine Termine an.“ Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen). Wer in mehreren Läden im Team ist, wählt oben den Laden.
+Als Mitarbeiter findest du „Mein Tag“ oben im Menü. Wer in mehreren Läden im Team ist, wählt oben den Laden.
+
+Als Inhaber öffnest du es unter **„Laden“** → **„Mein Tag“**: für deine Woche, deine Arbeitszeiten, **„Kunde anlegen“** und die **„Kundenliste“**. Für den heutigen Tag nimmst du einfacher **„Heute“** mit **„Nur ich“**, dort rufst du deine Kunden auch auf. Arbeitest du selbst mit, trag dich unter **„Laden“** → **„Team“** mit deiner E-Mail ein. Sonst steht in „Mein Tag“ „Du nimmst noch keine Termine an.“, und „Nur ich“ fehlt. Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
 
 ## Zeitraum wählen
 
@@ -52,6 +54,6 @@ Steht vor einem Termin ein rotes **„Konflikt“**, liegt er in einer deiner w�
 
 ## Meine Arbeitszeiten
 
-Über **„Meine Arbeitszeiten“** stellst du für jeden Wochentag ein, ob und von wann bis wann du arbeitest, dann **„Änderungen speichern“**. Nur in diesen Zeiten kann man bei dir eine Nummer ziehen oder einen Termin buchen. Pausen trägt der Inhaber unter **Team** ein: [Arbeitszeiten und Pausen](/hilfe/arbeitszeiten-und-pausen).
+Über **„Meine Arbeitszeiten“** stellst du für jeden Wochentag ein, ob und von wann bis wann du arbeitest, dann **„Änderungen speichern“**. Nur in diesen Zeiten kann man bei dir eine Nummer ziehen oder einen Termin buchen. Pausen trägt der Inhaber unter **„Laden“** → **„Team“** ein: [Arbeitszeiten und Pausen](/hilfe/arbeitszeiten-und-pausen).
 
 [Zu Mein Tag](/employee-dashboard){knopf}

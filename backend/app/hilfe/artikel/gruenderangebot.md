@@ -16,7 +16,7 @@ Die ersten 100 Läden, die das Gründerangebot annehmen, nutzen Dranzeit 3 Monat
 ## So sicherst du dir den Platz
 
 1. Leg deinen Laden an, falls noch nicht geschehen: [In 10 Minuten startklar](/hilfe/in-10-minuten-startklar).
-2. Tipp in der Navigation auf **„Tarif“**.
+2. Tipp oben auf **„Laden“** und dann auf **„Tarif“**.
 3. Tipp im Kasten **„Gründerangebot: noch … Plätze“** auf **„Gründerplatz sichern“**.
 
 Danach steht unter „Mein Tarif“ **Gründer** neben deinem Tarif. Die 3 Monate zählen ab diesem Tag, eine laufende Testphase geht darin auf.

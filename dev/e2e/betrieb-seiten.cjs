@@ -56,9 +56,9 @@ run(async () => {
 
     // Tresen + Dialoge
     await page.goto(`${BASE}/shop-dashboard`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'Nummer vergeben' }).first().waitFor({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().waitFor({ timeout: 15000 });
     await check('tresen');
-    await page.getByRole('button', { name: 'Nummer vergeben' }).first().click();
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().click();
     await page.locator('[role="dialog"]').getByText(/^Dran$|nichts frei/).first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(500);
     const queueDialog = {
@@ -80,7 +80,9 @@ run(async () => {
       await page.keyboard.press('Escape');
     }
     await page.waitForTimeout(800);
-    await page.getByRole('button', { name: 'Termin eintragen' }).first().click();
+    // Am Tresen gibt es nur noch „Kunde eintragen“; feste Uhrzeit im Dialog
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().click();
+    await page.locator('[role="dialog"]').getByRole('radio', { name: 'Feste Uhrzeit' }).click();
     await page.waitForTimeout(800);
     const bookedOverflow = await dialogOverflow(page);
     await check('dlg-termin');
