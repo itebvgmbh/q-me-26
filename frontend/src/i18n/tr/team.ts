@@ -324,6 +324,19 @@ const texte: Texte = {
   // utils/staff-invitation.ts
   "Keine Verbindung zum Server. Bitte prüf dein Internet.": "Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.",
   "Das hat nicht geklappt (Fehler {status}).": "İşlem başarısız oldu (hata {status}).",
+  // components/TeamPushSchalter.tsx
+  "Benachrichtigungen auf diesem Gerät": "Bu cihazda bildirimler",
+  "Wenn Kunden selbst eine Nummer ziehen, online oder am Telefon buchen oder absagen – für deine Termine, als Inhaber für den ganzen Laden.":
+    "Müşteriler kendileri numara aldığında, online ya da telefonla randevu aldığında veya iptal ettiğinde – kendi randevularınız için, dükkân sahibi olarak tüm dükkân için.",
+  "Zwischen 21 und 8 Uhr ist Ruhe; was nachts passiert, kommt morgens zusammengefasst.":
+    "21:00 ile 08:00 arası sessiz; gece olanlar sabah özet olarak gelir.",
+  "Neue Nummern": "Yeni numaralar",
+  "Neue Buchungen": "Yeni randevular",
+  "Benachrichtigungen sind an.": "Bildirimler açık.",
+  "Benachrichtigungen sind aus.": "Bildirimler kapalı.",
+  "Dieser Browser kann keine Benachrichtigungen.": "Bu tarayıcı bildirim gösteremiyor.",
+  "Auf dem iPhone geht das nur mit Dranzeit auf dem Home-Bildschirm: in Safari „Teilen“ → „Zum Home-Bildschirm“, dann von dort öffnen.":
+    "iPhone'da bu yalnızca Dranzeit ana ekrandaysa çalışır: Safari'de „Paylaş“ → „Ana Ekrana Ekle“, ardından oradan açın.",
 };
 
 export default texte;

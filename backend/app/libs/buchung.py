@@ -19,6 +19,7 @@ from google.cloud import firestore
 
 from app.libs.public_appointments import write_public
 from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, placement_of, read_placement
+from app.libs.team_notify import notice_fields
 
 # Gleichzeitige Buchungen derselben Person laufen nacheinander; im Ansturm braucht die letzte mehrere Anläufe
 # (wie TRANSACTION_OPTIONS im Frontend)
@@ -96,10 +97,11 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
     return run(transaction)
 
 
-def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]], None]) -> dict:
+def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]], None], by_customer: bool = False) -> dict:
     """
     Termin absagen: Status abgesagt, Platz in der Belegung frei, Kurzfassung mit. check(Termin oder None) läuft in
-    der Transaktion vorher und wirft, wenn es nicht geht. Gibt den Termin vor der Absage zurück.
+    der Transaktion vorher und wirft, wenn es nicht geht. by_customer: Der Kunde sagt selbst ab – das Team bekommt
+    Bescheid (Merker teamNotice, app/libs/team_notify.py). Gibt den Termin vor der Absage zurück.
     """
     ref = db.collection("appointments").document(appointment_id)
 
@@ -110,8 +112,9 @@ def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]]
         check(appt)
         release = placement_of(appt)
         change = read_placement(tx, db, appointment_id, appt.get("shopId", ""), release=release) if release else None
-        update = {"status": "cancelled", "updatedAt": datetime.now(timezone.utc)}
-        tx.update(ref, update)
+        now = datetime.now(timezone.utc)
+        update = {"status": "cancelled", "updatedAt": now}
+        tx.update(ref, {**update, **((notice_fields(appt, "cancelled", now) or {}) if by_customer else {})})
         write_public(tx, db, appointment_id, {**appt, **update})
         if change:
             change.write()

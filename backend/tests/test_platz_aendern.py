@@ -70,6 +70,7 @@ def test_termin_ohne_konto_mit_schluessel_tagesnummer_und_belegung():
     assert appt["ticketKeyHash"] == token_hash(KEY) and appt["customerName"] == "Alex Muster"
     assert appt["customerPhone"] == "0151 2345678" and appt["language"] == "tr" and appt["checkEarlierOptions"] is False
     assert appt["startTime"] == at("10:30") and appt["endTime"] == at("11:00") and appt["staffId"] == "robin"
+    assert appt["teamNotice"] == "new" and appt["teamNewAt"], "Team bekommt Bescheid wie bei jeder Online-Buchung"
     code = appt["referenceCode"]
     assert code and r.json()["reference_code"] == code and store["shop_days"][f"laden_{TAG}"]["codes"] == [code]
     assert appt_id in store["schedules"][f"robin_{TAG}"]["slots"]

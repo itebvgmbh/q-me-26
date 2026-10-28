@@ -361,6 +361,101 @@ def test_kontaktdaten_ziehen_um():
     assert migrate(db) == 0
 
 
+# --- Nachrichten an das Team: Kunde zieht, bucht, sagt ab (app/libs/team_notify.py) ------------------
+
+def test_zurueckgeben_meldet_dem_team():
+    store = store_with()
+    assert nummer_client(store).post("/routes/nummer/absagen", json={"appointment_id": "t1", "key": KEY}).status_code == 200
+    appt = store["appointments"]["t1"]
+    assert appt["teamNotice"] == "cancelled" and appt["teamCancelledAt"]
+    # Merker sind privat
+    assert not any(k.startswith("team") for k in store["public_appointments"]["t1"])
+
+
+def test_team_ereignis_nur_mit_schluessel_oder_eigenem_konto():
+    now = datetime.now(timezone.utc)
+    store = store_with(ticket(createdAt=now))
+    body = {"appointment_id": "t1", "kind": "new"}
+    assert push_client(store).post("/routes/push/team-event", json=body).status_code == 404
+    assert "teamNotice" not in store["appointments"]["t1"]
+    assert push_client(store).post("/routes/push/team-event", json={**body, "key": KEY}).json() == {"status": "ok"}
+    assert store["appointments"]["t1"]["teamNotice"] == "new"
+    # Zweimal melden: keine zweite Nachricht
+    assert push_client(store).post("/routes/push/team-event", json={**body, "key": KEY}).json() == {"status": "ignored"}
+
+    own = store_with(ticket(isAnonymous=False, customerId="konto1", ticketKeyHash=None, type="booked", createdAt=now))
+    assert push_client(own, uid="fremd").post("/routes/push/team-event", json=body).status_code == 404
+    assert push_client(own, uid="konto1").post("/routes/push/team-event", json=body).json() == {"status": "ok"}
+
+
+def test_team_ereignis_nur_frisch_und_passend():
+    now = datetime.now(timezone.utc)
+    old = store_with(ticket(createdAt=now - timedelta(hours=1)))
+    body = {"appointment_id": "t1", "kind": "new", "key": KEY}
+    assert push_client(old).post("/routes/push/team-event", json=body).json() == {"status": "ignored"}
+    # Absage nur, wenn der Termin wirklich gerade abgesagt ist
+    store = store_with(ticket(createdAt=now, updatedAt=now))
+    cancel = {**body, "kind": "cancelled"}
+    assert push_client(store).post("/routes/push/team-event", json=cancel).json() == {"status": "ignored"}
+    store["appointments"]["t1"].update(status="cancelled", teamNoticeSentAt=now, teamNewAt=now)
+    assert push_client(store).post("/routes/push/team-event", json=cancel).json() == {"status": "ok"}
+    assert store["appointments"]["t1"]["teamNotice"] == "cancelled"
+
+
+def team_client(store, uid):
+    import app.apis.team_push as api
+    from databutton_app.mw.auth_mw import get_authorized_user
+
+    api.get_firestore_db = lambda: Db(store)
+    api.push_configured = lambda: True
+    api.fcm_configured = lambda: True
+    app = FastAPI()
+    app.include_router(api.router, prefix="/routes")
+    app.dependency_overrides[get_authorized_user] = lambda: type("User", (), {"sub": uid, "email": f"{uid}@example.com"})()
+    return TestClient(app)
+
+
+def test_team_geraet_anmelden_fuer_alle_laeden_des_kontos():
+    store = store_with()
+    store["shops"]["laden2"] = {"name": "Zweiter Laden", "owner": "jemand"}
+    store["shops"]["laden3"] = {"name": "Ehemals", "owner": "jemand"}
+    store["staff"] = {
+        "robin": {"shopId": "laden1", "userId": "konto-robin", "name": "Robin"},
+        "robin2": {"shopId": "laden2", "userId": "konto-robin", "name": "Robin"},
+        "robin3": {"shopId": "laden3", "userId": "konto-robin", "name": "Robin", "isActive": False},
+    }
+    device = {"endpoint": "https://push.example.com/geraet", "p256dh": "p" * 20, "auth": "a" * 10}
+    r = team_client(store, "konto-robin").post("/routes/team-push/subscribe", json={**device, "events": {"absage": False}, "language": "tr"})
+    assert r.status_code == 200, r.text
+    subs = sorted(store["team_push_subscriptions"].values(), key=lambda s: s["shopId"])
+    assert [(s["shopId"], s["staffId"]) for s in subs] == [("laden1", "robin"), ("laden2", "robin2")]
+    assert subs[0]["events"] == {"nummer": True, "buchung": True, "absage": False} and subs[0]["language"] == "tr"
+    # Inhaber: eigener Laden ohne Eintrag im Team; App mit Token
+    app_device = {"token": "fcm-token-iphone-1234567890", "platform": "ios"}
+    assert team_client(store, "inhaber").post("/routes/team-push/subscribe", json=app_device).status_code == 200
+    owner = [s for s in store["team_push_subscriptions"].values() if s["uid"] == "inhaber"]
+    assert [(s["shopId"], s["staffId"], s["token"]) for s in owner] == [("laden1", None, "fcm-token-iphone-1234567890")]
+    # Nicht mehr im Team: beim nächsten Auffrischen dort abgemeldet
+    store["staff"]["robin2"]["isActive"] = False
+    assert team_client(store, "konto-robin").post("/routes/team-push/subscribe", json=device).status_code == 200
+    assert sorted(s["shopId"] for s in store["team_push_subscriptions"].values() if s["uid"] == "konto-robin") == ["laden1"]
+    # Abmelden nimmt nur das eigene Gerät dieses Kontos weg
+    assert team_client(store, "konto-robin").post("/routes/team-push/unsubscribe", json=device).status_code == 200
+    assert [s["uid"] for s in store["team_push_subscriptions"].values()] == ["inhaber"]
+
+
+def test_team_geraet_nur_mit_laden_und_tarif():
+    store = store_with()
+    device = {"endpoint": "https://push.example.com/geraet", "p256dh": "p" * 20, "auth": "a" * 10}
+    assert team_client(store, "kundin").post("/routes/team-push/subscribe", json=device).status_code == 403
+    store["shops"]["laden1"]["trialEndsAt"] = datetime.now(timezone.utc) - timedelta(days=1)
+    assert team_client(store, "inhaber").post("/routes/team-push/subscribe", json=device).status_code == 403
+    assert "team_push_subscriptions" not in store or not store["team_push_subscriptions"]
+    store["shops"]["laden1"]["trialEndsAt"] = datetime.now(timezone.utc) + timedelta(days=1)
+    bad = {**device, "endpoint": "http://unsicher.example.com/x"}
+    assert team_client(store, "inhaber").post("/routes/team-push/subscribe", json=bad).status_code == 400
+
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:

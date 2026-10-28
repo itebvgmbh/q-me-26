@@ -13,6 +13,7 @@ import { dayKey } from './firestore/schedule';
 import { isSlotConflict } from './booking-rules';
 import { saveAnonymousBookingCode } from './localStorageUtils';
 import { hashTicketKey, newTicketKey, rememberTicketKey } from './ticket-key';
+import { announceToTeam } from './team-push';
 import { sprache, t } from '@/i18n';
 
 // Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
@@ -67,6 +68,12 @@ const bookedSlotOf = (appointment: Appointment, shown: Date) => {
     bookedStaffId: appointment.staffId,
     moved: start.getTime() !== shown.getTime()
   };
+};
+
+/** Selbst gezogene Nummer: Inhaber und gebuchte Person bekommen Bescheid (utils/team-push.ts) */
+const announced = (response: BookingResponse): BookingResponse => {
+  if (response.success && response.appointmentId) announceToTeam(response.appointmentId, 'new', response.ticketKey);
+  return response;
 };
 
 /**
@@ -134,7 +141,7 @@ export const QueueBookingService = {
     try {
       // Authenticated user booking
       if (user) {
-        return await this.processAuthenticatedBooking({
+        return announced(await this.processAuthenticatedBooking({
           selectedShop, 
           selectedService, 
           selectedStaffForSlot, 
@@ -143,11 +150,11 @@ export const QueueBookingService = {
           checkEarlierOptions, 
           user,
           retry
-        });
+        }));
       } 
       // Anonymous booking
       else {
-        return await this.processAnonymousBooking({
+        return announced(await this.processAnonymousBooking({
           selectedShop, 
           selectedService, 
           selectedStaffForSlot, 
@@ -156,7 +163,7 @@ export const QueueBookingService = {
           checkEarlierOptions,
           contact,
           retry
-        });
+        }));
       }
     } catch (error) {
       console.error('Error creating booking:', error);

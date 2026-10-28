@@ -146,7 +146,7 @@ def notice_kind(appt: dict, now: datetime, today_start: datetime) -> str | None:
     return kind
 
 
-def _day(start: datetime, now: datetime, sprache: str = "de") -> str:
+def day_label(start: datetime, now: datetime, sprache: str = "de") -> str:
     days = (start.date() - now.date()).days
     if days == 0:
         return t("heute", sprache)
@@ -176,23 +176,23 @@ def message_for(kind: str, shop_name: str, ahead: int = 0, start_label: str = ""
     now = extra.get("now")
     if kind == "cancelled":
         start = extra["start"]
-        wann = {"laden": shop, "wann": _day(start, now, sprache), "zeit": f"{start:%H:%M}"}
+        wann = {"laden": shop, "wann": day_label(start, now, sprache), "zeit": f"{start:%H:%M}"}
         if extra.get("queue"):
             return t("Abgesagt", sprache), t("{laden} hat deine Nummer {wann} um {zeit} abgesagt.", sprache, **wann)
         return t("Abgesagt", sprache), t("{laden} hat deinen Termin {wann} um {zeit} abgesagt.", sprache, **wann)
     if kind == "moved":
         start, previous = extra["start"], extra.get("previous")
-        parts = [t("{laden} hat deinen Termin verschoben: jetzt {wann} um {zeit}", sprache, laden=shop, wann=_day(start, now, sprache), zeit=f"{start:%H:%M}")]
+        parts = [t("{laden} hat deinen Termin verschoben: jetzt {wann} um {zeit}", sprache, laden=shop, wann=day_label(start, now, sprache), zeit=f"{start:%H:%M}")]
         if extra.get("staff"):
             parts.append(t("bei {name}", sprache, name=extra["staff"]))
         if previous and previous.date() == start.date():
             parts.append(t("(vorher {zeit})", sprache, zeit=f"{previous:%H:%M}"))
         elif previous:
-            parts.append(t("(vorher {wann} um {zeit})", sprache, wann=_day(previous, now, sprache), zeit=f"{previous:%H:%M}"))
+            parts.append(t("(vorher {wann} um {zeit})", sprache, wann=day_label(previous, now, sprache), zeit=f"{previous:%H:%M}"))
         return t("Neue Uhrzeit", sprache), " ".join(parts) + "."
     if kind == "offer":
         start, original = extra["start"], extra.get("original")
-        free = t("{laden}: {wann} um {zeit} ist ein Platz frei", sprache, laden=shop, wann=_gross(_day(start, now, sprache)), zeit=f"{start:%H:%M}")
+        free = t("{laden}: {wann} um {zeit} ist ein Platz frei", sprache, laden=shop, wann=_gross(day_label(start, now, sprache)), zeit=f"{start:%H:%M}")
         if original and original.date() == start.date():
             free += " " + t("(statt {zeit})", sprache, zeit=f"{original:%H:%M}")
         hold = extra.get("hold_until")

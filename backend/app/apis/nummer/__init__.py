@@ -1,4 +1,5 @@
-"""Nummer ohne Konto zurückgeben oder ins eigene Konto übernehmen – nur mit dem Schlüssel der Nummer.
+"""Nummer ohne Konto zurückgeben oder ins eigene Konto übernehmen – nur mit dem Schlüssel der Nummer. Zurückgeben meldet
+das Backend gleich dem Team (Merker teamNotice, app/libs/team_notify.py).
 
 Den Termin selbst kann ohne Anmeldung niemand lesen oder ändern (firestore.rules); die Nummernseite zeigt nur die
 öffentliche Kurzfassung (app/libs/public_appointments.py). Wer die Nummer gezogen hat, hat ihren Schlüssel (im Link
@@ -27,6 +28,7 @@ from app.libs.online_platz import freier_platz, leistung_im_laden, person_fuer_l
 from app.libs.plans import has_feature
 from app.libs.public_appointments import write_public
 from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, placement_of, read_placement
+from app.libs.team_notify import notice_fields
 from app.libs.throttle import throttle
 from app.libs.ticket import key_matches, may_manage, request_uid
 
@@ -75,8 +77,9 @@ def cancel_ticket(body: TicketRequest, request: Request) -> dict:
             raise HTTPException(status_code=409, detail=NOT_OPEN)
         release = placement_of(appt)
         change = read_placement(tx, db, body.appointment_id, appt.get("shopId", ""), release=release) if release else None
-        update = {"status": "cancelled", "updatedAt": datetime.now(timezone.utc)}
-        tx.update(ref, update)
+        now = datetime.now(timezone.utc)
+        update = {"status": "cancelled", "updatedAt": now}
+        tx.update(ref, {**update, **(notice_fields(appt, "cancelled", now) or {})})
         write_public(tx, db, body.appointment_id, {**appt, **update})
         if change:
             change.write()
@@ -84,6 +87,10 @@ def cancel_ticket(body: TicketRequest, request: Request) -> dict:
 
     appt = run(db.transaction())
     if appt.get("_cancelled"):
+        # Inhaber und gebuchte Person bekommen Bescheid (app/libs/team_notify.py)
+        from app.libs.notify_worker import wake
+
+        wake()
         # Der Platz ist frei: "Früher dran" gleich neu verteilen (wie requestEarlierSlotCheck in der App)
         try:
             from app.apis.check_slots import trigger_check_in_background
@@ -213,6 +220,8 @@ def book_without_account(body: TerminRequest, request: Request) -> dict:
         "shopId": body.shop_id, "serviceId": body.service_id, "status": "scheduled", "type": "booked", "isAnonymous": True,
         "ticketKeyHash": body.key_hash, "customerName": " ".join(body.name.split()), "language": sprache_von(body.language),
         "checkEarlierOptions": False, **({"customerPhone": phone} if phone else {}),
+        # Inhaber und gebuchte Person bekommen Bescheid wie bei jeder Online-Buchung (app/libs/team_notify.py)
+        **notice_fields({}, "new", datetime.now(timezone.utc)),
     }
     try:
         created = create_appointment(db, data, plaetze, needs_code=True)

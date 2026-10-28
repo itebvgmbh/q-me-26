@@ -324,6 +324,19 @@ const texte: Texte = {
   // utils/staff-invitation.ts
   "Keine Verbindung zum Server. Bitte prüf dein Internet.": "No connection to the server. Please check your internet connection.",
   "Das hat nicht geklappt (Fehler {status}).": "That didn't work (error {status}).",
+  // components/TeamPushSchalter.tsx
+  "Benachrichtigungen auf diesem Gerät": "Notifications on this device",
+  "Wenn Kunden selbst eine Nummer ziehen, online oder am Telefon buchen oder absagen – für deine Termine, als Inhaber für den ganzen Laden.":
+    "When customers take a number themselves, book online or by phone, or cancel – for your appointments, as the owner for the whole shop.",
+  "Zwischen 21 und 8 Uhr ist Ruhe; was nachts passiert, kommt morgens zusammengefasst.":
+    "Quiet between 9 pm and 8 am; anything that happens overnight arrives as a summary in the morning.",
+  "Neue Nummern": "New numbers",
+  "Neue Buchungen": "New bookings",
+  "Benachrichtigungen sind an.": "Notifications are on.",
+  "Benachrichtigungen sind aus.": "Notifications are off.",
+  "Dieser Browser kann keine Benachrichtigungen.": "This browser can't show notifications.",
+  "Auf dem iPhone geht das nur mit Dranzeit auf dem Home-Bildschirm: in Safari „Teilen“ → „Zum Home-Bildschirm“, dann von dort öffnen.":
+    "On iPhone this only works with Dranzeit on the Home Screen: in Safari tap “Share” → “Add to Home Screen”, then open it from there.",
 };
 
 export default texte;
