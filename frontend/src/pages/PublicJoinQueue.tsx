@@ -1,8 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { isSlotConflict } from '../utils/booking-rules';
+import { useAppointmentBooking } from '../utils/hooks/useAppointmentBooking';
+import { linkOwnCustomerEntry } from '../utils/firestore';
+import { saveAnonymousBookingCode } from '../utils/localStorageUtils';
+import { bookWithoutAccount, isTaken, ticketPath } from '../utils/ticket-key';
+import useTimeSlotStore from '../utils/timeSlotStore';
+import type { CalendarTimeSlot } from '../utils/types';
+import { hasFeature } from '../utils/plans';
 
 // Import all hooks from index
 import { 
@@ -20,12 +27,12 @@ import { QueueStaffStep } from '../components/QueueStaffStep';
 import { QueueConfirmationStep } from '../components/QueueConfirmationStep';
 import { BookingSuccessStep } from '../components/BookingSuccessStep';
 import { StepIndicator } from '../components/StepIndicator';
-import type { QueueContact } from '../components/QueueConfirmationStep';
+import type { QueueContact, Wann } from '../components/QueueConfirmationStep';
 import { Spinner } from '../components/queue/SlotStatus';
 import { ConnectionProblem } from '../components/ConnectionProblem';
 import { QueueStepShell } from '../components/queue/QueueStepShell';
 import { Button } from '@/components/ui/button';
-import { t, tTeile } from '@/i18n';
+import { sprache, t } from '@/i18n';
 
 /**
  * Consolidated Queue Join component
@@ -37,21 +44,33 @@ import { t, tTeile } from '@/i18n';
  * 1. Select Shop - User selects the shop (or arrives with pre-selected shop via QR code)
  * 2. Select Service - User selects the service they want
  * 3. Select Staff - User selects a specific staff member or the next available one
- * 4. Confirmation - Review and confirm the booking details
+ * 4. Wann? - Nächster freier Platz (Nummer) oder Wunschzeit (fester Termin), dann bestätigen
  * 5. Success - (Anonymous users only) Show booking reference code
+ *
+ * Ein Ablauf für Nummer und Termin: „Nummer ziehen“ (/public-join-queue) und „Termin buchen“ (/book-appointment,
+ * oder ?wann=wunsch) kommen beide hierher und wählen in Schritt 4 nur vor, was oben steht.
  *
  * Key features:
  * - Works for both logged-in users and anonymous users
  * - Pre-selects shop from QR code links
- * - Pre-selects service from URL parameters
+ * - Pre-selects service and staff from URL parameters (shopId, serviceId, staffId – „Nochmal buchen“)
  * - Provides a booking reference for anonymous users
  * - Uses slot finding logic to find the next available appointment
  * - Encapsulates booking logic in a separate service
  */
 const PublicJoinQueue = () => {
   const [searchParams] = useSearchParams();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const shopIdFromQR = searchParams.get('shopId');
   const serviceIdFromURL = searchParams.get('serviceId');
+  const staffIdFromURL = searchParams.get('staffId');
+  const wunschEntry = /^\/book-?appointment\/?$/.test(pathname) || searchParams.get('wann') === 'wunsch';
+  const [wann, setWann] = useState<Wann>(wunschEntry ? 'wunsch' : 'sofort');
+  const [wunschSlot, setWunschSlot] = useState<CalendarTimeSlot | null>(null);
+  const [calendarKey, setCalendarKey] = useState(0);
+  const { bookAppointment, loading: bookingTermin } = useAppointmentBooking();
+  const [bookingAnonymous, setBookingAnonymous] = useState(false);
   
   // Authentication state - since this is a public page, user might be null if not logged in
   const { user, loading: authLoading } = useCurrentUser();
@@ -109,7 +128,11 @@ const PublicJoinQueue = () => {
     }
     if (urlStepApplied.current) return;
     if (serviceIdFromURL && selectedService === serviceIdFromURL) {
-      setCurrentStep(3);
+      // „Nochmal buchen“ bringt auch die Person mit: dann gleich zu „Wann?“
+      if (staffIdFromURL && staffLoading) return;
+      const person = staffIdFromURL ? staff.find((s) => s.id === staffIdFromURL && s.isActive !== false) : undefined;
+      if (person) selectSpecificStaff(person.id);
+      setCurrentStep(person ? 4 : 3);
       urlStepApplied.current = true;
     } else if (shopIdFromQR && !serviceIdFromURL) {
       setCurrentStep(2);
@@ -117,7 +140,13 @@ const PublicJoinQueue = () => {
     } else if (shopIdFromQR) {
       setCurrentStep(2);
     }
-  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep, loading, loadError, selectedShop]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopIdFromQR, serviceIdFromURL, selectedService, setCurrentStep, loading, loadError, selectedShop, staffIdFromURL, staffLoading, staff]);
+
+  // Andere Leistung oder Person: die gewählte Wunschzeit gilt nicht mehr
+  React.useEffect(() => {
+    setWunschSlot(null);
+  }, [selectedShop, selectedService, selectedStaff, useAnyStaff]);
 
   // Bei jedem Schrittwechsel nach oben, sonst landet man auf dem Handy mitten im nächsten Schritt
   React.useEffect(() => {
@@ -154,7 +183,68 @@ const PublicJoinQueue = () => {
     if (currentStep === 4) refreshIfOlderThan(60 * 1000);
   }, [currentStep, refreshIfOlderThan]);
 
+  // Wunschzeiten: bei der gewählten Person, bei „Egal wer“ bei allen, die die Leistung anbieten
+  const calendarStaffIds = useMemo(() => serviceStaff.filter((s) => s.isActive !== false).map((s) => s.id), [serviceStaff]);
+
+  /**
+   * Fester Termin zur Wunschzeit. Mit Konto wie bisher aus dem Browser (useAppointmentBooking), ohne Konto über das
+   * Backend mit Schlüssel wie bei der Nummer. Danach auf die Seite des Termins (/nummer/:id), wie nach dem Einreihen.
+   */
+  const bookWunschzeit = async () => {
+    if (!wunschSlot) return;
+    const staffChoices = useAnyStaff ? wunschSlot.staffOptions ?? calendarStaffIds : [selectedStaff];
+    if (user) {
+      const result = await bookAppointment(
+        selectedShop,
+        staffChoices,
+        selectedService,
+        user.uid,
+        user.displayName || (user.email ? user.email.split('@')[0] : null) || 'Unbekannt',
+        user.email,
+        wunschSlot,
+        checkEarlierOptions,
+      );
+      if ('appointmentId' in result) {
+        // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+        void linkOwnCustomerEntry(selectedShop);
+        navigate(ticketPath(result.appointmentId, null, '?neu=1'));
+      } else if ('reason' in result && result.reason === 'slot-unavailable') {
+        setWunschSlot(null);
+        setCalendarKey((k) => k + 1);
+      }
+      return;
+    }
+    setBookingAnonymous(true);
+    try {
+      const { appointmentId, ticketKey } = await bookWithoutAccount({
+        shopId: selectedShop,
+        serviceId: selectedService,
+        staffIds: staffChoices,
+        start: wunschSlot.start,
+        name: contact.name.trim(),
+        phone: contact.phone.trim() || undefined,
+        language: sprache(),
+      });
+      saveAnonymousBookingCode(selectedShop, appointmentId);
+      useTimeSlotStore.getState().invalidateCache(selectedShop, wunschSlot.start);
+      navigate(ticketPath(appointmentId, ticketKey, '?neu=1'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('Der Termin konnte nicht gebucht werden. Versuch es noch einmal.'));
+      if (isTaken(error)) {
+        useTimeSlotStore.getState().invalidateCache(selectedShop, wunschSlot.start);
+        setWunschSlot(null);
+        setCalendarKey((k) => k + 1);
+      }
+    } finally {
+      setBookingAnonymous(false);
+    }
+  };
+
+  // Wunschzeit nur, wo der Tarif Online-Termine hat; sonst bleibt es bei der Nummer
+  const termineAllowed = hasFeature(shops.find((s) => s.id === selectedShop), 'termine');
+
   const processBooking = async () => {
+    if (wann === 'wunsch' && termineAllowed) return bookWunschzeit();
     // Inzwischen vorbei (Seite stand offen)? Dann nicht einreihen, sondern neu suchen.
     if (nextAvailableSlot && nextAvailableSlot.start.getTime() <= Date.now()) {
       toast.error(t('Die Zeit ist schon vorbei. Wir suchen dir den nächsten Platz – bitte gleich noch mal bestätigen.'));
@@ -291,6 +381,7 @@ const PublicJoinQueue = () => {
           onBack={() => setCurrentStep(2)}
           earliestByStaff={earliestByStaff}
           searching={searchingForSlot}
+          anyTitle={wunschEntry ? t('Egal wer') : undefined}
         />
       );
     }
@@ -319,11 +410,18 @@ const PublicJoinQueue = () => {
           authLoading={authLoading}
           contact={contact}
           onContactChange={setContact}
-          submitting={submitting}
+          submitting={submitting || bookingTermin || bookingAnonymous}
+          wann={wann}
+          onWannChange={setWann}
+          wunschSlot={wunschSlot}
+          onWunschSlotChange={setWunschSlot}
+          calendarStaffIds={calendarStaffIds}
+          calendarKey={calendarKey}
+          wunschEntry={wunschEntry}
         />
       );
     }
-    
+
     return null;
   };
 
@@ -331,23 +429,19 @@ const PublicJoinQueue = () => {
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
-          {currentStep === 5 ? t('Du bist eingereiht.') : t('Nummer ziehen')}
+          {currentStep === 5 ? t('Du bist eingereiht.') : wunschEntry ? t('Termin buchen') : t('Nummer ziehen')}
         </h1>
         {currentStep !== 5 && (
           <p className="text-muted-foreground">
-            {tTeile('Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <buchen>Termin buchen</buchen>', {
-              buchen: (inhalt) => (
-                <a href="/book-appointment?fromMarketplace=true" className="font-semibold text-foreground underline">
-                  {inhalt}
-                </a>
-              ),
-            })}
+            {wunschEntry
+              ? t('Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.')
+              : t('Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.')}
           </p>
         )}
       </div>
 
       {currentStep !== 5 && (
-        <StepIndicator currentStep={currentStep} totalSteps={4} labels={[t('Laden'), t('Leistung'), t('Person'), t('Bestätigen')]} />
+        <StepIndicator currentStep={currentStep} totalSteps={4} labels={[t('Laden'), t('Leistung'), t('Person'), t('Wann?')]} />
       )}
 
       {renderContent()}

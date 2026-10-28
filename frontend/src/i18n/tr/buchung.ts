@@ -5,27 +5,16 @@ const texte: Texte = {
   // pages/BookAppointment.tsx
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "Randevu alınamadı. Lütfen tekrar deneyin.",
   "Termin buchen": "Randevu al",
-  "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "Belirli bir saat seçin. Hemen mi gelmek istiyorsunuz? O zaman sıraya girin.",
   "Läden werden geladen": "Salonlar yükleniyor",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "{name} online randevu kabul etmiyor. Ama sıra numarası alabilirsiniz.",
   "Anderen Laden wählen": "Başka salon seç",
 
   // components/BookingForm.tsx
-  "Wo?": "Nerede?",
-  "Noch keine Läden eingetragen.": "Henüz kayıtlı salon yok.",
-  "Was?": "Hangi hizmet?",
   "{minuten} Min": "{minuten} dk",
   "Bei wem?": "Kiminle?",
-  "Für diesen Laden ist noch niemand eingetragen.": "Bu salon için henüz kimse eklenmemiş.",
   "Wann?": "Ne zaman?",
-  "Zusammenfassung": "Özet",
-  "EEE d. MMM 'um' HH:mm": "d MMM EEE, 'saat' HH:mm",
   "Früher dran, wenn etwas frei wird": "Yer boşalırsa erken sıra",
-  "Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.": "Size daha erken bir yer önereceğiz. Siz kabul edene kadar randevunuz güvende kalır.",
   "Wird gebucht …": "Randevu alınıyor …",
-  "Termin verbindlich buchen": "Randevuyu kesinleştir",
-  "Anmelden und buchen": "Giriş yap ve randevu al",
-  "Ohne Konto einreihen": "Hesapsız sıraya gir",
 
   // components/BookingSuccessStep.tsx
   "EEEEEE d.M.": "EEEEEE d.M",
@@ -249,10 +238,6 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "Sıraya girilemedi. Lütfen tekrar deneyin.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Laden.": "Önce bir salon seçin.",
-  "Wähl aus, bei wem.": "Kiminle olacağını seçin.",
-  "Wähl eine Leistung.": "Bir hizmet seçin.",
-  "Wähl eine Uhrzeit.": "Bir saat seçin.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
   "Der Laden aus dem QR-Code wurde nicht gefunden": "QR koddaki salon bulunamadı",

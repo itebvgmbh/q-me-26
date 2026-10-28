@@ -77,12 +77,9 @@ const texte: Texte = {
   "Einen Moment – wir holen die Leistungen …": "Bir saniye – hizmetler yükleniyor …",
   "Dieser Laden nimmt gerade keine Nummern an.": "Bu salon şu anda sıra numarası vermiyor.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "Şu anda online sıra numarası almak da randevu almak da mümkün değil.",
-  "Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <buchen>Termin buchen</buchen>":
-    "Size en yakın boş yeri buluyoruz. Belirli bir saat mi istiyorsunuz? <buchen>Randevu alın</buchen>",
   "Laden": "Salon",
   "Leistung": "Hizmet",
   "Person": "Ekip üyesi",
-  "Bestätigen": "Onayla",
 
   // pages/Bildschirm.tsx
   "Diesen Laden gibt es nicht.": "Bu salon mevcut değil.",
@@ -118,7 +115,6 @@ const texte: Texte = {
   "Ohne App.": "Uygulama gerekmez.",
 
   // components/QueueConfirmationStep.tsx
-  "Passt das so?": "Her şey doğru mu?",
   "Andere Person wählen": "Başka birini seç",
   "Du bist dran um ca.": "Tahmini sıra saatiniz",
   "Wir suchen deinen Platz …": "Yeriniz aranıyor …",
@@ -225,6 +221,23 @@ const texte: Texte = {
   // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
   "Rechne mit {von} bis {bis} Uhr.": "Sıranız tahminen {von} ile {bis} arasında.",
   "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "Sıranız çağrıldığında orada değilseniz salon numaranızı silebilir.",
+
+  // Ein Ablauf für Nummer und Termin, Platz ändern (QueueConfirmationStep, PublicJoinQueue, PlatzAendern, Nummer)
+  "Platz ändern": "Saati değiştir",
+  "Dein Platz ist jetzt {zeit}.": "Yeni saatiniz: {zeit}.",
+  "Such dir eine andere Zeit aus. Dein jetziger Platz bleibt, bis der neue sicher ist.": "Başka bir saat seçin. Yenisi kesinleşene kadar mevcut yeriniz sizde kalır.",
+  "Auf {zeit} verschieben": "{zeit} saatine taşı",
+  "Neue Zeit wählen": "Yeni saat seçin",
+  "Wann passt es dir?": "Ne zaman uygun?",
+  "So früh wie möglich": "Mümkün olan en kısa sürede",
+  "Nummer · ca. {platz}": "Numara · yaklaşık {platz}",
+  "Gerade nichts frei": "Şu anda boş yer yok",
+  "Wunschzeit": "İstediğiniz saat",
+  "Termin · {zeit}": "Randevu · {zeit}",
+  "Tag und Uhrzeit selbst aussuchen": "Günü ve saati kendiniz seçin",
+  "Lieber eine andere Zeit?": "Başka bir saat mi olsun?",
+  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "Sabit bir saat seçin. En kısa sürede mi istersiniz? Bunu son adımda seçebilirsiniz.",
+  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "Size bir sonraki boş yeri buluyoruz. Sabit bir saati son adımda seçebilirsiniz.",
 };
 
 export default texte;

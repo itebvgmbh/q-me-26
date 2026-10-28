@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Ticket } from '../components/brand/Ticket';
 import { HilfeLink } from '../components/HilfeLink';
+import { PlatzAendern } from '../components/PlatzAendern';
 import { FrueherDranSchalter } from '../components/FrueherDranSchalter';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
@@ -67,6 +68,8 @@ export default function Nummer() {
   const [shopData, setShopData] = useState<Shop | null>(null);
   const [lane, setLane] = useState<PublicAppointment[]>([]);
   const [now, setNow] = useState(() => Date.now());
+  // „Platz ändern“, auch direkt aus „Meine Termine“ (?aendern=1)
+  const [moving, setMoving] = useState(() => params.get('aendern') === '1');
 
   // Schlüssel aus dem Link in diesem Browser merken: Startseite, „Konto anlegen“ und Absagen finden ihn dann auch so
   useEffect(() => {
@@ -178,6 +181,8 @@ export default function Nummer() {
   const shownTime = isQueue && isToday(start) && expected ? expected : start;
   // Ohne Konto mit dem Schlüssel über das Backend, mit Konto direkt (die Regeln lassen nur den eigenen Termin zu)
   const canCancel = appt.isAnonymous ? Boolean(ticketKey) : Boolean(user);
+  // Platz ändern, wo der Tarif Online-Termine hat – die neue Zeit ist ein fester Termin (backend/app/apis/nummer)
+  const canMove = appt.status === 'scheduled' && canCancel && !!shopData && hasFeature(shopData, 'termine') && !!appt.serviceId;
 
   const cancel = async () => {
     try {
@@ -197,7 +202,13 @@ export default function Nummer() {
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-1">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">
-          {justJoined && appt.status === 'scheduled' ? t('Du bist eingereiht.') : isQueue ? t('Deine Nummer') : t('Dein Termin')}
+          {justJoined && appt.status === 'scheduled'
+            ? isQueue
+              ? t('Du bist eingereiht.')
+              : t('Dein Termin ist gebucht.')
+            : isQueue
+              ? t('Deine Nummer')
+              : t('Dein Termin')}
         </h1>
         {names.shop && <p className="text-muted-foreground">{names.shop}</p>}
       </header>
@@ -300,14 +311,32 @@ export default function Nummer() {
             {t('Konto anlegen und Nummer behalten')}
           </Button>
         )}
+        {canMove && (
+          <Button size="lg" variant="outline" className="sm:flex-1" onClick={() => setMoving(true)}>
+            {t('Platz ändern')}
+          </Button>
+        )}
         {appt.status === 'scheduled' && canCancel && (
           <CancelButton
             onConfirm={cancel}
             label={isQueue ? t('Nummer zurückgeben') : t('Termin absagen')}
             confirmLabel={isQueue ? t('Ja, zurückgeben') : t('Ja, absagen')}
+            onMove={canMove ? () => setMoving(true) : undefined}
           />
         )}
       </div>
+      {canMove && (
+        <PlatzAendern
+          open={moving}
+          onOpenChange={setMoving}
+          appointmentId={appt.id}
+          shopId={appt.shopId}
+          serviceId={appt.serviceId}
+          staffId={appt.staffId}
+          ticketKey={ticketKey}
+          signedIn={Boolean(user)}
+        />
+      )}
       {appt.status === 'scheduled' && !canCancel && (
         <p className="text-sm text-muted-foreground">
           {appt.isAnonymous
@@ -327,7 +356,8 @@ export default function Nummer() {
   );
 }
 
-function CancelButton({ onConfirm, label, confirmLabel }: { onConfirm: () => void; label: string; confirmLabel: string }) {
+/** onMove: statt zurückgeben eine andere Zeit anbieten (Platz ändern) – wer gehen will, will oft nur später kommen */
+function CancelButton({ onConfirm, label, confirmLabel, onMove }: { onConfirm: () => void; label: string; confirmLabel: string; onMove?: () => void }) {
   const [asking, setAsking] = useState(false);
   if (!asking) {
     return (
@@ -347,6 +377,18 @@ function CancelButton({ onConfirm, label, confirmLabel }: { onConfirm: () => voi
           {t('Behalten')}
         </Button>
       </div>
+      {onMove && (
+        <button
+          type="button"
+          className="self-start text-sm font-semibold underline underline-offset-2"
+          onClick={() => {
+            setAsking(false);
+            onMove();
+          }}
+        >
+          {t('Lieber eine andere Zeit?')}
+        </button>
+      )}
     </div>
   );
 }

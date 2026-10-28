@@ -86,12 +86,9 @@ const texte: Texte = {
   "Einen Moment – wir holen die Leistungen …": "لحظة – جارٍ تحميل الخدمات …",
   "Dieser Laden nimmt gerade keine Nummern an.": "هذا المحل لا يصدر أرقام انتظار حاليًا.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "لا يمكن حاليًا أخذ رقم انتظار أو حجز موعد عبر الإنترنت.",
-  "Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <buchen>Termin buchen</buchen>":
-    "نبحث لك عن أقرب مكان متاح. تريد موعدًا محددًا؟ <buchen>احجز موعدًا</buchen>",
   "Laden": "المحل",
   "Leistung": "الخدمة",
   "Person": "عضو الفريق",
-  "Bestätigen": "تأكيد",
 
   // pages/Bildschirm.tsx
   "Diesen Laden gibt es nicht.": "هذا المحل غير موجود.",
@@ -134,7 +131,6 @@ const texte: Texte = {
   "Ohne App.": "بدون تطبيق.",
 
   // components/QueueConfirmationStep.tsx
-  "Passt das so?": "هل كل شيء صحيح؟",
   "Andere Person wählen": "اختر شخصًا آخر",
   "Du bist dran um ca.": "دورك حوالي الساعة",
   "Wir suchen deinen Platz …": "نبحث عن مكانك …",
@@ -246,6 +242,23 @@ const texte: Texte = {
   // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
   "Rechne mit {von} bis {bis} Uhr.": "توقّع دورك بين {von} و{bis}.",
   "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "إذا لم تكن موجودًا عند النداء، يمكن للمحل إلغاء رقمك.",
+
+  // Ein Ablauf für Nummer und Termin, Platz ändern (QueueConfirmationStep, PublicJoinQueue, PlatzAendern, Nummer)
+  "Platz ändern": "تغيير الموعد",
+  "Dein Platz ist jetzt {zeit}.": "موعدك الجديد: {zeit}.",
+  "Such dir eine andere Zeit aus. Dein jetziger Platz bleibt, bis der neue sicher ist.": "اختر وقتًا آخر. يبقى مكانك الحالي محجوزًا حتى يتأكد الجديد.",
+  "Auf {zeit} verschieben": "انقل إلى {zeit}",
+  "Neue Zeit wählen": "اختر وقتًا جديدًا",
+  "Wann passt es dir?": "متى يناسبك؟",
+  "So früh wie möglich": "في أقرب وقت ممكن",
+  "Nummer · ca. {platz}": "رقم · حوالي {platz}",
+  "Gerade nichts frei": "لا يوجد مكان متاح الآن",
+  "Wunschzeit": "الوقت المفضل",
+  "Termin · {zeit}": "موعد · {zeit}",
+  "Tag und Uhrzeit selbst aussuchen": "اختر اليوم والساعة بنفسك",
+  "Lieber eine andere Zeit?": "تفضّل وقتًا آخر؟",
+  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "اختر وقتًا ثابتًا. تفضّل أقرب وقت ممكن؟ يمكنك اختيار ذلك في الخطوة الأخيرة.",
+  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "نجد لك أقرب مكان متاح. يمكنك اختيار وقت ثابت في الخطوة الأخيرة.",
 };
 
 export default texte;

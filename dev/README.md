@@ -127,6 +127,8 @@ Entwicklungsserver, nicht den Build.
 
 Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
 `uv run python tests/test_accept_slot.py` ("Früher dran" annehmen: Belegung, abgesagte Termine, zweimal annehmen),
+`uv run python tests/test_platz_aendern.py` (fester Termin ohne Konto und „Platz ändern“: Schlüssel oder Konto, Belegung,
+Tagesnummer bei anderem Tag, Tarif und Vorlauf),
 `uv run python tests/test_customer_activation.py` (Kunden-Link /activate, Kunden-Eintrag beim Buchen mit Konto),
 `uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration),
 `uv run python tests/test_frueher_dran.py` (Schalter „Früher dran“ unter Meine Termine) und

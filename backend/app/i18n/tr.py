@@ -155,6 +155,11 @@ TEXTE: dict = {
     "Diese Nummer lässt sich hier nicht ändern. Nimm das Handy, mit dem du sie gezogen hast, oder sag am Tresen Bescheid.":
         "Bu numara burada değiştirilemez. Numarayı aldığınız telefonu kullanın veya resepsiyona haber verin.",
     "Du bist schon dran oder fertig – sag bitte am Tresen Bescheid.": "Sıranız zaten geldi veya işleminiz bitti – lütfen resepsiyona haber verin.",
+    # Fester Termin ohne Konto und Platz ändern (app/apis/nummer)
+    "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "Bu hizmet burada artık yok. Lütfen başka birini seçin.",
+    "Dieser Laden vergibt online keine festen Termine.": "Bu salon çevrimiçi sabit randevu vermiyor.",
+    "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "Bu saat çok yakın. Lütfen daha geç bir saat seçin.",
+    "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "Bu saat az önce alındı. Lütfen başka bir saat seçin.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "Bu salon bildirim sunmuyor.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Bu numara için bildirimler yalnızca numaranın alındığı telefonda veya hesabınızla çalışır.",

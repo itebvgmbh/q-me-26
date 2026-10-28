@@ -171,6 +171,11 @@ TEXTE: dict = {
     "Diese Nummer lässt sich hier nicht ändern. Nimm das Handy, mit dem du sie gezogen hast, oder sag am Tresen Bescheid.":
         "لا يمكن تغيير هذا الرقم هنا. استخدم الهاتف الذي أخذت به الرقم، أو أخبر الاستقبال.",
     "Du bist schon dran oder fertig – sag bitte am Tresen Bescheid.": "حان دورك بالفعل أو انتهيت – أخبر الاستقبال من فضلك.",
+    # Fester Termin ohne Konto und Platz ändern (app/apis/nummer)
+    "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "هذه الخدمة لم تعد متاحة هنا. اختر خدمة أخرى من فضلك.",
+    "Dieser Laden vergibt online keine festen Termine.": "هذا المحل لا يقبل مواعيد ثابتة عبر الإنترنت.",
+    "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "هذا الوقت قريب جدًا. اختر وقتًا لاحقًا من فضلك.",
+    "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "تم حجز هذا الوقت للتو. اختر وقتًا آخر من فضلك.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "هذا المحل لا يقدم إشعارات.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "الإشعارات لهذا الرقم تعمل فقط على الهاتف الذي أُخذ به الرقم، أو بحسابك.",
