@@ -16,7 +16,8 @@ export interface PushConfig {
 
 const NO_CHANNELS: PushConfig = { push: false, email: false, publicKey: '', app: false };
 
-const post = async (path: string, body: unknown) => {
+/** POST an das Backend, mit Anmeldung, wenn es eine gibt; Fehler mit der Meldung des Backends (auch utils/team-push.ts) */
+export const post = async (path: string, body: unknown) => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = await auth.getAuthToken().catch(() => null);
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -81,11 +82,8 @@ const urlBase64ToUint8Array = (base64: string) => {
 
 export type EnablePushResult = 'ok' | 'denied' | 'unsupported';
 
-export const enablePush = async (appointmentId: string, publicKey: string, ticketKey?: string | null): Promise<EnablePushResult> => {
-  if (!pushSupported() || !publicKey) return 'unsupported';
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return 'denied';
-
+/** Push-Adresse dieses Browsers (Service Worker /sw.js) – erst nach der Erlaubnis aufrufen. Auch für das Team (utils/team-push.ts). */
+export const browserSubscription = async (publicKey: string): Promise<PushSubscriptionJSON> => {
   const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
   const applicationServerKey = urlBase64ToUint8Array(publicKey);
@@ -97,7 +95,15 @@ export const enablePush = async (appointmentId: string, publicKey: string, ticke
     await subscription?.unsubscribe();
     subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
   }
-  const json = subscription.toJSON();
+  return subscription.toJSON();
+};
+
+export const enablePush = async (appointmentId: string, publicKey: string, ticketKey?: string | null): Promise<EnablePushResult> => {
+  if (!pushSupported() || !publicKey) return 'unsupported';
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') return 'denied';
+
+  const json = await browserSubscription(publicKey);
   await post('/routes/push/subscribe', {
     appointment_id: appointmentId,
     key: ticketKey || null,
@@ -115,7 +121,7 @@ export const enablePush = async (appointmentId: string, publicKey: string, ticke
 const APP_TOKEN_TIMEOUT_MS = 15000;
 
 /** Token des Geräts in der App: iOS fragt einmal nach der Erlaubnis, danach kommt es ohne Rückfrage. */
-const appPushToken = async (): Promise<string | 'denied'> => {
+export const appPushToken = async (): Promise<string | 'denied'> => {
   const { PushNotifications } = await import('@capacitor/push-notifications');
   let permission = await PushNotifications.checkPermissions();
   if (permission.receive !== 'granted' && permission.receive !== 'denied') permission = await PushNotifications.requestPermissions();

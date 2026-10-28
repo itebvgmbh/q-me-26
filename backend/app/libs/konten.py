@@ -19,10 +19,10 @@ BERLIN = ZoneInfo("Europe/Berlin")
 
 ITEBV_SHOP = "zNS505OFvKZpFaR1vTdN"  # Standardladen von seiten.cjs, durchlauf-*.cjs, ladezeit.cjs und wlan.cjs
 FOUNDERS_DOC = ("meta", "gruender")  # wie app/apis/billing
-# Was an einem Laden hängt: wie dev/fixtures.py loeschen, dazu Angebote, alte Warteschlange und Push-Abos
+# Was an einem Laden hängt: wie dev/fixtures.py loeschen, dazu Angebote, alte Warteschlange und Push-Abos (auch des Teams)
 SHOP_COLLECTIONS = (
     "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "public_appointments", "customers",
-    "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen",
+    "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen", "team_push_subscriptions",
 )
 # Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py)
 SHOP_SUBCOLLECTIONS = ("members", "staff_contacts")

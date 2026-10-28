@@ -1,11 +1,11 @@
 """Hintergrunddienst für Benachrichtigungen: "Gleich bist du dran", "Du bist dran", Termin-Erinnerungen,
-Absage/Verschiebung durch den Laden und "Früher dran"-Angebote, nebenbei die Start-Mails an neue Läden
-(app/libs/onboarding_mail.py).
+Absage/Verschiebung durch den Laden und "Früher dran"-Angebote, an das Team "Neue Nummer", "Neue Buchung" und
+Absagen durch den Kunden (app/libs/team_notify.py), nebenbei die Start-Mails an neue Läden (app/libs/onboarding_mail.py).
 
 Läuft als eigener Thread (gestartet in main.py, wie "Früher dran"). Alle 30 Sekunden liest er die heutigen
 Termine und schickt fällige Nachrichten. Ruft der Tresen eine Nummer auf, weckt ihn ein Firestore-Listener
 sofort – sonst käme "Du bist dran" bis zu 30 Sekunden zu spät. Absagen und Verschiebungen (über /slot-freed)
-und neue Angebote (check_slots) wecken ihn ebenfalls; deren Merker prüft er beim Wecken und alle
+neue Angebote (check_slots) und Kunden-Aktionen für das Team (/push/team-event) wecken ihn ebenfalls; deren Merker prüft er beim Wecken und alle
 EXTRA_EVERY Durchläufe, nicht jedes Mal (spart Lesevorgänge).
 
 Kanäle je Termin: Web-Push und Push an die App (Sammlung push_subscriptions, Feld endpoint bzw. token –
@@ -28,6 +28,8 @@ from app.libs.fcm import TokenGone, fcm_configured, send_app_push
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.plans import has_feature
 from app.libs.queue_notify import message_for, needs_reminder, notice_kind, plan_queue_notifications, recalled_to_reset
+from app.libs.team_notify import COLLECTION as TEAM_SUBSCRIPTIONS
+from app.libs.team_notify import digest_message, plan_team_messages, quiet, team_message
 from app.libs.webpush import SubscriptionGone, push_configured, send_push
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -35,6 +37,8 @@ SWEEP_SECONDS = 30
 # Absagen/Verschiebungen und Angebote ohne Wecken spätestens nach so vielen Durchläufen (5 Minuten)
 EXTRA_EVERY = 10
 SUBSCRIPTION_MAX_AGE_DAYS = 3
+# Geräte des Teams frischen ihre Anmeldung bei jedem Öffnen von "Mein Tag" auf; wer so lange nicht da war, fällt raus
+TEAM_SUBSCRIPTION_MAX_AGE_DAYS = 120
 
 _wakeup = threading.Event()
 _thread: threading.Thread | None = None
@@ -73,7 +77,7 @@ def _loop() -> None:
             today = datetime.now(BERLIN).date()
             if last_cleanup != today:
                 last_cleanup = today
-                removed = cleanup_subscriptions(db)
+                removed = cleanup_subscriptions(db) + cleanup_team_subscriptions(db)
                 print(f"Benachrichtigungen: {removed} alte Push-Anmeldungen entfernt")
                 # Kontaktdaten, die ein Browserfenster mit altem Stand der App noch an eine Person geschrieben hat
                 from app.libs.staff_contacts import migrate
@@ -120,7 +124,8 @@ def _day_range(now: datetime) -> tuple[datetime, datetime]:
 
 
 def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
-    """Ein Durchlauf. extras: auch Absagen/Verschiebungen des Ladens und "Früher dran"-Angebote prüfen."""
+    """Ein Durchlauf. extras: auch Absagen/Verschiebungen des Ladens, "Früher dran"-Angebote und Nachrichten an das Team
+    prüfen."""
     now = now or datetime.now(timezone.utc)
     can_push, can_mail = push_configured() or fcm_configured(), mail_configured()
     if not can_push and not can_mail:
@@ -185,6 +190,7 @@ def run_once(db, now: datetime | None = None, extras: bool = True) -> dict:
     if extras:
         result["mitteilungen"] = _send_notices(db, now, start, shops, users, can_push, can_mail)
         result["angebote"] = _send_offers(db, now, shops, users, can_push, can_mail)
+        result["team"] = _send_team_notices(db, now, start, shops, can_push)
     return result
 
 
@@ -262,6 +268,71 @@ def _send_offers(db, now: datetime, shops: dict, users: dict, can_push: bool, ca
     return sent
 
 
+def _send_team_notices(db, now: datetime, today_start: datetime, shops: dict, can_push: bool) -> int:
+    """Kunde hat selbst eine Nummer gezogen, gebucht oder abgesagt (Merker teamNotice, app/libs/team_notify.py): an den
+    Inhaber und die gebuchte Person. Nachts bleibt der Merker liegen und kommt morgens mit den anderen als eine Nachricht."""
+    if quiet(now):
+        return 0
+    pending = [_as_dict(d) for d in db.collection("appointments").where("teamNotice", "in", ["new", "cancelled"]).stream()]
+    by_shop: dict[str, list] = {}
+    for appt in pending:
+        by_shop.setdefault(appt.get("shopId") or "", []).append(appt)
+    services: dict[str, str] = {}
+    sent = 0
+    for shop_id, appts in by_shop.items():
+        shop = _shop(db, shops, shop_id)
+        subs = _team_subscriptions(db, shop_id) if can_push and shop_id and has_feature(shop, "benachrichtigung", now) else []
+        staff = {d.id: d.to_dict() or {} for d in db.collection("staff").where("shopId", "==", shop_id).stream()} if subs else {}
+        active = {sid: s.get("userId") for sid, s in staff.items() if s.get("userId") and s.get("isActive", True) is not False}
+        delivered = set()
+        for sub, items in plan_team_messages(appts, subs, shop.get("owner"), active, today_start):
+            owner = sub["uid"] == shop.get("owner")
+            sprache = sprache_von(sub.get("language"))
+            if len(items) == 1:
+                appt, event = items[0]
+                # Den Namen der Person braucht nur der Inhaber; für die Person selbst ist es der eigene Termin
+                name = (staff.get(appt.get("staffId")) or {}).get("name") or "" if owner and appt.get("staffId") != sub.get("staffId") else ""
+                title, body = team_message(appt, event, sprache, now, _service_name(db, services, appt.get("serviceId")), name.strip())
+                tag = f"team-{appt['id']}"
+            else:
+                title, body = digest_message([event for _, event in items], sprache, shop.get("name", ""))
+                tag = f"team-{shop_id}"
+            url = "/shop-dashboard" if owner else f"/employee-dashboard?staffId={sub['staffId']}"
+            if not _push(sub, title, body, url, tag):
+                db.collection(TEAM_SUBSCRIPTIONS).document(sub["doc_id"]).delete()
+            delivered.update(appt["id"] for appt, _ in items)
+            sent += 1
+        # Auch ohne Gerät oder Tarif leeren – sonst käme die Nachricht Tage später, wenn sich jemand anmeldet
+        for appt in appts:
+            update = {"teamNotice": None}
+            if appt["id"] in delivered:
+                update["teamNoticeSentAt"] = now
+            db.collection("appointments").document(appt["id"]).update(update)
+    return sent
+
+
+def _team_subscriptions(db, shop_id: str) -> list[dict]:
+    """Geräte von Inhaber und Team eines Ladens (app/apis/team_push) – nur die, deren Kanal hier eingerichtet ist"""
+    web, app = push_configured(), fcm_configured()
+    subs = []
+    for doc in db.collection(TEAM_SUBSCRIPTIONS).where("shopId", "==", shop_id).stream():
+        data = doc.to_dict() or {}
+        channel = _channel(data, web, app)
+        if channel and data.get("uid"):
+            fields = {k: data.get(k) for k in ("uid", "shopId", "staffId", "events")}
+            subs.append({**fields, **channel, "doc_id": doc.id, "language": data.get("language")})
+    return subs
+
+
+def _service_name(db, cache: dict, service_id: str | None) -> str:
+    if not service_id:
+        return ""
+    if service_id not in cache:
+        doc = db.collection("services").document(service_id).get()
+        cache[service_id] = ((doc.to_dict() or {}).get("name") or "").strip() if doc.exists else ""
+    return cache[service_id]
+
+
 def _local_offer_time(value) -> datetime | None:
     """earlierStartTime steht als Ortszeit ohne Zeitzone im Angebot (siehe check_slots)."""
     if not value:
@@ -294,15 +365,8 @@ def _deliver(
     language = _language(db, appt, {} if users is None else users)
     for sub in channels:
         title, body = message(sprache_von(sub["language"]) if sub.get("language") else language)
-        try:
-            if sub.get("token"):
-                send_app_push(sub["token"], title, body, url, tag)
-            else:
-                send_push(sub["subscription"], title, body, url, tag)
-        except (SubscriptionGone, TokenGone):
+        if not _push(sub, title, body, url, tag):
             db.collection("push_subscriptions").document(sub["doc_id"]).delete()
-        except Exception as e:
-            print(f"Push an {appt['id']} fehlgeschlagen: {e}")
     if email:
         title, body = message(language)
         try:
@@ -318,6 +382,29 @@ def _deliver(
             print(f"E-Mail an Termin {appt['id']} fehlgeschlagen: {e}")
 
 
+def _push(sub: dict, title: str, body: str, url: str, tag: str) -> bool:
+    """An ein Gerät (Browser: subscription, App: token). False, wenn es abbestellt ist – dann Anmeldung löschen."""
+    try:
+        if sub.get("token"):
+            send_app_push(sub["token"], title, body, url, tag)
+        else:
+            send_push(sub["subscription"], title, body, url, tag)
+    except (SubscriptionGone, TokenGone):
+        return False
+    except Exception as e:
+        print(f"Push ({tag}) fehlgeschlagen: {e}")
+    return True
+
+
+def _channel(data: dict, web: bool, app: bool) -> dict | None:
+    """Kanal einer Anmeldung: App (token, Firebase Cloud Messaging) oder Browser (endpoint, Web-Push), sonst None"""
+    if data.get("token"):
+        return {"token": data["token"]} if app else None
+    if data.get("endpoint") and web:
+        return {"subscription": {"endpoint": data["endpoint"], "keys": {"p256dh": data.get("p256dh"), "auth": data.get("auth")}}}
+    return None
+
+
 def _subscriptions_for(db, appointment_ids: list[str]) -> dict[str, list]:
     """Anmeldungen je Termin: Browser (endpoint, Web-Push) und App (token, Firebase Cloud Messaging) – nur die,
     deren Kanal auf diesem Server eingerichtet ist."""
@@ -327,13 +414,9 @@ def _subscriptions_for(db, appointment_ids: list[str]) -> dict[str, list]:
         chunk = appointment_ids[i : i + 30]
         for doc in db.collection("push_subscriptions").where("appointmentId", "in", chunk).stream():
             data = doc.to_dict() or {}
-            entry = {"doc_id": doc.id, "language": data.get("language")}
-            if data.get("token"):
-                if app:
-                    result.setdefault(data["appointmentId"], []).append({**entry, "token": data["token"]})
-            elif data.get("endpoint") and web:
-                sub = {"endpoint": data["endpoint"], "keys": {"p256dh": data.get("p256dh"), "auth": data.get("auth")}}
-                result.setdefault(data["appointmentId"], []).append({**entry, "subscription": sub})
+            channel = _channel(data, web, app)
+            if channel:
+                result.setdefault(data["appointmentId"], []).append({"doc_id": doc.id, "language": data.get("language"), **channel})
     return result
 
 
@@ -391,6 +474,16 @@ def cleanup_subscriptions(db, now: datetime | None = None) -> int:
     cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=SUBSCRIPTION_MAX_AGE_DAYS)
     removed = 0
     for doc in db.collection("push_subscriptions").where("createdAt", "<", cutoff).limit(500).stream():
+        doc.reference.delete()
+        removed += 1
+    return removed
+
+
+def cleanup_team_subscriptions(db, now: datetime | None = None) -> int:
+    """Geräte des Teams, die lange nicht mehr in "Mein Tag" waren (dort frischt die App die Anmeldung auf)"""
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=TEAM_SUBSCRIPTION_MAX_AGE_DAYS)
+    removed = 0
+    for doc in db.collection(TEAM_SUBSCRIPTIONS).where("updatedAt", "<", cutoff).limit(500).stream():
         doc.reference.delete()
         removed += 1
     return removed

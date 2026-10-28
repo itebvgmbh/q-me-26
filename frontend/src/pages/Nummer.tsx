@@ -34,6 +34,7 @@ import {
   type PushConfig,
 } from '../utils/push';
 import { inNativeApp } from '../utils/native-app';
+import { announceToTeam } from '../utils/team-push';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
 import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 import { datumsLocale, t, tn } from '@/i18n';
@@ -180,8 +181,12 @@ export default function Nummer() {
 
   const cancel = async () => {
     try {
+      // Ohne Konto meldet das Backend es dem Team selbst (app/apis/nummer)
       if (appt.isAnonymous && ticketKey) await cancelTicket(appt.id, ticketKey);
-      else await cancelAppointment(appt.id);
+      else {
+        await cancelAppointment(appt.id);
+        announceToTeam(appt.id, 'cancelled');
+      }
       toast.success(isQueue ? t('Deine Nummer ist zurückgegeben.') : t('Dein Termin ist abgesagt.'));
     } catch {
       toast.error(t('Das hat nicht geklappt. Sag bitte am Tresen Bescheid.'));

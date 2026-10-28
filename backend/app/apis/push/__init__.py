@@ -3,6 +3,7 @@
 Anmelden darf, wer den Schlüssel der Nummer hat (Nummer ohne Konto, app/libs/ticket.py) oder mit dem Konto des
 Termins angemeldet ist. Zusätzlich nur für Termine, die heute oder später anstehen, und mit einer Bremse je Absender.
 Die App für iPhone/iPad (mobile/) meldet statt eines Browsers ein FCM-Token an (/push/subscribe-app, app/libs/fcm.py).
+Dazu /push/team-event: Kunde hat selbst gebucht oder abgesagt – Nachricht an das Team (app/libs/team_notify.py).
 Versand: app/libs/notify_worker.py. Die Sprache (language, sonst Accept-Language) steht an der Anmeldung und am Termin –
 so kommen Nachrichten in der Sprache, die der Kunde zuletzt gewählt hat.
 """
@@ -20,6 +21,7 @@ from app.libs.fcm import fcm_configured
 from app.libs.mail import mail_configured
 from app.libs.notify_worker import wake
 from app.libs.plans import has_feature
+from app.libs.team_notify import notice_fields
 from app.libs.throttle import throttle
 from app.libs.ticket import may_manage, request_uid
 from app.libs.webpush import public_key, push_configured
@@ -177,3 +179,36 @@ def notify_email(body: NotifyEmailRequest, request: Request) -> dict:
     if body.email:
         wake()
     return {"status": "ok"}
+
+
+# So kurz nach dem Buchen oder Absagen meldet die App es dem Team – später nicht mehr (etwa bei einer alten Absage)
+TEAM_EVENT_MINUTES = 15
+
+
+class TeamEventRequest(BaseModel):
+    appointment_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    kind: Literal["new", "cancelled"]
+    key: str | None = Field(default=None, max_length=64)
+
+
+@router.post("/push/team-event")
+def team_event(body: TeamEventRequest, request: Request) -> dict:
+    """Der Kunde hat eben selbst eine Nummer gezogen, gebucht ("new") oder abgesagt ("cancelled") – Inhaber und gebuchte
+    Person bekommen Bescheid (app/libs/team_notify.py). Wie beim Anmelden nur mit Schlüssel der Nummer oder eigenem Konto."""
+    throttle(request, "team-event", max_hits=60)
+    db = get_firestore_db()
+    ref = db.collection("appointments").document(body.appointment_id)
+    doc = ref.get()
+    appt = (doc.to_dict() or {}) if doc.exists else None
+    if appt is None or not may_manage(appt, body.key, request_uid(request)):
+        raise HTTPException(status_code=404, detail="Diese Nummer gibt es nicht.")
+    now = datetime.now(timezone.utc)
+    since = appt.get("createdAt") if body.kind == "new" else appt.get("updatedAt")
+    expected = ("scheduled", "in-progress") if body.kind == "new" else ("cancelled",)
+    if appt.get("status") not in expected or not since or since < now - timedelta(minutes=TEAM_EVENT_MINUTES):
+        return {"status": "ignored"}
+    fields = notice_fields(appt, body.kind, now)
+    if fields:
+        ref.update(fields)
+        wake()
+    return {"status": "ok" if fields else "ignored"}

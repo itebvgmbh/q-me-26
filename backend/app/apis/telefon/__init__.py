@@ -33,9 +33,11 @@ from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
+from app.libs.notify_worker import wake
 from app.libs.plans import PLANS, effective_plan, has_feature, is_suspended
 from app.libs.queue_notify import project_lane
 from app.libs.schedule import BERLIN, Placement, aware
+from app.libs.team_notify import notice_fields
 
 
 def _zugang(authorization: Optional[str] = Header(default=None)) -> None:
@@ -326,15 +328,18 @@ def _preis(value) -> str:
 
 
 def _anlegen(db, shop_id: str, leistung: dict, name: str, anrufer: Optional[str], art: str, candidates: List[Placement]) -> dict:
-    """Wie eine Buchung ohne Konto (isAnonymous, mit Tagesnummer), gekennzeichnet "per Telefon" (source)"""
+    """Wie eine Buchung ohne Konto (isAnonymous, mit Tagesnummer), gekennzeichnet "per Telefon" (source). Das Team
+    bekommt Bescheid wie bei einer Online-Buchung (Merker teamNotice, app/libs/team_notify.py)."""
     phone = t.e164(anrufer)
     data = {
         "shopId": shop_id, "serviceId": leistung["id"], "status": "scheduled", "type": art, "isAnonymous": True,
         "customerName": name, **({"customerPhone": phone} if phone else {}), "checkEarlierOptions": False, "source": "telefon",
+        **notice_fields({}, "new", datetime.now(timezone.utc)),
     }
     created = create_appointment(db, data, candidates, needs_code=True)
     for day in {d for c in candidates for d in c.days()}:
         invalidate_shop_date_cache(shop_id, day, verbose=False)
+    wake()
     return created
 
 
@@ -534,7 +539,8 @@ def aendern(anfrage: AendernAnfrage) -> dict:
         if not t.ID_RE.fullmatch(str(anfrage.termin_id or "")):
             raise _Nein("termin_unbekannt", "Diesen Termin finde ich nicht.")
         if anfrage.absagen:
-            appt = cancel_appointment(db, anfrage.termin_id, lambda a: _eigener_termin(a, shop_id))
+            appt = cancel_appointment(db, anfrage.termin_id, lambda a: _eigener_termin(a, shop_id), by_customer=True)
+            wake()
         else:
             name = _name(anfrage.name)
             ref = db.collection("appointments").document(anfrage.termin_id)

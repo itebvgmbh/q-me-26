@@ -69,9 +69,10 @@ und die Adresse, an die die Einladung ging, stehen nicht am öffentlichen Eintra
 Löschen macht das Backend. **Profile** (`users`): nur das eigene. **Angebote „Früher dran“**: lesen das eigene Konto.
 
 **Nur Backend**, im Browser weder lesbar noch schreibbar: `meta` (Zähler der Gründerplätze), `push_subscriptions`,
+`team_push_subscriptions` (Geräte des Teams für Nachrichten über Kunden),
 `staff-invitations`, `verzeichnis` und jede Sammlung, die in den Regeln nicht vorkommt.
 
-## Wer liest und schreibt was (Fassung 2026-10-24)
+## Wer liest und schreibt was (Fassung 2026-10-28)
 
 | Sammlung | Ohne Anmeldung | Kunde | Inhaber | Team |
 |---|---|---|---|---|

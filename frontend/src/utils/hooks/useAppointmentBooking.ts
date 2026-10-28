@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { sprache, t } from '@/i18n';
 import useTimeSlotStore from '../timeSlotStore';
 import { CalendarTimeSlot } from '../types';
+import { announceToTeam } from '../team-push';
 
 /**
  * Custom hook to handle appointment booking logic
@@ -62,6 +63,8 @@ export const useAppointmentBooking = () => {
         }
       }
       if (!created) throw new Error('Keine Person zum Buchen');
+      // Inhaber und gebuchte Person bekommen Bescheid
+      announceToTeam(created.id, 'new');
 
       // Invalidate the cache
       useTimeSlotStore.getState().invalidateCache(shopId, startTime);

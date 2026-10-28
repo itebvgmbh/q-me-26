@@ -20,6 +20,7 @@ import { EmployeeNavigation } from '../components/EmployeeNavigation';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { DashboardTimeline } from '../components/DashboardTimeline';
 import { DashboardDialogs } from '../components/DashboardDialogs';
+import { TeamPushSchalter } from '../components/TeamPushSchalter';
 
 // Declare global variable for unsubscribing from Firestore listeners
 declare global {
@@ -137,6 +138,9 @@ const EmployeeDashboard = () => {
           onDateChange={setStartDate}
           onNumDaysChange={setNumDays}
         />
+
+        {/* Benachrichtigung, wenn Kunden selbst buchen, eine Nummer ziehen oder absagen */}
+        <TeamPushSchalter />
 
         {/* Dialogs for working hours and customer creation */}
         <DashboardDialogs

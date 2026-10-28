@@ -18,6 +18,7 @@ import { useUserProfile } from '../utils/hooks/useUserProfile';
 import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
 import { inStoreApp } from '../utils/app-shell';
+import { stopTeamPushBeforeLogout } from '../utils/team-push';
 import { istRtl, merke, t } from '@/i18n';
 import { SprachListe, SprachMenue } from './SprachWahl';
 
@@ -82,6 +83,7 @@ export function Navigation() {
 
   const handleLogout = async () => {
     setOpen(false);
+    await stopTeamPushBeforeLogout();
     await firebaseAuth.signOut();
     navigate('/');
   };
