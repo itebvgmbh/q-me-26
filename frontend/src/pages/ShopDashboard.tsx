@@ -312,7 +312,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <PlanBanner shop={shop} />
-      <Startklar key={shop.id} shop={shop} staff={staff} appointments={live ? appointments : []} onEditShop={() => setShowEditShop(true)} />
+      {/* Erste Schritte nur am Tresen – im Kalender wäre es dieselbe Liste ein zweites Mal */}
+      {heute && <Startklar key={shop.id} shop={shop} staff={staff} appointments={appointments} onEditShop={() => setShowEditShop(true)} />}
 
       {/* Kopf: Bereich, Laden, (Kalender: Tag und Ansicht), Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
