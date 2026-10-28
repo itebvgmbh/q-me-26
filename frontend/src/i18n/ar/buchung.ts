@@ -5,27 +5,16 @@ const texte: Texte = {
   // pages/BookAppointment.tsx
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "تعذّر حجز الموعد. حاول مرة أخرى.",
   "Termin buchen": "احجز موعدًا",
-  "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "اختر وقتًا محددًا. تفضّل الآن؟ انضم إذن إلى قائمة الانتظار.",
   "Läden werden geladen": "جارٍ تحميل المحلات",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "لا يقبل {name} مواعيد محددة عبر الإنترنت، لكن يمكنك أخذ رقم انتظار.",
   "Anderen Laden wählen": "اختر محلًا آخر",
 
   // components/BookingForm.tsx
-  "Wo?": "أين؟",
-  "Noch keine Läden eingetragen.": "لا توجد محلات مسجلة بعد.",
-  "Was?": "ماذا؟",
   "{minuten} Min": "{minuten} دقيقة",
   "Bei wem?": "عند من؟",
-  "Für diesen Laden ist noch niemand eingetragen.": "لم يُسجَّل أحد لهذا المحل بعد.",
   "Wann?": "متى؟",
-  "Zusammenfassung": "الملخص",
-  "EEE d. MMM 'um' HH:mm": "EEEE، d MMMM، 'الساعة' HH:mm",
   "Früher dran, wenn etwas frei wird": "دور أبكر إذا توفر مكان",
-  "Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.": "سنعرض عليك موعدًا أبكر. يبقى موعدك محفوظًا حتى توافق.",
   "Wird gebucht …": "جارٍ الحجز …",
-  "Termin verbindlich buchen": "تأكيد الحجز",
-  "Anmelden und buchen": "سجّل الدخول واحجز",
-  "Ohne Konto einreihen": "انضم إلى قائمة الانتظار بدون حساب",
 
   // components/BookingSuccessStep.tsx
   "EEEEEE d.M.": "EEEEEE d/M",
@@ -278,10 +267,6 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "تعذّر الانضمام إلى قائمة الانتظار. حاول مرة أخرى.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Laden.": "اختر محلًا أولًا.",
-  "Wähl aus, bei wem.": "اختر عند من.",
-  "Wähl eine Leistung.": "اختر خدمة.",
-  "Wähl eine Uhrzeit.": "اختر وقتًا.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
   "Der Laden aus dem QR-Code wurde nicht gefunden": "لم يتم العثور على المحل الموجود في رمز QR",

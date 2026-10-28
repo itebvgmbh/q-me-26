@@ -1,4 +1,5 @@
-// Termin buchen als Gast bis zur Zusammenfassung (bucht nicht). Läuft gegen QME_SHOP_ID (Standard: ITEBV GmbH).
+// Termin buchen als Gast bis kurz vor dem Buchen (bucht nicht). Läuft gegen QME_SHOP_ID (Standard: ITEBV GmbH).
+// Termin buchen ist derselbe Ablauf wie Nummer ziehen; im Schritt „Wann?“ ist die Wunschzeit vorgewählt.
 const { BASE, SHOP_ID, launch, newPage, collectErrors, shot, report, run } = require('./lib.cjs');
 
 run(async () => {
@@ -6,14 +7,12 @@ run(async () => {
   const page = await newPage(browser);
   const errors = collectErrors(page);
   await page.goto(`${BASE}/book-appointment?shopId=${SHOP_ID}&fromMarketplace=true`, { waitUntil: 'domcontentloaded' });
-  const services = page.locator('section[aria-labelledby="schritt-2"] button');
-  await services.first().waitFor({ timeout: 60000 });
-  await services.first().click();
-  await page.waitForTimeout(1500);
-  const people = page.locator('section[aria-labelledby="schritt-3"] button');
-  if ((await people.count()) > 0 && !(await page.locator('section[aria-labelledby="schritt-4"]').count())) await people.first().click();
+  // Leistung, dann „Egal wer“ (bei nur einer Person steht dort ihr Name)
+  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
+  await page.locator('section button[aria-pressed]').first().click({ timeout: 30000 });
+  await page.getByRole('heading', { name: 'Wann passt es dir?' }).waitFor({ timeout: 30000 });
   await page.waitForTimeout(3000);
-  const slots = page.locator('section[aria-labelledby="schritt-4"] [aria-live] button[aria-label$="Uhr"]:not([disabled])');
+  const slots = page.locator('[aria-live] button[aria-label$="Uhr"]:not([disabled])');
   const jump = page.getByRole('button', { name: 'Nächsten freien Tag suchen' });
   if (await jump.count()) { await jump.click(); await page.waitForTimeout(5000); }
   if ((await slots.count()) === 0) {
@@ -22,12 +21,17 @@ run(async () => {
   }
   const freeSlots = await slots.count();
   if (freeSlots > 0) { await slots.first().click(); await page.waitForTimeout(800); }
-  await shot(page, 'buchung-zusammenfassung');
-  const summary = (await page.locator('[aria-label="Zusammenfassung"]').innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  const book = page.getByRole('button', { name: 'Termin buchen', exact: true });
+  const disabledWithoutName = await book.isDisabled();
+  await page.getByLabel('Vorname').fill('Test');
+  const enabledWithName = await book.isEnabled();
+  await shot(page, 'buchung-wann');
+  const chosen = (await page.getByRole('group', { name: 'Wann?' }).innerText().catch(() => '')).replace(/\n+/g, ' | ');
   await browser.close();
   return report([
     { name: 'Freie Zeiten gefunden', pass: freeSlots > 0, detail: `${freeSlots}` },
-    { name: 'Zusammenfassung mit Uhrzeit', pass: /um \d{2}:\d{2}/.test(summary), detail: summary.slice(0, 160) },
+    { name: 'Gewählte Zeit steht bei „Wunschzeit“', pass: /Termin · .*\d{2}:\d{2}/.test(chosen), detail: chosen.slice(0, 160) },
+    { name: 'Ohne Konto: Buchen erst mit Vorname', pass: disabledWithoutName && enabledWithName },
     { name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') },
   ]);
 });

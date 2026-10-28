@@ -67,7 +67,10 @@ run(async () => {
     rows.push({ name: 'Mein Tarif: nach der Testphase Gratis', pass: /Gratis-Tarif\./.test(t) && /\/ 100/.test(t), detail: t.slice(0, 200) });
     await shot(gratis, 'tarife-mein-tarif-gratis');
 
+    // Termin buchen führt durch denselben Ablauf; erst im Schritt „Wann?“ steht, dass es nur die Nummer gibt
     await gratis.goto(`${BASE}/book-appointment?shopId=${g.shopId}&fromMarketplace=true`, { waitUntil: 'domcontentloaded' });
+    await gratis.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
+    await gratis.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
     await gratis.getByText(/nimmt online keine festen Termine an/).waitFor({ timeout: 30000 });
     rows.push({ name: 'Gratis: keine Online-Termine, Hinweis auf Nummer ziehen', pass: true });
 

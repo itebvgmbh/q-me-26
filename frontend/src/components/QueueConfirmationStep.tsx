@@ -6,19 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TimeSlot } from '../utils/types';
+import { CalendarTimeSlot, TimeSlot } from '../utils/types';
 import { Shop, Service, Staff } from '../utils/firestore/types';
-import { QueueStepShell } from './queue/QueueStepShell';
-import { slotDayLabel } from './queue/SlotStatus';
+import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
+import { slotDayLabel, slotLabel } from './queue/SlotStatus';
+import { CustomerCalendar } from './CustomerCalendar';
 import { hasFeature } from '../utils/plans';
 import { useMonthlyUsage } from '../utils/plan-usage';
 import { caFenster } from '../utils/ca-zeit';
-import { t, tTeile } from '@/i18n';
+import { datumsLocale, t, tTeile } from '@/i18n';
 
 export interface QueueContact {
   name: string;
   phone: string;
 }
+
+/** Nummer für den nächsten freien Platz oder fester Termin zur Wunschzeit */
+export type Wann = 'sofort' | 'wunsch';
 
 export interface QueueConfirmationStepProps {
   selectedShop: string;
@@ -43,6 +47,16 @@ export interface QueueConfirmationStepProps {
   contact: QueueContact;
   onContactChange: (contact: QueueContact) => void;
   submitting?: boolean;
+  wann: Wann;
+  onWannChange: (wann: Wann) => void;
+  wunschSlot: CalendarTimeSlot | null;
+  onWunschSlotChange: (slot: CalendarTimeSlot | null) => void;
+  /** Für die Wunschzeiten: die gewählte Person, bei „Egal wer“ alle, die die Leistung anbieten */
+  calendarStaffIds: string[];
+  /** Neu zählen lässt den Kalender frisch laden (Platz war beim Buchen weg) */
+  calendarKey?: number;
+  /** Über „Termin buchen“ gekommen: sagen, wenn der Laden online keine festen Termine nimmt */
+  wunschEntry?: boolean;
 }
 
 export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
@@ -65,53 +79,113 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
   contact,
   onContactChange,
   submitting = false,
+  useAnyStaff,
+  selectedStaff,
+  wann: wannGewaehlt,
+  onWannChange,
+  wunschSlot,
+  onWunschSlotChange,
+  calendarStaffIds,
+  calendarKey = 0,
+  wunschEntry = false,
 }) => {
   const shop = shops.find((s) => s.id === selectedShop);
   const service = services.find((s) => s.id === selectedService);
-  const person = staff.find((s) => s.id === selectedStaffForSlot);
   const anonymous = !user && !authLoading;
-  // Tarif des Ladens: "Früher dran" ab Solo, im Gratis-Tarif höchstens 100 Kunden im Monat (utils/plans.ts)
+  // Tarif des Ladens: "Früher dran" ab Solo, Online-Termine ab Solo, im Gratis-Tarif höchstens 100 Kunden im Monat (utils/plans.ts)
   const earlierAllowed = hasFeature(shop, 'frueherDran');
+  const termineAllowed = hasFeature(shop, 'termine');
+  const wann: Wann = termineAllowed ? wannGewaehlt : 'sofort';
   const usage = useMonthlyUsage(shop?.id, shop);
-  const canConfirm =
-    !!nextAvailableSlot && !searchingForSlot && !submitting && !usage.full && (!anonymous || contact.name.trim().length > 0);
+  // Bei der Nummer steht die Person mit dem frühesten Platz fest, bei der Wunschzeit die gewählte (oder „Egal wer“)
+  const person = staff.find((s) => s.id === (wann === 'wunsch' ? selectedStaff : selectedStaffForSlot));
+  const personLabel = wann === 'wunsch' && useAnyStaff ? t('Egal wer') : person?.name ?? (searchingForSlot ? '…' : '–');
+  const slotReady = wann === 'wunsch' ? !!wunschSlot : !!nextAvailableSlot && !searchingForSlot;
+  const canConfirm = slotReady && !submitting && !usage.full && (!anonymous || contact.name.trim().length > 0);
 
   return (
-    <QueueStepShell title={t('Passt das so?')} onBack={onBack} backLabel={t('Andere Person wählen')}>
-      <div className="flex flex-col gap-1 rounded-2xl bg-signal p-5 text-signal-foreground" aria-live="polite">
-        <span className="text-xs font-semibold uppercase tracking-[0.08em]">{t('Du bist dran um ca.')}</span>
-        {searchingForSlot ? (
-          <>
-            <span className="animate-pulse font-mono text-5xl font-bold tracking-tight opacity-50" aria-hidden="true">--:--</span>
-            <span className="font-semibold">{t('Wir suchen deinen Platz …')}</span>
-            <span className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-signal-foreground/15" aria-hidden="true">
-              <span className="absolute inset-y-0 start-0 w-1/3 animate-scan rounded-full bg-signal-foreground" />
+    <QueueStepShell title={t('Wann passt es dir?')} onBack={onBack} backLabel={t('Andere Person wählen')}>
+      {wunschEntry && !termineAllowed && shop && (
+        <p className="rounded-2xl border border-border bg-background px-4 py-3 text-sm font-semibold" role="note">
+          {t('{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.', { name: shop.name })}
+        </p>
+      )}
+
+      {/* Zwei Antworten auf „Wann?“: der nächste freie Platz (Nummer) oder eine feste Uhrzeit (Termin) */}
+      {termineAllowed && (
+        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label={t('Wann?')}>
+          <QueueOption
+            selected={wann === 'sofort'}
+            onClick={() => onWannChange('sofort')}
+            title={t('So früh wie möglich')}
+            meta={
+              searchingForSlot
+                ? t('Suche freie Zeiten …')
+                : nextAvailableSlot
+                  ? t('Nummer · ca. {platz}', { platz: slotLabel(nextAvailableSlot.start) })
+                  : t('Gerade nichts frei')
+            }
+          />
+          <QueueOption
+            selected={wann === 'wunsch'}
+            onClick={() => onWannChange('wunsch')}
+            title={t('Wunschzeit')}
+            meta={
+              wunschSlot
+                ? t('Termin · {zeit}', { zeit: format(wunschSlot.start, t('EEE d. MMM, HH:mm'), { locale: datumsLocale() }) })
+                : t('Tag und Uhrzeit selbst aussuchen')
+            }
+          />
+        </div>
+      )}
+
+      {wann === 'wunsch' ? (
+        <CustomerCalendar
+          key={calendarKey}
+          shopId={selectedShop}
+          serviceId={selectedService}
+          staffId={useAnyStaff ? undefined : selectedStaff}
+          staffIds={useAnyStaff ? calendarStaffIds : undefined}
+          selectedSlot={wunschSlot}
+          onTimeSlotSelect={onWunschSlotChange}
+          forceRefresh={calendarKey > 0}
+        />
+      ) : (
+        <div className="flex flex-col gap-1 rounded-2xl bg-signal p-5 text-signal-foreground" aria-live="polite">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em]">{t('Du bist dran um ca.')}</span>
+          {searchingForSlot ? (
+            <>
+              <span className="animate-pulse font-mono text-5xl font-bold tracking-tight opacity-50" aria-hidden="true">--:--</span>
+              <span className="font-semibold">{t('Wir suchen deinen Platz …')}</span>
+              <span className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-signal-foreground/15" aria-hidden="true">
+                <span className="absolute inset-y-0 start-0 w-1/3 animate-scan rounded-full bg-signal-foreground" />
+              </span>
+            </>
+          ) : nextAvailableSlot ? (
+            <>
+              <span className="font-mono text-5xl font-bold tracking-tight">{format(nextAvailableSlot.start, 'HH:mm')}</span>
+              <span className="font-semibold">{slotDayLabel(nextAvailableSlot.start)}</span>
+              <span className="text-sm">{t('Rechne mit {von} bis {bis} Uhr.', caFenster(nextAvailableSlot.start))}</span>
+            </>
+          ) : searchFailed ? (
+            <span className="flex flex-col items-start gap-3 font-semibold">
+              {t('Die freien Plätze konnten nicht geladen werden.')}
+              {onRetrySearch && (
+                <Button size="sm" onClick={onRetrySearch}>
+                  {t('Noch mal suchen')}
+                </Button>
+              )}
             </span>
-          </>
-        ) : nextAvailableSlot ? (
-          <>
-            <span className="font-mono text-5xl font-bold tracking-tight">{format(nextAvailableSlot.start, 'HH:mm')}</span>
-            <span className="font-semibold">{slotDayLabel(nextAvailableSlot.start)}</span>
-            <span className="text-sm">{t('Rechne mit {von} bis {bis} Uhr.', caFenster(nextAvailableSlot.start))}</span>
-          </>
-        ) : searchFailed ? (
-          <span className="flex flex-col items-start gap-3 font-semibold">
-            {t('Die freien Plätze konnten nicht geladen werden.')}
-            {onRetrySearch && (
-              <Button size="sm" onClick={onRetrySearch}>
-                {t('Noch mal suchen')}
-              </Button>
-            )}
-          </span>
-        ) : (
-          <span className="font-semibold">{t('Gerade ist kein Platz frei. Versuch eine andere Person oder Leistung.')}</span>
-        )}
-      </div>
+          ) : (
+            <span className="font-semibold">{t('Gerade ist kein Platz frei. Versuch eine andere Person oder Leistung.')}</span>
+          )}
+        </div>
+      )}
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
         <div><dt className="text-muted-foreground">{t('Laden')}</dt><dd className="font-semibold">{shop?.name}</dd></div>
         <div><dt className="text-muted-foreground">{t('Leistung')}</dt><dd className="font-semibold">{service?.name}</dd></div>
-        <div><dt className="text-muted-foreground">{t('Bei')}</dt><dd className="font-semibold">{person?.name ?? (searchingForSlot ? '…' : '–')}</dd></div>
+        <div><dt className="text-muted-foreground">{t('Bei')}</dt><dd className="font-semibold">{personLabel}</dd></div>
       </dl>
 
       {anonymous && (
@@ -176,7 +250,13 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
         </p>
       ) : (
         <Button size="lg" onClick={onConfirm} disabled={!canConfirm}>
-          {submitting ? t('Wird eingereiht …') : t('Nummer ziehen')}
+          {wann === 'wunsch'
+            ? submitting
+              ? t('Wird gebucht …')
+              : t('Termin buchen')
+            : submitting
+              ? t('Wird eingereiht …')
+              : t('Nummer ziehen')}
         </Button>
       )}
     </QueueStepShell>

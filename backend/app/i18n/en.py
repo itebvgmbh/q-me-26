@@ -158,6 +158,11 @@ TEXTE: dict = {
     "Diese Nummer lässt sich hier nicht ändern. Nimm das Handy, mit dem du sie gezogen hast, oder sag am Tresen Bescheid.":
         "This number can't be changed here. Use the phone you took it with, or let the front desk know.",
     "Du bist schon dran oder fertig – sag bitte am Tresen Bescheid.": "It's already your turn or you're done – please let the front desk know.",
+    # Fester Termin ohne Konto und Platz ändern (app/apis/nummer)
+    "Diese Leistung gibt es hier nicht mehr. Wähl bitte eine andere.": "This service is no longer available here. Please choose another.",
+    "Dieser Laden vergibt online keine festen Termine.": "This shop doesn't take fixed appointments online.",
+    "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "This time is too soon. Please pick a later one.",
+    "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "This time was just taken. Please pick another one.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "This shop doesn't offer notifications.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Notifications for this number only work on the phone it was taken with, or with your account.",

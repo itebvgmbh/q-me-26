@@ -57,7 +57,7 @@ export const keyFromHash = (hash: string): string | null => {
 export const ticketPath = (appointmentId: string, key?: string | null, search = '') =>
   `/nummer/${appointmentId}${search}${key ? `#k=${key}` : ''}`;
 
-const post = async (path: string, body: unknown, withAuth = false): Promise<void> => {
+const post = async <T = unknown>(path: string, body: unknown, withAuth = false): Promise<T> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (withAuth) headers.Authorization = await auth.getAuthHeaderValue();
   let res: Response;
@@ -77,7 +77,11 @@ const post = async (path: string, body: unknown, withAuth = false): Promise<void
     (error as Error & { status?: number }).status = res.status;
     throw error;
   }
+  return (await res.json().catch(() => null)) as T;
 };
+
+/** 409 vom Backend: Platz inzwischen weg oder zu kurzfristig – neue Zeit aussuchen lassen */
+export const isTaken = (error: unknown) => (error as { status?: number } | null)?.status === 409;
 
 /** Nummer ohne Konto zurückgeben (Nummernseite) */
 export const cancelTicket = (appointmentId: string, key: string) => post('nummer/absagen', { appointment_id: appointmentId, key });
@@ -85,3 +89,42 @@ export const cancelTicket = (appointmentId: string, key: string) => post('nummer
 /** Nummer ohne Konto ins angemeldete Konto übernehmen (AnonymousBookingLinker) */
 export const claimTicket = (appointmentId: string, key: string) =>
   post('nummer/uebernehmen', { appointment_id: appointmentId, key }, true);
+
+/**
+ * Fester Termin ohne Konto (backend/app/apis/nummer): Das Backend prüft den Platz und bucht bei der ersten der Personen,
+ * die dann noch frei ist. Der Schlüssel bleibt in diesem Browser und im Link, ans Backend geht nur sein Hash.
+ */
+export const bookWithoutAccount = async (booking: {
+  shopId: string;
+  serviceId: string;
+  staffIds: string[];
+  start: Date;
+  name: string;
+  phone?: string;
+  language: string;
+}): Promise<{ appointmentId: string; ticketKey: string }> => {
+  const ticketKey = newTicketKey();
+  const result = await post<{ appointment_id: string }>('nummer/termin', {
+    shop_id: booking.shopId,
+    service_id: booking.serviceId,
+    staff_ids: booking.staffIds,
+    start: booking.start.toISOString(),
+    key_hash: await hashTicketKey(ticketKey),
+    name: booking.name,
+    ...(booking.phone ? { phone: booking.phone } : {}),
+    language: booking.language,
+  });
+  rememberTicketKey(result.appointment_id, ticketKey);
+  return { appointmentId: result.appointment_id, ticketKey };
+};
+
+/**
+ * Platz ändern (backend/app/apis/nummer): Nummer oder Termin auf eine andere Zeit, mit dem Schlüssel der Nummer oder
+ * dem eigenen Konto. Der alte Platz bleibt, bis der neue sicher ist; danach ist es ein fester Termin.
+ */
+export const moveTicket = (move: { appointmentId: string; key: string | null; staffIds: string[]; start: Date; signedIn: boolean }) =>
+  post<{ start: string; staff_id: string; reference_code?: string }>(
+    'nummer/verschieben',
+    { appointment_id: move.appointmentId, staff_ids: move.staffIds, start: move.start.toISOString(), ...(move.key ? { key: move.key } : {}) },
+    move.signedIn,
+  );

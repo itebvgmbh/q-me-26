@@ -183,6 +183,12 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <Button variant="outline" size="sm" asChild>
             <Link to={`/nummer/${appointment.id}`}>{t('Live ansehen und Bescheid bekommen')}</Link>
           </Button>
+          {/* Verschieben statt absagen und neu buchen – auf der Nummernseite (components/PlatzAendern.tsx) */}
+          {hasFeature(appointment.shop, 'termine') && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/nummer/${appointment.id}?aendern=1`}>{t('Platz ändern')}</Link>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancelClick(appointment.id)}>
             {t('Termin absagen')}
           </Button>

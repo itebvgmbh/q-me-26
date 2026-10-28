@@ -78,12 +78,9 @@ const texte: Texte = {
   "Einen Moment – wir holen die Leistungen …": "One moment – loading the services …",
   "Dieser Laden nimmt gerade keine Nummern an.": "This shop isn't taking numbers right now.",
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "Taking a number or booking online isn't possible at the moment.",
-  "Wir suchen dir den nächsten freien Platz. Fester Wunschtermin? <buchen>Termin buchen</buchen>":
-    "We'll find you the next free slot. Want a fixed time? <buchen>Book an appointment</buchen>",
   "Laden": "Shop",
   "Leistung": "Service",
   "Person": "Team member",
-  "Bestätigen": "Confirm",
 
   // pages/Bildschirm.tsx
   "Diesen Laden gibt es nicht.": "This shop doesn't exist.",
@@ -119,7 +116,6 @@ const texte: Texte = {
   "Ohne App.": "No app needed.",
 
   // components/QueueConfirmationStep.tsx
-  "Passt das so?": "Does this look right?",
   "Andere Person wählen": "Choose someone else",
   "Du bist dran um ca.": "Your turn at approx.",
   "Wir suchen deinen Platz …": "Finding your slot …",
@@ -225,6 +221,23 @@ const texte: Texte = {
   // Zeitfenster und Regel bei Verspätung (pages/Nummer.tsx, components/QueueConfirmationStep.tsx)
   "Rechne mit {von} bis {bis} Uhr.": "Expect your turn between {von} and {bis}.",
   "Bist du beim Aufruf nicht da, kann der Laden deine Nummer austragen.": "If you're not there when your number is called, the shop may remove it.",
+
+  // Ein Ablauf für Nummer und Termin, Platz ändern (QueueConfirmationStep, PublicJoinQueue, PlatzAendern, Nummer)
+  "Platz ändern": "Change time",
+  "Dein Platz ist jetzt {zeit}.": "Your new time: {zeit}.",
+  "Such dir eine andere Zeit aus. Dein jetziger Platz bleibt, bis der neue sicher ist.": "Pick another time. You keep your current slot until the new one is confirmed.",
+  "Auf {zeit} verschieben": "Move to {zeit}",
+  "Neue Zeit wählen": "Choose a new time",
+  "Wann passt es dir?": "When suits you?",
+  "So früh wie möglich": "As soon as possible",
+  "Nummer · ca. {platz}": "Number · approx. {platz}",
+  "Gerade nichts frei": "Nothing free right now",
+  "Wunschzeit": "Preferred time",
+  "Termin · {zeit}": "Appointment · {zeit}",
+  "Tag und Uhrzeit selbst aussuchen": "Pick the day and time yourself",
+  "Lieber eine andere Zeit?": "Rather another time?",
+  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "Pick a fixed time. Rather as soon as possible? You can choose that in the last step.",
+  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "We'll find you the next free slot. You can pick a fixed time in the last step.",
 };
 
 export default texte;

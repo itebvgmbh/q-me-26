@@ -5,27 +5,16 @@ const texte: Texte = {
   // pages/BookAppointment.tsx
   "Der Termin konnte nicht gebucht werden. Versuch es noch einmal.": "The appointment couldn't be booked. Please try again.",
   "Termin buchen": "Book an appointment",
-  "Feste Uhrzeit aussuchen. Lieber sofort? Dann reih dich in die Schlange ein.": "Pick a fixed time. Rather come now? Then join the queue.",
   "Läden werden geladen": "Loading shops",
   "{name} nimmt online keine festen Termine an. Du kannst aber eine Nummer ziehen.": "{name} doesn't take fixed appointments online. But you can take a number.",
   "Anderen Laden wählen": "Choose another shop",
 
   // components/BookingForm.tsx
-  "Wo?": "Where?",
-  "Noch keine Läden eingetragen.": "No shops listed yet.",
-  "Was?": "What?",
   "{minuten} Min": "{minuten} min",
   "Bei wem?": "With whom?",
-  "Für diesen Laden ist noch niemand eingetragen.": "Nobody is listed for this shop yet.",
   "Wann?": "When?",
-  "Zusammenfassung": "Summary",
-  "EEE d. MMM 'um' HH:mm": "EEE d MMM 'at' HH:mm",
   "Früher dran, wenn etwas frei wird": "Earlier slot if one opens up",
-  "Wir bieten dir einen früheren Platz an. Dein Termin bleibt sicher, bis du zusagst.": "We'll offer you an earlier slot. Your appointment stays safe until you accept.",
   "Wird gebucht …": "Booking …",
-  "Termin verbindlich buchen": "Confirm booking",
-  "Anmelden und buchen": "Sign in and book",
-  "Ohne Konto einreihen": "Join the queue without an account",
 
   // components/BookingSuccessStep.tsx
   "EEEEEE d.M.": "EEEEEE d/M",
@@ -249,10 +238,6 @@ const texte: Texte = {
   "Das Einreihen hat nicht geklappt. Versuch es noch einmal.": "Joining the queue didn't work. Please try again.",
 
   // utils/hooks/useBookingValidation.ts
-  "Wähl zuerst einen Laden.": "Choose a shop first.",
-  "Wähl aus, bei wem.": "Choose who you'd like.",
-  "Wähl eine Leistung.": "Choose a service.",
-  "Wähl eine Uhrzeit.": "Choose a time.",
 
   // utils/hooks/useShops.ts, useShopDetails.ts, useSlotFinder.ts, useShopServices.ts, useShopStaff.ts, useServices.ts, useServiceData.ts
   "Der Laden aus dem QR-Code wurde nicht gefunden": "The shop from the QR code wasn't found",

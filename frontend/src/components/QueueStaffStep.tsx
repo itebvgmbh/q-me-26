@@ -17,6 +17,8 @@ export interface QueueStaffStepProps {
   /** frühester Platz je Person (null = nichts frei), noch nicht geladen = null */
   earliestByStaff: Record<string, TimeSlot | null> | null;
   searching: boolean;
+  /** Titel für „Egal wer“; über „Termin buchen“ geht es nicht ums Schnellste */
+  anyTitle?: string;
 }
 
 export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({
@@ -29,6 +31,7 @@ export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({
   onBack,
   earliestByStaff,
   searching,
+  anyTitle,
 }) => {
   // Nur wer die gewählte Leistung anbietet; ist niemand zugeordnet, alle zeigen
   const eligible = useMemo(() => {
@@ -82,7 +85,7 @@ export const QueueStaffStep: React.FC<QueueStaffStepProps> = ({
         <QueueOption
           selected={useAnyStaff}
           onClick={onSelectAny}
-          title={t('Egal wer – Hauptsache schnell')}
+          title={anyTitle ?? t('Egal wer – Hauptsache schnell')}
           meta={anyMeta}
           badge={<span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-xs font-semibold text-signal-foreground">{t('Am schnellsten')}</span>}
         />
