@@ -235,8 +235,10 @@ const texte: Texte = {
   "Termin · {zeit}": "Appointment · {zeit}",
   "Tag und Uhrzeit selbst aussuchen": "Pick the day and time yourself",
   "Lieber eine andere Zeit?": "Rather another time?",
-  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "Pick a fixed time. Rather as soon as possible? You can choose that in the last step.",
-  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "We'll find you the next free slot. You can pick a fixed time in the last step.",
+  "Wir suchen dir den nächsten freien Platz.": "We'll find you the next free slot.",
+  "Such dir Tag und Uhrzeit selbst aus.": "Pick the day and time yourself.",
+  "Lieber eine feste Uhrzeit?": "Rather a fixed time?",
+  "Lieber so früh wie möglich?": "Rather as soon as possible?",
 };
 
 export default texte;

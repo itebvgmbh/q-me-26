@@ -22,8 +22,11 @@ import { stopTeamPushBeforeLogout } from '../utils/team-push';
 import { istRtl, merke, t } from '@/i18n';
 import { SprachListe, SprachMenue } from './SprachWahl';
 
-/** server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link; also: Seiten, die zu diesem Bereich gehören */
-type NavItem = { to: string; label: string; server?: boolean; also?: string[] };
+/**
+ * server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link; also: Seiten, die zu diesem Bereich
+ * gehören; ab: in der Kopfzeile erst ab dieser Breite, schmaler wäre die Zeile zu voll (steht dann in der Fußzeile)
+ */
+type NavItem = { to: string; label: string; server?: boolean; also?: string[]; ab?: 'xl' };
 
 // In der App aus dem Store wird nichts verkauft (utils/app-shell.ts)
 const VERKAUF = ['/preise', '/tarif'];
@@ -32,9 +35,10 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   guest: [
     { to: '/shop-map', label: merke('Läden finden') },
     { to: '/public-join-queue', label: merke('Nummer ziehen') },
+    { to: '/book-appointment', label: merke('Termin buchen') },
     { to: '/features', label: merke('Für Läden') },
-    { to: '/preise', label: merke('Preise') },
-    { to: '/hilfe', label: merke('Hilfe'), server: true },
+    { to: '/preise', label: merke('Preise'), ab: 'xl' },
+    { to: '/hilfe', label: merke('Hilfe'), server: true, ab: 'xl' },
   ],
   customer: [
     { to: '/my-bookings', label: merke('Meine Termine') },
@@ -68,9 +72,13 @@ const PROFILE_PATH: Record<UserRole, string> = {
 
 const inBereich = (item: NavItem, pathname: string) => !!item.also?.some((p) => pathname.startsWith(p));
 
-const linkClass = ({ isActive }: { isActive: boolean }) =>
+const AB = { xl: 'hidden xl:inline-flex' } as const;
+
+// eng: die sechs Einträge für Gäste passen ab xl nur mit schmalerem Rand in die Zeile
+const linkClass = ({ isActive, eng = false }: { isActive: boolean; eng?: boolean }) =>
   cn(
-    'inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[15px] font-medium transition-colors lg:px-4',
+    'inline-flex h-10 items-center whitespace-nowrap rounded-full px-3 text-[15px] font-medium transition-colors',
+    !eng && 'lg:px-4',
     isActive ? 'bg-signal text-signal-foreground' : 'text-foreground hover:bg-foreground/5',
   );
 
@@ -86,6 +94,8 @@ export function Navigation() {
   const links = (user && !profile ? [] : LINKS[role]).filter((item) => !(inStoreApp() && VERKAUF.includes(item.to)));
   const displayName = profile?.displayName || user?.displayName || user?.email || '';
   const initial = (displayName.trim()[0] || 'Q').toUpperCase();
+  // Gäste haben die meisten Einträge (dazu Anmelden und Registrieren): bis lg das Menü zum Aufklappen
+  const guest = role === 'guest';
 
   const handleLogout = async () => {
     setOpen(false);
@@ -99,15 +109,18 @@ export function Navigation() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        <nav aria-label={t('Hauptnavigation')} className="hidden items-center gap-1 md:flex">
+        <nav aria-label={t('Hauptnavigation')} className={cn('hidden items-center gap-1', guest ? 'lg:flex' : 'md:flex')}>
           {links.map((item) =>
             item.server ? (
-              // zwischen md und lg wäre die Zeile zu voll; dort steht die Hilfe in der Fußzeile
-              <a key={item.to} href={item.to} className={cn(linkClass({ isActive: false }), 'hidden lg:inline-flex')}>
+              <a key={item.to} href={item.to} className={cn(linkClass({ isActive: false, eng: guest }), item.ab && AB[item.ab])}>
                 {t(item.label)}
               </a>
             ) : (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => linkClass({ isActive: isActive || inBereich(item, pathname) })}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => cn(linkClass({ isActive: isActive || inBereich(item, pathname), eng: guest }), item.ab && AB[item.ab])}
+              >
                 {t(item.label)}
               </NavLink>
             ),
@@ -179,7 +192,7 @@ export function Navigation() {
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label={t('Menü öffnen')}>
+              <Button variant="ghost" size="icon" className={guest ? 'lg:hidden' : 'md:hidden'} aria-label={t('Menü öffnen')}>
                 <Menu className="h-6 w-6" aria-hidden="true" />
               </Button>
             </SheetTrigger>

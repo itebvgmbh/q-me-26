@@ -9,6 +9,7 @@ import { ConnectionProblem } from '../components/ConnectionProblem';
 import { DAY_SHORT, formatDayHours } from '../utils/opening-hours';
 import { canonicalUrl, setzeKopf, STANDARD_KOPF } from '../utils/seiten-kopf';
 import { loadLadenSeite } from '../utils/verzeichnis';
+import { hasFeature } from '../utils/plans';
 import { t, intlSprache } from '@/i18n';
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -85,6 +86,8 @@ const ShopDetails = () => {
   const hours = ORDER.map((day) => ({ day, entry: shop.businessHoursByDay?.find((h) => h.dayOfWeek === day) }));
   const hasHours = hours.some((h) => h.entry);
   const team = staff.filter((s) => s.isActive !== false);
+  // Termin buchen nur, wenn der Tarif Online-Termine hat; sonst endet der Weg im letzten Schritt
+  const termine = hasFeature(shop, 'termine');
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -117,9 +120,11 @@ const ShopDetails = () => {
           <Button variant="signal" size="lg" asChild>
             <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
           </Button>
-          <Button variant="outline" size="lg" asChild>
-            <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
-          </Button>
+          {termine && (
+            <Button variant="outline" size="lg" asChild>
+              <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -142,12 +147,14 @@ const ShopDetails = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" asChild>
+                    <Button size="sm" variant={termine ? 'ghost' : 'default'} asChild>
                       <Link to={`/public-join-queue?shopId=${shop.id}&serviceId=${service.id}`}>{t('Nummer ziehen')}</Link>
                     </Button>
-                    <Button size="sm" asChild>
-                      <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
-                    </Button>
+                    {termine && (
+                      <Button size="sm" asChild>
+                        <Link to={`/book-appointment?shopId=${shop.id}&serviceId=${service.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}

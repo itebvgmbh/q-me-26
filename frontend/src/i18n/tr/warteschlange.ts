@@ -235,8 +235,10 @@ const texte: Texte = {
   "Termin · {zeit}": "Randevu · {zeit}",
   "Tag und Uhrzeit selbst aussuchen": "Günü ve saati kendiniz seçin",
   "Lieber eine andere Zeit?": "Başka bir saat mi olsun?",
-  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "Sabit bir saat seçin. En kısa sürede mi istersiniz? Bunu son adımda seçebilirsiniz.",
-  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "Size bir sonraki boş yeri buluyoruz. Sabit bir saati son adımda seçebilirsiniz.",
+  "Wir suchen dir den nächsten freien Platz.": "Size bir sonraki boş yeri buluyoruz.",
+  "Such dir Tag und Uhrzeit selbst aus.": "Günü ve saati kendiniz seçin.",
+  "Lieber eine feste Uhrzeit?": "Sabit bir saat mi tercih edersiniz?",
+  "Lieber so früh wie möglich?": "En kısa sürede mi tercih edersiniz?",
 };
 
 export default texte;

@@ -47,7 +47,8 @@ import { sprache, t } from '@/i18n';
  * 5. Success - (Anonymous users only) Show booking reference code
  *
  * Ein Ablauf für Nummer und Termin: „Nummer ziehen“ (/public-join-queue) und „Termin buchen“ (/book-appointment,
- * oder ?wann=wunsch) kommen beide hierher und wählen in Schritt 4 nur vor, was oben steht.
+ * oder ?wann=wunsch) kommen beide hierher. Die Wahl steht in der Adresse; Umschalten oben oder in Schritt 4 tauscht
+ * nur die Adresse, der Ablauf bleibt, wo er ist.
  *
  * Key features:
  * - Works for both logged-in users and anonymous users
@@ -64,8 +65,15 @@ const PublicJoinQueue = () => {
   const shopIdFromQR = searchParams.get('shopId');
   const serviceIdFromURL = searchParams.get('serviceId');
   const staffIdFromURL = searchParams.get('staffId');
-  const wunschEntry = /^\/book-?appointment\/?$/.test(pathname) || searchParams.get('wann') === 'wunsch';
-  const [wann, setWann] = useState<Wann>(wunschEntry ? 'wunsch' : 'sofort');
+  // Nummer oder Termin steht in der Adresse: so passen Menü, Überschrift und Neuladen immer zur Wahl
+  const wann: Wann = /^\/book-?appointment\/?$/.test(pathname) || searchParams.get('wann') === 'wunsch' ? 'wunsch' : 'sofort';
+  const setWann = (next: Wann) => {
+    if (next === wann) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete('wann');
+    const search = params.toString();
+    navigate({ pathname: next === 'wunsch' ? '/book-appointment' : '/public-join-queue', search: search ? `?${search}` : '' }, { replace: true });
+  };
   const [wunschSlot, setWunschSlot] = useState<CalendarTimeSlot | null>(null);
   const [calendarKey, setCalendarKey] = useState(0);
   const { bookAppointment, loading: bookingTermin } = useAppointmentBooking();
@@ -230,8 +238,12 @@ const PublicJoinQueue = () => {
     }
   };
 
-  // Wunschzeit nur, wo der Tarif Online-Termine hat; sonst bleibt es bei der Nummer
-  const termineAllowed = hasFeature(shops.find((s) => s.id === selectedShop), 'termine');
+  // Wunschzeit nur, wo der Tarif Online-Termine hat; sonst bleibt es bei der Nummer. Solange kein Laden gewählt
+  // (oder noch nicht geladen) ist, steht beides offen.
+  const shopData = shops.find((s) => s.id === selectedShop);
+  const termineAllowed = hasFeature(shopData, 'termine');
+  const termineMoeglich = !shopData || termineAllowed;
+  const terminZeigen = wann === 'wunsch' && termineMoeglich;
 
   const processBooking = async () => {
     if (wann === 'wunsch' && termineAllowed) return bookWunschzeit();
@@ -371,7 +383,7 @@ const PublicJoinQueue = () => {
           onBack={() => setCurrentStep(2)}
           earliestByStaff={earliestByStaff}
           searching={searchingForSlot}
-          anyTitle={wunschEntry ? t('Egal wer') : undefined}
+          anyTitle={terminZeigen ? t('Egal wer') : undefined}
         />
       );
     }
@@ -407,7 +419,7 @@ const PublicJoinQueue = () => {
           onWunschSlotChange={setWunschSlot}
           calendarStaffIds={calendarStaffIds}
           calendarKey={calendarKey}
-          wunschEntry={wunschEntry}
+          wunschEntry={wann === 'wunsch'}
         />
       );
     }
@@ -419,13 +431,25 @@ const PublicJoinQueue = () => {
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">
-          {currentStep === 5 ? t('Du bist eingereiht.') : wunschEntry ? t('Termin buchen') : t('Nummer ziehen')}
+          {currentStep === 5 ? t('Du bist eingereiht.') : terminZeigen ? t('Termin buchen') : t('Nummer ziehen')}
         </h1>
         {currentStep !== 5 && (
           <p className="text-muted-foreground">
-            {wunschEntry
-              ? t('Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.')
-              : t('Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.')}
+            {terminZeigen ? t('Such dir Tag und Uhrzeit selbst aus.') : t('Wir suchen dir den nächsten freien Platz.')}
+            {/* Der andere Weg gleich hier, nicht erst im letzten Schritt */}
+            {termineMoeglich && (
+              <>
+                {' '}
+                {terminZeigen ? t('Lieber so früh wie möglich?') : t('Lieber eine feste Uhrzeit?')}{' '}
+                <button
+                  type="button"
+                  onClick={() => setWann(terminZeigen ? 'sofort' : 'wunsch')}
+                  className="font-semibold text-foreground underline underline-offset-4 hover:no-underline"
+                >
+                  {terminZeigen ? t('Nummer ziehen') : t('Termin buchen')}
+                </button>
+              </>
+            )}
           </p>
         )}
       </div>
