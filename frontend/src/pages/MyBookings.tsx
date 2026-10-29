@@ -7,13 +7,12 @@ import { Button } from '@/components/ui/button';
 import type { EarlierSlotNotificationType } from '../utils/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { firestore } from '../utils/firestore-client';
-import { cancelAppointment } from '../utils/firestore';
 import { safelyConvertToDate } from '../utils/datetime';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
 import { loadUserNotifications } from '../utils/notifications';
 import { setFrueherDran } from '../utils/frueher-dran';
-import { announceToTeam } from '../utils/team-push';
+import { cancelTicket } from '../utils/ticket-key';
 import { AppointmentCard, AppointmentWithDetails, nochmalLinks } from '../components/AppointmentCard';
 import { CancelAppointmentDialog } from '../components/CancelAppointmentDialog';
 import { Ticket } from '../components/brand/Ticket';
@@ -111,8 +110,8 @@ const MyBookings = () => {
     try {
       const snap = await getDoc(doc(firestore, 'appointments', id));
       const data = snap.exists() ? snap.data() : null;
-      await cancelAppointment(id);
-      announceToTeam(id, 'cancelled');
+      // Über das Backend: gibt den Platz frei und meldet es dem Team (app/apis/nummer)
+      await cancelTicket(id, null);
       toast.success(t('Termin abgesagt.'));
       if (data?.shopId && data?.startTime) {
         useTimeSlotStore.getState().invalidateCache(data.shopId, safelyConvertToDate(data.startTime));

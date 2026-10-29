@@ -263,14 +263,15 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung 2026-10-28 (Kopfzeile `// Fassung:` in `firestore.rules`):
+Fassung 2026-10-29 (Kopfzeile `// Fassung:` in `firestore.rules`):
 - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen ohne Kontaktdaten,
   Leistungen, Pausen, Kurzfassung der Termine, Belegung, Tagesnummern).
 - Termine selbst (Name, Handynummer, E-Mail, Konto) lesen nur Inhaber, Team und das eigene Konto; E-Mail und Telefon
   der Personen im Team (`shops/{id}/staff_contacts`) nur der Inhaber.
-- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Ohne Anmeldung/als Kunde nur Nummer ziehen,
-  buchen und den eigenen Termin absagen. Eine Nummer ohne Konto zurückgeben oder übernehmen geht über das Backend,
-  mit dem Schlüssel aus dem Link der Nummernseite.
+- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Kunden (ohne Anmeldung oder mit Kunden-Konto)
+  schreiben weder Termine noch Belegung, Tagesnummern oder Kurzfassung: Nummer ziehen, buchen, Platz ändern, absagen
+  und eine Nummer ins Konto übernehmen gehen über das Backend (`backend/app/apis/nummer`), ohne Konto mit dem
+  Schlüssel aus dem Link der Nummernseite.
 - Kundenliste nur für Inhaber und Team, Profile nur für das eigene Konto, Angebote „Früher dran“ nur für das eigene.
 - Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `team_push_subscriptions`, `staff-invitations`,
   `verzeichnis` sind zu. Die Merker für Nachrichten ans Team (`teamNotice` …) am Termin setzt nur das Backend.
@@ -283,6 +284,10 @@ Start mit Fassung 2026-10-23.2: die Kurzfassungen der Termine (Log „Kurzfassun
 Umzug von E-Mail und Telefon der Personen zu den Kontaktdaten des Ladens (Log „Kontaktdaten des Teams umgezogen“).
 Fehlen sie, sieht die Nummernseite ältere Nummern nicht. Browserfenster, die seit vor dem Ausrollen offen sind (etwa
 der Tresen), nach dem Einspielen einmal neu laden.
+
+Für Fassung 2026-10-29 genauso: **erst ausrollen, dann einspielen.** Erst der neue Stand zieht Nummern und bucht über
+das Backend; mit den neuen Regeln und dem alten Stand im Browser kämen Kunden nicht mehr in die Schlange. Eine Seite
+zum Nummer-Ziehen, die seit vor dem Ausrollen offen ist, lädt beim nächsten Aufruf den neuen Stand.
 
 ### Einspielen
 

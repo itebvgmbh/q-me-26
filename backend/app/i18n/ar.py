@@ -176,6 +176,13 @@ TEXTE: dict = {
     "Dieser Laden vergibt online keine festen Termine.": "هذا المحل لا يقبل مواعيد ثابتة عبر الإنترنت.",
     "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "هذا الوقت قريب جدًا. اختر وقتًا لاحقًا من فضلك.",
     "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "تم حجز هذا الوقت للتو. اختر وقتًا آخر من فضلك.",
+    "Dieser Laden nimmt gerade keine Buchungen an.": "هذا المحل لا يستقبل حجوزات حاليًا.",
+    "Bei dieser Person geht das gerade nicht. Wähl bitte eine andere.": "هذا غير ممكن مع هذا الشخص حاليًا. اختر شخصًا آخر من فضلك.",
+    "An diesem Tag ist kein Platz mehr frei. Such dir bitte einen anderen Tag aus.": "لا توجد مواعيد متاحة في هذا اليوم. اختر يومًا آخر من فضلك.",
+    "Gerade ziehen sehr viele eine Nummer. Versuch es gleich noch einmal.": "كثيرون يأخذون رقمًا الآن. حاول مرة أخرى بعد قليل.",
+    "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "لا توجد أرقام أخرى عبر Dranzeit هذا الشهر. تعال مباشرة إلى المحل.",
+    "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "بدون تسجيل الدخول ينقص مفتاح الرقم. أعد تحميل الصفحة.",
+    "Bitte gib deinen Namen an.": "يرجى إدخال اسمك.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "هذا المحل لا يقدم إشعارات.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "الإشعارات لهذا الرقم تعمل فقط على الهاتف الذي أُخذ به الرقم، أو بحسابك.",

@@ -160,6 +160,13 @@ TEXTE: dict = {
     "Dieser Laden vergibt online keine festen Termine.": "Bu salon çevrimiçi sabit randevu vermiyor.",
     "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "Bu saat çok yakın. Lütfen daha geç bir saat seçin.",
     "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "Bu saat az önce alındı. Lütfen başka bir saat seçin.",
+    "Dieser Laden nimmt gerade keine Buchungen an.": "Bu dükkan şu anda rezervasyon almıyor.",
+    "Bei dieser Person geht das gerade nicht. Wähl bitte eine andere.": "Bu kişiyle şu anda olmuyor. Lütfen başka birini seçin.",
+    "An diesem Tag ist kein Platz mehr frei. Such dir bitte einen anderen Tag aus.": "Bu günde boş yer kalmadı. Lütfen başka bir gün seçin.",
+    "Gerade ziehen sehr viele eine Nummer. Versuch es gleich noch einmal.": "Şu anda çok kişi numara alıyor. Lütfen birazdan tekrar deneyin.",
+    "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "Bu ay Dranzeit üzerinden başka numara verilmiyor. Doğrudan dükkana gelin.",
+    "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "Giriş yapmadan numaranın anahtarı eksik. Lütfen sayfayı yenileyin.",
+    "Bitte gib deinen Namen an.": "Lütfen adınızı girin.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "Bu salon bildirim sunmuyor.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Bu numara için bildirimler yalnızca numaranın alındığı telefonda veya hesabınızla çalışır.",

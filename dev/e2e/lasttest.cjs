@@ -173,6 +173,8 @@ const api = {
   slots: (body) => http('POST', `${LIVE}/routes/available-timeslots`, { body }),
   slotFreed: (shopId, staffId, token) => http('POST', `${LIVE}/routes/slot-freed`, { body: { shop_id: shopId, staff_id: staffId }, token }),
   accept: (id, token) => http('POST', `${LIVE}/routes/accept-earlier-slot/${id}`, { body: {}, token }),
+  // Kunde sagt selbst ab (Meine Termine) – über das Backend, wie die App (backend/app/apis/nummer)
+  cancelOwn: (id, token) => http('POST', `${LIVE}/routes/nummer/absagen`, { body: { appointment_id: id }, token }),
   ping: () => http('GET', `${LIVE}/routes/push/config`, { timeout: 30000 }),
 };
 
@@ -256,7 +258,6 @@ async function anlegen(history) {
 
   // Morgen ausgebucht: 3 von 4 Terminen mit "früher dran" und Kundenkonto (reihum), der Rest Laufkundschaft
   const ownerWrites = [];
-  const customerWrites = state.customers.map(() => []);
   state.plan = [];
   dayPlan().forEach(([staff, minute, duration], i) => {
     const id = newId();
@@ -271,7 +272,8 @@ async function anlegen(history) {
         ? { customerId: state.customers[k].uid, customerName: state.customers[k].name, isAnonymous: false, checkEarlierOptions: true, checkEarlierOptionsCreatedAt: now }
         : { customerName: `Laufkunde ${i}`, isAnonymous: true, checkEarlierOptions: false }),
     };
-    (candidate ? customerWrites[k] : ownerWrites).push(...appointmentW(id, fields));
+    // Alle als Inhaber: Kunden schreiben selbst keine Termine (firestore.rules), Buchungen mit Konto legt sonst das Backend an
+    ownerWrites.push(...appointmentW(id, fields));
     state.plan.push({ id, staff, start: start.toISOString(), end: end.toISOString(), duration, candidate, customer: candidate ? k : null });
   });
   // Verlauf: alte, erledigte Termine bei Alex (las vor PR #23 jede Platzberechnung für Alex mit)
@@ -283,7 +285,6 @@ async function anlegen(history) {
       startTime: at(day, minute), endTime: at(day, minute + 30), isAnonymous: true, createdAt: now, updatedAt: now,
     }));
   }
-  for (const [k, w] of customerWrites.entries()) await commit(w, tokens[k]);
   await commit(ownerWrites, owner.idToken);
   save();
   console.log(`Angelegt: Laden ${state.shopId} auf ${LIVE}`);
@@ -747,7 +748,7 @@ async function lauf(only) {
       bot.seen.add(offer.id);
       const c = customers[offer.customer];
       // Kunde sagt seinen Termin ab (wie "Meine Termine") und tippt im selben Moment noch auf das Angebot
-      const cancelled = await cancel(offer.appointmentId, c.token);
+      const cancelled = await api.cancelOwn(offer.appointmentId, c.token);
       const ownCancel = cancelled.ok;
       if (!ownCancel) await cancel(offer.appointmentId);
       const [, acc] = await Promise.all([api.slotFreed(state.shopId, offer.staffId, c.token), api.accept(offer.id, c.token)]);

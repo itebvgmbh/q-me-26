@@ -6,8 +6,8 @@ import { inNativeApp } from './native-app';
 // Benachrichtigungen für Inhaber und Team auf diesem Gerät: Ein Kunde zieht selbst eine Nummer, bucht online oder am
 // Telefon oder sagt ab. Anmelden: backend/app/apis/team_push (für alle Läden des Kontos), Versand und Nachtruhe:
 // backend/app/libs/team_notify.py. Die Auswahl merkt sich das Gerät je Konto; bei jedem Öffnen von „Mein Tag“ meldet
-// es sich neu an (TeamPushSchalter), so stimmen Läden und Push-Adresse. Was der Kunde tut, meldet announceToTeam –
-// Einträge vom Tresen nicht.
+// es sich neu an (TeamPushSchalter), so stimmen Läden und Push-Adresse. Was der Kunde tut (Nummer ziehen, buchen,
+// absagen), meldet das Backend selbst (app/apis/nummer) – Einträge vom Tresen nicht.
 
 export type TeamEvent = 'nummer' | 'buchung' | 'absage';
 export type TeamEvents = Record<TeamEvent, boolean>;
@@ -95,11 +95,3 @@ export const stopTeamPushBeforeLogout = async () => {
   await disableTeamPush(uid).catch(() => {});
 };
 
-/**
- * Der Kunde hat eben selbst eine Nummer gezogen oder gebucht ("new") oder abgesagt ("cancelled"): Inhaber und gebuchte
- * Person bekommen Bescheid (/push/team-event). Mit Konto über die Anmeldung, ohne mit dem Schlüssel der Nummer.
- * Klappt das nicht, merkt der Kunde nichts davon.
- */
-export const announceToTeam = (appointmentId: string, kind: 'new' | 'cancelled', ticketKey?: string | null) => {
-  post('/routes/push/team-event', { appointment_id: appointmentId, kind, key: ticketKey || null }).catch(() => {});
-};

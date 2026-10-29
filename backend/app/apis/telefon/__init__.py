@@ -34,8 +34,8 @@ from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
 from app.libs.notify_worker import wake
-from app.libs.plans import PLANS, effective_plan, has_feature, is_suspended
-from app.libs.queue_notify import project_lane
+from app.libs.online_platz import MonatVoll, monatsgrenze, naechste_plaetze, vorlauf_minuten
+from app.libs.plans import has_feature, is_suspended
 from app.libs.schedule import BERLIN, Placement, aware
 from app.libs.team_notify import notice_fields
 
@@ -58,7 +58,6 @@ MAX_VORAUS_TAGE = 90    # Wünsche weiter in der Zukunft lehnt der Assistent ab
 MAX_ANZAHL = 5
 NUMMER_KANDIDATEN = 8   # Plätze zur Auswahl beim Nummer ziehen, falls der erste beim Speichern weg ist (wie im Frontend)
 NUMMER_RUNDEN = 3
-MAX_VORLAUF_MINUTEN = 24 * 60
 AENDERN_MINUTEN = 30    # so lange nach dem Anlegen ändert der Assistent einen Termin noch – im selben Gespräch
 EGAL ={"", "egal", "egal wer", "beliebig", "alle", "irgendwer", "any", "-", "null", "none"}
 
@@ -229,63 +228,23 @@ def _name(wert: str) -> str:
     return name
 
 
-def _vorlauf_minuten(shop: dict) -> int:
-    """Vorlaufzeit für Online-Termine (shops.timeSlotBuffer in Millisekunden) – wie onlineLeadMinutes, booking-rules.ts"""
-    try:
-        ms = float(shop.get("timeSlotBuffer") or 0)
-    except (TypeError, ValueError):
-        return 0
-    return min(MAX_VORLAUF_MINUTEN, round(ms / 60000)) if ms > 0 else 0
-
-
 def _monatsgrenze(db, shop_id: str, shop: dict, jetzt: datetime) -> None:
-    """Gratis-Tarif: höchstens so viele Kunden im Monat (Nummern und Termine ohne abgesagte) – wie useMonthlyUsage
-    (frontend/src/utils/plan-usage.ts), dort gibt es dann online keine Nummern mehr."""
-    grenze = PLANS[effective_plan(shop)]["max_customers_per_month"]
-    if grenze is None:
-        return
-    start = datetime(jetzt.year, jetzt.month, 1, tzinfo=BERLIN)
-    end = datetime(jetzt.year + (jetzt.month == 12), jetzt.month % 12 + 1, 1, tzinfo=BERLIN)
-    query = (db.collection("appointments").where("shopId", "==", shop_id).where("startTime", ">=", start)
-             .where("startTime", "<", end).limit(2000))
-    if sum(1 for snap in query.stream() if (snap.to_dict() or {}).get("status") != "cancelled") >= grenze:
+    """Gratis-Tarif: höchstens so viele Kunden im Monat (app/libs/online_platz.py)"""
+    try:
+        monatsgrenze(db, shop_id, shop, jetzt)
+    except MonatVoll:
         raise _Nein("monat_voll", "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Einfach direkt im Laden vorbeikommen.")
 
 
 # --- Freie Plätze -------------------------------------------------------------------------------------------------------
 
-def _hinter_der_schlange(free: list, appointments: list, jetzt: datetime) -> list:
-    """Heute zählt der Stand am Tresen: Hängt die Person hinterher, kommt eine neue Nummer hinter die Wartenden statt
-    auf eine Zeit, die schon überholt ist – wie buildDayContext mit projectAt (booking-rules.ts)."""
-    now = aware(jetzt)
-    lane = [a for a in appointments if isinstance(a.get("startTime"), datetime)
-            and aware(a["startTime"]).astimezone(BERLIN).date() == jetzt.date()]
-    windows = list(project_lane(lane, now).values())
-    return [s for s in free if not any(t.ueberschneidet(aware(s.start_time), aware(s.end_time), w0, w1) for w0, w1 in windows)]
-
-
 def _plaetze(db, shop_id: str, shop: dict, leistung: dict, personen: List[dict], jetzt: datetime,
              ab: Optional[datetime], anzahl: int, tage: int, nummer: bool) -> List[Platz]:
-    """Die nächsten freien Plätze je Person (bis anzahl Stück), zusammen nach Beginn sortiert.
+    """Die nächsten freien Plätze je Person (bis anzahl Stück), zusammen nach Beginn sortiert (app/libs/online_platz.py).
     Termine mit der Vorlaufzeit für Online-Termine, Nummern ohne Vorlauf und heute hinter der Schlange."""
-    vorlauf = 0 if nummer else _vorlauf_minuten(shop)
-    earliest = max(ab or jetzt, jetzt + timedelta(minutes=vorlauf))
-    first_day = earliest.date()
-    last_day = first_day + timedelta(days=tage - 1)
-    found: List[Platz] = []
-    for person in personen:
-        inputs = load_timeslot_inputs(db, shop_id, person["id"], [leistung["id"]], first_day, last_day)
-        mine: List[Platz] = []
-        day = first_day
-        while day <= last_day and len(mine) < anzahl:
-            slots = timeslots_for_day(inputs, leistung["id"], datetime.combine(day, time())) or []
-            free = [s for s in slots if s.is_available and s.start_time > jetzt and s.start_time >= earliest]
-            if nummer and day == jetzt.date():
-                free = _hinter_der_schlange(free, inputs.appointments, jetzt)
-            mine += [(person, s.start_time, s.end_time) for s in free[: anzahl - len(mine)]]
-            day += timedelta(days=1)
-        found += mine
-    return sorted(found, key=lambda p: (p[1], p[0]["name"].casefold()))
+    by_id = {p["id"]: p for p in personen}
+    found = naechste_plaetze(db, shop_id, shop, leistung["id"], [p["id"] for p in personen], jetzt, ab, anzahl, tage, nummer)
+    return sorted(((by_id[sid], s, e) for sid, s, e in found), key=lambda p: (p[1], p[0]["name"].casefold()))
 
 
 def _je_uhrzeit(plaetze: List[Platz], anzahl: int) -> List[Platz]:
@@ -439,7 +398,7 @@ def buchen(anfrage: BuchenAnfrage) -> dict:
         person = next((p for p in _personen(db, shop_id) if p["id"] == person_id), None)
         if person is None:
             raise _Nein("person_unbekannt", "Diese Person nimmt hier gerade keine Termine an. Bitte die freien Zeiten noch einmal abfragen.")
-        if start < jetzt + timedelta(minutes=_vorlauf_minuten(shop)) or start <= jetzt:
+        if start < jetzt + timedelta(minutes=vorlauf_minuten(shop)) or start <= jetzt:
             raise PlatzWeg("Diese Zeit ist zu kurzfristig.")
         frei = _noch_frei(db, shop_id, leistung, person_id, start)
         if frei is None:

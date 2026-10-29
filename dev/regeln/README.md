@@ -31,7 +31,8 @@ aus `fixtures.py`, ohne Entwicklungsserver).
 Grundsatz: **Lesen** bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen – aber ohne Personendaten:
 Namen, Handynummern und E-Mails liest nur, wer sie braucht (Laden, eigenes Konto). **Schreiben** darf nur, wer zum
 Laden gehört – der Inhaber (`shops.owner`) oder eine Person im Team (Vermerk `shops/{shopId}/members/{uid}`, setzt
-das Backend: `backend/app/libs/team.py`). Ohne Anmeldung und als Kunde nur genau das, was die App dort tut.
+das Backend: `backend/app/libs/team.py`). Kunden schreiben nichts an Terminen: Nummer ziehen, buchen, Platz ändern
+und absagen gehen über das Backend (`backend/app/apis/nummer`), das den Platz nach den Regeln prüft.
 
 **Tarif-Felder am Laden** (`shops`): `plan`, `billing`, `trialEndsAt`, `founder`, `founderSince`, `grant`,
 `suspended` setzt nur das Backend (Stripe-Webhook, `/billing/claim-founder`, Betreiber-Bereich). Dazu `owner` und
@@ -45,24 +46,23 @@ das Backend: `backend/app/libs/team.py`). Ohne Anmeldung und als Kunde nur genau
   `deleted_shops/{id}` im selben Schritt; unter dieser ID lässt sich danach kein Laden mehr anlegen.
 
 **Termine** (`appointments`): lesen nur Inhaber und Team (der ganze Laden) und das eigene Konto (`customerId`) – am
-Termin stehen Name, Handynummer, E-Mail für Benachrichtigungen und Konto. Anlegen darf das Team alles im eigenen
-Laden; ohne Anmeldung nur eine Nummer ohne Konto (`isAnonymous`, `type: 'queue'`, mit `ticketKeyHash`), mit Konto nur
-für sich selbst (`customerId` = eigenes Konto) – beides nur wartend, ohne Aufruf- oder Nachrichtenfelder, bei einer
-Person dieses Ladens und nicht in einem gesperrten Laden. Ändern darf das Team; absagen (nur der Status, wartend →
-abgesagt) das eigene Konto. Eine Nummer ohne Konto zurückgeben oder ins Konto übernehmen geht nur übers Backend
-(`backend/app/apis/nummer`): Es prüft den Schlüssel aus dem Link der Nummernseite (`/nummer/<id>#k=…`), am Termin
-steht nur dessen SHA-256 (`frontend/src/utils/ticket-key.ts`).
+Termin stehen Name, Handynummer, E-Mail für Benachrichtigungen und Konto. Anlegen und ändern darf nur der Laden
+(Inhaber, Team) im eigenen Laden. Kunden – ohne Anmeldung oder mit Kunden-Konto – ziehen Nummern, buchen, verschieben
+und sagen ab über das Backend (`backend/app/apis/nummer`): Es prüft den Platz nach den Regeln (Öffnungs- und
+Arbeitszeiten, Pausen, Vorlauf, Tarif, gesperrter Laden) und schreibt Termin, Belegung, Tagesnummer und Kurzfassung in
+einer Transaktion. Ohne Konto zählt der Schlüssel aus dem Link der Nummernseite (`/nummer/<id>#k=…`), am Termin steht
+nur dessen SHA-256 (`frontend/src/utils/ticket-key.ts`).
 
 **Kurzfassung der Termine** (`public_appointments/{Termin-ID}`): Zeit, Person, Leistung, Status, Wartenummer,
 Aufrufzeiten, dazu `staffDay`/`shopDay` (`{Person}_{Tag}`, `{Laden}_{Tag}`) für Abfragen ohne eigenen Index – das, was
-Platzsuche, Nummernseite und Wartezimmer-Bildschirm ohne Anmeldung lesen. Schreiben darf sie jeder, aber nur als genaue
-Kopie des Termins nach dem Schreibschritt (App: in derselben Transaktion; Backend gleicht laufend ab,
+Platzsuche, Nummernseite und Wartezimmer-Bildschirm ohne Anmeldung lesen. Schreiben darf sie der Laden, und nur als
+genaue Kopie des Termins nach dem Schreibschritt (App: in derselben Transaktion; Backend gleicht laufend ab,
 `backend/app/libs/public_appointments.py`); löschen nur, wenn es den Termin nicht mehr gibt.
 
 **Belegung** (`schedules/{staffId}_{Tag}`) und **Tagesnummern** (`shop_days/{shopId}_{Tag}`) schreibt jede Buchung in
-derselben Transaktion mit, auch ohne Anmeldung: nur in der festen Form, nur für eine Person dieses Ladens; Nummern
-werden angehängt (ohne Vergleich mit dem Stand davor – sonst lehnen die Regeln im Ansturm ab, statt die
-Transaktion neu anlaufen zu lassen).
+derselben Transaktion mit – im Browser nur der Laden, für Kunden das Backend: nur in der festen Form, nur für eine
+Person dieses Ladens; Nummern werden angehängt (ohne Vergleich mit dem Stand davor – sonst lehnen die Regeln im
+Ansturm ab, statt die Transaktion neu anlaufen zu lassen).
 
 **Personen, Leistungen, Pausen**: pflegt der Inhaber, nur im eigenen Laden. Ein Konto verbindet mit einer Person nur
 das Backend (Einladung); der Inhaber nur sich selbst. Die Person selbst ändert nur ihre Arbeitszeiten. E-Mail, Telefon
@@ -76,16 +76,16 @@ Löschen macht das Backend. **Profile** (`users`): nur das eigene. **Angebote �
 `team_push_subscriptions` (Geräte des Teams für Nachrichten über Kunden),
 `staff-invitations`, `verzeichnis` und jede Sammlung, die in den Regeln nicht vorkommt.
 
-## Wer liest und schreibt was (Fassung 2026-10-28)
+## Wer liest und schreibt was (Fassung 2026-10-29)
 
 | Sammlung | Ohne Anmeldung | Kunde | Inhaber | Team |
 |---|---|---|---|---|
 | `shops` | lesen | lesen | anlegen, ändern (ohne Tarif-Felder) | lesen |
 | `shops/{id}/members` | – | – | wegnehmen, zurückholen | – |
 | `shops/{id}/staff_contacts` | – | – | lesen, pflegen (ohne `inviteEmailTo`) | – |
-| `appointments` | Nummer ohne Konto ziehen | eigene lesen, für sich buchen, eigene absagen | alles im Laden | alles im Laden |
-| `public_appointments` | lesen, als genaue Kopie mitschreiben | ebenso | ebenso | ebenso |
-| `schedules`, `shop_days` | in der Buchung mitschreiben | ebenso | ebenso | ebenso |
+| `appointments` | – (Backend) | eigene lesen (buchen, absagen: Backend) | alles im Laden | alles im Laden |
+| `public_appointments` | lesen | lesen | als genaue Kopie mitschreiben | ebenso |
+| `schedules`, `shop_days` | lesen | lesen | in der Buchung mitschreiben | ebenso |
 | `staff` | lesen (ohne Kontaktdaten) | lesen | anlegen, ändern | eigene Arbeitszeiten |
 | `services`, `breaks`, `recurring-breaks` | lesen | lesen | anlegen, ändern, löschen | lesen |
 | `customers` | – | – | lesen, anlegen | lesen, anlegen |

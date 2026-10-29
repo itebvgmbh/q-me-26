@@ -258,7 +258,6 @@ const texte: Texte = {
 
   // utils/hooks/useAppointmentBooking.ts
   "Dein Termin ist gebucht.": "تم حجز موعدك.",
-  "Diese Uhrzeit geht leider nicht: {grund} Such dir bitte eine andere aus.": "للأسف هذا الوقت غير ممكن: {grund} اختر وقتًا آخر من فضلك.",
 
   // utils/hooks/useBookingState.ts
   "Es wurde noch kein freier Platz gefunden. Warte kurz oder wähl eine andere Person.": "لم يتم العثور على مكان متاح بعد. انتظر قليلًا أو اختر شخصًا آخر.",

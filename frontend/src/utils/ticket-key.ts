@@ -83,8 +83,12 @@ const post = async <T = unknown>(path: string, body: unknown, withAuth = false):
 /** 409 vom Backend: Platz inzwischen weg oder zu kurzfristig – neue Zeit aussuchen lassen */
 export const isTaken = (error: unknown) => (error as { status?: number } | null)?.status === 409;
 
-/** Nummer ohne Konto zurückgeben (Nummernseite) */
-export const cancelTicket = (appointmentId: string, key: string) => post('nummer/absagen', { appointment_id: appointmentId, key });
+/**
+ * Nummer zurückgeben oder Termin absagen (Nummernseite, Meine Termine): ohne Konto mit dem Schlüssel der Nummer, sonst
+ * als angemeldetes Konto. Das Backend gibt den Platz frei und meldet es dem Team.
+ */
+export const cancelTicket = (appointmentId: string, key: string | null) =>
+  post('nummer/absagen', { appointment_id: appointmentId, ...(key ? { key } : {}) }, !key);
 
 /** Nummer ohne Konto ins angemeldete Konto übernehmen (AnonymousBookingLinker) */
 export const claimTicket = (appointmentId: string, key: string) =>
@@ -116,6 +120,82 @@ export const bookWithoutAccount = async (booking: {
   });
   rememberTicketKey(result.appointment_id, ticketKey);
   return { appointmentId: result.appointment_id, ticketKey };
+};
+
+/** Fester Termin mit Konto (backend/app/apis/nummer): Name und Handynummer nimmt das Backend aus dem Profil */
+export const bookWithAccount = (booking: {
+  shopId: string;
+  serviceId: string;
+  staffIds: string[];
+  start: Date;
+  language: string;
+  checkEarlier: boolean;
+}) =>
+  post<{ appointment_id: string }>(
+    'nummer/termin',
+    {
+      shop_id: booking.shopId,
+      service_id: booking.serviceId,
+      staff_ids: booking.staffIds,
+      start: booking.start.toISOString(),
+      language: booking.language,
+      check_earlier: booking.checkEarlier,
+    },
+    true,
+  ).then((result) => ({ appointmentId: result.appointment_id }));
+
+export interface PulledNumber {
+  appointmentId: string;
+  referenceCode?: string;
+  staffId: string;
+  start: Date;
+  end: Date;
+  /** Ohne Konto: Schlüssel für den Link der Nummernseite */
+  ticketKey?: string;
+}
+
+/**
+ * Nummer ziehen (backend/app/apis/nummer), mit oder ohne Konto: frühester freier Platz bei staffIds („Egal wer“: bei
+ * der schnellsten Person), heute hinter der Schlange, sonst am Tag des angezeigten Platzes. Ist er beim Speichern
+ * schon weg, nimmt das Backend den nächsten. Ohne Konto bleibt der Schlüssel hier und im Link, ans Backend geht nur
+ * sein Hash.
+ */
+export const pullNumber = async (pull: {
+  shopId: string;
+  serviceId: string;
+  staffIds: string[];
+  shownStart: Date;
+  signedIn: boolean;
+  name?: string;
+  phone?: string;
+  language: string;
+  checkEarlier: boolean;
+}): Promise<PulledNumber> => {
+  const ticketKey = pull.signedIn ? undefined : newTicketKey();
+  const result = await post<{ appointment_id: string; reference_code?: string; staff_id: string; start: string; end: string }>(
+    'nummer/ziehen',
+    {
+      shop_id: pull.shopId,
+      service_id: pull.serviceId,
+      staff_ids: pull.staffIds,
+      start: pull.shownStart.toISOString(),
+      ...(ticketKey ? { key_hash: await hashTicketKey(ticketKey) } : {}),
+      ...(pull.name ? { name: pull.name } : {}),
+      ...(pull.phone ? { phone: pull.phone } : {}),
+      language: pull.language,
+      check_earlier: pull.checkEarlier,
+    },
+    pull.signedIn,
+  );
+  if (ticketKey) rememberTicketKey(result.appointment_id, ticketKey);
+  return {
+    appointmentId: result.appointment_id,
+    referenceCode: result.reference_code,
+    staffId: result.staff_id,
+    start: new Date(result.start),
+    end: new Date(result.end),
+    ticketKey,
+  };
 };
 
 /**

@@ -229,7 +229,6 @@ const texte: Texte = {
 
   // utils/hooks/useAppointmentBooking.ts
   "Dein Termin ist gebucht.": "Randevunuz alındı.",
-  "Diese Uhrzeit geht leider nicht: {grund} Such dir bitte eine andere aus.": "Maalesef bu saat olmuyor: {grund} Lütfen başka bir saat seçin.",
 
   // utils/hooks/useBookingState.ts
   "Es wurde noch kein freier Platz gefunden. Warte kurz oder wähl eine andere Person.": "Henüz boş yer bulunamadı. Biraz bekleyin veya başka bir kişi seçin.",

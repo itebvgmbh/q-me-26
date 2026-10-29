@@ -238,8 +238,9 @@ def test_zurueckgeben_ohne_passenden_schluessel_abgelehnt():
             assert store["appointments"]["t1"]["status"] == "scheduled"
     r = nummer_client(store_with()).post("/routes/nummer/absagen", json={"appointment_id": "gibtsnicht", "key": KEY})
     assert r.status_code == 404
+    # Ohne Schlüssel und ohne Anmeldung: nicht erlaubt (mit Konto: tests/test_nummer_ziehen.py)
     r = nummer_client(store_with()).post("/routes/nummer/absagen", json={"appointment_id": "t1"})
-    assert r.status_code == 422
+    assert r.status_code == 403
 
 
 def test_schon_dran_nicht_zurueckgeben():

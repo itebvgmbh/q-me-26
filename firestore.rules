@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
-// Fassung: 2026-10-28 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+// Fassung: 2026-10-29 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
 //
 // Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
 // Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
@@ -10,7 +10,7 @@ rules_version = '2';
 // arbeitet mit dem Admin SDK (Dienstkonto) und ist von ihnen nicht betroffen: Stripe-Webhook, Gründerplatz,
 // Betreiber-Bereich, Benachrichtigungen und Aufräumen dürfen weiter alles.
 //
-// Grundsatz (Stand 23.10.2026, wer was liest und schreibt: dev/regeln/README.md):
+// Grundsatz (Stand 29.10.2026, wer was liest und schreibt: dev/regeln/README.md):
 //  - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen: Läden, Personen (ohne Kontaktdaten),
 //    Leistungen, Pausen, die öffentliche Kurzfassung der Termine (freie Plätze, Schlange, Wartezimmer-Bildschirm),
 //    Belegung und Tagesnummern.
@@ -18,9 +18,9 @@ rules_version = '2';
 //    Konto, die Kundenliste Inhaber und Team, Kontaktdaten der Personen nur der Inhaber, Profile nur das eigene Konto.
 //  - Schreiben darf nur, wer zum Laden gehört: der Inhaber (shops.owner) oder eine Person im Team. Team heißt:
 //    Vermerk shops/{shopId}/members/{uid}, den das Backend beim Annehmen der Einladung setzt.
-//  - Ohne Anmeldung und als Kunde nur, was die App dort tut: eine Nummer ziehen oder buchen, als Kunde den eigenen
-//    Termin absagen – und dabei Kurzfassung, Belegung und Tagesnummern fortschreiben. Eine Nummer ohne Konto
-//    zurückgeben oder ins Konto übernehmen geht über das Backend, mit dem Schlüssel aus dem Link der Nummernseite.
+//  - Kunden (ohne Anmeldung oder mit Kunden-Konto) schreiben weder Termine noch Kurzfassung, Belegung oder
+//    Tagesnummern. Nummer ziehen, buchen, Platz ändern, absagen und eine Nummer ins Konto übernehmen gehen über das
+//    Backend (backend/app/apis/nummer): Es prüft den Platz nach den Regeln und schreibt alles in einer Transaktion.
 //  - Die Tarif-Felder am Laden setzt nur das Backend. Sammlungen, die nur das Backend braucht, sind zu.
 
 service cloud.firestore {
@@ -59,10 +59,6 @@ service cloud.firestore {
       return staffId is string && get(docPath('staff', staffId)).data.shopId == shopId;
     }
 
-    // Laden nicht gesperrt (Betreiber-Bereich): für Kunden nichts mehr buchbar
-    function notSuspended(shopId) {
-      return get(docPath('shops', shopId)).data.get('suspended', null) == null;
-    }
 
     function changed() {
       return request.resource.data.diff(resource.data).affectedKeys();
@@ -161,35 +157,6 @@ service cloud.firestore {
     // public_appointments (unten).
     // ------------------------------------------------------------------------------------------------------------
 
-    // Was nur Laden und Backend an einen Termin schreiben (Aufrufen, Fertig, Nachricht an den Kunden oder ans Team …).
-    // Die Merker team… setzt nur das Backend (backend/app/libs/team_notify.py), auch für Nummern ohne Konto.
-    function shopOnlyFields() {
-      return ['calledAt', 'lastCalledAt', 'completedAt', 'noShow', 'notifiedCalledAt', 'notifyEmail',
-              'customerNotice', 'customerNoticeAt', 'customerNoticePreviousStart',
-              'teamNotice', 'teamNoticeAt', 'teamNewAt', 'teamCancelledAt', 'teamNoticeSentAt'];
-    }
-
-    // Nummer ohne Konto (Nummer ziehen ohne Anmeldung, QueueBookingService) – mit dem Hash ihres Schlüssels, den nur
-    // der Browser und der Link der Nummernseite kennen (utils/ticket-key.ts). Mit ihm gibt das Backend die Nummer
-    // zurück oder übernimmt sie ins Konto (app/apis/nummer).
-    function anonymousTicket(d) {
-      return d.get('isAnonymous', false) == true && !('customerId' in d)
-        && d.type == 'queue' && d.status == 'scheduled'
-        && d.get('ticketKeyHash', null) is string && d.ticketKeyHash.matches('[0-9a-f]{64}');
-    }
-
-    // Nummer oder Termin für das eigene Konto (Nummer ziehen, Termin buchen)
-    function ownBooking(d) {
-      return signedIn() && d.get('customerId', '') == request.auth.uid && d.get('isAnonymous', false) == false
-        && d.type in ['queue', 'booked'] && d.status == 'scheduled';
-    }
-
-    // Absagen: nur der Status, von wartend auf abgesagt (eigener Termin: Nummernseite, Meine Termine)
-    function cancelOnly() {
-      return changed().hasOnly(['status', 'updatedAt'])
-        && resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled';
-    }
-
     function ownAppointment() {
       return signedIn() && resource.data.get('customerId', '') == request.auth.uid;
     }
@@ -197,15 +164,11 @@ service cloud.firestore {
     match /appointments/{id} {
       allow read: if ownAppointment() || isTeam(resource.data.shopId);
 
-      allow create: if request.resource.data.shopId is string && (
-          isTeam(request.resource.data.shopId)
-          || ((anonymousTicket(request.resource.data) || ownBooking(request.resource.data))
-              && !request.resource.data.keys().hasAny(shopOnlyFields())
-              && staffInShop(request.resource.data.staffId, request.resource.data.shopId)
-              && notSuspended(request.resource.data.shopId)));
+      // Anlegen und ändern nur der Laden (Tresen, Kalender, Mein Tag). Kunden ziehen, buchen, verschieben und sagen ab
+      // über das Backend (app/apis/nummer), das dabei auch die Nachricht ans Team vormerkt.
+      allow create: if request.resource.data.shopId is string && isTeam(request.resource.data.shopId);
 
-      allow update: if request.resource.data.shopId == resource.data.shopId && (
-          isTeam(resource.data.shopId) || (cancelOnly() && ownAppointment()));
+      allow update: if request.resource.data.shopId == resource.data.shopId && isTeam(resource.data.shopId);
 
       // Die App löscht keine Termine (Absagen ist ein Status); Testskripte räumen ihren Laden auf
       allow delete: if ownsShop(resource.data.shopId);
@@ -213,8 +176,9 @@ service cloud.firestore {
 
     // Öffentliche Kurzfassung eines Termins (public_appointments/{Termin-ID}): Zeit, Person, Leistung, Status, Nummer,
     // Aufrufe – keine Namen, Kontakte oder Konten (utils/firestore/public-appointments.ts, im Backend
-    // app/libs/public_appointments.py). Lesen alle. Schreiben darf sie, wer den Termin schreibt, im selben Schritt,
-    // und nur als genaue Kopie des Termins danach; staffDay/shopDay ({Person}_{Tag}, {Laden}_{Tag}) für die Abfragen.
+    // app/libs/public_appointments.py). Lesen alle. Schreiben darf sie, wer den Termin schreibt (Laden), im selben
+    // Schritt, und nur als genaue Kopie des Termins danach; staffDay/shopDay ({Person}_{Tag}, {Laden}_{Tag}) für die
+    // Abfragen.
     function publicFields() {
       return ['shopId', 'staffId', 'serviceId', 'type', 'status', 'startTime', 'endTime', 'referenceCode', 'isAnonymous',
               'calledAt', 'lastCalledAt', 'completedAt'];
@@ -240,12 +204,14 @@ service cloud.firestore {
 
     match /public_appointments/{id} {
       allow read: if true;
-      allow create, update: if existsAfter(docPath('appointments', id)) && publicCopy(id, request.resource.data);
-      allow delete: if !existsAfter(docPath('appointments', id));
+      allow create, update: if isTeam(request.resource.data.get('shopId', null))
+        && existsAfter(docPath('appointments', id)) && publicCopy(id, request.resource.data);
+      allow delete: if isTeam(resource.data.get('shopId', null)) && !existsAfter(docPath('appointments', id));
     }
 
     // Belegung je Person und Tag (schedules/{staffId}_{Tag}): wird in jeder Buchung, Absage und Änderung in derselben
-    // Transaktion mitgeschrieben, auch ohne Anmeldung. Nur in der festen Form und nur für eine Person dieses Ladens.
+    // Transaktion mitgeschrieben – im Browser nur vom Laden (Tresen, Kalender), für Kunden vom Backend. Nur in der
+    // festen Form und nur für eine Person dieses Ladens.
     function validSchedule(id, d) {
       return d.keys().hasOnly(['shopId', 'staffId', 'day', 'slots', 'updatedAt'])
         && d.day is string && d.slots is map && id == d.staffId + '_' + d.day
@@ -254,13 +220,14 @@ service cloud.firestore {
 
     match /schedules/{id} {
       allow read: if true;
-      allow create: if validSchedule(id, request.resource.data);
-      allow update: if validSchedule(id, request.resource.data)
+      allow create: if isTeam(request.resource.data.get('shopId', null)) && validSchedule(id, request.resource.data);
+      allow update: if isTeam(request.resource.data.get('shopId', null)) && validSchedule(id, request.resource.data)
         && request.resource.data.shopId == resource.data.shopId && request.resource.data.staffId == resource.data.staffId;
       allow delete: if ownsShop(resource.data.shopId);
     }
 
-    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer wird angehängt; nur in der festen Form
+    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer wird angehängt; nur in der festen Form,
+    // im Browser nur vom Laden (Nummer vergeben am Tresen), für Kunden vom Backend
     function validShopDay(id, d) {
       return d.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
         && d.day is string && d.codes is list && id == d.shopId + '_' + d.day
@@ -272,9 +239,10 @@ service cloud.firestore {
       // Kein Vergleich mit dem bisherigen Inhalt (z. B. „genau eine Nummer mehr“): Ziehen zwei gleichzeitig, prüfen die
       // Regeln den Schreibschritt des Zweiten gegen den schon neueren Stand und lehnen ab, statt dass die Transaktion
       // wie vorgesehen neu anläuft (dev/e2e/gleichzeitig.cjs, Nummer ziehen im Ansturm).
-      allow create: if validShopDay(id, request.resource.data) && request.resource.data.codes.size() >= 1;
-      allow update: if validShopDay(id, request.resource.data) && request.resource.data.shopId == resource.data.shopId
+      allow create: if isTeam(request.resource.data.get('shopId', null)) && validShopDay(id, request.resource.data)
         && request.resource.data.codes.size() >= 1;
+      allow update: if isTeam(request.resource.data.get('shopId', null)) && validShopDay(id, request.resource.data)
+        && request.resource.data.shopId == resource.data.shopId && request.resource.data.codes.size() >= 1;
       allow delete: if ownsShop(resource.data.shopId);
     }
 
