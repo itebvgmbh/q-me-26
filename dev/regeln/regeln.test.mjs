@@ -331,7 +331,8 @@ describe('Ohne Anmeldung: Läden finden, buchen, Nummer ziehen', () => {
     await seedShop();
     const db = anon();
     await assertFails(drawNumber(db, anonTicket()));
-    const first = await backend((admin) => drawNumber(admin, anonTicket()));
+    let first;
+    await backend(async (admin) => { first = await drawNumber(admin, anonTicket()); });
     await assertFails(drawNumber(db, anonTicket({ customerName: 'Gast 2' }), 'B07'));
     await assertFails(cancel(db, first.id));
     await assertFails(getDoc(doc(db, 'appointments', first.id)));
