@@ -239,6 +239,7 @@ const texte: Texte = {
   "Such dir Tag und Uhrzeit selbst aus.": "Pick the day and time yourself.",
   "Lieber eine feste Uhrzeit?": "Rather a fixed time?",
   "Lieber so früh wie möglich?": "Rather as soon as possible?",
+  "Dauer": "Duration",
 };
 
 export default texte;

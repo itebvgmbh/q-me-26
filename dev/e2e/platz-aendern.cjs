@@ -14,11 +14,11 @@ const freeSlots = async (page, scope) => {
   return slots;
 };
 
-/** „Wann“ und „Um“ der Nummernseite, z. B. "Heute 16:30" (Beschriftung in Großbuchstaben, so liefert sie auch innerText) */
+/** „Wann“ und die große Uhrzeit auf der Marke, z. B. "Heute 16:30" (Beschriftung in Großbuchstaben, so liefert sie auch innerText) */
 const shownTime = async (page) => {
   const text = await page.locator('main').innerText();
   const when = text.match(/^Wann\s+(.+)$/im)?.[1]?.trim() ?? '';
-  const at = text.match(/^Um\s+(\d{2}:\d{2})/im)?.[1] ?? '';
+  const at = ((await page.locator('main bdi').first().innerText().catch(() => '')).match(/^\d{2}:\d{2}$/) ?? [''])[0];
   return `${when} ${at}`.trim();
 };
 

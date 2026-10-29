@@ -174,8 +174,19 @@ export default function Nummer() {
   }
 
   const open = appt.status === 'scheduled' || appt.status === 'in-progress';
-  const number = appt.referenceCode || '—';
   const isQueue = appt.type !== 'booked';
+  // Fester Termin: groß die Uhrzeit wie in „Meine Termine“. Eine Tagesnummer haben nur Termine ohne Konto (zum Melden
+  // am Tresen); sonst steht darunter die Dauer.
+  const end = appt.endTime ? safelyConvertToDate(appt.endTime) : null;
+  const minutes = end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
+  const terminStats = [
+    { label: t('Wann'), value: dayLabel(start) },
+    appt.referenceCode
+      ? { label: t('Nummer'), value: appt.referenceCode }
+      : minutes > 0
+        ? { label: t('Dauer'), value: t('{minuten} Min', { minuten: minutes }) }
+        : null,
+  ].filter((s): s is { label: string; value: string } => s !== null);
   // Heute die nachgerechnete ca.-Zeit, sonst die gebuchte
   const shownTime = isQueue && isToday(start) && expected ? expected : start;
   // Ohne Konto mit dem Schlüssel über das Backend, mit Konto direkt (die Regeln lassen nur den eigenen Termin zu)
@@ -227,14 +238,16 @@ export default function Nummer() {
         size="lg"
         eyebrow={isQueue ? t('Deine Nummer') : t('Dein Termin')}
         eyebrowRight={[names.service, names.staff].filter(Boolean).join(' · ')}
-        number={number}
+        number={isQueue ? appt.referenceCode || '—' : format(start, 'HH:mm')}
         stats={
-          appt.status === 'scheduled'
-            ? [
-                isToday(start) && isQueue ? { label: t('Vor dir'), value: String(ahead) } : { label: t('Wann'), value: dayLabel(start) },
-                { label: isQueue ? t('Dran um ca.') : t('Um'), value: format(shownTime, 'HH:mm') },
-              ]
-            : []
+          appt.status !== 'scheduled'
+            ? []
+            : isQueue
+              ? [
+                  isToday(start) ? { label: t('Vor dir'), value: String(ahead) } : { label: t('Wann'), value: dayLabel(start) },
+                  { label: t('Dran um ca.'), value: format(shownTime, 'HH:mm') },
+                ]
+              : terminStats
         }
       />
 

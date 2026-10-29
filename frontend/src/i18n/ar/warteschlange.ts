@@ -260,6 +260,7 @@ const texte: Texte = {
   "Such dir Tag und Uhrzeit selbst aus.": "اختر اليوم والوقت بنفسك.",
   "Lieber eine feste Uhrzeit?": "تفضّل وقتًا محددًا؟",
   "Lieber so früh wie möglich?": "تفضّل أقرب وقت ممكن؟",
+  "Dauer": "المدة",
 };
 
 export default texte;
