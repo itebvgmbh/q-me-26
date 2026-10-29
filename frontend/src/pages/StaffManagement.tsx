@@ -9,6 +9,7 @@ import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
 import { effectivePlan } from '../utils/plans';
+import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { t, tn, tTeile } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
 
@@ -40,9 +41,10 @@ const StaffManagement = () => {
       try {
         const userShops = await getShopsByOwnerId(user.uid);
         setShops(userShops);
-        if (userShops.length > 0) {
-          setSelectedShop(userShops[0]);
-          await loadShopData(userShops[0].id);
+        const first = waehleLaden(userShops);
+        if (first) {
+          setSelectedShop(first);
+          await loadShopData(first.id);
         }
       } catch (error) {
         console.error('Error loading shops:', error);
@@ -57,6 +59,7 @@ const StaffManagement = () => {
     const shop = shops.find((s) => s.id === shopId);
     if (shop) {
       setSelectedShop(shop);
+      merkeLaden(shop.id);
       await loadShopData(shop.id);
     }
   };

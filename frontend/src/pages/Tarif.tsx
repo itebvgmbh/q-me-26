@@ -10,6 +10,7 @@ import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { HilfeLink } from '../components/HilfeLink';
 import { firestore } from '../utils/firestore-client';
 import { getShopsByOwnerId, getStaffByShopId, type Shop } from '../utils/firestore';
+import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { safelyConvertToDate } from '../utils/datetime';
 import { claimFounder, getFoundersLeft, openPortal, startCheckout, type Interval } from '../utils/billing';
 import { countCustomersThisMonth } from '../utils/plan-usage';
@@ -37,10 +38,14 @@ export default function Tarif() {
     if (!user) return;
     getShopsByOwnerId(user.uid).then((list) => {
       setShops(list);
-      setShopId((current) => current || list[0]?.id || '');
+      setShopId((current) => current || waehleLaden(list)?.id || '');
     });
     getFoundersLeft().then(setFoundersLeft);
   }, [user]);
+
+  useEffect(() => {
+    if (shopId) merkeLaden(shopId);
+  }, [shopId]);
 
   // Live: nach der Bezahlung schreibt der Stripe-Webhook den neuen Stand an den Laden
   useEffect(() => {
