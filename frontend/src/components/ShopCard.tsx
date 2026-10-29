@@ -4,6 +4,7 @@ import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Shop, Service } from '../utils/firestore/types';
+import { hasFeature } from '../utils/plans';
 import { t, intlSprache } from '@/i18n';
 
 export interface ShopCardProps {
@@ -20,7 +21,7 @@ const formatAddress = (shop: Shop) =>
     ? [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
     : shop.address || '';
 
-/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen */
+/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen (nur, wenn der Tarif Online-Termine hat) */
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm }) => {
   const address = formatAddress(shop);
   const dark = tone === 'dark';
@@ -66,13 +67,15 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
         <Button variant={dark ? 'signal' : 'default'} className="flex-1" asChild>
           <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
         </Button>
-        <Button
-          variant="outline"
-          className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
-          asChild
-        >
-          <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
-        </Button>
+        {hasFeature(shop, 'termine') && (
+          <Button
+            variant="outline"
+            className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
+            asChild
+          >
+            <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+          </Button>
+        )}
       </div>
     </article>
   );

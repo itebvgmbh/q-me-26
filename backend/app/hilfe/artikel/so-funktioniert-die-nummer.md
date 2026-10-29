@@ -17,9 +17,9 @@ Du scannst den QR-Code im Laden, wählst, was gemacht werden soll, und ziehst ei
 
 ![Nach dem Scannen wählst du, was du machen lassen willst.](/img/hilfe/kunde-leistung.jpg)
 
-Lieber eine feste Uhrzeit? Bietet der Laden Termine an, wähl dort statt **„So früh wie möglich“** die **„Wunschzeit“**, such dir Tag und Uhrzeit aus und tipp auf **„Termin buchen“**. Auch dafür brauchst du kein Konto.
+Lieber eine feste Uhrzeit? Bietet der Laden Termine an, tipp oben unter der Überschrift auf **„Termin buchen“** oder wähl im letzten Schritt statt **„So früh wie möglich“** die **„Wunschzeit“**. Such dir Tag und Uhrzeit aus und tipp auf **„Termin buchen“**. Auch dafür brauchst du kein Konto.
 
-Kein QR-Code zur Hand? Tipp auf dranzeit.de im Menü auf **„Nummer ziehen“** und wähl deinen Laden.
+Kein QR-Code zur Hand? Tipp auf dranzeit.de im Menü auf **„Nummer ziehen“** oder **„Termin buchen“** und wähl deinen Laden.
 
 ## Während du wartest
 

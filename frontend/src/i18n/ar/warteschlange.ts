@@ -256,8 +256,10 @@ const texte: Texte = {
   "Termin · {zeit}": "موعد · {zeit}",
   "Tag und Uhrzeit selbst aussuchen": "اختر اليوم والساعة بنفسك",
   "Lieber eine andere Zeit?": "تفضّل وقتًا آخر؟",
-  "Such dir eine feste Uhrzeit aus. Lieber so früh wie möglich? Das kannst du im letzten Schritt wählen.": "اختر وقتًا ثابتًا. تفضّل أقرب وقت ممكن؟ يمكنك اختيار ذلك في الخطوة الأخيرة.",
-  "Wir suchen dir den nächsten freien Platz. Eine feste Uhrzeit kannst du im letzten Schritt wählen.": "نجد لك أقرب مكان متاح. يمكنك اختيار وقت ثابت في الخطوة الأخيرة.",
+  "Wir suchen dir den nächsten freien Platz.": "نبحث لك عن أقرب مكان متاح.",
+  "Such dir Tag und Uhrzeit selbst aus.": "اختر اليوم والوقت بنفسك.",
+  "Lieber eine feste Uhrzeit?": "تفضّل وقتًا محددًا؟",
+  "Lieber so früh wie möglich?": "تفضّل أقرب وقت ممكن؟",
 };
 
 export default texte;

@@ -15,6 +15,7 @@ export const SiteFooter = () => {
         <nav aria-label={t('Fußzeile')} className="flex flex-wrap gap-x-6 text-sm text-muted-foreground [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center">
           <Link to="/shop-map" className="hover:text-foreground">{t('Läden finden')}</Link>
           <Link to="/public-join-queue" className="hover:text-foreground">{t('Nummer ziehen')}</Link>
+          <Link to="/book-appointment" className="hover:text-foreground">{t('Termin buchen')}</Link>
           <Link to="/features" className="hover:text-foreground">{t('Für Läden')}</Link>
           {!inStoreApp() && <Link to="/preise" className="hover:text-foreground">{t('Preise')}</Link>}
           <a href="/hilfe" className="hover:text-foreground">{t('Hilfe')}</a>
