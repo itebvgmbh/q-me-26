@@ -75,6 +75,10 @@ run(async () => {
       await page.getByText('Dein Termin ist gebucht.').waitFor({ timeout: 30000 });
       return new URL(page.url()).pathname.split('/').pop();
     });
+    // Termin mit Konto hat keine Tagesnummer: groß steht die Uhrzeit, darunter Tag und Dauer (kein „—“)
+    const groß = (await page.locator('main bdi').first().innerText().catch(() => '')).trim();
+    const dauer = (await page.locator('main').innerText()).match(/^Dauer\s+(\d+ Min)/im)?.[1] ?? '';
+    check('Mit Konto: Marke zeigt Uhrzeit und Dauer', /^\d{2}:\d{2}$/.test(groß) && !!dauer, `${groß} · ${dauer}`);
     await shot(page, 'kunde-mit-konto-termin');
     await step('Mit Konto: Termin absagen', () => cancelHere(page, false));
   } finally {

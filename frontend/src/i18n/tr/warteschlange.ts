@@ -239,6 +239,7 @@ const texte: Texte = {
   "Such dir Tag und Uhrzeit selbst aus.": "Günü ve saati kendiniz seçin.",
   "Lieber eine feste Uhrzeit?": "Sabit bir saat mi tercih edersiniz?",
   "Lieber so früh wie möglich?": "En kısa sürede mi tercih edersiniz?",
+  "Dauer": "Süre",
 };
 
 export default texte;
