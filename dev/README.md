@@ -45,6 +45,7 @@ node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Fil
 node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis (suchen, anlegen, bearbeiten, veröffentlichen, Übernahme) und graue Salons auf der Karte (Backend und Anmeldung nachgebildet, keine Testdaten nötig)
 node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
 node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
+node dev/e2e/bilder-hochladen.cjs           # Logo und Foto im Testladen hochladen, ansehen, löschen (Speicher-Regeln, deploy/README.md)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)

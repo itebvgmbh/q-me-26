@@ -1,9 +1,9 @@
 {
   "name": "dranzeit-firestore-regeln",
   "private": true,
-  "description": "Prüft firestore.rules im Firestore-Emulator – siehe dev/regeln/README.md",
+  "description": "Prüft firestore.rules und storage.rules in den Firebase-Emulatoren – siehe dev/regeln/README.md",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-dranzeit \"node --test regeln.test.mjs\""
+    "test": "firebase emulators:exec --only firestore,storage --project demo-dranzeit \"node --test --test-concurrency=1 regeln.test.mjs speicher.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.2",

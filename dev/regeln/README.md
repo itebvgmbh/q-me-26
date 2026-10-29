@@ -6,6 +6,10 @@ von Hand in der Firebase-Konsole – Anleitung, Prüfung und Rücknahme: `deploy
 Hier liegen die Tests dazu. Sie laufen im **Firestore-Emulator** (eine Datenbank nur auf dem Rechner, nicht das
 echte Projekt) und stellen die Schreib- und Lesevorgänge der App und der Testskripte mit denselben Feldern nach.
 
+Dazu `storage.rules`, die Regeln für den Speicher (Logos und Fotos der Personen): `speicher.test.mjs`, im
+Storage-Emulator zusammen mit dem Firestore-Emulator, weil die Regeln dort den Inhaber des Ladens nachsehen.
+Einspielen: `deploy/README.md`, Abschnitt „Speicher-Regeln“.
+
 ## Ausführen
 
 Auf GitHub laufen sie von selbst, sobald sich `firestore.rules` oder dieser Ordner ändert (Actions →
@@ -94,6 +98,7 @@ App-Module im Browser) laufen unter denselben Regeln.
 
 ## Ändern
 
-Regeln und `regeln.test.mjs` immer zusammen ändern und die Kopfzeile `// Fassung:` neu setzen. Neue Sammlungen im
+Regeln und Tests immer zusammen ändern (`firestore.rules` mit `regeln.test.mjs`, `storage.rules` mit
+`speicher.test.mjs`) und die Kopfzeile `// Fassung:` neu setzen. Neue Sammlungen im
 Frontend brauchen eine Regel, sonst sind sie nach dem Einspielen zu. Schwachstellen bitte nicht hier eintragen:
 Das Repository ist öffentlich.

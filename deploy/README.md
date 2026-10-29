@@ -324,6 +324,42 @@ veröffentlichten Fassungen; auch daraus lässt sich die alte wieder veröffentl
 Ändern sich die Regeln später: `firestore.rules` und die Tests in `dev/regeln` zusammen anpassen, auf GitHub grün
 werden lassen, dann wie oben einspielen.
 
+## Speicher-Regeln
+
+Logos der Läden und Fotos der Personen liegen im Firebase-Speicher (Storage). Wer dort hochladen darf, steht in
+`storage.rules` (Hauptordner des Repos). Wie bei den Firestore-Regeln gilt: **nur von Hand in der Firebase-Konsole**
+einspielen, ein `git pull` oder Ausrollen ändert daran nichts. Geprüft im Emulator (`dev/regeln/speicher.test.mjs`,
+läuft auf GitHub mit den Firestore-Regeln).
+
+Fassung 2026-10-29 (Kopfzeile `// Fassung:` in `storage.rules`):
+- Hochladen, Ersetzen und Löschen nur der Inhaber des Ladens, nur in `shop-logos/<Laden>/` und
+  `staff-profile-images/<Laden>/`, nur Bilder bis 2 MB.
+- Ansehen geht ohne Anmeldung (Buchungsseite, Wartezimmer-Bildschirm), Auflisten nicht. Alles andere ist zu.
+
+Die Regeln fragen in Firestore nach, wem der Laden gehört. Beim ersten Veröffentlichen fragt die Konsole deshalb, ob
+der Speicher Firestore lesen darf – **zustimmen**, sonst klappt kein Hochladen mehr.
+
+### Einspielen (Speicher)
+
+1. Firebase-Konsole öffnen: https://console.firebase.google.com/project/qmedata-7c79e/storage/rules
+2. Im Regel-Editor **Strg+A, Strg+C** (die alten Regeln landen in der Zwischenablage).
+3. Diesen Block in PowerShell einfügen. Er sichert die alten Regeln nach `Downloads\speicher-regeln-alt-….txt`,
+   holt die neuen von GitHub (Branch `bildschirm`) und legt sie in die Zwischenablage:
+
+```powershell
+& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service firebase\.storage') { Write-Host 'In der Zwischenablage stehen keine Speicher-Regeln. Im Regel-Editor unter Storage erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/storage.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service firebase\.storage' -or $neu -notmatch '// Fassung: (\S+)') { Write-Host 'Die geladene Datei sieht nicht wie die Speicher-Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $fassung = $Matches[1]; if ($alt -match '// Fassung: (\S+)' -and $Matches[1] -eq $fassung) { Write-Host "Die Fassung $fassung ist schon eingespielt. Nichts zu tun." -ForegroundColor Green; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('speicher-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; $datei = Join-Path $downloads 'speicher-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Fassung $fassung, Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
+```
+
+4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen** und der Frage nach dem Zugriff auf Firestore
+   zustimmen. Meldet der Editor einen Fehler, nicht veröffentlichen (die alten Regeln gelten dann weiter).
+
+Prüfen: auf dranzeit.de als Inhaber unter „Laden“ → „Mein Laden“ ein Logo hochladen. Claude:
+`node dev/e2e/bilder-hochladen.cjs` (Logo und Foto im Testladen hochladen, ansehen, wieder löschen). Der Block oben ist
+mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/speicher-regeln-einspielen.test.ps1`.
+
+Zurücknehmen: im Regel-Editor den Verlauf öffnen (Uhr-Symbol links) und die vorige Fassung veröffentlichen – oder
+`Downloads\speicher-regeln-alt-….txt` öffnen, alles kopieren, im Editor einfügen und veröffentlichen.
+
 ## Hilfe-Bereich (/hilfe)
 
 Anleitungen, häufige Fragen und Begriffe für Läden und Kunden. Die Artikel sind Markdown-Dateien in

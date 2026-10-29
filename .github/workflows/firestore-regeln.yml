@@ -1,4 +1,4 @@
-# Prüft firestore.rules im Firestore-Emulator (dev/regeln, Anleitung dev/regeln/README.md).
+# Prüft firestore.rules und storage.rules in den Firebase-Emulatoren (dev/regeln, Anleitung dev/regeln/README.md).
 # Läuft, sobald sich die Regeln oder ihre Tests ändern; von Hand: Actions → Firestore-Regeln → Run workflow.
 name: Firestore-Regeln
 
@@ -6,11 +6,13 @@ on:
   push:
     paths:
       - firestore.rules
+      - storage.rules
       - dev/regeln/**
       - .github/workflows/firestore-regeln.yml
   pull_request:
     paths:
       - firestore.rules
+      - storage.rules
       - dev/regeln/**
       - .github/workflows/firestore-regeln.yml
   workflow_dispatch:
