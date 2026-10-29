@@ -26,7 +26,7 @@ from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.i18n import merke, sprache_von
-from app.libs.buchung import TRANSACTION_ATTEMPTS, PlatzWeg, create_appointment, pick_reference_code, reference_codes_of_day
+from app.libs.buchung import PlatzWeg, create_appointment, pick_reference_code, reference_codes_of_day, run_transaction
 from app.libs.online_platz import (MonatVoll, freier_platz, jetzt, leistung_im_laden, monatsgrenze, naechste_plaetze, ortszeit,
                                    person_fuer_leistung, vorlauf_minuten)
 from app.libs.plans import has_feature, is_suspended
@@ -106,7 +106,7 @@ def cancel_ticket(body: AbsagenRequest, request: Request) -> dict:
             change.write()
         return {**appt, **update, "_cancelled": True}
 
-    appt = run(db.transaction())
+    appt = run_transaction(db, run)
     if appt.get("_cancelled"):
         # Inhaber und gebuchte Person bekommen Bescheid (app/libs/team_notify.py)
         from app.libs.notify_worker import wake
@@ -145,7 +145,7 @@ def claim_ticket(body: TicketRequest, request: Request, user: AuthorizedUser) ->
         tx.update(ref, update)
         write_public(tx, db, body.appointment_id, {**appt, **update})
 
-    run(db.transaction())
+    run_transaction(db, run)
     return {"status": "ok"}
 
 
@@ -422,7 +422,7 @@ def move_ticket(body: VerschiebenRequest, request: Request) -> dict:
             tx.set(numbers_ref, {"shopId": shop_id, "day": new_day, "codes": codes + [update["referenceCode"]], "updatedAt": now})
         return {**current, **update}
 
-    moved = run(db.transaction(max_attempts=TRANSACTION_ATTEMPTS))
+    moved = run_transaction(db, run)
     days = {new_day} | ({day_key(old_start)} if isinstance(old_start, datetime) else set())
     _cache_leeren(shop_id, days)
     # Offene Angebote für früher galten der alten Zeit; den frei gewordenen Platz bekommen andere

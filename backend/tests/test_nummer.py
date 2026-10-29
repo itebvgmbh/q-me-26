@@ -124,7 +124,7 @@ class Db:
     def collection(self, name):
         return Query(self, name)
 
-    def transaction(self):
+    def transaction(self, max_attempts=5):
         return Writes()
 
     def batch(self):
