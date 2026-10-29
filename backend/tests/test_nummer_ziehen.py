@@ -153,6 +153,34 @@ def test_gratis_ohne_termine_zieht_trotzdem_nummern():
     assert termin(client).status_code == 403, "feste Termine nur mit Online-Terminen im Tarif"
 
 
+def test_gedraenge_beim_lesen_laeuft_neu_an():
+    # Firestore bricht im Ansturm schon beim Lesen ab ("cross-transaction contention"); dann die ganze Transaktion neu
+    from google.api_core.exceptions import Aborted
+    from app.libs import buchung
+
+    client, db, store = setup()
+    original, calls = db.transaction, []
+
+    def flaky(max_attempts=5):
+        calls.append(1)
+        tx = original(max_attempts)
+        if len(calls) <= 2:
+            def boom(*a, **k):
+                raise Aborted("Aborted due to cross-transaction contention")
+            tx.set = boom
+        return tx
+
+    db.transaction = flaky
+    sleeps = []
+    buchung.clock.sleep, old_sleep = sleeps.append, buchung.clock.sleep
+    try:
+        r = ziehen(client, **ohne_konto())
+    finally:
+        buchung.clock.sleep = old_sleep
+    assert r.status_code == 200, r.text
+    assert len(calls) == 3 and len(sleeps) == 2 and len(store["appointments"]) == 1
+
+
 # --- Termin buchen mit Konto ------------------------------------------------------------------------------------------
 
 def test_termin_mit_konto_ohne_tagesnummer_mit_frueher_dran():

@@ -12,9 +12,11 @@ Ob ein Kandidat nach den Regeln (Öffnungs- und Arbeitszeiten, Pausen) überhaup
 Absagen (cancel_appointment) wie /nummer/absagen: Status, Belegung und Kurzfassung in einer Transaktion.
 """
 import random
+import time as clock
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, List, Optional
 
+from google.api_core.exceptions import Aborted
 from google.cloud import firestore
 
 from app.libs.public_appointments import write_public
@@ -24,6 +26,20 @@ from app.libs.team_notify import notice_fields
 # Gleichzeitige Buchungen derselben Person laufen nacheinander; im Ansturm braucht die letzte mehrere Anläufe
 # (wie TRANSACTION_OPTIONS im Frontend)
 TRANSACTION_ATTEMPTS = 12
+
+
+def run_transaction(db, run: Callable, max_attempts: int = TRANSACTION_ATTEMPTS):
+    """Transaktion ausführen und bei Gedränge neu anlaufen lassen. Firestore bricht auf dem Server schon beim Lesen ab,
+    wenn viele gleichzeitig dieselben Dokumente wollen (Belegung, Tagesnummern: "cross-transaction contention");
+    die Bibliothek versucht nur das Speichern neu. Hier läuft dann die ganze Transaktion noch einmal, mit kurzer,
+    wachsender Pause – wie die Transaktion im Browser."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return run(db.transaction(max_attempts=max_attempts))
+        except Aborted:
+            if attempt == max_attempts:
+                raise
+            clock.sleep(random.uniform(0.05, 0.25) * attempt)
 
 
 class PlatzWeg(Exception):
@@ -65,7 +81,6 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
     code_day = aware(candidates[0].start)
     ref = db.collection("appointments").document()
     earlier = reference_codes_of_day(db, shop_id, code_day.astimezone(BERLIN).date()) if needs_code else []
-    transaction = db.transaction(max_attempts=TRANSACTION_ATTEMPTS)
 
     @firestore.transactional
     def run(tx) -> dict:
@@ -94,7 +109,7 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
             tx.set(numbers_ref, {"shopId": shop_id, "day": day_key(code_day), "codes": codes + [code], "updatedAt": now})
         return created
 
-    return run(transaction)
+    return run_transaction(db, run)
 
 
 def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]], None], by_customer: bool = False) -> dict:
@@ -120,4 +135,4 @@ def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]]
             change.write()
         return appt
 
-    return run(db.transaction(max_attempts=TRANSACTION_ATTEMPTS))
+    return run_transaction(db, run)
