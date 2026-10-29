@@ -2,7 +2,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
-import { isSlotConflict } from '../utils/booking-rules';
 import { useAppointmentBooking } from '../utils/hooks/useAppointmentBooking';
 import { linkOwnCustomerEntry } from '../utils/firestore';
 import { saveAnonymousBookingCode } from '../utils/localStorageUtils';
@@ -187,23 +186,14 @@ const PublicJoinQueue = () => {
   const calendarStaffIds = useMemo(() => serviceStaff.filter((s) => s.isActive !== false).map((s) => s.id), [serviceStaff]);
 
   /**
-   * Fester Termin zur Wunschzeit. Mit Konto wie bisher aus dem Browser (useAppointmentBooking), ohne Konto über das
-   * Backend mit Schlüssel wie bei der Nummer. Danach auf die Seite des Termins (/nummer/:id), wie nach dem Einreihen.
+   * Fester Termin zur Wunschzeit, über das Backend: mit Konto (useAppointmentBooking), ohne Konto mit Schlüssel wie bei
+   * der Nummer. Danach auf die Seite des Termins (/nummer/:id), wie nach dem Einreihen.
    */
   const bookWunschzeit = async () => {
     if (!wunschSlot) return;
     const staffChoices = useAnyStaff ? wunschSlot.staffOptions ?? calendarStaffIds : [selectedStaff];
     if (user) {
-      const result = await bookAppointment(
-        selectedShop,
-        staffChoices,
-        selectedService,
-        user.uid,
-        user.displayName || (user.email ? user.email.split('@')[0] : null) || 'Unbekannt',
-        user.email,
-        wunschSlot,
-        checkEarlierOptions,
-      );
+      const result = await bookAppointment(selectedShop, staffChoices, selectedService, wunschSlot, checkEarlierOptions);
       if ('appointmentId' in result) {
         // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
         void linkOwnCustomerEntry(selectedShop);
@@ -265,7 +255,7 @@ const PublicJoinQueue = () => {
       contact,
       staffChoices
     );
-    if (result && !result.success && isSlotConflict(result.error)) refreshSlots();
+    if (result && !result.success && isTaken(result.error)) refreshSlots();
   };
 
   /**

@@ -87,7 +87,8 @@ const seedAppointment = (id, extra = {}) =>
     await setDoc(doc(db, 'public_appointments', id), publicOf(data));
   });
 
-/** Nummer ziehen wie createAppointment: Termin, Kurzfassung, Belegung und Tagesnummer in einer Transaktion */
+/** Nummer ziehen wie createAppointment (Tresen) und das Backend (Kunden): Termin, Kurzfassung, Belegung und
+ *  Tagesnummer in einer Transaktion */
 const drawNumber = (db, data, code = 'A12', view = publicOf) => {
   const appointment = doc(collection(db, 'appointments'));
   return runTransaction(db, async (tx) => {
@@ -102,7 +103,7 @@ const drawNumber = (db, data, code = 'A12', view = publicOf) => {
   }).then(() => appointment);
 };
 
-/** Absagen wie cancelAppointment: Status, Kurzfassung und Belegung in einer Transaktion */
+/** Absagen wie früher cancelAppointment im Browser des Kunden: Status, Kurzfassung und Belegung in einer Transaktion */
 const cancel = (db, id, staffId = STAFF) =>
   runTransaction(db, async (tx) => {
     const snap = await tx.get(doc(db, 'appointments', id));
@@ -326,11 +327,12 @@ describe('Ohne Anmeldung: Läden finden, buchen, Nummer ziehen', () => {
     await assertFails(getDocs(collection(db, 'appointments')));
   });
 
-  test('Nummer ziehen ohne Konto, zweite Nummer am Tag; zurückgeben geht nur übers Backend (mit Schlüssel)', async () => {
+  test('Nummer ziehen ohne Konto: nur übers Backend; die Kurzfassung lesen alle, den Termin niemand', async () => {
     await seedShop();
     const db = anon();
-    const first = await assertSucceeds(drawNumber(db, anonTicket()));
-    await assertSucceeds(drawNumber(db, anonTicket({ customerName: 'Gast 2' }), 'B07'));
+    await assertFails(drawNumber(db, anonTicket()));
+    const first = await backend((admin) => drawNumber(admin, anonTicket()));
+    await assertFails(drawNumber(db, anonTicket({ customerName: 'Gast 2' }), 'B07'));
     await assertFails(cancel(db, first.id));
     await assertFails(getDoc(doc(db, 'appointments', first.id)));
     await assertSucceeds(getDoc(doc(db, 'public_appointments', first.id)));
@@ -352,10 +354,17 @@ describe('Ohne Anmeldung: Läden finden, buchen, Nummer ziehen', () => {
 });
 
 describe('Termine: Nummer ziehen und buchen', () => {
-  test('mit Konto für sich selbst: Nummer (queue) und Termin (booked)', async () => {
+  test('Kunde mit Konto: weder Nummer noch Termin im Browser (das Backend bucht, app/apis/nummer)', async () => {
     await seedShop();
-    await assertSucceeds(drawNumber(as(OTHER), ticket({ customerId: OTHER, customerPhone: '0170', checkEarlierOptions: true, checkEarlierOptionsCreatedAt: Timestamp.now() })));
-    await assertSucceeds(addDoc(collection(as(OTHER), 'appointments'), ticket({ customerId: OTHER, type: 'booked' })));
+    await assertFails(drawNumber(as(OTHER), ticket({ customerId: OTHER, customerPhone: '0170', checkEarlierOptions: true, checkEarlierOptionsCreatedAt: Timestamp.now() })));
+    await assertFails(addDoc(collection(as(OTHER), 'appointments'), ticket({ customerId: OTHER, type: 'booked' })));
+  });
+
+  test('Inhaber und Team: Nummer vergeben und Kunde eintragen mit Belegung und Tagesnummer (Tresen)', async () => {
+    await seedShop();
+    await assertSucceeds(drawNumber(as(OWNER), ticket({ customerId: 'walk-in' })));
+    await assertSucceeds(drawNumber(as(TEAM), ticket({ customerName: 'Laufkundschaft' }), 'B07'));
+    await assertFails(drawNumber(as(OTHER), ticket({ customerId: 'walk-in' }), 'C01'));
   });
 
   for (const [what, db, data] of [
@@ -384,10 +393,14 @@ describe('Termine: Nummer ziehen und buchen', () => {
     await assertSucceeds(addDoc(collection(as(OWNER), 'appointments'), ticket({ customerId: 'walk-in' })));
   });
 
-  test('Belegung: falsche ID, fremde Felder oder Person eines anderen Ladens – abgelehnt', async () => {
+  test('Belegung: nur der Laden; falsche ID, fremde Felder oder Person eines anderen Ladens – abgelehnt', async () => {
     await seedShop();
-    const db = anon();
     const slots = { x: { start: START, end: END } };
+    for (const outsider of [anon(), as(OTHER)]) {
+      await assertFails(setDoc(doc(outsider, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now() }));
+      await assertFails(setDoc(doc(outsider, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots: {}, updatedAt: Timestamp.now() }));
+    }
+    const db = as(TEAM);
     await assertFails(setDoc(doc(db, 'schedules', `${STAFF}_2099-01-01`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now() }));
     await assertFails(setDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`), { shopId: SHOP, staffId: STAFF, day: TODAY, slots, updatedAt: Timestamp.now(), extra: 1 }));
     await assertFails(setDoc(doc(db, 'schedules', `${STAFF2}_${TODAY}`), { shopId: SHOP, staffId: STAFF2, day: TODAY, slots, updatedAt: Timestamp.now() }));
@@ -396,9 +409,12 @@ describe('Termine: Nummer ziehen und buchen', () => {
     await assertFails(deleteDoc(doc(db, 'schedules', `${STAFF}_${TODAY}`)));
   });
 
-  test('Tagesnummern: feste Form, nie leer (ohne Vergleich mit dem Stand davor, sonst scheitert der Ansturm)', async () => {
+  test('Tagesnummern: nur der Laden, feste Form, nie leer (ohne Vergleich mit dem Stand davor, sonst scheitert der Ansturm)', async () => {
     await seedShop();
-    const db = anon();
+    for (const outsider of [anon(), as(OTHER)]) {
+      await assertFails(setDoc(doc(outsider, 'shop_days', `${SHOP}_${TODAY}`), { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
+    }
+    const db = as(OWNER);
     const ref = doc(db, 'shop_days', `${SHOP}_${TODAY}`);
     await assertFails(setDoc(ref, { shopId: SHOP, day: TODAY, codes: [], updatedAt: Timestamp.now() }));
     await assertSucceeds(setDoc(ref, { shopId: SHOP, day: TODAY, codes: ['A1'], updatedAt: Timestamp.now() }));
@@ -423,9 +439,9 @@ describe('Kurzfassung der Termine (public_appointments)', () => {
       (a) => ({ ...publicOf(a), shopDay: 'irgendwas' }),
       (a) => { const { isAnonymous, ...rest } = publicOf(a); return rest; },
     ]) {
-      await assertFails(drawNumber(anon(), anonTicket(), 'A12', view));
+      await assertFails(drawNumber(as(OWNER), anonTicket(), 'A12', view));
     }
-    await assertSucceeds(drawNumber(anon(), anonTicket(), 'A12'));
+    await assertSucceeds(drawNumber(as(OWNER), anonTicket(), 'A12'));
   });
 
   test('ohne Termin oder unabhängig vom Termin: nichts anlegen, nichts verfälschen, nichts löschen', async () => {
@@ -437,13 +453,16 @@ describe('Kurzfassung der Termine (public_appointments)', () => {
       await assertFails(setDoc(doc(db, 'public_appointments', 't1'), { ...view, status: 'cancelled' }));
       await assertFails(deleteDoc(doc(db, 'public_appointments', 't1')));
     }
-    // Eine genaue Kopie zu schreiben schadet nicht (so gleicht auch ein Fenster mit altem Stand nichts falsch ab)
-    await assertSucceeds(setDoc(doc(anon(), 'public_appointments', 't1'), view));
+    // Eine genaue Kopie zu schreiben schadet nicht (so gleicht auch ein Fenster mit altem Stand nichts falsch ab) –
+    // aber nur der Laden
+    await assertFails(setDoc(doc(anon(), 'public_appointments', 't1'), view));
+    await assertSucceeds(setDoc(doc(as(TEAM), 'public_appointments', 't1'), view));
   });
 
-  test('Kurzfassung eines gelöschten Termins: darf weg', async () => {
+  test('Kurzfassung eines gelöschten Termins: darf weg (der Laden räumt auf)', async () => {
     await seedShop();
     await backend((db) => setDoc(doc(db, 'public_appointments', 'weg'), publicOf(ticket())));
+    await assertFails(deleteDoc(doc(anon(), 'public_appointments', 'weg')));
     await assertSucceeds(deleteDoc(doc(as(OWNER), 'public_appointments', 'weg')));
   });
 });
@@ -479,12 +498,13 @@ describe('Termine: lesen, absagen, übernehmen, ändern', () => {
     await assertFails(setDoc(doc(db, 'appointments', 'ohne'), { status: 'completed', updatedAt: Timestamp.now() }, { merge: true }));
   });
 
-  test('Kunde: eigenen Termin absagen ja, fremden nein', async () => {
+  test('Kunde: auch den eigenen Termin nicht im Browser absagen (das macht das Backend, /nummer/absagen)', async () => {
     await seedShop();
     await seedAppointment('meins', { customerId: OTHER });
     await seedAppointment('fremd', { customerId: 'jemand' });
     await assertFails(cancel(as(OTHER), 'fremd'));
-    await assertSucceeds(cancel(as(OTHER), 'meins'));
+    await assertFails(cancel(as(OTHER), 'meins'));
+    await assertFails(setDoc(doc(as(OTHER), 'appointments', 'meins'), { status: 'cancelled', updatedAt: Timestamp.now() }, { merge: true }));
   });
 
   test('Nummer ohne Konto ins eigene Konto übernehmen: im Browser nicht (das Backend prüft den Schlüssel)', async () => {

@@ -3,8 +3,10 @@
 //  - Der Inhaber ändert seinen Laden, aber keine Tarif-Felder (trialEndsAt, grant, billing, suspended, founder, plan)
 //  - Löschen geht nur mit Vermerk in deleted_shops (geprüft wird nur, dass es ohne nicht geht)
 //  - Ohne Anmeldung: Läden lesen ja, Gründer-Zähler (meta) und Push-Adressen nein
-//  - Termine (Namen, Handynummern, E-Mails) nur Laden und eigenes Konto, ohne Anmeldung nur die Kurzfassung; Nummer
-//    ohne Konto nur mit Hash des Schlüssels, absagen nicht im Browser; Kontaktdaten des Teams nur der Inhaber
+//  - Termine (Namen, Handynummern, E-Mails) nur Laden und eigenes Konto, ohne Anmeldung nur die Kurzfassung;
+//    Kontaktdaten des Teams nur der Inhaber
+//  - Fassung 2026-10-29: Ohne Anmeldung weder Nummer ziehen noch absagen noch Belegung oder Tagesnummern schreiben –
+//    das geht nur noch übers Backend (backend/app/apis/nummer)
 // Vor dem Einspielen schlagen die Tarif-Prüfungen fehl (dann ist die Lücke noch offen); was dabei doch geschrieben
 // wurde, nimmt das Skript sofort wieder weg.
 // Braucht: Testdaten (python dev/fixtures.py anlegen), keinen Entwicklungsserver.
@@ -135,8 +137,8 @@ run(async () => {
   }
   rows.push({ name: 'Ohne Anmeldung: Kurzfassung verfälschen', pass: forged.status === 403, detail: `${status(forged)}${forged.status === 200 ? ' – geschrieben und zurückgenommen' : ''}` });
 
-  // Nummer ohne Konto weit in der Zukunft: ohne Hash des Schlüssels abgelehnt; mit Hash angelegt, dann ohne Anmeldung
-  // absagen abgelehnt (das geht nur übers Backend mit dem Schlüssel). Danach wieder weg.
+  // Nummer ohne Konto weit in der Zukunft, im Browser gezogen: abgelehnt, auch mit Hash des Schlüssels (seit Fassung
+  // 2026-10-29 zieht das Backend die Nummern). Mit den alten Regeln angelegt: gleich wieder weg.
   const later = new Date(Date.now() + 41 * 86400000);
   const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(later);
   const draw = (id, extra) => {
@@ -156,12 +158,31 @@ run(async () => {
   rows.push({ name: 'Ohne Anmeldung: Nummer ohne Schlüssel', pass: noKey.status === 403, detail: `${status(noKey)}${noKey.status === 200 ? ' – angelegt und gelöscht' : ''}` });
   const probeId = `regelprobe-${Date.now()}b`;
   const withKey = await draw(probeId, { ticketKeyHash: { stringValue: 'f'.repeat(64) } });
-  rows.push({ name: 'Ohne Anmeldung: Nummer ziehen', pass: withKey.status === 200, detail: status(withKey) });
-  if (withKey.status === 200) {
-    const anonCancel = await http('PATCH', `${FS}/appointments/${probeId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'cancelled' } } });
-    rows.push({ name: 'Ohne Anmeldung: absagen ohne Backend', pass: anonCancel.status === 403, detail: status(anonCancel) });
-    const removed = await removeProbe(probeId);
-    rows.push({ name: 'Inhaber räumt die Probe-Nummer weg', pass: removed.status === 200, detail: status(removed) });
+  if (withKey.status === 200) await removeProbe(probeId);
+  rows.push({ name: 'Ohne Anmeldung: Nummer im Browser ziehen', pass: withKey.status === 403,
+    detail: `${status(withKey)}${withKey.status === 200 ? ' – alte Regeln, angelegt und gelöscht' : ''}` });
+  const anonCancel = await http('PATCH', `${FS}/appointments/${apptId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'cancelled' } } });
+  if (anonCancel.status === 200) {
+    await http('PATCH', `${FS}/appointments/${apptId}?updateMask.fieldPaths=status`, { fields: { status: { stringValue: 'scheduled' } } }, token);
+  }
+  rows.push({ name: 'Ohne Anmeldung: absagen ohne Backend', pass: anonCancel.status === 403, detail: status(anonCancel) });
+
+  // Belegung und Tagesnummern am selben Tag in der Zukunft: ohne Anmeldung nicht schreiben (vorher ging das in fester
+  // Form). Wurde doch geschrieben, stellt der Inhaber den alten Stand wieder her.
+  for (const [what, path, fields] of [
+    ['Belegung', `schedules/${fx.staffId}_${day}`, { shopId: { stringValue: fx.shopId }, staffId: { stringValue: fx.staffId }, day: { stringValue: day },
+      slots: { mapValue: { fields: {} } }, updatedAt: { timestampValue: new Date().toISOString() } }],
+    ['Tagesnummern', `shop_days/${fx.shopId}_${day}`, { shopId: { stringValue: fx.shopId }, day: { stringValue: day },
+      codes: { arrayValue: { values: [{ stringValue: '99' }] } }, updatedAt: { timestampValue: new Date().toISOString() } }],
+  ]) {
+    const old = await http('GET', `${FS}/${path}`, null, token);
+    const write = await http('PATCH', `${FS}/${path}`, { fields });
+    if (write.status === 200) {
+      if (old.status === 200) await http('PATCH', `${FS}/${path}`, { fields: old.data.fields || {} }, token);
+      else await http('DELETE', `${FS}/${path}`, null, token);
+    }
+    rows.push({ name: `Ohne Anmeldung: ${what} schreiben`, pass: write.status === 403,
+      detail: `${status(write)}${write.status === 200 ? ' – alte Regeln, zurückgenommen' : ''}` });
   }
 
   // Kontaktdaten der Personen: nur der Inhaber, nicht am öffentlichen Eintrag

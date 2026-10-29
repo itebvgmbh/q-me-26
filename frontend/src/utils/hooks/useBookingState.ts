@@ -5,8 +5,7 @@ import { toast } from 'sonner';
 import { t } from '@/i18n';
 import { TimeSlot } from '../types';
 import { BookingResponse, QueueBookingService } from '../QueueBookingService';
-import { isSlotConflict } from '../booking-rules';
-import { ticketPath } from '../ticket-key';
+import { isTaken, ticketPath } from '../ticket-key';
 
 /**
  * Custom hook for managing the state of the booking process
@@ -85,9 +84,9 @@ export const useBookingState = () => {
         toast.success(bookingResult.message || t('Du bist eingereiht'));
         navigate('/my-bookings');
       }
-    } else if (isSlotConflict(bookingResult.error)) {
-      // Auch die nächsten Plätze waren weg (großer Ansturm): die Seite sucht neu (siehe PublicJoinQueue)
-      toast.error(t('Der Platz ist gerade weggegangen. Wir suchen dir den nächsten – bitte gleich noch mal bestätigen.'));
+    } else if (isTaken(bookingResult.error)) {
+      // Tag voll oder großer Ansturm (Backend, 409): Es sagt, was los ist; die Seite sucht neu (siehe PublicJoinQueue)
+      toast.error(bookingResult.message || t('Der Platz ist gerade weggegangen. Wir suchen dir den nächsten – bitte gleich noch mal bestätigen.'));
     } else {
       toast.error(bookingResult.message || t('Das Einreihen hat nicht geklappt. Versuch es noch einmal.'));
       console.error('Booking error:', bookingResult.error);

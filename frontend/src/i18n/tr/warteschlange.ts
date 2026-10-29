@@ -207,7 +207,6 @@ const texte: Texte = {
 
   // utils/QueueBookingService.ts, utils/push.ts
   "Das hat nicht geklappt. Versuch es gleich noch einmal.": "İşlem başarısız oldu. Lütfen birazdan tekrar deneyin.",
-  "Du stehst schon in der Schlange dieses Ladens.": "Bu salonun sırasında zaten bulunuyorsunuz.",
   "Du bist eingereiht": "Sıraya girdiniz",
   "Termin erfolgreich gebucht!": "Randevu başarıyla alındı!",
 

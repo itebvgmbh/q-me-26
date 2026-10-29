@@ -207,7 +207,6 @@ const texte: Texte = {
 
   // utils/QueueBookingService.ts, utils/push.ts
   "Das hat nicht geklappt. Versuch es gleich noch einmal.": "That didn't work. Please try again in a moment.",
-  "Du stehst schon in der Schlange dieses Ladens.": "You're already in this shop's queue.",
   "Du bist eingereiht": "You're in the queue",
   "Termin erfolgreich gebucht!": "Appointment booked!",
 

@@ -444,41 +444,6 @@ const applyUpdate = (current: Record<string, any>, update: Record<string, unknow
   return after;
 };
 
-export const cancelAppointment = async (appointmentId: string): Promise<Appointment> => {
-  console.log('Cancelling appointment...', { appointmentId });
-  try {
-    const db = getFirestore(firebaseApp);
-    const appointmentRef = doc(db, 'appointments', appointmentId);
-
-    // Absagen gibt den Platz in der Belegung frei – in derselben Transaktion
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(appointmentRef);
-      if (!snap.exists()) throw new Error('Appointment not found');
-      const current = snap.data() as Appointment;
-      const release = placementOf(current);
-      const placement = release ? await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release }) : null;
-      const update = { status: 'cancelled', updatedAt: Timestamp.now() };
-      tx.set(appointmentRef, update, { merge: true });
-      writePublic(tx, db, appointmentId, { ...current, ...update });
-      placement?.write();
-    }, TRANSACTION_OPTIONS);
-    console.log('Appointment cancelled successfully');
-
-    // Fetch the updated document
-    const updatedDoc = await getDoc(appointmentRef);
-    if (!updatedDoc.exists()) {
-      throw new Error('Appointment not found after cancellation');
-    }
-
-    const cancelled = { id: updatedDoc.id, ...updatedDoc.data() } as Appointment;
-    requestEarlierSlotCheck(cancelled.shopId, cancelled.staffId);
-    return cancelled;
-  } catch (error) {
-    console.error('Error in cancelAppointment:', error);
-    throw error;
-  }
-};
-
 /**
  * Nachricht an den Kunden vormerken, wenn der Laden absagt oder die Zeit ändert. Der Benachrichtigungsdienst
  * (backend/app/libs/notify_worker.py) schickt sie per Push/E-Mail und löscht den Merker. Vergangene Tage nicht.

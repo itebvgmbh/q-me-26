@@ -10,7 +10,7 @@
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Bucht Donnerstag/Freitag der
 // Testwoche und den Dienstag danach (6.) und sagt am Ende alles wieder ab.
 // 1.–5. buchen wie der Tresen (als Inhaber des Testladens angemeldet – Termine ändern darf nur der Laden),
-// 6. ohne Anmeldung wie die Nummernseite.
+// 6. ohne Anmeldung wie die Nummernseite – über das Backend (/nummer/ziehen), das rechnet mit der echten Uhrzeit.
 const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, signIn } = require('./lib.cjs');
 
 const N = Number(process.env.QME_GERAETE || 10);
@@ -80,7 +80,7 @@ run(async () => {
   // 4. Absage gibt den Platz frei
   const winner = wins[0]?.id;
   const [free] = await together(1, async (appts, a) => {
-    await appts.cancelAppointment(a.winner);
+    await appts.updateAppointment(a.winner, { status: 'cancelled' });
     return appts.createAppointment({ ...a.base, customerName: 'Nach Absage', startTime: new Date(a.start), endTime: new Date(a.end) });
   }, { base, winner, start: at(thu, 9, 0), end: at(thu, 9, 30) });
   if (free.ok) created.push(free.id);
@@ -98,9 +98,10 @@ run(async () => {
   rows.push({ name: 'Früher fertig gibt den Platz frei', pass: early.ok, detail: early.ok ? '' : early.message });
 
   // 6. Nummer ziehen im Ansturm: Alle sehen denselben Platz (09:00) und bestätigen gleichzeitig über den Weg der
-  //    Nummernseite. Früher bekam ihn einer und alle anderen mussten neu bestätigen; jetzt nimmt QueueBookingService
-  //    für die Nachzügler gleich den nächsten freien Platz. Am Dienstag nach der Testwoche (ohne Pausen und Termine),
-  //    Uhr der Geräte dort auf 08:00 gestellt – die Suche nach dem nächsten Platz rechnet ab "jetzt".
+  //    Nummernseite. Früher bekam ihn einer und alle anderen mussten neu bestätigen; jetzt nimmt das Backend
+  //    (/nummer/ziehen) für die Nachzügler gleich den nächsten freien Platz. Am Dienstag nach der Testwoche (ohne Pausen
+  //    und Termine): ein späterer Tag, also ab dessen Beginn. Die Uhr der Geräte steht auf 08:00 (zählt nur noch für
+  //    die Anzeige; das Backend rechnet mit der echten Zeit).
   const later = new Date(...day(8));
   const tue = [later.getFullYear(), later.getMonth(), later.getDate()];
   const tueText = `${tue[0]}-${String(tue[1] + 1).padStart(2, '0')}-${String(tue[2]).padStart(2, '0')}`;
@@ -140,7 +141,7 @@ run(async () => {
   await devices[0].page.clock.setFixedTime(new Date());
   await signIn(devices[0].page, fx);
   await devices[0].page.evaluate(async () => { window.__appts = await import('/src/utils/firestore/appointments.ts'); });
-  const [cleanup] = await together(1, async (appts, a) => { for (const id of a.ids) await appts.cancelAppointment(id); }, { ids: [...new Set(created)] });
+  const [cleanup] = await together(1, async (appts, a) => { for (const id of a.ids) await appts.updateAppointment(id, { status: 'cancelled' }); }, { ids: [...new Set(created)] });
   rows.push({ name: 'Aufräumen', pass: cleanup.ok, detail: cleanup.ok ? `${new Set(created).size} abgesagt` : cleanup.message });
   const errors = devices.flatMap((d) => d.errors);
   rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ').slice(0, 200) });

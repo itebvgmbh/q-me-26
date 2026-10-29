@@ -14,7 +14,7 @@ import { PlatzAendern } from '../components/PlatzAendern';
 import { FrueherDranSchalter } from '../components/FrueherDranSchalter';
 import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
-import { cancelAppointment, getServiceByIdLegacy, getShopById } from '../utils/firestore';
+import { getServiceByIdLegacy, getShopById } from '../utils/firestore';
 import type { Shop } from '../utils/firestore';
 import { publicFromDoc, publicRef, staffDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
 import { cancelTicket, keyFromHash, rememberTicketKey, storedTicketKey } from '../utils/ticket-key';
@@ -35,7 +35,6 @@ import {
   type PushConfig,
 } from '../utils/push';
 import { inNativeApp } from '../utils/native-app';
-import { announceToTeam } from '../utils/team-push';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
 import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 import { datumsLocale, t, tn } from '@/i18n';
@@ -186,12 +185,8 @@ export default function Nummer() {
 
   const cancel = async () => {
     try {
-      // Ohne Konto meldet das Backend es dem Team selbst (app/apis/nummer)
-      if (appt.isAnonymous && ticketKey) await cancelTicket(appt.id, ticketKey);
-      else {
-        await cancelAppointment(appt.id);
-        announceToTeam(appt.id, 'cancelled');
-      }
+      // Über das Backend, ohne Konto mit dem Schlüssel; es meldet die Absage dem Team (app/apis/nummer)
+      await cancelTicket(appt.id, appt.isAnonymous && ticketKey ? ticketKey : null);
       toast.success(isQueue ? t('Deine Nummer ist zurückgegeben.') : t('Dein Termin ist abgesagt.'));
     } catch {
       toast.error(t('Das hat nicht geklappt. Sag bitte am Tresen Bescheid.'));

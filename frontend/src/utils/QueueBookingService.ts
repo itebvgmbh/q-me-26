@@ -1,80 +1,16 @@
 import { User } from 'firebase/auth';
-import { Timestamp } from 'firebase/firestore';
-import { toast } from 'sonner';
 import { TimeSlot } from './types';
-import {
-  Appointment,
-  createAppointment,
-  isCustomerInQueue,
-  linkOwnCustomerEntry
-} from './firestore';
-import { findNextSlots } from './firestore/timeslots';
-import { dayKey } from './firestore/schedule';
-import { isSlotConflict } from './booking-rules';
+import { linkOwnCustomerEntry } from './firestore';
 import { saveAnonymousBookingCode } from './localStorageUtils';
-import { hashTicketKey, newTicketKey, rememberTicketKey } from './ticket-key';
-import { announceToTeam } from './team-push';
+import { pullNumber, type PulledNumber } from './ticket-key';
 import { sprache, t } from '@/i18n';
 
-// Platz beim Bestätigen schon weg: so oft frisch suchen und neu buchen, je Runde mit so vielen Plätzen zur
-// Auswahl (Raster 15 Minuten – bei 30 Minuten Leistung also etwa halb so viele verschiedene Plätze)
-const RETRY_ROUNDS = 3;
-const RETRY_CANDIDATES = 8;
-
-type RetryOptions = { serviceId: string; staffIds: string[] };
-
-/**
- * Nummer anlegen. Ist der angezeigte Platz beim Bestätigen schon weg (jemand war schneller, z. B. im Ansturm),
- * gleich die nächsten freien Plätze suchen – bei derselben Person, bei „Egal wer“ bei allen in staffIds – und
- * neu buchen, statt den Kunden noch mal bestätigen zu lassen. Die Transaktion in createAppointment nimmt davon
- * den ersten, der dann noch frei ist; doppelt vergeben wird ein Platz dabei nie (Belegung, schedule.ts).
- * Nur am Tag des angezeigten Platzes: Ist der voll, entscheidet der Kunde selbst über einen anderen Tag.
- */
-async function createQueueAppointment(
-  data: Parameters<typeof createAppointment>[0],
-  retry: RetryOptions
-): Promise<Appointment> {
-  const day = dayKey(data.startTime.toDate());
-  let lastError: unknown;
-  try {
-    return await createAppointment(data);
-  } catch (error) {
-    if (!isSlotConflict(error)) throw error;
-    lastError = error;
-  }
-  for (let round = 0; round < RETRY_ROUNDS; round++) {
-    const next = (await findNextSlots(data.shopId, retry.serviceId, retry.staffIds, RETRY_CANDIDATES))
-      .filter(({ slot }) => dayKey(slot.start) === day);
-    if (next.length === 0) break;
-    const [first, ...rest] = next;
-    try {
-      return await createAppointment(
-        { ...data, staffId: first.staffId, startTime: Timestamp.fromDate(first.slot.start), endTime: Timestamp.fromDate(first.slot.end) },
-        { alternatives: rest.map(({ staffId, slot }) => ({ staffId, start: slot.start, end: slot.end })) }
-      );
-    } catch (error) {
-      if (!isSlotConflict(error)) throw error;
-      lastError = error;
-    }
-  }
-  throw lastError;
-}
-
-/** Platz, den die Nummer tatsächlich bekommen hat, und ob er später liegt als angezeigt */
-const bookedSlotOf = (appointment: Appointment, shown: Date) => {
-  const start = appointment.startTime.toDate();
-  return {
-    bookedSlot: { start, end: appointment.endTime.toDate(), isAvailable: true },
-    bookedStaffId: appointment.staffId,
-    moved: start.getTime() !== shown.getTime()
-  };
-};
-
-/** Selbst gezogene Nummer: Inhaber und gebuchte Person bekommen Bescheid (utils/team-push.ts) */
-const announced = (response: BookingResponse): BookingResponse => {
-  if (response.success && response.appointmentId) announceToTeam(response.appointmentId, 'new', response.ticketKey);
-  return response;
-};
+/** Platz, den die Nummer tatsächlich bekommen hat, und ob er später liegt als angezeigt (früher: kein Hinweis nötig) */
+const bookedSlotOf = (pulled: PulledNumber, shown: Date) => ({
+  bookedSlot: { start: pulled.start, end: pulled.end, isAvailable: true },
+  bookedStaffId: pulled.staffId,
+  moved: pulled.start.getTime() > shown.getTime()
+});
 
 /**
  * Interface for booking request data
@@ -118,53 +54,45 @@ export interface BookingResponse {
  */
 export const QueueBookingService = {
   /**
-   * Process a booking request and create appointment
-   * @param request The booking request data
-   * @returns BookingResponse with status and reference code if available
+   * Nummer ziehen über das Backend (backend/app/apis/nummer, /nummer/ziehen), mit oder ohne Konto. Das Backend nimmt
+   * den frühesten freien Platz am Tag des angezeigten – ist der beim Speichern schon weg (jemand war schneller, z. B. im
+   * Ansturm), den nächsten bei derselben Person, bei „Egal wer“ bei allen in staffChoices. Doppelt vergeben wird dabei
+   * nie (Belegung, app/libs/schedule.py). Ist der Tag voll, entscheidet der Kunde selbst über einen anderen.
+   * Inhaber und gebuchte Person bekommen Bescheid (app/libs/team_notify.py).
    */
   async processBooking(request: BookingRequest): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      nextAvailableSlot, 
-      checkEarlierOptions, 
-      user,
-      contact,
-      staffChoices
-    } = request;
-    
-    const startTime = nextAvailableSlot.start;
-    const endTime = nextAvailableSlot.end;
-    const retry = { serviceId: selectedService, staffIds: staffChoices?.length ? staffChoices : [selectedStaffForSlot] };
-    
+    const { selectedShop, selectedService, selectedStaffForSlot, nextAvailableSlot, checkEarlierOptions, user, contact, staffChoices } = request;
+    const shown = nextAvailableSlot.start;
     try {
-      // Authenticated user booking
+      const pulled = await pullNumber({
+        shopId: selectedShop,
+        serviceId: selectedService,
+        staffIds: staffChoices?.length ? staffChoices : [selectedStaffForSlot],
+        shownStart: shown,
+        signedIn: Boolean(user),
+        // Ohne Konto Name und Telefon aus dem Formular; mit Konto nimmt das Backend beides aus dem Profil
+        name: user ? undefined : contact?.name.trim() || undefined,
+        phone: user ? undefined : contact?.phone.trim() || undefined,
+        // Push und E-Mails zur Nummer kommen in dieser Sprache (backend/app/i18n)
+        language: sprache(),
+        checkEarlier: checkEarlierOptions,
+      });
       if (user) {
-        return announced(await this.processAuthenticatedBooking({
-          selectedShop, 
-          selectedService, 
-          selectedStaffForSlot, 
-          startTime, 
-          endTime, 
-          checkEarlierOptions, 
-          user,
-          retry
-        }));
-      } 
-      // Anonymous booking
-      else {
-        return announced(await this.processAnonymousBooking({
-          selectedShop, 
-          selectedService, 
-          selectedStaffForSlot, 
-          startTime, 
-          endTime, 
-          checkEarlierOptions,
-          contact,
-          retry
-        }));
+        // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+        void linkOwnCustomerEntry(selectedShop);
+        return { success: true, isAnonymous: false, appointmentId: pulled.appointmentId, ...bookedSlotOf(pulled, shown), message: t('Du bist eingereiht') };
       }
+      // Termin-ID merken, um die Buchung später eindeutig einem Konto zuzuordnen (der Schlüssel liegt schon im Browser)
+      saveAnonymousBookingCode(selectedShop, pulled.appointmentId);
+      return {
+        success: true,
+        isAnonymous: true,
+        appointmentId: pulled.appointmentId,
+        ticketKey: pulled.ticketKey,
+        referenceCode: pulled.referenceCode || '',
+        ...bookedSlotOf(pulled, shown),
+        message: t('Termin erfolgreich gebucht!')
+      };
     } catch (error) {
       console.error('Error creating booking:', error);
       return {
@@ -174,143 +102,5 @@ export const QueueBookingService = {
         message: error instanceof Error && error.message ? error.message : t('Das hat nicht geklappt. Versuch es gleich noch einmal.')
       };
     }
-  },
-  
-  /**
-   * Process booking for authenticated users
-   * @param params Booking parameters for authenticated users
-   * @returns BookingResponse with status
-   */
-  async processAuthenticatedBooking(params: {
-    selectedShop: string;
-    selectedService: string;
-    selectedStaffForSlot: string;
-    startTime: Date;
-    endTime: Date;
-    checkEarlierOptions: boolean;
-    user: User;
-    retry: RetryOptions;
-  }): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      startTime, 
-      endTime, 
-      checkEarlierOptions, 
-      user,
-      retry
-    } = params;
-    
-    // Check if customer is already in queue for this shop
-    const alreadyInQueue = await isCustomerInQueue(selectedShop, user.uid);
-    if (alreadyInQueue) {
-      return {
-        success: false,
-        isAnonymous: false,
-        message: t('Du stehst schon in der Schlange dieses Ladens.')
-      };
-    }
-    
-    // Create queue appointment with customer data
-    const appointment = await createQueueAppointment({
-      shopId: selectedShop,
-      staffId: selectedStaffForSlot,
-      customerId: user.uid,
-      // Improved name determination with multiple fallbacks
-      customerName: user.displayName || 
-                  (user.email ? user.email.split('@')[0] : null) || 
-                  user.providerData?.[0]?.displayName || 
-                  'Unbekannt',
-      serviceId: selectedService,
-      startTime: Timestamp.fromDate(startTime),
-      endTime: Timestamp.fromDate(endTime),
-      status: 'scheduled',
-      type: 'queue', // Mark as queue appointment
-      // Push und E-Mails zur Nummer kommen in dieser Sprache (backend/app/i18n)
-      language: sprache(),
-      checkEarlierOptions: checkEarlierOptions,
-      // Only add if option is enabled
-      ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    }, retry);
-
-    // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
-    void linkOwnCustomerEntry(selectedShop);
-
-    return {
-      success: true,
-      isAnonymous: false,
-      appointmentId: appointment.id,
-      ...bookedSlotOf(appointment, startTime),
-      message: t('Du bist eingereiht')
-    };
-  },
-  
-  /**
-   * Process booking for anonymous users
-   * @param params Booking parameters for anonymous users
-   * @returns BookingResponse with status and reference code
-   */
-  async processAnonymousBooking(params: {
-    selectedShop: string;
-    selectedService: string;
-    selectedStaffForSlot: string;
-    startTime: Date;
-    endTime: Date;
-    checkEarlierOptions: boolean;
-    contact?: { name: string; phone: string };
-    retry: RetryOptions;
-  }): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      startTime, 
-      endTime, 
-      checkEarlierOptions,
-      contact,
-      retry
-    } = params;
-    const name = contact?.name.trim();
-    const phone = contact?.phone.trim();
-    // Schlüssel zum Absagen und Übernehmen: am Termin nur der Hash, der Schlüssel bleibt hier und im Link
-    const ticketKey = newTicketKey();
-
-    // Anonymous booking without customer data
-    const appointment = await createQueueAppointment({
-      shopId: selectedShop,
-      staffId: selectedStaffForSlot,
-      serviceId: selectedService,
-      startTime: Timestamp.fromDate(startTime),
-      endTime: Timestamp.fromDate(endTime),
-      status: 'scheduled',
-      type: 'queue',
-      isAnonymous: true, // Mark as anonymous booking
-      ticketKeyHash: await hashTicketKey(ticketKey),
-      language: sprache(),
-      ...(name ? { customerName: name } : {}),
-      ...(phone ? { customerPhone: phone } : {}),
-      checkEarlierOptions: checkEarlierOptions,
-      // Firestore lehnt Felder mit undefined ab – nur setzen, wenn gewünscht
-      ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    }, retry);
-
-    console.log('Anonymous booking successfully created:', appointment);
-    
-    // Termin-ID und Schlüssel merken, um die Buchung später eindeutig einem Konto zuzuordnen
-    if (appointment.id) {
-      rememberTicketKey(appointment.id, ticketKey);
-      saveAnonymousBookingCode(selectedShop, appointment.id);
-    }
-    
-    return {
-      success: true,
-      isAnonymous: true,
-      appointmentId: appointment.id,
-      ticketKey,
-      referenceCode: appointment.referenceCode || '',
-      ...bookedSlotOf(appointment, startTime),
-      message: t('Termin erfolgreich gebucht!')
-    };
   }
 };

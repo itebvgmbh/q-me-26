@@ -163,6 +163,13 @@ TEXTE: dict = {
     "Dieser Laden vergibt online keine festen Termine.": "This shop doesn't take fixed appointments online.",
     "Diese Zeit ist zu kurzfristig. Such dir bitte eine spätere aus.": "This time is too soon. Please pick a later one.",
     "Diese Zeit ist gerade weggegangen. Such dir bitte eine andere aus.": "This time was just taken. Please pick another one.",
+    "Dieser Laden nimmt gerade keine Buchungen an.": "This shop isn't taking bookings at the moment.",
+    "Bei dieser Person geht das gerade nicht. Wähl bitte eine andere.": "That doesn't work with this person right now. Please choose someone else.",
+    "An diesem Tag ist kein Platz mehr frei. Such dir bitte einen anderen Tag aus.": "There are no free slots left on this day. Please pick another day.",
+    "Gerade ziehen sehr viele eine Nummer. Versuch es gleich noch einmal.": "Lots of people are taking a number right now. Please try again in a moment.",
+    "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "No more numbers via Dranzeit this month. Just come straight to the shop.",
+    "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "Without signing in, the key for this number is missing. Please reload the page.",
+    "Bitte gib deinen Namen an.": "Please enter your name.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "This shop doesn't offer notifications.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Notifications for this number only work on the phone it was taken with, or with your account.",
