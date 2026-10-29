@@ -5,13 +5,17 @@
 //  3. Seite stand offen, Platz liegt inzwischen in der Vergangenheit → Hinweis und neuer Platz
 //  4. Letzter Platz des Tages weggeschnappt → kein Umbuchen auf morgen, Hinweis und neues Angebot
 // Braucht: Entwicklungsserver und Testdaten.
-const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, shot } = require('./lib.cjs');
+const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, shot, signIn } = require('./lib.cjs');
 
 run(async () => {
   const fx = fixture();
   const mo = fx.monday;
   const browser = await launch();
   const rows = [];
+  // Blocker anlegen, nachlesen und aufräumen als Inhaber des Testladens (wie am Tresen) – ohne Anmeldung lassen die
+  // Firestore-Regeln weder Nummern ohne Schlüssel noch das Lesen oder Ändern fremder Termine zu
+  const owner = await newPage(browser);
+  await signIn(owner, fx);
   const box = (page) => page.locator('[aria-live="polite"]').first().innerText().then((t) => t.replace(/\n+/g, ' | '));
   const toast = async (page) => (await page.locator('[data-sonner-toast]').allInnerTexts().catch(() => [])).join(' / ');
   const open = async (clock) => {
@@ -33,7 +37,7 @@ run(async () => {
     await page.getByRole('button', { name: /^Robin/ }).click();
     await page.locator('#queue-name').fill('Test Sonderfall');
     const before = await box(page);
-    const blockerId = await page.evaluate(async (fx) => {
+    const blockerId = await owner.evaluate(async (fx) => {
       const appts = await import('/src/utils/firestore/appointments.ts');
       const [y, m, d] = fx.monday.split('-').map(Number);
       const a = await appts.createAppointment({ shopId: fx.shopId, staffId: fx.staffId, serviceId: fx.serviceId, customerName: 'war schneller', status: 'scheduled', type: 'queue', isAnonymous: true, startTime: new Date(y, m - 1, d, 9, 0), endTime: new Date(y, m - 1, d, 9, 30) });
@@ -47,7 +51,7 @@ run(async () => {
     const text = landed ? (await page.locator('main, body').first().innerText()).replace(/\n+/g, ' | ') : await toast(page);
     rows.push({ name: 'Weggeschnappt: gleich eingereiht', pass: landed && /verschoben=1/.test(page.url()) && /Du bist eingereiht\./.test(text), detail: landed ? page.url().split('/').pop() : `kein Wechsel zur Nummer: ${text}` });
     rows.push({ name: 'Weggeschnappt: Hinweis 09:30', pass: /09:00/.test(before) && /Dein Platz hat sich auf 09:30 verschoben/.test(text), detail: `${before} → ${(text.match(/Dein Platz[^|]*/) || [text.slice(0, 120)])[0]}` });
-    const saved = ownId ? await page.evaluate(async (id) => {
+    const saved = ownId ? await owner.evaluate(async (id) => {
       // Firestore-Funktionen der App (gleicher Weg wie frueher-dran-schalter.cjs)
       const src = await (await fetch('/src/utils/firestore-client.ts')).text();
       const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
@@ -57,7 +61,7 @@ run(async () => {
     }, ownId).catch((e) => `nicht lesbar: ${String(e).slice(0, 80)}`) : '';
     rows.push({ name: 'Weggeschnappt: gespeichert 09:30', pass: /^09:30 \d+/.test(saved), detail: saved });
     await shot(page, 'sonderfall-weggeschnappt', false);
-    await page.evaluate(async (ids) => {
+    await owner.evaluate(async (ids) => {
       const appts = await import('/src/utils/firestore/appointments.ts');
       for (const id of ids) await appts.updateAppointment(id, { status: 'cancelled' });
     }, [blockerId, ownId].filter(Boolean));
@@ -87,7 +91,7 @@ run(async () => {
     await page.getByRole('button', { name: /^Robin/ }).click();
     await page.locator('#queue-name').fill('Test Sonderfall');
     const before = await box(page);
-    const blockerId = await page.evaluate(async (fx) => {
+    const blockerId = await owner.evaluate(async (fx) => {
       const appts = await import('/src/utils/firestore/appointments.ts');
       const [y, m, d] = fx.monday.split('-').map(Number);
       const a = await appts.createAppointment({ shopId: fx.shopId, staffId: fx.staffId, serviceId: fx.serviceId, customerName: 'war schneller', status: 'scheduled', type: 'queue', isAnonymous: true, startTime: new Date(y, m - 1, d, 16, 15), endTime: new Date(y, m - 1, d, 16, 45) });
@@ -98,7 +102,7 @@ run(async () => {
     const hint = await toast(page);
     rows.push({ name: 'Tag voll: Hinweis statt morgen', pass: /gerade weggegangen/.test(hint) && !/\/nummer\//.test(page.url()), detail: hint });
     rows.push({ name: 'Tag voll: neues Angebot morgen 09:00', pass: /16:15/.test(before) && /09:00/.test(await box(page)), detail: `${before} → ${await box(page)}` });
-    await page.evaluate(async (id) => (await import('/src/utils/firestore/appointments.ts')).updateAppointment(id, { status: 'cancelled' }), blockerId);
+    await owner.evaluate(async (id) => (await import('/src/utils/firestore/appointments.ts')).updateAppointment(id, { status: 'cancelled' }), blockerId);
     rows.push({ name: 'Keine JavaScript-Fehler (3)', pass: errors.length === 0, detail: errors.join(' | ') });
     await page.context().close();
   }
