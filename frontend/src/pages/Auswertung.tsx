@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from 'app';
 import { getAppointmentsInRange, getShopsByOwnerId, type Appointment, type Shop } from '../utils/firestore';
+import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { hasFeature, euro } from '../utils/plans';
 import { computeStats } from '../utils/stats';
 import { merke, t, tn } from '@/i18n';
@@ -24,9 +25,13 @@ export default function Auswertung() {
     if (!user) return;
     getShopsByOwnerId(user.uid).then((list) => {
       setShops(list);
-      setShopId((s) => s || list[0]?.id || '');
+      setShopId((current) => current || waehleLaden(list)?.id || '');
     });
   }, [user]);
+
+  useEffect(() => {
+    if (shopId) merkeLaden(shopId);
+  }, [shopId]);
 
   const { from, to } = useMemo(() => {
     const end = new Date();

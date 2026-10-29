@@ -5,6 +5,7 @@ import { APP_BASE_PATH, useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { BrandMark } from '../components/brand/Logo';
 import { getShopsByOwnerId, type Shop } from '../utils/firestore';
+import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { HilfeLink } from '../components/HilfeLink';
 import { markOnboarding } from '../components/onboarding/Startklar';
 import { merke, t } from '@/i18n';
@@ -25,11 +26,14 @@ export default function Plakat() {
     if (!user) return;
     getShopsByOwnerId(user.uid).then((list) => {
       setShops(list);
-      // ?shopId= vom Tresen oder von „Mein Laden“, sonst der erste Laden
-      const wanted = new URLSearchParams(window.location.search).get('shopId');
-      setShopId((s) => s || list.find((shop) => shop.id === wanted)?.id || list[0]?.id || '');
+      // ?shopId= vom Tresen oder von „Laden“, sonst der zuletzt gezeigte Laden
+      setShopId((current) => current || waehleLaden(list)?.id || '');
     });
   }, [user]);
+
+  useEffect(() => {
+    if (shopId) merkeLaden(shopId);
+  }, [shopId]);
 
   const shop = shops?.find((s) => s.id === shopId);
   if (shops === null) return <div className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">{t('Plakat wird vorbereitet …')}</div>;

@@ -56,6 +56,8 @@ node dev/e2e/nummer-frueher-dran.cjs        # Nummer ohne Konto → „Konto anl
 node dev/e2e/mein-tag-zeitraum.cjs          # Mein Tag: neuer Zeitraum beginnt heute, Pfeile schieben um je einen Tag (Wegwerf-Laden, räumt sich selbst weg)
 node dev/e2e/webseite-einbau.cjs            # Mein Laden → Auf deiner Webseite: Kasten, Knopf, QR-Code (Wegwerf-Laden); Backend ab diesem Stand nötig, QME_EINBAU_LIVE=1 prüft Einbetten auf fremden Seiten
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
+node dev/e2e/platz-aendern.cjs              # Termin ohne Konto buchen → „Platz ändern“ → absagen (Backend /nummer/termin und /verschieben, geht auch mit QME_URL=https://dranzeit.de)
+node dev/e2e/laden-wahl.cjs                 # zwei Läden: Heute, Kalender, Laden, Leistungen, Team, Tarif, Auswertung zeigen denselben (Wegwerf-Konto)
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen

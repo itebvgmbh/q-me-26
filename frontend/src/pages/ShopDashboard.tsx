@@ -16,6 +16,7 @@ import { Startklar } from '../components/onboarding/Startklar';
 import { GeraetWahl } from '../components/GeraetWahl';
 import { TeamPushSchalter } from '../components/TeamPushSchalter';
 import { gespeichertesGeraet, jetztFragen, merkeGeraet, spaeterFragen, type GeraetRolle } from '../utils/geraet';
+import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { weekDays } from '../utils/calendar-layout';
 import { useKeepScreenOn } from '../utils/native-app';
 import {
@@ -153,6 +154,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
         return;
       }
       setShop(shopData);
+      merkeLaden(shopData.id);
       const [staffData, servicesData, customersData] = await Promise.all([
         getShopStaff(shopData.id),
         getServicesByShopId(shopData.id),
@@ -184,8 +186,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
       try {
         const userShops = await listShopsOfOwner(user.uid);
         setShops(userShops);
-        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens; sonst zuerst ein Laden, der nicht gesperrt ist
-        const wanted = userShops.find((s) => s.id === searchParams.get('shopId')) ?? userShops.find((s) => !s.suspended) ?? userShops[0];
+        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens; sonst der zuletzt gezeigte, sonst einer, der nicht gesperrt ist
+        const wanted = waehleLaden(userShops, searchParams.get('shopId'));
         if (wanted) await loadShopData(wanted.id);
         else setIsLoading(false);
       } catch (error) {
