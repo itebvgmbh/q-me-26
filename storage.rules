@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Speicher-Regeln (Firebase Storage) für Dranzeit, Bucket qmedata-7c79e.firebasestorage.app.
+// Fassung: 2026-10-29 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+//
+// Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md, Abschnitt
+// „Speicher-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
+//
+// Im Speicher liegen nur Bilder, die die App hochlädt (frontend/src/utils/firestore/storage.ts):
+//  - shop-logos/{shopId}/…            Logo des Ladens (Mein Laden, EditShopForm)
+//  - staff-profile-images/{shopId}/…  Fotos der Personen (Team, AddStaffDialog/EditStaffDialog)
+// Angezeigt werden sie über die Download-Adresse, die beim Hochladen in Firestore gespeichert wird; die gilt auch
+// ohne diese Regeln. Hochladen, Ersetzen und Löschen darf nur der Inhaber des Ladens – wie Laden und Team in
+// firestore.rules. Alles andere ist zu, auch das Auflisten.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Inhaber des Ladens (shops/{shopId}.owner in Firestore; fehlt der Laden, gilt das als nein)
+    function ownsShop(shopId) {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/shops/$(shopId)).data.owner == request.auth.uid;
+    }
+
+    // Ein Bild bis 2 MB (Logos verkleinert die App vorher auf 200 Pixel und höchstens 1 MB)
+    function isImage() {
+      return request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /shop-logos/{shopId}/{file} {
+      allow get: if true;
+      allow create, update: if ownsShop(shopId) && isImage();
+      allow delete: if ownsShop(shopId);
+    }
+
+    match /staff-profile-images/{shopId}/{file} {
+      allow get: if true;
+      allow create, update: if ownsShop(shopId) && isImage();
+      allow delete: if ownsShop(shopId);
+    }
+  }
+}
