@@ -106,8 +106,9 @@ run(async () => {
     check('Tresen: Überfälliger wartet weiter', laneText.includes(`${PREFIX} B`) && /3 wartet/i.test(laneText), laneText.slice(0, 120));
     check('Tresen: Verzug angezeigt', /ca\. 35 Min\. Verzug/.test(laneText) && /ca\. 10:35/.test(laneText), (laneText.match(/ca\.[^·]{0,20}/g) || []).join(' | '));
     check('Tresen: Fertig – nächste Nummer', (await lane.getByRole('button', { name: 'Fertig – nächste Nummer' }).count()) === 1);
-    const waitingStat = await page.getByText('Wartet noch').locator('..').innerText().catch(() => '');
-    check('Tresen: Wartet noch zählt Überfällige', /3/.test(waitingStat), waitingStat.replace(/\s+/g, ' '));
+    // Unter „Heute“ steht die Zeile „3 warten · 0 sind dran · 0 fertig“ (die Kacheln stehen im Kalender)
+    const waitingStat = await page.getByText(/^\d+ wart(et|en) · /).first().innerText().catch(() => '');
+    check('Tresen: Wartet noch zählt Überfällige', /^3 warten/.test(waitingStat), waitingStat.replace(/\s+/g, ' '));
     await shot(page, 'schlange-tresen-verzug');
 
     const codes = { b: (await readDoc(ids.b)).referenceCode, c: (await readDoc(ids.c)).referenceCode };

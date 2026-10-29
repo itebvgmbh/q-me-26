@@ -15,7 +15,7 @@ Steht jemand ohne Handy vor dir, reihst du ihn selbst ein. Dranzeit sucht dabei 
 4. Trag bei **„Name zum Aufrufen (freiwillig)“** ein, wie du ihn nachher rufst, zum Beispiel „Herr Krause“.
 5. Tipp auf **„Nummer vergeben“**.
 
-![„Nummer vergeben“: Leistung, Person und freiwillig ein Name. Der nächste freie Platz steht gleich dabei.](/img/hilfe/nummer-vergeben.jpg)
+![„Kunde eintragen“ mit „Nummer (nächster Platz)“: Leistung, Person und freiwillig ein Name. Der nächste freie Platz steht gleich dabei.](/img/hilfe/nummer-vergeben.jpg)
 
 Zur Bestätigung zeigt Dranzeit die **Nummer** groß an, dazu wann und bei wem der Kunde dran ist, zum Beispiel „Nr. 42 · heute um 10:30 bei Anna“. Sag ihm Nummer und Uhrzeit, am besten auf einem Zettel. Mit **„Fertig“** schließt du das Fenster, mit **„Noch eine Nummer“** vergibst du gleich die nächste.
 
