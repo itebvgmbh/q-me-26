@@ -3,6 +3,7 @@
   "private": true,
   "description": "Prüft firestore.rules und storage.rules in den Firebase-Emulatoren – siehe dev/regeln/README.md",
   "scripts": {
+    "pretest": "node -e \"require('fs').copyFileSync('../../storage.rules', 'storage.rules')\"",
     "test": "firebase emulators:exec --only firestore,storage --project demo-dranzeit \"node --test --test-concurrency=1 regeln.test.mjs speicher.test.mjs\""
   },
   "devDependencies": {
