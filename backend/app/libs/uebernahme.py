@@ -53,6 +53,11 @@ def anzeigen(code: str) -> str:
     return f"{c[:5]}-{c[5:]}" if len(c) == LAENGE else c
 
 
+def link(basis: str, code: str) -> str:
+    """Adresse hinter dem QR-Code; die Raute hält den Code aus den Server-Logs heraus"""
+    return f"{basis}/uebernehmen#code={normalisieren(code)}"
+
+
 def code_hash(code: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", normalisieren(code).encode(), SALZ, RUNDEN).hex()
 
