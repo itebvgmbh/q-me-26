@@ -98,7 +98,7 @@ export default function Betreiber() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<Tab>('uebersicht');
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get('reiter') === 'verzeichnis' ? 'verzeichnis' : 'uebersicht')); // Link aus der Mail „Übernahme angefragt“
   const [selected, setSelected] = useState<Selected>(null);
   const [query, setQuery] = useState('');
   const [shopFilter, setShopFilter] = useState('alle');

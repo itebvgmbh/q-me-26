@@ -117,6 +117,7 @@ const texte: Texte = {
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "Burada henüz online sıra numarası yok – ama adresi, saatleri ve fiyatları yine de bulabilirsiniz.",
   "Du bist hier": "Buradasınız",
   "{km} km entfernt": "{km} km uzakta",
+  "Dein Salon? Übernehmen": "Salonunuz mu? Sayfanızı devralın",
   "Noch nicht online buchbar": "Henüz online randevu yok",
   "Ansehen": "Görüntüle",
 

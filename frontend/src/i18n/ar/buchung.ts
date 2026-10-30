@@ -131,6 +131,7 @@ const texte: Texte = {
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "لا يتوفر هنا رقم انتظار عبر الإنترنت بعد – لكنك ستجد العنوان والمواعيد والأسعار.",
   "Du bist hier": "أنت هنا",
   "{km} km entfernt": "على بُعد {km} كم",
+  "Dein Salon? Übernehmen": "صالونك؟ استلم صفحتك",
   "Noch nicht online buchbar": "الحجز عبر الإنترنت غير متاح بعد",
   "Ansehen": "عرض",
 

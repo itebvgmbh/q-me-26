@@ -301,6 +301,8 @@ const texte: Texte = {
   "Seite übernehmen": "استلام صفحتك",
   "Code aus unserem Brief": "الرمز من رسالتنا",
   "Code prüfen": "تحقق من الرمز",
+  "Angefragt.": "تم الطلب.",
+  "Wir prüfen kurz, ob es dein Salon ist, und verbinden die Seite dann mit {laden}.": "سنتحقق سريعًا من أنه صالونك، ثم نربط الصفحة بـ {laden}.",
   "Noch nicht verbunden.": "لم تُربط بعد.",
   "Deine Seite gehört jetzt zu {laden}. Kunden ziehen dort ab sofort eine Nummer.": "صفحتك أصبحت الآن تابعة لـ {laden}. من الآن يأخذ الزبائن رقمًا هناك.",
   "Seite ansehen": "عرض الصفحة",

@@ -380,7 +380,10 @@ def uebernahme_ablehnen(entry_id: str, body: ShopRequest, user: AuthorizedUser) 
     """Nicht derselbe Salon: Vorschlag verwerfen; der Laden bekommt beim nächsten Abgleich eine eigene Seite."""
     entry = _eintrag(entry_id)
     abgelehnt = sorted(set(entry.get("abgelehnt") or []) | {body.shopId})
-    vz.store().aendere(entry_id, {"vorschlag": None, "abgelehnt": abgelehnt, "geaendertAm": vz.now()})
+    changes = {"vorschlag": None, "abgelehnt": abgelehnt, "geaendertAm": vz.now()}
+    if (entry.get("anfrage") or {}).get("shopId") == body.shopId:
+        changes["anfrage"] = None
+    vz.store().aendere(entry_id, changes)
     protokoll.write(user, "Verzeichnis: Übernahme abgelehnt", {"verzeichnisId": entry_id, "shopId": body.shopId, "name": entry.get("name")})
     _vergessen()
     return {"ok": True}

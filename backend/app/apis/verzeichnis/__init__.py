@@ -7,6 +7,7 @@
     GET  /routes/verzeichnis/{id}/vorschau           Angaben der Seite für den Einrichtungsassistenten („Ist das dein Salon?“)
     POST /routes/verzeichnis/uebernahme/pruefen      Übernahme-Code aus dem Brief: zu welcher Seite gehört er?
     POST /routes/verzeichnis/uebernahme/einloesen    Code einlösen (angemeldet, eigener Laden): Seite wird die des Ladens
+    POST /routes/verzeichnis/uebernahme/anfragen     Ohne Code (angemeldet, eigener Laden): Vorschlag + Mail an den Betreiber
 
 Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Grund und Kontakt beim
 Entfernen stehen nur im Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur
@@ -21,7 +22,7 @@ from collections import defaultdict, deque
 from datetime import date
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -41,6 +42,7 @@ LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "entfernen": (5, 86400),
     "code": (20, 3600),
     "einloesen": (10, 3600),
+    "anfrage": (10, 3600),
 }
 _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein Wunsch einmal; um Mitternacht vergessen
 
@@ -168,6 +170,11 @@ class EinloesenRequest(BaseModel):
     shopId: str
 
 
+class AnfrageRequest(BaseModel):
+    eintragId: str
+    shopId: str
+
+
 def _ue_fehler(e: ue.Fehler) -> HTTPException:
     return HTTPException(status_code=e.status, detail=e.text)
 
@@ -190,17 +197,22 @@ def _laden(shop_id: str) -> dict:
     return {**(snap.to_dict() or {}), "id": snap.id} if snap.exists else {}
 
 
+def _eigener_laden(user, shop_id: str) -> dict:
+    if not ID_RE.fullmatch(shop_id or ""):
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    require_shop_of_owner(user, shop_id)
+    shop = _laden(shop_id)
+    if not shop:
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    return shop
+
+
 @router.post("/verzeichnis/uebernahme/einloesen")
 def code_einloesen(body: EinloesenRequest, request: Request, user: AuthorizedUser) -> dict:
     """Nach dem Anlegen des Ladens: Seite und Laden verknüpfen, ohne dass der Betreiber bestätigt"""
     _limit("code", _ip(request))
     _limit("einloesen", user.sub)
-    if not ID_RE.fullmatch(body.shopId or ""):
-        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
-    require_shop_of_owner(user, body.shopId)
-    shop = _laden(body.shopId)
-    if not shop:
-        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht mehr.")
+    shop = _eigener_laden(user, body.shopId)
     try:
         entry = ue.einloesen(body.code, shop["id"])
     except ue.Fehler as e:
@@ -211,3 +223,60 @@ def code_einloesen(body: EinloesenRequest, request: Request, user: AuthorizedUse
 
     verzeichnis_seiten.vergessen()
     return {"ok": True, "pfad": vz.pfad(entry)}
+
+
+@router.post("/verzeichnis/uebernahme/anfragen")
+def anfragen(body: AnfrageRequest, background: BackgroundTasks, user: AuthorizedUser) -> dict:
+    """Ohne Code: Der Inhaber fragt an, ob die Seite die seines Ladens wird. Der Betreiber bestätigt den Vorschlag im
+    Betreiber-Bereich und bekommt dazu eine Mail. Dieselbe Anfrage noch einmal schickt keine zweite Mail."""
+    _limit("anfrage", user.sub)
+    shop = _eigener_laden(user, body.shopId)
+    entry = _online_eintrag(body.eintragId)
+    if shop["id"] in (entry.get("abgelehnt") or []):
+        raise HTTPException(status_code=409, detail="Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.")
+    pfad = vz.pfad(entry)
+    if (entry.get("anfrage") or {}).get("shopId") == shop["id"]:
+        return {"ok": True, "pfad": pfad}
+    jetzt = vz.now()
+    vz.store().aendere(entry["id"], {
+        "anfrage": {"shopId": shop["id"], "am": jetzt},
+        "vorschlag": {"shopId": shop["id"], "name": shop.get("name", ""), "grund": vz.GRUND_ANFRAGE, "am": jetzt},
+    })
+    protokoll.write(user, "Verzeichnis: Übernahme angefragt", {"verzeichnisId": entry["id"], "shopId": shop["id"], "name": shop.get("name")},
+                    before={"name": entry.get("name"), "vorher": (entry.get("anfrage") or {}).get("shopId")}, after={"pfad": pfad})
+    from app import verzeichnis_seiten
+
+    verzeichnis_seiten.vergessen()
+    background.add_task(anfrage_melden, entry, shop, getattr(user, "email", "") or "")
+    return {"ok": True, "pfad": pfad}
+
+
+def anfrage_melden(entry: dict, shop: dict, email: str) -> None:
+    """Mail an die Betreiber (QME_ADMIN_EMAILS): Eine Übernahme ohne Code wartet auf Bestätigung"""
+    from app.auth.access import admin_lists
+    from app.libs.mail import MailError, branded_html, esc, public_url, send_mail
+
+    an = sorted(a for a in admin_lists()[0] if "@" in a)
+    if not an:
+        print(f"Übernahme angefragt, aber kein Betreiber in QME_ADMIN_EMAILS: {entry.get('id')} ← Laden {shop.get('id')}")
+        return
+    adresse = lambda d: ", ".join(x for x in (d.get("street"), " ".join(y for y in (d.get("postalCode"), d.get("city")) if y)) if x)  # noqa: E731
+    base = public_url()
+    seite = f"{base}{vz.pfad(entry)}"
+    laden = " · ".join(x for x in (shop.get("name"), adresse(shop), shop.get("phone"), email) if x)
+    salon = " · ".join(x for x in (entry.get("name"), adresse(entry), entry.get("phone")) if x)
+    absaetze = [
+        "Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief.",
+        f"<strong>Laden:</strong> {esc(laden)}",
+        f"<strong>Seite:</strong> <a href=\"{esc(seite)}\">{esc(salon)}</a>",
+        "Ist es derselbe Salon? Dann bestätige im Betreiber-Bereich unter „Verzeichnis“, sonst lehne ab. Bis dahin bleibt die Seite grau.",
+    ]
+    ziel = f"{base}/betreiber?reiter=verzeichnis"
+    text = (f"Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief.\n\nLaden: {laden}\n"
+            f"Seite: {salon}\n{seite}\n\nBestätigen oder ablehnen: {ziel}\n")
+    betreff = " ".join(f"Übernahme angefragt: {entry.get('name') or ''}".split())
+    for to in an:
+        try:
+            send_mail(to, betreff, branded_html("Übernahme angefragt", absaetze, "Im Betreiber-Bereich prüfen", ziel), text)
+        except MailError as e:
+            print(f"Mail „Übernahme angefragt“ an {to} nicht verschickt: {e}")

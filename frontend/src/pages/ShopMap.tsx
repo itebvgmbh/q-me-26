@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
 import { fetchMarketplaceShops, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
@@ -307,17 +307,18 @@ const ShopMap = () => {
                   <h3 className="pt-2 font-display text-lg font-bold">{t('Weitere Salons')}</h3>
                   <p className="-mt-2 text-sm text-muted-foreground">{t('Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.')}</p>
                   {visibleSalons.map((s) => (
-                    <a
-                      key={s.id}
-                      href={s.pfad}
-                      className="flex flex-col gap-0.5 rounded-3xl border border-border bg-card p-4 transition-colors hover:bg-muted/40"
-                    >
-                      <span className="font-display font-bold">{s.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {[s.street, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
-                        {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
-                      </span>
-                    </a>
+                    <div key={s.id} className="flex flex-col rounded-3xl border border-border bg-card transition-colors hover:bg-muted/40">
+                      <a href={s.pfad} className="flex flex-col gap-0.5 p-4 pb-2">
+                        <span className="font-display font-bold">{s.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {[s.street, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                          {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
+                        </span>
+                      </a>
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="self-start px-4 pb-4 text-sm font-semibold underline underline-offset-4">
+                        {t('Dein Salon? Übernehmen')}
+                      </Link>
+                    </div>
                   ))}
                 </>
               )}
@@ -397,6 +398,9 @@ const ShopMap = () => {
                       <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
                         {t('Ansehen')}
                       </a>
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="mt-1 block text-sm underline">
+                        {t('Dein Salon? Übernehmen')}
+                      </Link>
                     </div>
                   </Popup>
                 </Marker>
