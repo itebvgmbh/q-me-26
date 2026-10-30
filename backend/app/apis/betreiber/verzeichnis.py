@@ -7,10 +7,11 @@ Import: app/libs/verzeichnis_import.py, Seiten: app/verzeichnis_seiten.py. Jeder
 import re
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
+from app.libs import brief
 from app.libs import protokoll
 from app.libs import uebernahme as ue
 from app.libs import verzeichnis as vz
@@ -371,8 +372,40 @@ def uebernahme_code(entry_id: str, user: AuthorizedUser, request: Request) -> di
         raise HTTPException(status_code=e.status, detail=e.text) from e
     protokoll.write(user, "Verzeichnis: Übernahme-Code erzeugt", {"verzeichnisId": entry_id, "name": entry.get("name")},
                     after={"gueltigBis": neu["gueltigBis"].isoformat()})
-    link = f"{public_origin(request)}/uebernehmen#code={ue.normalisieren(neu['code'])}"
-    return {"code": neu["code"], "link": link, "gueltigBis": neu["gueltigBis"].isoformat()}
+    return {"code": neu["code"], "link": ue.link(public_origin(request), neu["code"]), "gueltigBis": neu["gueltigBis"].isoformat()}
+
+
+class BriefRequest(BaseModel):
+    code: str
+
+
+def _gruenderplaetze() -> int:
+    from app.apis.billing import founders_left
+
+    return founders_left()
+
+
+@router.post("/betreiber/verzeichnis/{entry_id}/brief")
+def uebernahme_brief(entry_id: str, body: BriefRequest, user: AuthorizedUser) -> Response:
+    """Brief an den Salon als PDF. Braucht den Code im Klartext (gespeichert ist nur der Hash), darum nur direkt nach dem Erzeugen."""
+    from app import seo
+
+    entry = _eintrag(entry_id)
+    try:
+        if ue.pruefen(body.code)["id"] != entry_id:
+            raise HTTPException(status_code=409, detail="Dieser Code gehört zu einem anderen Salon.")
+    except ue.Fehler as e:
+        raise HTTPException(status_code=e.status, detail=e.text) from e
+    grund = brief.hindernis(entry)
+    if grund:
+        raise HTTPException(status_code=409, detail=grund)
+    inhalt = brief.pdf(entry, body.code, ue._aware(entry["uebernahme"]["gueltigBis"]), seo.public_url(), _gruenderplaetze())
+    protokoll.write(user, "Verzeichnis: Brief erzeugt", {"verzeichnisId": entry_id, "name": entry.get("name")})
+    name = vz.slugify(entry.get("name") or "", 60) or "salon"
+    return Response(inhalt, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="Dranzeit-Brief-{name}.pdf"',
+        "Cache-Control": "private, no-store",
+    })
 
 
 @router.post("/betreiber/verzeichnis/{entry_id}/uebernahme-ablehnen")

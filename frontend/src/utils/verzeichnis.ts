@@ -1,7 +1,7 @@
 // Salon-Verzeichnis: Salons ohne Dranzeit mit eigener Seite (/friseur/<stadt>/<salon>), dazu die Seiten der Läden.
 // Betreiber-Bereich (Reiter Verzeichnis): backend/app/apis/betreiber/verzeichnis.py
 // Karte: backend/app/apis/verzeichnis (ohne Anmeldung)
-import { send } from './betreiber';
+import { request, send } from './betreiber';
 
 export type EintragStatus = 'entwurf' | 'online' | 'offline' | 'entfernt';
 export type Kategorie = 'friseur' | 'barbershop';
@@ -119,6 +119,19 @@ export const confirmTakeover = (id: string, shopId: string) => send<{ ok: boolea
 export const rejectTakeover = (id: string, shopId: string) => send<{ ok: boolean }>(entryPath(id, 'uebernahme-ablehnen'), { shopId });
 /** Neuer Übernahme-Code: wird nur jetzt gezeigt; ein früherer gilt nicht mehr (backend/app/libs/uebernahme.py) */
 export const createClaimCode = (id: string) => send<{ code: string; link: string; gueltigBis: string }>(entryPath(id, 'code'), {});
+/** Brief an den Salon als PDF. Braucht den Code im Klartext, darum nur direkt nach dem Erzeugen. */
+export const downloadClaimLetter = async (id: string, code: string) => {
+  const res = await request(entryPath(id, 'brief'), { code });
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1];
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name || 'Dranzeit-Brief.pdf';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+};
 
 /** Für die Karte: Salons ohne Dranzeit (ohne Anmeldung). Fehler → leere Liste, die Karte zeigt dann nur Dranzeit-Läden. */
 export interface KartenSalon {

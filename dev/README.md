@@ -79,6 +79,7 @@ node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die e
 node --experimental-strip-types dev/i18n-pruefen.mjs --offen   # Übersetzungen: fehlt etwas, passen Platzhalter, Text noch ohne t()? (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
+python dev/brief-muster.py brief.pdf        # Brief an einen Salon ansehen (ohne Firebase; Knopf im Betreiber-Bereich: node dev/e2e/brief.cjs)
 ```
 
 ## Lasttest (gegen die Live-Seite)

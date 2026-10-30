@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { Copy, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, FileDown, Plus, Search, Trash2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import {
   createByHand,
   deleteEintrag,
   createClaimCode,
+  downloadClaimLetter,
   importSalon,
   loadVerzeichnis,
   rejectTakeover,
@@ -832,6 +833,7 @@ const copy = (text: string, done: string) => navigator.clipboard.writeText(text)
 const ClaimCode = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void }) => {
   const [neu, setNeu] = useState<{ code: string; link: string; gueltigBis: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [letterBusy, setLetterBusy] = useState(false);
   const info = entry.uebernahme;
 
   const create = async () => {
@@ -847,12 +849,25 @@ const ClaimCode = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void
     }
   };
 
+  const letter = async () => {
+    if (!neu) return;
+    setLetterBusy(true);
+    try {
+      await downloadClaimLetter(entry.id, neu.code);
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setLetterBusy(false);
+    }
+  };
+
   return (
     <Section title="Übernahme-Code">
       <p className="text-sm text-muted-foreground">
         Für den Brief an den Salon. Mit dem Code richtet er seinen Laden vorausgefüllt ein, und die Seite gehört sofort ihm – ohne Bestätigung hier.
         Ohne Code bleibt es beim Vorschlag oben, den du bestätigst.
       </p>
+      {entry.status !== 'online' && !info?.eingeloestAm && <p className="text-sm font-semibold">Für den Brief muss die Seite veröffentlicht sein.</p>}
       {info?.eingeloestAm ? (
         <p className="text-sm font-semibold">Eingelöst am {fmtDateTime(info.eingeloestAm)}.</p>
       ) : info?.erstelltAm ? (
@@ -872,8 +887,12 @@ const ClaimCode = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void
             <p className="truncate text-sm text-muted-foreground" dir="ltr">
               {neu.link}
             </p>
-            <p className="text-xs text-muted-foreground">Gültig bis {fmtDate(neu.gueltigBis)}. Jetzt notieren – später zeigt ihn niemand mehr an.</p>
+            <p className="text-xs text-muted-foreground">Gültig bis {fmtDate(neu.gueltigBis)}. Jetzt Brief speichern oder Code notieren – später zeigt ihn niemand mehr an.</p>
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={letterBusy} onClick={letter}>
+                <FileDown className="h-4 w-4" aria-hidden="true" />
+                {letterBusy ? 'Wird erstellt …' : 'Brief als PDF'}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => copy(neu.code, 'Code kopiert.')}>
                 <Copy className="h-4 w-4" aria-hidden="true" />
                 Code kopieren

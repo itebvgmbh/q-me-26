@@ -23,6 +23,7 @@ import app.seo as seo  # noqa: E402
 import app.verzeichnis_seiten as seiten  # noqa: E402
 from app.apis import verzeichnis as public_api  # noqa: E402
 from app.apis.betreiber import verzeichnis as admin_api  # noqa: E402
+from app.libs import brief  # noqa: E402
 from app.libs import protokoll  # noqa: E402
 from app.libs import uebernahme as ue  # noqa: E402
 from app.libs import verzeichnis as vz  # noqa: E402
@@ -539,6 +540,59 @@ def test_uebernahme_api():
     public_api._calls.clear()
     codes = [c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "AAAAA-AAAA" + x}).status_code for x in "ABCDEFGHJKMNPQRSTUVWX"]
     assert codes[-1] == 429 and codes.count(404) == public_api.LIMITS["code"][0]
+
+
+def test_brief():
+    e = eintrag("e1", "Kuaför Şahin & Söhne", street="Hauptstr. 1", wuensche=2)
+    # Regeln: nur veröffentlichte Seiten mit Anschrift; wer die Seite entfernt hat, bekommt keine Post
+    assert brief.hindernis(e) == ""
+    assert "Veröffentliche" in brief.hindernis({**e, "status": "entwurf"})
+    assert "keine Post" in brief.hindernis({**e, "status": "entfernt"})
+    assert "Anschrift" in brief.hindernis({**e, "street": " "})
+    # Wortlaut: Wünsche ab drei, Plätze ehrlich, Quelle wie am Eintrag, Name maskiert
+    t = brief.texte(e, "https://dranzeit.de", 100)
+    assert "&amp;" in t["betreff"] and t["wuensche"] == "" and "ersten 100 Läden" in t["angebot"]
+    assert "dranzeit.de/friseur/berlin/kuafoer-sahin-soehne" in t["einstieg"] and "von deiner Webseite" in t["einstieg"]
+    assert "3 Leute" in brief.texte({**e, "wuensche": 3}, "https://dranzeit.de", 84)["wuensche"]
+    assert "Noch 84 von 100" in brief.texte(e, "https://dranzeit.de", 84)["angebot"]
+    assert "Gründer" not in brief.texte(e, "https://dranzeit.de", 0)["angebot"]
+    assert "öffentlichen Quellen" in brief.texte({**e, "quelle": None}, "https://dranzeit.de", 1)["einstieg"]
+    # Blatt: eine Seite, Schriften eingebettet
+    gueltig = MONDAY + timedelta(days=ue.GUELTIG_TAGE)
+    daten = brief.pdf(e, "ABCDE-FGHJK", gueltig, "https://dranzeit.de", 100, MONDAY)
+    assert daten.startswith(b"%PDF") and b"/Count 1" in daten and daten.count(b"/FontFile2") == 4
+    # Auch mit langem Namen und allen Textbausteinen: Marke ganz im mittleren Drittel, Text über der Fußzeile
+    lang = {**e, "name": "Haarstudio und Barbershop am Schönhauser Tor bei Friseurmeisterin Musterfrau", "wuensche": 12}
+    c = brief.canvas.Canvas(brief.io.BytesIO(), pagesize=brief.A4)
+    masse = brief.zeichnen(c, lang, "ABCDE-FGHJK", gueltig, "https://dranzeit.de", 84, MONDAY)
+    assert masse["text_vor_marke"] <= brief.MARKE_MM - 1
+    assert brief.FALZ[0] < brief.MARKE_MM and masse["marke_unten"] <= brief.FALZ[1] - 2
+    assert masse["text_unten"] < 277
+
+
+def test_brief_api():
+    store = frisch([eintrag("e1", "Haarwerk"), eintrag("e2", "Kamm & Co"), eintrag("e3", "Entwurf", status="entwurf")])
+    admin_api._gruenderplaetze = lambda: 84
+    app = FastAPI()
+    app.include_router(admin_api.router, prefix="/routes")
+    app.dependency_overrides[get_authorized_user] = lambda: USER
+    c = TestClient(app)
+    code = c.post("/routes/betreiber/verzeichnis/e1/code").json()["code"]
+    r = c.post("/routes/betreiber/verzeichnis/e1/brief", json={"code": code})
+    assert r.status_code == 200 and r.content.startswith(b"%PDF") and r.headers["content-type"] == "application/pdf"
+    assert 'filename="Dranzeit-Brief-haarwerk.pdf"' in r.headers["content-disposition"] and r.headers["cache-control"] == "private, no-store"
+    # Der Code steht nicht im Protokoll
+    zeile = protokoll.read(1)[0]
+    assert zeile["action"] == "Verzeichnis: Brief erzeugt" and code not in json.dumps(zeile, default=str)
+    # Falscher Code, fremder Code, Entwurf
+    assert c.post("/routes/betreiber/verzeichnis/e1/brief", json={"code": "AAAAA-AAAAA"}).status_code == 404
+    assert c.post("/routes/betreiber/verzeichnis/e2/brief", json={"code": code}).status_code == 409
+    entwurf = c.post("/routes/betreiber/verzeichnis/e3/code").json()["code"]
+    r = c.post("/routes/betreiber/verzeichnis/e3/brief", json={"code": entwurf})
+    assert r.status_code == 409 and "Veröffentliche" in r.json()["detail"]
+    # Eingelöst: kein Brief mehr
+    ue.einloesen(code, "s1", store, MONDAY)
+    assert c.post("/routes/betreiber/verzeichnis/e1/brief", json={"code": code}).status_code == 409
 
 
 def test_uebernahme_anfrage_ohne_code():

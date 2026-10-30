@@ -28,3 +28,5 @@ stripe
 drafthorse==2025.2.0
 # QR-Code im Einbau-Kasten und zum Herunterladen (app/einbau.py); nur Standardbibliothek
 segno
+# Brief an die Salons als PDF, Schriften eingebettet (app/libs/brief.py)
+reportlab

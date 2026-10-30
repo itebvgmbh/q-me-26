@@ -679,6 +679,11 @@ bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
 - **Übernahme**: Meldet sich ein Salon aus dem Verzeichnis bei Dranzeit an, steht oben „Übernahme bestätigen“
   (gleiche Google-Place-ID, sonst ähnlicher Name mit gleicher PLZ oder Lage). Bestätigen macht die Seite zur Seite
   des Ladens, die Adresse bleibt. „Nicht derselbe“ gibt dem Laden eine eigene Seite.
+- **Brief an den Salon**: Direkt nach „Code erzeugen“ steht dort „Brief als PDF“: eine A4-Seite mit Anschrift fürs
+  Umschlagfenster (DIN 5008 Form B, einmal drucken, zweimal falzen, DL-Umschlag), Code, QR-Code und Gründerangebot.
+  Nur für veröffentlichte Seiten mit Anschrift; wer seine Seite entfernt hat, bekommt keinen. Der Brief zeigt die Wünsche
+  ab 3 und die freien Gründerplätze von diesem Moment. Text und Blatt: `backend/app/libs/brief.py`, Muster ohne Firebase:
+  `python dev/brief-muster.py`. Der Versand ist noch Handarbeit (Stufe 2: Briefdienst per API).
 - **Übernahme per Code** (für den Brief an den Salon): Im Eintrag unten „Code erzeugen“. Der Code (z. B.
   `ABCDE-FGHJK`, 180 Tage gültig) und der Link `https://dranzeit.de/uebernehmen#code=…` samt QR-Code werden nur
   in diesem Moment gezeigt; gespeichert ist nur ein Hash. Mit dem Code richtet der Salon seinen Laden vorausgefüllt

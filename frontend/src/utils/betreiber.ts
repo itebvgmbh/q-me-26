@@ -5,7 +5,8 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth, firebaseAuth, useCurrentUser } from 'app';
 import type { PlanId } from './plans';
 
-export const send = async <T>(path: string, body?: unknown): Promise<T> => {
+/** Anfrage mit Anmeldung; Fehler als Error mit dem Text vom Server */
+export const request = async (path: string, body?: unknown): Promise<Response> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: await auth.getAuthHeaderValue() };
   let res: Response;
   try {
@@ -22,8 +23,10 @@ export const send = async <T>(path: string, body?: unknown): Promise<T> => {
     }
     throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
   }
-  return (await res.json()) as T;
+  return res;
 };
+
+export const send = async <T>(path: string, body?: unknown): Promise<T> => (await (await request(path, body)).json()) as T;
 
 const BASE = '/routes/betreiber';
 const shopPath = (id: string, action: string) => `${BASE}/laden/${encodeURIComponent(id)}/${action}`;

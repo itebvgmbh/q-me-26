@@ -59,7 +59,9 @@ export default function Datenschutz() {
             Angaben stammen von der eigenen Webseite des Salons und sind dort öffentlich; die Beschreibung fassen wir mit
             KI zusammen und prüfen sie. Wir wollen Kunden helfen, einen Salon in der Nähe zu finden (Art. 6 Abs. 1 lit. f
             DSGVO). Wer zum Salon gehört, kann dem jederzeit widersprechen: über „Eintrag entfernen“ auf der Seite des
-            Salons, dann geht sie sofort offline, oder per E-Mail an uns. Der Knopf „Das wünsch ich mir“ zählt nur mit;
+            Salons, dann geht sie sofort offline, oder per E-Mail an uns. An die Geschäftsadresse des Salons können wir
+            einen Brief schicken, der auf die Seite hinweist und anbietet, sie zu übernehmen (ebenfalls Art. 6 Abs. 1 lit. f
+            DSGVO); auch dem lässt sich jederzeit widersprechen, dann schreiben wir nicht mehr. Der Knopf „Das wünsch ich mir“ zählt nur mit;
             damit niemand mehrfach zählt, halten wir bis zum Ende des Tages eine Prüfsumme der IP-Adresse im
             Arbeitsspeicher, nicht die Adresse selbst.
           </li>
