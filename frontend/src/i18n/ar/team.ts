@@ -1,0 +1,367 @@
+import type { Texte } from "../typen.ts";
+
+// Team, Arbeitszeiten, Leistungen, Pausen, Auswertung
+const texte: Texte = {
+  // pages/StaffManagement.tsx
+  "Das Team konnte nicht geladen werden.": "تعذّر تحميل الفريق.",
+  "Deine Läden konnten nicht geladen werden.": "تعذّر تحميل محلاتك.",
+  "{name} ist wieder im Team.": "عاد {name} إلى الفريق.",
+  "Zurückholen hat nicht geklappt. Bitte noch einmal.": "تعذّرت الاستعادة. حاول مرة أخرى.",
+  "Wer arbeitet wann und bietet was an. Nur so entstehen freie Zeiten.": "من يعمل ومتى وماذا يقدّم. بهذا فقط تظهر الأوقات المتاحة.",
+  "Im Tarif {tarif} sind {n} Personen dabei.": {
+    zero: "لا تشمل باقة {tarif} أي شخص.",
+    one: "تشمل باقة {tarif} شخصًا واحدًا.",
+    two: "تشمل باقة {tarif} شخصين.",
+    few: "تشمل باقة {tarif} {n} أشخاص.",
+    many: "تشمل باقة {tarif} {n} شخصًا.",
+    other: "تشمل باقة {tarif} {n} شخص.",
+  },
+  "Tarif wechseln": "تغيير الباقة",
+  "Laden wählen": "اختر المحل",
+  "Team wird geladen": "جارٍ تحميل الفريق",
+  "Richte zuerst deinen Laden ein.": "قم بإعداد محلّك أولًا.",
+  "Laden einrichten": "إعداد المحل",
+  "Noch niemand im Team.": "لا يوجد أحد في الفريق بعد.",
+  "Arbeitest du selbst mit, leg dich mit deiner E-Mail als erste Person an. Mitarbeiter lädst du mit „Per E-Mail einladen“ ein, oder du legst sie an und schickst ihnen danach den Link, z. B. per WhatsApp.":
+    "إذا كنت تعمل بنفسك، فأضف نفسك أولًا ببريدك الإلكتروني. ادعُ الموظفين عبر «دعوة بالبريد الإلكتروني»، أو أضفهم ثم أرسل لهم الرابط، مثلًا عبر WhatsApp.",
+  "Deaktiviert ({anzahl})": "معطّل ({anzahl})",
+  "Bei diesen Personen kann niemand buchen, und sie sehen „Mein Tag“ nicht. Zurückgeholt ist alles wieder wie vorher.":
+    "لا يمكن لأحد الحجز لدى هؤلاء الأشخاص، ولا يرون «يومي». عند الاستعادة يعود كل شيء كما كان.",
+  "Zurückholen": "استعادة",
+  "Dein Tarif ist voll. Deaktiviere erst jemand anderen oder <tarif>wechsle den Tarif</tarif>.": "باقتك ممتلئة. عطّل شخصًا آخر أولًا أو <tarif>غيّر الباقة</tarif>.",
+  "Dein Tarif ist voll. Deaktiviere erst jemand anderen.": "باقتك ممتلئة. عطّل شخصًا آخر أولًا.",
+
+  // pages/StaffRegistration.tsx
+  "In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.": "هذا الرابط ناقص. اطلب من المحل إرساله مرة أخرى.",
+  "Willkommen im Team von {laden}!": "أهلًا بك في فريق {laden}!",
+  "Das hat nicht geklappt.": "لم ينجح ذلك.",
+  "Mit dieser E-Mail gibt es schon ein Konto. Melde dich damit an, dann nimmst du die Einladung an.": "يوجد حساب بهذا البريد الإلكتروني بالفعل. سجّل الدخول به، ثم اقبل الدعوة.",
+  "Dieser Link klappt nicht.": "هذا الرابط لا يعمل.",
+  "Zur Startseite": "إلى الصفحة الرئيسية",
+  "Einladung wird geprüft …": "جارٍ التحقق من الدعوة …",
+  "Die Einladung gilt nicht mehr.": "انتهت صلاحية هذه الدعوة.",
+  "Bitte {laden} um einen neuen Link. Im Team unter „Bearbeiten“ geht das in einer Minute.": "اطلب رابطًا جديدًا من {laden}. يستغرق ذلك دقيقة من خلال «تعديل» في صفحة الفريق.",
+  "Schon angenommen.": "تم القبول مسبقًا.",
+  "Diese Einladung ist schon mit einem Konto verbunden. Melde dich damit an, dann siehst du deinen Tag bei {laden}.":
+    "هذه الدعوة مرتبطة بحساب بالفعل. سجّل الدخول به لترى يومك في {laden}.",
+  "Zu Mein Tag": "إلى «يومي»",
+  "Willkommen im Team von {laden}.": "أهلًا بك في فريق {laden}.",
+  "So arbeitest du mit Dranzeit": "كيف تعمل مع Dranzeit",
+  "{laden} hat dich als {name} ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.":
+    "دعاك {laden} إلى الفريق باسم {name}. اقبل الدعوة بحسابك، وسترى عملاءك في «يومي».",
+  "{laden} hat dich ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.":
+    "دعاك {laden} إلى الفريق. اقبل الدعوة بحسابك، وسترى عملاءك في «يومي».",
+  "Nicht dein Konto?": "ليس حسابك؟",
+  "Angemeldet als <konto>{email}</konto>": "تم تسجيل الدخول باسم <konto>{email}</konto>",
+  "Wird angenommen …": "جارٍ القبول …",
+  "Einladung annehmen": "قبول الدعوة",
+  "{laden} hat dich als {name} ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.":
+    "دعاك {laden} إلى الفريق باسم {name}. أنشئ حسابك، وبعدها سترى عملاءك في «يومي».",
+  "{laden} hat dich ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.":
+    "دعاك {laden} إلى الفريق. أنشئ حسابك، وبعدها سترى عملاءك في «يومي».",
+  "Schon ein Konto bei Dranzeit?": "لديك حساب في Dranzeit بالفعل؟",
+  "Anmelden und annehmen": "سجّل الدخول واقبل",
+  "Wird angelegt …": "جارٍ الإضافة …",
+  "Konto anlegen": "إنشاء حساب",
+
+  // components/AddStaffDialog.tsx
+  "Fehler beim Hochladen des Profilbilds": "تعذّر رفع صورة الملف الشخصي",
+  "Bitte trag einen Namen ein.": "يرجى إدخال اسم.",
+  "Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.": "البريد الإلكتروني غير صحيح. يرجى التحقق منه.",
+  "Du bist jetzt im Team und siehst deine Termine unter „Mein Tag“.": "أنت الآن في الفريق وترى مواعيدك في «يومي».",
+  "Anlegen hat nicht geklappt. Bitte noch einmal.": "تعذّرت الإضافة. حاول مرة أخرى.",
+  "Person anlegen": "إضافة شخص",
+  "{name} ist im Team.": "{name} في الفريق الآن.",
+  "Soll {name} den eigenen Tag sehen? Dann schick eine Einladung. Sonst tipp auf „Fertig“, einladen geht auch später unter „Bearbeiten“.":
+    "هل تريد أن يرى {name} يومه الخاص؟ إذن أرسل دعوة. وإلا فاضغط على «تم»، ويمكنك الدعوة لاحقًا أيضًا من «تعديل».",
+  "Für dich selbst (mit deiner E-Mail) oder jemanden aus dem Team. Danach kannst du die Person per Link oder E-Mail einladen.":
+    "لنفسك (ببريدك الإلكتروني) أو لشخص من الفريق. بعد ذلك يمكنك دعوة الشخص عبر رابط أو بالبريد الإلكتروني.",
+  "Name": "الاسم",
+  "Max Mustermann": "محمد أحمد",
+  "E-Mail (freiwillig, für die Einladung)": "البريد الإلكتروني (اختياري، للدعوة)",
+  "Telefon (freiwillig)": "الهاتف (اختياري)",
+  "Aufgabe (freiwillig)": "المهمة (اختياري)",
+  "z. B. Friseurin": "مثلًا: حلّاقة",
+  "{dauer} Min. | {preis} €": "{dauer} دقيقة | {preis} €",
+  "Arbeitszeiten": "ساعات الدوام",
+  "bis": "إلى",
+  "Anlegen": "إضافة",
+
+  // components/EditStaffDialog.tsx
+  "Gespeichert.": "تم الحفظ.",
+  "Speichern hat nicht geklappt. Bitte noch einmal.": "تعذّر الحفظ. حاول مرة أخرى.",
+  "{name} bearbeiten": "تعديل {name}",
+  "Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, lädst du sie hier ein.":
+    "الخدمات وساعات الدوام وبيانات التواصل. إذا لم يكن لدى الشخص حساب بعد، فادعُه من هنا.",
+  "Profil": "الملف الشخصي",
+  "Einzelne Pausen": "استراحات لمرة واحدة",
+  "Wöchentliche Pausen": "استراحات أسبوعية",
+  "Profilbild": "صورة الملف الشخصي",
+  "{name} Profilbild": "صورة {name}",
+  "Einladung": "الدعوة",
+  "Änderungen speichern": "حفظ التغييرات",
+  "Gilt nur an einem bestimmten Tag, z. B. für einen Arzttermin. Für jede Woche gleich: „Wöchentliche Pausen“. Die Mittagspause des ganzen Ladens steht bei den Öffnungszeiten.":
+    "تسري في يوم محدد فقط، مثلًا لموعد عند الطبيب. للاستراحة نفسها كل أسبوع: «استراحات أسبوعية». استراحة الغداء للمحل كله تُضبط في ساعات العمل.",
+  "Jede Woche zur selben Zeit, z. B. dienstags 12–13 Uhr. In dieser Zeit bekommt die Person keine Kunden.":
+    "كل أسبوع في الوقت نفسه، مثلًا أيام الثلاثاء من 12:00 إلى 13:00. خلال هذا الوقت لا يحصل الشخص على عملاء.",
+
+  // components/InviteStaffDialog.tsx
+  "Bitte trag einen Namen ein. So sehen Kunden die Person bei der Buchung.": "يرجى إدخال اسم. بهذا الاسم يرى العملاء الشخص عند الحجز.",
+  "Per E-Mail einladen": "دعوة بالبريد الإلكتروني",
+  "Die Einladung ist an {email} unterwegs.": "الدعوة في طريقها إلى {email}.",
+  "Die Einladung ist noch nicht angekommen. Unten steht, was du tun kannst.": "لم تصل الدعوة بعد. ستجد أدناه ما يمكنك فعله.",
+  "Leistungen und Arbeitszeiten passt du unter „Bearbeiten“ an.": "يمكنك ضبط الخدمات وساعات الدوام من «تعديل».",
+  "Die Einladung konnte nicht erstellt werden. Versuch es unten noch einmal.": "تعذّر إنشاء الدعوة. حاول مرة أخرى أدناه.",
+  "Die Person steht sofort im Team und bekommt einen Link. Damit legt sie ihr Konto an (oder meldet sich mit ihrem an) und sieht unter „Mein Tag“ ihre Kunden.":
+    "ينضم الشخص إلى الفريق فورًا ويتلقى رابطًا. به ينشئ حسابه (أو يسجّل الدخول بحسابه) ويرى عملاءه في «يومي».",
+  "E-Mail": "البريد الإلكتروني",
+  "Wird verschickt …": "جارٍ الإرسال …",
+  "Einladung senden": "إرسال الدعوة",
+
+  // components/StaffInvitePanel.tsx
+  "Hat ein Konto und sieht „Mein Tag“.": "لديه حساب ويرى «يومي».",
+  "Einladung an {email} verschickt.": "تم إرسال الدعوة إلى {email}.",
+  "Die E-Mail ging nicht raus. Schick den Link selbst.": "لم يُرسَل البريد الإلكتروني. أرسل الرابط بنفسك.",
+  "Einladungslink erstellt.": "تم إنشاء رابط الدعوة.",
+  "Link kopiert.": "تم نسخ الرابط.",
+  "Kopieren ging nicht. Markier den Link und kopier ihn von Hand.": "تعذّر النسخ. حدّد الرابط وانسخه يدويًا.",
+  "Einladung ins Team": "دعوة إلى الفريق",
+  "Damit siehst du deinen Tag bei Dranzeit:": "بهذا الرابط ترى يومك على Dranzeit:",
+  "Die Einladung vom {datum} ist abgelaufen.": "انتهت صلاحية الدعوة المرسلة في {datum}.",
+  "Eingeladen am {datum} per E-Mail an {email}, gilt bis {bis}. Noch nicht angenommen.": "تمت الدعوة في {datum} بالبريد الإلكتروني إلى {email}، صالحة حتى {bis}. لم تُقبل بعد.",
+  "Eingeladen am {datum}, gilt bis {bis}. Noch nicht angenommen.": "تمت الدعوة في {datum}، صالحة حتى {bis}. لم تُقبل بعد.",
+  "Mit dem Link legt die Person ihr Konto an (oder meldet sich mit ihrem an) und sieht danach unter „Mein Tag“ ihre Kunden.":
+    "بهذا الرابط ينشئ الشخص حسابه (أو يسجّل الدخول بحسابه) ثم يرى عملاءه في «يومي».",
+  "E-Mail an {email} ist verschickt. Du kannst den Link auch selbst weitergeben:": "تم إرسال البريد الإلكتروني إلى {email}. يمكنك أيضًا مشاركة الرابط بنفسك:",
+  "Schick {name} den Link selbst, z. B. per WhatsApp oder SMS:": "أرسل الرابط إلى {name} بنفسك، مثلًا عبر WhatsApp أو رسالة SMS:",
+  "Schick {name} diesen Link, z. B. per WhatsApp oder SMS:": "أرسل هذا الرابط إلى {name}، مثلًا عبر WhatsApp أو رسالة SMS:",
+  "Link kopieren": "نسخ الرابط",
+  "Teilen": "مشاركة",
+  "Wird erstellt …": "جارٍ الإنشاء …",
+  "Neuen Link erstellen": "إنشاء رابط جديد",
+  "Einladungslink erstellen": "إنشاء رابط دعوة",
+  "Neu per E-Mail schicken": "إعادة الإرسال بالبريد الإلكتروني",
+  "Per E-Mail schicken": "إرسال بالبريد الإلكتروني",
+  "Speichere zuerst die geänderte E-Mail. Die Einladung geht an die gespeicherte Adresse.": "احفظ البريد الإلكتروني المعدّل أولًا. تُرسَل الدعوة إلى العنوان المحفوظ.",
+  "Für die E-Mail trag eine Adresse ein und speichere. Den Link kannst du auch ohne weitergeben.": "للإرسال بالبريد الإلكتروني أدخل عنوانًا واحفظه. يمكنك مشاركة الرابط من دونه أيضًا.",
+  "Ein neuer Link ersetzt den alten, der alte gilt dann nicht mehr. Jeder Link gilt 14 Tage.": "الرابط الجديد يحل محل القديم، ولن يعمل القديم بعد ذلك. كل رابط صالح لمدة 14 يومًا.",
+  "Der Link gilt 14 Tage.": "الرابط صالح لمدة 14 يومًا.",
+
+  // components/StaffCard.tsx
+  "Hat Zugang": "لديه صلاحية الدخول",
+  "Eingeladen": "تمت دعوته",
+  "{name} ist deaktiviert.": "تم تعطيل {name}.",
+  "Deaktivieren hat nicht geklappt.": "تعذّر التعطيل.",
+  "{n} Tage pro Woche": {
+    zero: "{n} أيام في الأسبوع",
+    one: "يوم واحد في الأسبوع",
+    two: "يومان في الأسبوع",
+    few: "{n} أيام في الأسبوع",
+    many: "{n} يومًا في الأسبوع",
+    other: "{n} يوم في الأسبوع",
+  },
+  "keine Arbeitszeiten": "لا توجد ساعات دوام",
+  "Keine Leistung zugeordnet – taucht bei der Buchung nicht auf.": "لا توجد خدمة مخصّصة – لن يظهر عند الحجز.",
+  "Deaktivieren": "تعطيل",
+  "{name} deaktivieren?": "تعطيل {name}؟",
+  "Für {name} kann dann niemand mehr buchen, bestehende Termine bleiben.": "لن يتمكن أحد بعدها من الحجز لدى {name}، وتبقى المواعيد الحالية.",
+  "{name} sieht „Mein Tag“ nicht mehr.": "لن يرى {name} «يومي» بعد الآن.",
+  "Unter „Deaktiviert“ holst du die Person jederzeit zurück.": "يمكنك استعادة الشخص في أي وقت من «معطّل».",
+
+  // components/WorkingHoursForm.tsx, utils/staff-utils.ts, components/RecurringBreakManager.tsx (Wochentage)
+  "Sonntag": "الأحد",
+  "Montag": "الاثنين",
+  "Dienstag": "الثلاثاء",
+  "Mittwoch": "الأربعاء",
+  "Donnerstag": "الخميس",
+  "Freitag": "الجمعة",
+  "Samstag": "السبت",
+  "Arbeitszeiten erfolgreich aktualisiert": "تم تحديث ساعات الدوام",
+  "Fehler beim Aktualisieren: {fehler}": "تعذّر التحديث: {fehler}",
+  "Unbekannter Fehler": "خطأ غير معروف",
+  "Von": "من",
+  "Bis": "إلى",
+  "Speichern...": "جارٍ الحفظ...",
+
+  // pages/ServiceManagement.tsx
+  "Was man bei {laden} buchen kann – mit Dauer und Preis.": "ما يمكن حجزه لدى {laden} – مع المدة والسعر.",
+  "Was man bei dir buchen kann – mit Dauer und Preis.": "ما يمكن حجزه لديك – مع المدة والسعر.",
+  "Leistungen werden geladen": "جارٍ تحميل الخدمات",
+  "Deine Läden konnten nicht geladen werden. Bitte lade die Seite neu.": "تعذّر تحميل محلاتك. يرجى إعادة تحميل الصفحة.",
+
+  // components/ServiceDialogs.tsx
+  "Leistung angelegt.": "تمت إضافة الخدمة.",
+  "Die Leistung konnte nicht angelegt werden.": "تعذّرت إضافة الخدمة.",
+  "Leistung anlegen": "إضافة خدمة",
+  "Neue Leistung": "خدمة جديدة",
+  "Was kann man bei dir buchen? Dauer und Preis bestimmen die freien Zeiten.": "ما الذي يمكن حجزه لديك؟ المدة والسعر يحددان الأوقات المتاحة.",
+  "Leistung gespeichert.": "تم حفظ الخدمة.",
+  "Die Leistung konnte nicht gespeichert werden.": "تعذّر حفظ الخدمة.",
+  "Leistung bearbeiten": "تعديل الخدمة",
+  "Änderungen gelten für neue Buchungen.": "تسري التغييرات على الحجوزات الجديدة.",
+  "„{name}“ ist gelöscht.": "تم حذف «{name}».",
+  "Rückgängig": "تراجع",
+  "Löschen hat nicht geklappt.": "تعذّر الحذف.",
+  "„{name}“ löschen?": "حذف «{name}»؟",
+  "Kunden können die Leistung dann nicht mehr buchen, und sie verschwindet bei den Personen im Team.":
+    "لن يتمكن العملاء بعدها من حجز هذه الخدمة، وستُزال من أعضاء الفريق.",
+  "Termine, die schon gebucht sind, bleiben.": "تبقى المواعيد المحجوزة مسبقًا.",
+  "Es ist kein kommender Termin damit gebucht.": "لا توجد مواعيد قادمة محجوزة بهذه الخدمة.",
+  "{n} kommende Termine sind damit gebucht. Sie bleiben bestehen.": {
+    zero: "لا توجد مواعيد قادمة محجوزة بهذه الخدمة.",
+    one: "يوجد موعد قادم واحد محجوز بهذه الخدمة، وسيبقى قائمًا.",
+    two: "يوجد موعدان قادمان محجوزان بهذه الخدمة، وسيبقيان قائمين.",
+    few: "توجد {n} مواعيد قادمة محجوزة بهذه الخدمة، وستبقى قائمة.",
+    many: "يوجد {n} موعدًا قادمًا محجوزًا بهذه الخدمة، وستبقى قائمة.",
+    other: "يوجد {n} موعد قادم محجوز بهذه الخدمة، وستبقى قائمة.",
+  },
+  "Unter „Gelöschte Leistungen“ kannst du sie jederzeit zurückholen.": "يمكنك استعادتها في أي وقت من «الخدمات المحذوفة».",
+
+  // components/ServiceForm.tsx
+  "Name ist erforderlich": "الاسم مطلوب",
+  "Dauer ist erforderlich": "المدة مطلوبة",
+  "Dauer muss eine positive Zahl sein": "يجب أن تكون المدة رقمًا موجبًا",
+  "Preis ist erforderlich": "السعر مطلوب",
+  "Preis muss eine nicht-negative Zahl sein": "لا يمكن أن يكون السعر سالبًا",
+  "Vor- und Nachbereitung muss 0 oder mehr Minuten sein": "يجب أن يكون وقت التحضير والترتيب 0 دقيقة أو أكثر",
+  "z.B. Haarschnitt": "مثلًا: قص شعر",
+  "Beschreibung": "الوصف",
+  "z. B. Waschen, Schneiden, Föhnen": "مثلًا: غسل، قص، تجفيف",
+  "Dauer (Minuten)": "المدة (بالدقائق)",
+  "Vor- und Nachbereitung (Minuten)": "التحضير والترتيب (بالدقائق)",
+  "Zeit zum Aufräumen und Vorbereiten. Bei Nummern und Online-Terminen wird sie zur Dauer dazugerechnet, damit zwischen zwei Kunden Luft bleibt.":
+    "وقت للترتيب والتحضير. يُضاف إلى المدة في أرقام الانتظار والمواعيد عبر الإنترنت، حتى يبقى متسع من الوقت بين عميلين.",
+  "Preis (€)": "السعر (€)",
+  "Kategorie": "الفئة",
+  "z.B. Haare": "مثلًا: شعر",
+  "Wird gespeichert...": "جارٍ الحفظ...",
+
+  // components/ServicesList.tsx
+  "„{name}“ ist wieder buchbar.": "يمكن حجز «{name}» مرة أخرى.",
+  "Zurückholen hat nicht geklappt.": "تعذّرت الاستعادة.",
+  "Noch keine Leistung.": "لا توجد خدمات بعد.",
+  "Leg mindestens eine an, zum Beispiel „Haarschnitt, 30 Minuten“. Ohne Leistung kann niemand buchen.":
+    "أضف خدمة واحدة على الأقل، مثلًا «قص شعر، 30 دقيقة». من دون خدمة لا يمكن لأحد الحجز.",
+  "{dauer} Min + {vorbereitung} Vor-/Nachbereitung": "{dauer} دقيقة + {vorbereitung} تحضير/ترتيب",
+  "{dauer} Min": "{dauer} دقيقة",
+  "Gelöschte Leistungen ({anzahl})": "الخدمات المحذوفة ({anzahl})",
+  "Nicht mehr buchbar. Termine, die schon damit gebucht waren, behalten sie.": "لم تعد قابلة للحجز. المواعيد التي حُجزت بها مسبقًا تحتفظ بها.",
+
+  // components/BreakManager.tsx
+  "Mittagspause": "استراحة الغداء",
+  "Kaffeepause": "استراحة القهوة",
+  "Persönliche Pause": "استراحة شخصية",
+  "Sonstige Pause": "استراحة أخرى",
+  "Fehler beim Laden der Pausen": "تعذّر تحميل الاستراحات",
+  "Pause erfolgreich gelöscht": "تم حذف الاستراحة",
+  "Fehler beim Löschen der Pause": "تعذّر حذف الاستراحة",
+  "Bitte Start- und Endzeit auswählen": "يرجى اختيار وقت البداية ووقت النهاية",
+  "Die Endzeit muss nach der Startzeit liegen": "يجب أن يكون وقت النهاية بعد وقت البداية",
+  "Diese Pause überschneidet sich mit einer bestehenden Pause": "هذه الاستراحة تتداخل مع استراحة موجودة",
+  "Pause erfolgreich aktualisiert": "تم تحديث الاستراحة",
+  "Pause erfolgreich erstellt": "تم إنشاء الاستراحة",
+  "Fehler beim Speichern der Pause": "تعذّر حفظ الاستراحة",
+  "Pausenverwaltung für {name}": "استراحات {name}",
+  "Datum": "التاريخ",
+  "Datum auswählen": "اختر التاريخ",
+  "Neue Pause hinzufügen": "إضافة استراحة جديدة",
+  "Pause bearbeiten": "تعديل الاستراحة",
+  "Startzeit": "وقت البدء",
+  "Endzeit": "وقت النهاية",
+  "Pausentyp": "نوع الاستراحة",
+  "Pausentyp auswählen": "اختر نوع الاستراحة",
+  "Pausen am {datum}": "الاستراحات في {datum}",
+  "Lädt...": "جارٍ التحميل...",
+  "Keine Pausen für diesen Tag eingetragen.": "لا توجد استراحات مسجّلة لهذا اليوم.",
+  "Pause": "استراحة",
+  "{start} - {ende} Uhr": "{start} - {ende}",
+
+  // components/RecurringBreakManager.tsx
+  "Persönlich": "شخصية",
+  "Sonstige": "أخرى",
+  "Fehler beim Laden der wiederkehrenden Pausen": "تعذّر تحميل الاستراحات المتكررة",
+  "Diese Pause wirklich löschen?": "هل تريد حذف هذه الاستراحة فعلًا؟",
+  "Pause aktiviert": "تم تفعيل الاستراحة",
+  "Pause deaktiviert": "تم إيقاف الاستراحة",
+  "Fehler beim Ändern des Pausenstatus": "تعذّر تغيير حالة الاستراحة",
+  "Bitte gib Start- und Endzeit ein.": "يرجى إدخال وقت البداية ووقت النهاية.",
+  "Die Startzeit muss vor der Endzeit liegen": "يجب أن يكون وقت البداية قبل وقت النهاية",
+  "Diese Pause überschneidet sich mit einer bereits existierenden Pause": "هذه الاستراحة تتداخل مع استراحة موجودة",
+  "Wöchentliche Pausen für {name}": "الاستراحات الأسبوعية: {name}",
+  "Regelmäßige Pausen – in dieser Zeit kann niemand buchen.": "استراحات منتظمة – لا يمكن لأحد الحجز خلال هذا الوقت.",
+  "Pausen für {tag}": "استراحات يوم {tag}",
+  "Pause hinzufügen": "إضافة استراحة",
+  "Keine Pausen für diesen Tag eingerichtet.": "لا توجد استراحات مضبوطة لهذا اليوم.",
+
+  // pages/Auswertung.tsx
+  "7 Tage": "7 أيام",
+  "30 Tage": "30 يومًا",
+  "Auswertung wird geladen …": "جارٍ تحميل الإحصائيات …",
+  "Auswertung": "الإحصائيات",
+  "Wie viele Kunden kommen, wie lange sie warten und wann am meisten los ist: Das gehört zum Tarif Laden.":
+    "كم عدد العملاء، وكم ينتظرون، ومتى يكون الازدحام الأكبر: هذا جزء من باقة «Laden».",
+  "Tarif ansehen": "عرض الباقة",
+  "Zeitraum": "الفترة",
+  "Auswertung wird berechnet": "جارٍ حساب الإحصائيات",
+  "Kunden": "العملاء",
+  "Davon per Nummer": "منها برقم انتظار",
+  "{prozent} %": "{prozent}٪",
+  "Ø Wartezeit (Nummer)": "متوسط الانتظار (رقم الانتظار)",
+  "{minuten} Min.": "{minuten} دقيقة",
+  "erst ab Aufruf am Tresen messbar": "يُقاس فقط بعد الاستدعاء في الاستقبال",
+  "aus {n} Nummern": {
+    zero: "من {n} رقم",
+    one: "من رقم واحد",
+    two: "من رقمين",
+    few: "من {n} أرقام",
+    many: "من {n} رقمًا",
+    other: "من {n} رقم",
+  },
+  "Abgesagt": "ملغى",
+  "Umsatz (erledigt)": "الإيرادات (المكتملة)",
+  "Kunden pro Tag": "العملاء يوميًا",
+  "Nummer": "الرقم",
+  "Termin": "موعد",
+  "{tag}: {nummern} Nummern, {termine} Termine": "{tag} – أرقام الانتظار: {nummern}، المواعيد: {termine}",
+  "Stoßzeiten": "أوقات الذروة",
+  "Am meisten los ist zwischen {von} und {bis} Uhr.": "يكون الازدحام الأكبر بين الساعة {von} والساعة {bis}.",
+  "{stunde} Uhr: {anzahl}": "الساعة {stunde}: {anzahl}",
+
+  // utils/stats.ts (date-fns)
+  "EEEEEE d.M.": "EEEEEE d/M",
+
+  // utils/firestore/staff.ts
+  "{name} mit dieser E-Mail ist deaktiviert. Hol sie unten unter „Deaktiviert“ zurück ins Team.":
+    "{name} بهذا البريد الإلكتروني معطّل. أعِده إلى الفريق من «معطّل» أدناه.",
+  "{name} hat diese E-Mail schon im Team.": "هذا البريد الإلكتروني مستخدم في الفريق بالفعل: {name}",
+
+  // utils/hooks/useServiceManagement.ts
+  "Fehler beim Laden der Services": "خطأ في تحميل الخدمات",
+  "Kein Laden ausgewählt": "لم يتم اختيار محل",
+  "Service erfolgreich erstellt": "تم إنشاء الخدمة",
+  "Fehler beim Erstellen des Services": "تعذّر إنشاء الخدمة",
+  "Service erfolgreich aktualisiert": "تم تحديث الخدمة",
+  "Fehler beim Aktualisieren des Services": "تعذّر تحديث الخدمة",
+
+  // utils/hooks/useStaff.ts, utils/hooks/useStaffData.ts
+  "Fehler beim Laden der Mitarbeiter": "خطأ في تحميل الموظفين",
+
+  // utils/staff-invitation.ts
+  "Keine Verbindung zum Server. Bitte prüf dein Internet.": "لا يوجد اتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.",
+  "Das hat nicht geklappt (Fehler {status}).": "لم ينجح ذلك (خطأ {status}).",
+  // components/TeamPushSchalter.tsx
+  "Benachrichtigungen auf diesem Gerät": "الإشعارات على هذا الجهاز",
+  "Wenn Kunden selbst eine Nummer ziehen, online oder am Telefon buchen oder absagen – für deine Termine, als Inhaber für den ganzen Laden.":
+    "عندما يأخذ العملاء رقمًا بأنفسهم أو يحجزون عبر الإنترنت أو الهاتف أو يلغون – لمواعيدك، وبصفتك صاحب المحل للمحل كله.",
+  "Zwischen 21 und 8 Uhr ist Ruhe; was nachts passiert, kommt morgens zusammengefasst.":
+    "لا إشعارات بين الساعة 21 و8؛ ما يحدث ليلًا يصلك صباحًا كملخص.",
+  "Neue Nummern": "أرقام جديدة",
+  "Neue Buchungen": "حجوزات جديدة",
+  "Benachrichtigungen sind an.": "الإشعارات مفعّلة.",
+  "Benachrichtigungen sind aus.": "الإشعارات متوقفة.",
+  "Dieser Browser kann keine Benachrichtigungen.": "هذا المتصفح لا يدعم الإشعارات.",
+  "Auf dem iPhone geht das nur mit Dranzeit auf dem Home-Bildschirm: in Safari „Teilen“ → „Zum Home-Bildschirm“, dann von dort öffnen.":
+    "على iPhone يعمل هذا فقط عندما يكون Dranzeit على الشاشة الرئيسية: في Safari اضغط „مشاركة“ ثم „إضافة إلى الشاشة الرئيسية“، وافتحه من هناك.",
+};
+
+export default texte;

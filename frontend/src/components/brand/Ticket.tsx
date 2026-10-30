@@ -33,7 +33,7 @@ export const Ticket = ({
     {(eyebrow || eyebrowRight) && (
       <div className="flex items-start justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]">
         <span>{eyebrow}</span>
-        {eyebrowRight && <span className="text-right">{eyebrowRight}</span>}
+        {eyebrowRight && <span className="text-end">{eyebrowRight}</span>}
       </div>
     )}
     <div
@@ -42,7 +42,8 @@ export const Ticket = ({
         size === 'lg' ? 'text-[88px] sm:text-[112px]' : 'text-7xl sm:text-[88px]',
       )}
     >
-      {number}
+      {/* bdi: Nummer bleibt auch in arabischer Umgebung in ihrer Reihenfolge */}
+      <bdi>{number}</bdi>
     </div>
     {stats.length > 0 && (
       <>

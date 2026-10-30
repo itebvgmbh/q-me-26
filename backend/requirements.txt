@@ -17,3 +17,16 @@ firebase-admin
 python-dotenv
 python-dateutil
 pyjwt[crypto]
+
+# Benachrichtigungen im Browser (app/libs/webpush.py)
+pywebpush
+# Zeitzonen auch unter Windows (auf dem Server liefert sie das System)
+tzdata
+# Abo-Abrechnung der Läden (app/libs/stripe_billing.py)
+stripe
+# E-Rechnung (XRechnung) zu den Abo-Rechnungen (app/libs/invoices.py); feste Version, damit das XML gleich bleibt
+drafthorse==2025.2.0
+# QR-Code im Einbau-Kasten und zum Herunterladen (app/einbau.py); nur Standardbibliothek
+segno
+# Brief an die Salons als PDF, Schriften eingebettet (app/libs/brief.py)
+reportlab

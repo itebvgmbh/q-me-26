@@ -4,6 +4,8 @@ import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Shop, Service } from '../utils/firestore/types';
+import { hasFeature } from '../utils/plans';
+import { t, intlSprache } from '@/i18n';
 
 export interface ShopCardProps {
   shop: Shop;
@@ -19,7 +21,7 @@ const formatAddress = (shop: Shop) =>
     ? [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
     : shop.address || '';
 
-/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen */
+/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen (nur, wenn der Tarif Online-Termine hat) */
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm }) => {
   const address = formatAddress(shop);
   const dark = tone === 'dark';
@@ -42,14 +44,14 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
             <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
               {address}
-              {distanceKm !== undefined && <span className="font-mono"> · {distanceKm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} km</span>}
+              {distanceKm !== undefined && <span className="font-mono"> · {distanceKm.toLocaleString(intlSprache(), { maximumFractionDigits: 1 })} km</span>}
             </span>
           </p>
         )}
       </div>
 
       {services.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Leistungen">
+        <ul className="flex flex-wrap gap-1.5" aria-label={t('Leistungen')}>
           {services.slice(0, 3).map((service) => (
             <li key={service.id} className={cn('rounded-full border px-2.5 py-1 text-xs', dark ? 'border-white/15' : 'border-border')}>
               {service.name}
@@ -63,15 +65,17 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
 
       <div className="mt-auto flex gap-2">
         <Button variant={dark ? 'signal' : 'default'} className="flex-1" asChild>
-          <Link to={`/public-join-queue?shopId=${shop.id}`}>Einreihen</Link>
+          <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
         </Button>
-        <Button
-          variant="outline"
-          className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
-          asChild
-        >
-          <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>Termin</Link>
-        </Button>
+        {hasFeature(shop, 'termine') && (
+          <Button
+            variant="outline"
+            className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
+            asChild
+          >
+            <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+          </Button>
+        )}
       </div>
     </article>
   );

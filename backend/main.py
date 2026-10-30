@@ -83,6 +83,23 @@ def create_app() -> FastAPI:
     """Create the app. This is called by uvicorn with the factory option to construct the app object."""
     app = FastAPI()
     app.include_router(import_api_routers())
+    # Fehlermeldungen (detail) in der Sprache der Anfrage (app/i18n)
+    from app.i18n import uebersetzte_fehler
+
+    uebersetzte_fehler(app)
+
+    # Stadtseiten, sitemap.xml (app/seo.py), Salon-Verzeichnis (app/verzeichnis_seiten.py), Hilfe (app/hilfe) und
+    # Einbau-Kasten (app/einbau.py): unter eigenem Pfad (Caddy leitet ihn weiter) und unter /routes/seo
+    from app import einbau, hilfe, seo, verzeichnis_seiten
+
+    app.include_router(seo.router)
+    app.include_router(seo.router, prefix="/routes/seo")
+    app.include_router(verzeichnis_seiten.router)
+    app.include_router(verzeichnis_seiten.router, prefix="/routes/seo")
+    app.include_router(hilfe.router)
+    app.include_router(hilfe.router, prefix="/routes/seo")
+    app.include_router(einbau.router)
+    app.include_router(einbau.router, prefix="/routes/seo")
 
     for route in app.routes:
         if hasattr(route, "methods"):
@@ -118,6 +135,39 @@ def create_app() -> FastAPI:
 
             start_scheduler_thread()
             print("Scheduler autostarted")
+
+            # "Gleich dran", "Du bist dran" und Termin-Erinnerungen (app/libs/notify_worker.py)
+            from app.libs.notify_worker import start_notify_worker
+
+            start_notify_worker()
+            print("Notify worker autostarted")
+
+            # Team-Vermerke für die Firestore-Regeln an die Personen angleichen (app/libs/team.py), Kontaktdaten der
+            # Personen vom öffentlichen Eintrag zu den Kontaktdaten des Ladens umziehen (app/libs/staff_contacts.py)
+            import threading
+
+            def sync_team() -> None:
+                from app.apis.firebase_utils import get_firestore_db
+
+                try:
+                    from app.libs.team import sync_members
+
+                    print(f"Team-Vermerke abgeglichen: {sync_members(get_firestore_db())}")
+                except Exception as e:  # Start des Dienstes nie daran scheitern lassen
+                    print(f"Team-Vermerke nicht abgeglichen: {e}")
+                try:
+                    from app.libs.staff_contacts import migrate
+
+                    print(f"Kontaktdaten des Teams umgezogen: {migrate(get_firestore_db())} Personen")
+                except Exception as e:
+                    print(f"Kontaktdaten des Teams nicht umgezogen: {e}")
+
+            threading.Thread(target=sync_team, daemon=True).start()
+
+            # Öffentliche Kurzfassung der Termine anlegen und laufend abgleichen (app/libs/public_appointments.py)
+            from app.libs.public_appointments import start_public_sync
+
+            start_public_sync()
 
     return app
 

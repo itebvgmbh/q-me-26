@@ -10,7 +10,8 @@ Laden "Testladen (wird gleich gelöscht)", der bis zum Löschen auch in der Shop
 Aufbau (alle Zeiten deutsche Zeit, "Montag" = nächster Montag nach heute):
   Laden Mo–Fr 09:00–17:00, Person Robin Mo–Sa 08:00–18:00, Leistung "Schnitt" 30 Minuten
   Montag Mittagspause 12:00–13:00 (wiederkehrend), Dienstag einmalige Pause 15:00–15:30,
-  Mittwoch Pause des Ladens 12:30–13:30 (gilt für alle), Montag Termin 10:00–10:30.
+  Mittwoch Pause des Ladens 12:30–13:30 (gilt für alle), Montag Termin 10:00–10:30 (mit öffentlicher Kurzfassung).
+E-Mail der Person steht wie in der App bei den Kontaktdaten des Ladens (shops/{id}/staff_contacts).
 Löschen räumt auch Läden weg, die Tests mit diesem Konto angelegt haben (z. B. laden-einrichten.cjs).
 Zugangsdaten und IDs stehen danach in dev/.local/fixture.json (nicht im Git).
 Nur Standardbibliothek; läuft mit Python 3.9+ unter Windows, macOS und Linux.
@@ -25,9 +26,10 @@ import urllib.request
 from pathlib import Path
 
 KEY = 'AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE'  # öffentlicher Web-Schlüssel, steht auch in der App
-FS = 'https://firestore.googleapis.com/v1/projects/qmedata-7c79e/databases/(default)/documents'
+DOCS = 'projects/qmedata-7c79e/databases/(default)/documents'
+FS = f'https://firestore.googleapis.com/v1/{DOCS}'
 AUTH = 'https://identitytoolkit.googleapis.com/v1/accounts'
-REFERER = 'https://q-me.spielmacherei.de/'
+REFERER = 'https://dranzeit.de/'
 FILE = Path(__file__).resolve().parent / '.local' / 'fixture.json'
 
 try:
@@ -67,8 +69,41 @@ def value(v):
 
 
 def create(collection, fields, token, doc_id=None):
-    url = f'{FS}/{collection}' + (f'?documentId={doc_id}' if doc_id else '')
+    # ID selbst vergeben wie die App (addDoc): Vergibt sie der Server, kennen die Regeln sie nicht und lehnen
+    # z. B. neue Läden ab (firestore.rules prüft deleted_shops/{id})
+    doc_id = doc_id or secrets.token_hex(10)
+    url = f'{FS}/{collection}?documentId={doc_id}'
     return call('POST', url, {'fields': {k: value(v) for k, v in fields.items()}}, token)['name'].split('/documents/')[1]
+
+
+PUBLIC_FIELDS = ('shopId', 'staffId', 'serviceId', 'type', 'status', 'startTime', 'endTime', 'referenceCode', 'isAnonymous',
+                 'calledAt', 'lastCalledAt', 'completedAt')
+
+
+def public_view(appt):
+    """Öffentliche Kurzfassung eines Termins wie publicViewOf (frontend/src/utils/firestore/public-appointments.ts)"""
+    view = {k: v for k, v in appt.items() if k in PUBLIC_FIELDS and v is not None}
+    day = appt['startTime'].astimezone(BERLIN).date().isoformat()
+    view['shopDay'] = f"{appt['shopId']}_{day}"
+    if appt.get('staffId'):
+        view['staffDay'] = f"{appt['staffId']}_{day}"
+    return view
+
+
+def create_appointment(fields, token):
+    """Termin samt öffentlicher Kurzfassung (firestore.rules: nur als genaue Kopie des Termins)"""
+    doc = create('appointments', fields, token)
+    create('public_appointments', public_view(fields), token, doc.split('/')[1])
+    return doc
+
+
+def delete_shop(shop_id, uid, token):
+    """Laden löschen – geht nur zusammen mit dem Vermerk in deleted_shops, in einem Schritt (firestore.rules)"""
+    now = dt.datetime.now(dt.timezone.utc)
+    call('POST', f'{FS}:commit', {'writes': [
+        {'update': {'name': f'{DOCS}/deleted_shops/{shop_id}', 'fields': {'owner': value(uid), 'deletedAt': value(now)}}},
+        {'delete': f'{DOCS}/shops/{shop_id}'},
+    ]}, token)
 
 
 def anlegen():
@@ -89,11 +124,13 @@ def anlegen():
     service = create('services', {'shopId': shop_id, 'name': 'Schnitt', 'duration': 30, 'price': 20, 'createdAt': now, 'updatedAt': now}, token)
     service_id = service.split('/')[1]
     working = [{'dayOfWeek': d, 'startTime': '08:00', 'endTime': '18:00', 'isWorking': d != 0} for d in range(7)]
-    staff = create('staff', {'shopId': shop_id, 'name': 'Robin', 'email': 'robin@example.com', 'phone': '', 'role': 'staff',
+    staff = create('staff', {'shopId': shop_id, 'name': 'Robin', 'role': 'staff',
                              'serviceIds': [service_id], 'isActive': True, 'status': 'available', 'userId': '',
                              'workingHours': working, 'createdAt': now, 'updatedAt': now}, token)
     staff_id = staff.split('/')[1]
-    docs += [shop, service, staff]
+    # E-Mail und Telefon stehen bei den Kontaktdaten des Ladens (nur Inhaber), nicht am öffentlichen Eintrag
+    contact = create(f'shops/{shop_id}/staff_contacts', {'email': 'robin@example.com', 'phone': '', 'updatedAt': now}, token, staff_id)
+    docs += [shop, service, staff, contact]
 
     today = dt.datetime.now(BERLIN).date()
     monday = today + dt.timedelta(days=(7 - today.weekday()) or 7)
@@ -103,9 +140,10 @@ def anlegen():
                                             'type': 'lunch', 'active': True, 'createdAt': now, 'updatedAt': now}, token))
     docs.append(create('breaks', {'shopId': shop_id, 'staffId': staff_id, 'date': at(tuesday, 0, 0), 'startTime': at(tuesday, 15, 0),
                                   'endTime': at(tuesday, 15, 30), 'type': 'Arzt', 'createdAt': now, 'updatedAt': now}, token))
-    docs.append(create('appointments', {'shopId': shop_id, 'staffId': staff_id, 'serviceId': service_id, 'customerName': 'Test Bestand',
-                                        'status': 'scheduled', 'type': 'booked', 'startTime': at(monday, 10, 0), 'endTime': at(monday, 10, 30),
-                                        'isAnonymous': False, 'createdAt': now, 'updatedAt': now}, token))
+    appointment = create_appointment({'shopId': shop_id, 'staffId': staff_id, 'serviceId': service_id, 'customerName': 'Test Bestand',
+                                      'status': 'scheduled', 'type': 'booked', 'startTime': at(monday, 10, 0), 'endTime': at(monday, 10, 30),
+                                      'isAnonymous': False, 'createdAt': now, 'updatedAt': now}, token)
+    docs += [appointment, 'public_appointments/' + appointment.split('/')[1]]
 
     FILE.parent.mkdir(parents=True, exist_ok=True)
     FILE.write_text(json.dumps({'email': email, 'pw': password, 'uid': uid, 'docs': docs, 'shopId': shop_id, 'staffId': staff_id,
@@ -126,20 +164,35 @@ def loeschen():
         rows = call('POST', f'{FS}:runQuery', query, token)
         return [row['document']['name'].split('/documents/')[1] for row in rows if row.get('document')]
 
+    def contacts(shop_id):
+        """Kontaktdaten der Personen eines Ladens (Unter-Sammlung, vor dem Laden zu löschen)"""
+        rows = call('GET', f'{FS}/shops/{shop_id}/staff_contacts?pageSize=300', token=token).get('documents', [])
+        return [row['name'].split('/documents/')[1] for row in rows]
+
     extra = []
-    for collection in ('appointments', 'earlier_slot_notifications'):
+    # auch, was Tests im Testladen zusätzlich anlegen (Leistungen, Personen, Kunden aus "Kunde anlegen")
+    # Termine vor ihren Kurzfassungen (sortiert): die Kurzfassung darf erst weg, wenn der Termin weg ist
+    for collection in ('appointments', 'public_appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'schedules', 'shop_days'):
         extra += find(collection, 'shopId', fx['shopId'])
     # Läden, die Tests mit dem Testkonto angelegt haben, samt allem, was daran hängt
-    for shop in find('shops', 'owner', fx['uid']):
+    shops = find('shops', 'owner', fx['uid'])
+    for shop in shops:
         shop_id = shop.split('/')[1]
         if shop_id == fx['shopId']:
             continue
-        extra.append(shop)
-        for collection in ('services', 'staff', 'staff-invitations', 'recurring-breaks', 'breaks', 'appointments'):
+        for collection in ('services', 'staff', 'recurring-breaks', 'breaks', 'appointments', 'public_appointments', 'customers', 'schedules', 'shop_days'):
             extra += find(collection, 'shopId', shop_id)
     for doc in sorted(set(fx['docs'] + extra)):
+        if doc.startswith('shops/'):
+            continue  # Läden zuletzt, mit Vermerk
         call('DELETE', f'{FS}/{doc}', token=token)
         print('gelöscht', doc)
+    for shop in shops:
+        for doc in contacts(shop.split('/')[1]):
+            call('DELETE', f'{FS}/{doc}', token=token)
+            print('gelöscht', doc)
+        delete_shop(shop.split('/')[1], fx['uid'], token)
+        print('gelöscht', shop)
     call('POST', f'{AUTH}:delete?key={KEY}', {'idToken': token})
     print('Testkonto gelöscht')
     FILE.unlink()

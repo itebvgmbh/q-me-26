@@ -5,6 +5,7 @@
 // Prüft danach, was in der Datenbank steht, und dass die Mittagspause des Ladens Buchungen sperrt.
 // Handygröße; meldet waagrechtes Überlaufen. Fotos jeder Frage in dev/out/einrichten-*.png.
 // Braucht: Entwicklungsserver und Testdaten (nur das Testkonto). Räumt die angelegten Läden selbst weg.
+// Die Einladungslinks am Ende kommen vom Backend (/routes/staff-invitation): QME_BACKEND=https://q-me.spielmacherei.de
 const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const PLACE = {
@@ -123,10 +124,12 @@ run(async () => {
   await click('Weiter', true);
   await heading('Alles bereit?');
   a.zusammenfassung = await page.locator('section').filter({ hasText: 'Öffnungszeiten' }).last().textContent();
+  a.teamHinweis = await page.getByText('Beim Eröffnen geht eine Einladung per E-Mail an').textContent().catch(() => '');
   await step('zusammenfassung');
   await click('Laden eröffnen');
   await heading('ist startklar.');
   a.einladungen = await page.locator('section[aria-labelledby="einladungen"]').getByRole('button', { name: 'Link kopieren' }).count();
+  a.einladungText = await page.locator('section[aria-labelledby="einladungen"]').textContent();
   await step('fertig');
 
   // --- B) ohne Google und KI ---------------------------------------------------------------------
@@ -172,6 +175,7 @@ run(async () => {
       ...setup.emptyDraft(fx.email, 'Alex'),
       step: 'summary', source: 'manual', name: 'Wiederaufnahme (Test)', industryConfirmed: true, templateIndustry: '', ownerWorks: true,
       services: [{ key: 's1', name: 'Schnitt C', category: '', duration: 30, price: 20, selected: true, source: 'own' }],
+      team: [{ key: 'p1', name: 'Jo', email: 'jo-test@example.com' }],
       progress: { shopId: shop.id, serviceIds: {}, staffKeys: [], invitations: [] },
     };
     localStorage.setItem(`qme-laden-einrichten-${fx.uid}`, JSON.stringify(draft));
@@ -181,8 +185,17 @@ run(async () => {
   const c = { hinweis: await page.getByText('Ein Teil ist schon gespeichert').count() };
   mode = 'wiederaufnahme';
   await step('zusammenfassung');
+  // Hier geht die E-Mail "raus" (nachgebildet): An example.com verschickt das echte Backend nichts
+  const inviteBodies = [];
+  await page.route('**/routes/staff-invitation', (route) => {
+    inviteBodies.push(route.request().postDataJSON());
+    return route.fulfill(json({ link: `${BASE}/staff-registration?token=test`, expires: new Date().toISOString(), email_sent: true, email_problem: '' }));
+  });
   await click('Weiter anlegen');
   await heading('ist startklar.');
+  c.einladungText = await page.locator('section[aria-labelledby="einladungen"]').textContent();
+  await page.unroute('**/routes/staff-invitation');
+  await step('fertig');
 
   // --- Datenbank prüfen, Regel prüfen, aufräumen ---------------------------------------------------
   const db = await page.evaluate(async (fx) => {
@@ -196,9 +209,10 @@ run(async () => {
     for (const s of shops) {
       const services = await byField('services', 'shopId', s.id);
       const staff = await byField('staff', 'shopId', s.id);
-      const invitations = await byField('staff-invitations', 'shopId', s.id);
       const data = s.data();
-      const entry = { id: s.id, data, services: services.map((d) => d.data()), staff: staff.map((d) => ({ id: d.id, ...d.data() })), invitations: invitations.map((d) => d.data().email) };
+      const entry = { id: s.id, data, services: services.map((d) => d.data()), staff: staff.map((d) => ({ id: d.id, ...d.data() })) };
+      // Einladung hängt am Eintrag (Hash des Links, gesetzt vom Backend), nicht mehr in staff-invitations
+      entry.invitations = entry.staff.filter((p) => p.inviteTokenHash).map((p) => p.email);
       if (data.name === 'Salon Testschnitt (Test)') {
         const kim = entry.staff.find((p) => p.name === 'Kim');
         const t = new Date(); t.setDate(t.getDate() + ((9 - t.getDay()) % 7 || 7)); // nächster Dienstag
@@ -208,12 +222,21 @@ run(async () => {
         entry.regelFrei = rules.findConflict(ctx, at(13, 30), at(14, 0));
       }
       out.shops[data.name] = entry;
-      for (const d of [...services, ...staff, ...invitations, s]) {
+      for (const d of [...services, ...staff]) {
         try {
           await fs.deleteDoc(d.ref);
         } catch (e) {
           out.notDeleted = (out.notDeleted || 0) + 1; // räumt dann python dev/fixtures.py loeschen weg
         }
+      }
+      try {
+        // Laden löschen nur zusammen mit dem Vermerk in deleted_shops (firestore.rules)
+        const batch = fs.writeBatch(firestore);
+        batch.set(fs.doc(firestore, 'deleted_shops', s.id), { owner: fx.uid, deletedAt: fs.Timestamp.now() });
+        batch.delete(s.ref);
+        await batch.commit();
+      } catch (e) {
+        out.notDeleted = (out.notDeleted || 0) + 1;
       }
     }
     out.left = (await byField('shops', 'owner', fx.uid)).filter((d) => d.id !== fx.shopId).length;
@@ -242,6 +265,9 @@ run(async () => {
     { name: 'A: Kim nur Herrenschnitt', pass: kim?.serviceIds.length === 1 && kim?.serviceIds[0] === herren?.id, detail: `${kim?.serviceIds.length}` },
     { name: 'A: Kim samstags frei, dienstags da', pass: kimSamstag?.isWorking === false && kim?.workingHours.find((h) => h.dayOfWeek === 2)?.isWorking === true },
     { name: 'A: Einladung für Kim', pass: a.einladungen === 1 && A?.invitations.includes('kim-test@example.com') },
+    { name: 'A: Zusammenfassung kündigt E-Mail an Kim an', pass: /an Kim\./.test(a.teamHinweis || ''), detail: a.teamHinweis },
+    // Versand wird angestoßen; an example.com schickt das Backend nichts und sagt das – dann Link zum selbst Schicken
+    { name: 'A: Einladung per E-Mail angestoßen', pass: /An Testadressen wie example\.com verschickt Dranzeit keine E-Mails\. Schick den Link selbst\./.test(a.einladungText || ''), detail: (a.einladungText || '').slice(0, 160) },
     { name: 'A: Buchung in der Ladenpause gesperrt', pass: /Der Laden macht Pause von 12:30 bis 13:30/.test(A?.regelPause || ''), detail: A?.regelPause },
     { name: 'A: 13:30 nach der Pause frei', pass: A?.regelFrei === null, detail: A?.regelFrei },
     { name: 'B: ohne Google kein Webseiten-Kasten', pass: b.websiteBox === 0 },
@@ -250,7 +276,9 @@ run(async () => {
     { name: 'B: nur Inhaber im Team', pass: B?.staff.length === 1 && B?.staff[0].userId === fx.uid && B?.staff[0].name === 'Sam' },
     { name: 'B: Google/KI nicht aufgerufen', pass: !backendCalls.slice(backendCalls.lastIndexOf('shop-setup/status')).some((c) => c !== 'shop-setup/status') },
     { name: 'C: nach Abbruch "Weiter anlegen" angeboten', pass: c.hinweis === 1 },
-    { name: 'C: kein zweiter Laden, Rest ergänzt', pass: db.wiederaufnahme === 1 && db.shops['Wiederaufnahme (Test)']?.services.length === 1 && db.shops['Wiederaufnahme (Test)']?.staff.length === 1, detail: `${db.wiederaufnahme} Läden` },
+    { name: 'C: Einladung mit send_email angefragt', pass: inviteBodies.length === 1 && inviteBodies[0].send_email === true, detail: JSON.stringify(inviteBodies) },
+    { name: 'C: Fertig-Seite meldet "E-Mail verschickt"', pass: /per E-Mail bekommen.*Jo.*E-Mail verschickt/.test(c.einladungText || ''), detail: (c.einladungText || '').slice(0, 160) },
+    { name: 'C: kein zweiter Laden, Rest ergänzt', pass: db.wiederaufnahme === 1 && db.shops['Wiederaufnahme (Test)']?.services.length === 1 && db.shops['Wiederaufnahme (Test)']?.staff.length === 2, detail: `${db.wiederaufnahme} Läden` },
     { name: 'Entwurf nach dem Anlegen gelöscht', pass: db.draftLeft === null },
     { name: 'Aufgeräumt', pass: db.left === 0, detail: db.notDeleted ? `${db.notDeleted} Dokumente nicht löschbar` : '' },
     { name: 'Kein waagrechtes Überlaufen (Handy)', pass: overflow.length === 0, detail: overflow.join(', ') },

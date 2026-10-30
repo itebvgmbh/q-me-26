@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers } from '../utils/firestore';
+import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers, appointmentCustomerId, offeredServices } from '../utils/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import useTimeSlotStore from '../utils/timeSlotStore';
+import { t } from '@/i18n';
 
 interface Props {
   isOpen: boolean;
@@ -64,7 +65,7 @@ export const CreateAppointmentDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId || (isNewCustomer && !customerName) || (!isNewCustomer && !selectedCustomerId)) {
-      toast.error('Bitte füll alle Pflichtfelder aus.');
+      toast.error(t('Bitte füll alle Pflichtfelder aus.'));
       return;
     }
 
@@ -74,6 +75,8 @@ export const CreateAppointmentDialog = ({
       
       let customerId = selectedCustomerId;
       let finalCustomerName = customerName;
+      // Handynummer aus der Kundenliste (das Profil eines Kundenkontos liest der Laden nicht, firestore.rules)
+      let finalCustomerPhone = customerPhone;
 
       console.log('Creating appointment, isNewCustomer:', isNewCustomer);
       if (isNewCustomer) {
@@ -84,12 +87,14 @@ export const CreateAppointmentDialog = ({
           email: customerEmail,
           phone: customerPhone,
         });
-        customerId = newCustomer.id;
+        customerId = appointmentCustomerId(newCustomer);
         finalCustomerName = newCustomer.name;
       } else {
         const customer = customers.find(c => c.id === selectedCustomerId);
         if (!customer) throw new Error('Selected customer not found');
+        customerId = appointmentCustomerId(customer);
         finalCustomerName = customer.name;
+        finalCustomerPhone = customer.phone;
       }
 
       console.log('Creating appointment with customer:', { customerId, finalCustomerName });
@@ -103,6 +108,7 @@ export const CreateAppointmentDialog = ({
         shopId: employee.shopId,
         customerId,
         customerName: finalCustomerName,
+        customerPhone: finalCustomerPhone || undefined,
         serviceId,
         staffId: employee.id,
         status: 'scheduled',
@@ -110,7 +116,7 @@ export const CreateAppointmentDialog = ({
         endTime: endTimestamp,
       });
 
-      toast.success('Termin erfolgreich angelegt');
+      toast.success(t('Termin erfolgreich angelegt'));
       console.log('Dialog closing after successful appointment creation');
       console.log('Appointment created successfully:', appointment);
       
@@ -121,7 +127,7 @@ export const CreateAppointmentDialog = ({
       onClose();
     } catch (error) {
       console.error('Error creating appointment:', error);
-      toast.error(`Termin nicht angelegt: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`);
+      toast.error(t('Termin nicht angelegt: {fehler}', { fehler: error instanceof Error ? error.message : t('unbekannter Fehler') }));
     } finally {
       setIsSubmitting(false);
     }
@@ -131,12 +137,12 @@ export const CreateAppointmentDialog = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neuen Termin anlegen</DialogTitle>
+          <DialogTitle>{t('Termin eintragen')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 p-4">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Startzeit</Label>
+              <Label>{t('Startzeit')}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="date"
@@ -163,16 +169,16 @@ export const CreateAppointmentDialog = ({
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Label>Kundentyp</Label>
-                <div className="flex space-x-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <Label>{t('Kundentyp')}</Label>
+                <div className="flex space-x-2 rtl:space-x-reverse">
                   <Button
                     type="button"
                     variant={isNewCustomer ? "default" : "outline"}
                     size="sm"
                     onClick={() => setIsNewCustomer(true)}
                   >
-                    Neuer Kunde
+                    {t('Neuer Kunde')}
                   </Button>
                   <Button
                     type="button"
@@ -180,7 +186,7 @@ export const CreateAppointmentDialog = ({
                     size="sm"
                     onClick={() => setIsNewCustomer(false)}
                   >
-                    Bestandskunde
+                    {t('Bestandskunde')}
                   </Button>
                 </div>
               </div>
@@ -188,7 +194,7 @@ export const CreateAppointmentDialog = ({
               {isNewCustomer ? (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="customerName">Name</Label>
+                    <Label htmlFor="customerName">{t('Name')}</Label>
                     <Input
                       id="customerName"
                       value={customerName}
@@ -197,7 +203,7 @@ export const CreateAppointmentDialog = ({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customerEmail">E-Mail</Label>
+                    <Label htmlFor="customerEmail">{t('E-Mail')}</Label>
                     <Input
                       id="customerEmail"
                       type="email"
@@ -206,7 +212,7 @@ export const CreateAppointmentDialog = ({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customerPhone">Telefon</Label>
+                    <Label htmlFor="customerPhone">{t('Telefon')}</Label>
                     <Input
                       id="customerPhone"
                       type="tel"
@@ -217,13 +223,13 @@ export const CreateAppointmentDialog = ({
                 </div>
               ) : (
                 <div>
-                  <Label htmlFor="customerId">Kunde auswählen</Label>
+                  <Label htmlFor="customerId">{t('Kunde auswählen')}</Label>
                   <Select
                     value={selectedCustomerId}
                     onValueChange={setSelectedCustomerId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Kunde auswählen" />
+                      <SelectValue placeholder={t('Kunde auswählen')} />
                     </SelectTrigger>
                     <SelectContent>
                       {/* Nur unterschiedliche Kunden zeigen, basierend auf ID + Email */}
@@ -239,7 +245,7 @@ export const CreateAppointmentDialog = ({
             </div>
 
             <div>
-              <Label htmlFor="service">Leistung</Label>
+              <Label htmlFor="service">{t('Leistung')}</Label>
               <Select
                 value={serviceId}
                 onValueChange={(id) => {
@@ -252,12 +258,12 @@ export const CreateAppointmentDialog = ({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Leistung wählen" />
+                  <SelectValue placeholder={t('Leistung wählen')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {services.map((service) => (
+                  {offeredServices(services).map((service) => (
                     <SelectItem key={service.id} value={service.id}>
-                      {service.name} ({service.duration} Min.)
+                      {t('{name} ({dauer} Min.)', { name: service.name, dauer: service.duration })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -265,12 +271,13 @@ export const CreateAppointmentDialog = ({
             </div>
 
             <div>
-              <Label htmlFor="duration">Dauer (Minuten)</Label>
+              <Label htmlFor="duration">{t('Dauer (Minuten)')}</Label>
               <Input
                 id="duration"
                 type="number"
-                min="15"
-                step="15"
+                // Ganze Minuten: Leistungen haben jede Dauer (z. B. 20 Min.); mit step 15 lehnte der Browser sie ab
+                min="1"
+                step="1"
                 value={duration}
                 onChange={(e) => setDuration(parseInt(e.target.value))}
                 required
@@ -278,17 +285,17 @@ export const CreateAppointmentDialog = ({
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 rtl:space-x-reverse">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
             >
-              Abbrechen
+              {t('Abbrechen')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Speichern...' : 'Termin anlegen'}
+              {isSubmitting ? t('Wird eingetragen …') : t('Termin eintragen')}
             </Button>
           </div>
         </form>

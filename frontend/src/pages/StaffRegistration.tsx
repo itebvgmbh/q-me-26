@@ -1,104 +1,252 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { auth, useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
-import { getStaffInvitation, useStaffInvitation as markInvitationUsed, updateStaffWithUserId, StaffInvitation } from '../utils/firestore';
-import { createUserProfile } from '../utils/user-profile-service';
+import { HilfeLink } from '../components/HilfeLink';
 import { createFirebaseUser } from '../utils/auth-helpers';
 import { authErrorMessage } from '../utils/auth-errors';
-import { AuthShell, FormError, PasswordField } from '../components/auth/AuthShell';
+import { sendVerificationMailAfterSignUp } from '../utils/email-verification';
+import { emitProfileSaved, getUserProfile } from '../utils/user-profile-service';
+import { acceptStaffInvite, getStaffInviteInfo, StaffInviteInfo } from '../utils/staff-invitation';
+import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
+import { t, tTeile } from '@/i18n';
 
-/** Einladungslink für Mitarbeiter: Passwort festlegen, fertig */
+// Einladungslink fürs Team: Der Inhaber hat die Person unter "Team" angelegt und ihr diesen Link geschickt.
+// Neues Konto anlegen oder mit dem bestehenden anmelden (auch ein Kundenkonto oder das Konto eines anderen Ladens) –
+// das Backend verbindet dann genau diesen Eintrag (backend/app/apis/staff_invitation).
+
 const StaffRegistration = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const [params] = useSearchParams();
+  const token = params.get('token') || '';
+  const { user, loading: userLoading } = useCurrentUser();
 
-  const [invitation, setInvitation] = useState<StaffInvitation | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [info, setInfo] = useState<StaffInviteInfo | null>(null);
+  const [infoError, setInfoError] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [accountExists, setAccountExists] = useState(false);
+  // Während der Registrierung ist man schon angemeldet – trotzdem das Formular stehen lassen
+  const [registering, setRegistering] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const autoTried = useRef(false);
 
   useEffect(() => {
     if (!token) {
-      setInviteError('In diesem Link fehlt die Einladung. Öffne den Link aus deiner E-Mail noch einmal.');
-      setLoading(false);
+      setInfoError(t('In diesem Link fehlt etwas. Bitte deinen Laden, ihn noch einmal zu schicken.'));
       return;
     }
-    getStaffInvitation(token)
-      .then((inv) => {
-        if (inv) setInvitation(inv);
-        else setInviteError('Diese Einladung ist abgelaufen oder wurde schon benutzt. Bitte deinen Betrieb um einen neuen Link.');
+    getStaffInviteInfo(token)
+      .then((i) => {
+        setInfo(i);
+        setEmail(i.email);
       })
-      .catch((err) => {
-        console.error('Error checking invitation:', err);
-        setInviteError('Die Einladung konnte nicht geprüft werden. Versuch es gleich noch einmal.');
-      })
-      .finally(() => setLoading(false));
+      .catch((e: Error) => setInfoError(e.message));
   }, [token]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!invitation) return;
-    setError(null);
-    setSubmitting(true);
+  /** Eintrag mit dem angemeldeten Konto verbinden, Navigation auf die neue Rolle umstellen, weiter zu "Mein Tag" */
+  const finish = useCallback(
+    async (uid: string) => {
+      const res = await acceptStaffInvite(token);
+      const profile = await getUserProfile(uid);
+      if (profile) emitProfileSaved(uid, profile);
+      toast.success(t('Willkommen im Team von {laden}!', { laden: res.shopName }));
+      navigate(`/employee-dashboard?staffId=${encodeURIComponent(res.staffId)}`, { replace: true });
+    },
+    [token, navigate],
+  );
+
+  const accept = useCallback(async () => {
+    if (!user) return;
+    setBusy(true);
+    setError('');
     try {
-      const user = await createFirebaseUser(invitation.email, password);
+      await finish(user.uid);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('Das hat nicht geklappt.'));
+    } finally {
+      setBusy(false);
+    }
+  }, [user, finish]);
+
+  // Zurück vom Anmelden: gleich annehmen, dafür hat sich die Person ja gerade angemeldet
+  useEffect(() => {
+    if (params.get('annehmen') === '1' && user && !registering && info?.status === 'offen' && !autoTried.current) {
+      autoTried.current = true;
+      accept();
+    }
+  }, [params, user, registering, info, accept]);
+
+  const register = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setAccountExists(false);
+    setBusy(true);
+    setRegistering(true);
+    try {
+      let created;
       try {
-        await updateStaffWithUserId(invitation.email, user.uid);
-        await createUserProfile(user.uid, invitation.email, 'employee');
-        await markInvitationUsed(invitation.id);
+        created = await createFirebaseUser(email.trim(), password);
+      } catch (err) {
+        if ((err as { code?: string })?.code === 'auth/email-already-in-use') {
+          setAccountExists(true);
+          setError(t('Mit dieser E-Mail gibt es schon ein Konto. Melde dich damit an, dann nimmst du die Einladung an.'));
+        } else {
+          setError(authErrorMessage(err));
+        }
+        setRegistering(false);
+        return;
+      }
+      try {
+        await finish(created.uid);
+        sendVerificationMailAfterSignUp();
       } catch (err) {
         // Konto wieder entfernen, sonst ist die E-Mail verbraucht und der Link nutzlos
-        await user.delete().catch((deleteError) => console.error('Rollback of auth user failed:', deleteError));
-        throw err;
+        await created.delete().catch((deleteError) => console.error('Rollback of auth user failed:', deleteError));
+        setRegistering(false);
+        setError(err instanceof Error ? err.message : t('Das hat nicht geklappt.'));
       }
-      toast.success('Willkommen im Team!');
-      navigate('/employee-dashboard', { replace: true });
-    } catch (err) {
-      console.error('Error during registration:', err);
-      setError(authErrorMessage(err));
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   };
 
-  if (loading) {
+  const back = `/staff-registration?token=${encodeURIComponent(token)}&annehmen=1`;
+  const loginLink = `/login?next=${encodeURIComponent(back)}`;
+
+  if (infoError) {
     return (
-      <AuthShell title="Einladung wird geprüft …">
+      <AuthShell title={t('Dieser Link klappt nicht.')} intro={infoError}>
+        <Button asChild variant="outline">
+          <Link to="/">{t('Zur Startseite')}</Link>
+        </Button>
+      </AuthShell>
+    );
+  }
+
+  if (!info || userLoading) {
+    return (
+      <AuthShell title={t('Einladung wird geprüft …')}>
         <div className="h-24 animate-pulse rounded-2xl bg-muted" aria-busy="true" />
       </AuthShell>
     );
   }
 
-  if (inviteError || !invitation) {
+  if (info.status === 'abgelaufen') {
     return (
       <AuthShell
-        title="Das hat nicht geklappt."
+        title={t('Die Einladung gilt nicht mehr.')}
+        intro={t('Bitte {laden} um einen neuen Link. Im Team unter „Bearbeiten“ geht das in einer Minute.', { laden: info.shopName })}
+      >
+        <Button asChild variant="outline">
+          <Link to="/">{t('Zur Startseite')}</Link>
+        </Button>
+      </AuthShell>
+    );
+  }
+
+  if (info.status === 'verbunden') {
+    return (
+      <AuthShell
+        title={t('Schon angenommen.')}
+        intro={t('Diese Einladung ist schon mit einem Konto verbunden. Melde dich damit an, dann siehst du deinen Tag bei {laden}.', { laden: info.shopName })}
+      >
+        <Button asChild size="lg" className="w-full">
+          <Link to={user ? '/employee-dashboard' : `/login?next=${encodeURIComponent('/employee-dashboard')}`}>{user ? t('Zu Mein Tag') : t('Anmelden')}</Link>
+        </Button>
+      </AuthShell>
+    );
+  }
+
+  const title = t('Willkommen im Team von {laden}.', { laden: info.shopName });
+  const help = (
+    <HilfeLink hilfe="fuers-team" className="self-start text-sm">
+      {t('So arbeitest du mit Dranzeit')}
+    </HilfeLink>
+  );
+
+  if (user && !registering) {
+    return (
+      <AuthShell
+        title={title}
+        intro={
+          info.name
+            ? t('{laden} hat dich als {name} ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName, name: info.name })
+            : t('{laden} hat dich ins Team eingeladen. Nimm die Einladung mit deinem Konto an, dann siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName })
+        }
         footer={
           <p>
-            Schon ein Konto?{' '}
-            <Link to="/login" className="font-semibold text-foreground underline-offset-4 hover:underline">
-              Anmelden
-            </Link>
+            {t('Nicht dein Konto?')}{' '}
+            <button type="button" onClick={() => auth.signOut()} className="font-semibold text-foreground underline-offset-4 hover:underline">
+              {t('Abmelden')}
+            </button>
           </p>
         }
       >
-        <FormError>{inviteError}</FormError>
+        <div className="flex flex-col gap-4">
+          {error && <FormError>{error}</FormError>}
+          <p className="text-sm text-muted-foreground">
+            {tTeile(
+              'Angemeldet als <konto>{email}</konto>',
+              {
+                konto: (inhalt) => (
+                  <bdi>
+                    <strong className="text-foreground">{inhalt}</strong>
+                  </bdi>
+                ),
+              },
+              { email: user.email ?? '' },
+            )}
+          </p>
+          <Button size="lg" onClick={accept} disabled={busy}>
+            {busy ? t('Wird angenommen …') : t('Einladung annehmen')}
+          </Button>
+          {help}
+        </div>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Willkommen im Team." intro={<>Leg ein Passwort für <strong className="text-foreground">{invitation.email}</strong> fest. Danach siehst du deinen Tag.</>}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <AuthShell
+      title={title}
+      intro={
+        info.name
+          ? t('{laden} hat dich als {name} ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName, name: info.name })
+          : t('{laden} hat dich ins Team eingeladen. Leg dein Konto an, danach siehst du unter „Mein Tag“ deine Kunden.', { laden: info.shopName })
+      }
+      footer={
+        <p>
+          {t('Schon ein Konto bei Dranzeit?')}{' '}
+          <Link to={loginLink} className="font-semibold text-foreground underline-offset-4 hover:underline">
+            {t('Anmelden und annehmen')}
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={register} className="flex flex-col gap-4">
         {error && <FormError>{error}</FormError>}
+        {accountExists && (
+          <Button asChild size="lg" variant="signal">
+            <Link to={loginLink}>{t('Anmelden und annehmen')}</Link>
+          </Button>
+        )}
+        <EmailField
+          value={email}
+          onChange={(v) => {
+            setEmail(v);
+            setError('');
+            setAccountExists(false);
+          }}
+          invalid={!!error}
+        />
         <PasswordField value={password} onChange={setPassword} isNew />
-        <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? 'Wird angelegt …' : 'Konto anlegen'}
+        <Button type="submit" size="lg" variant={accountExists ? 'outline' : 'default'} disabled={busy}>
+          {busy ? t('Wird angelegt …') : t('Konto anlegen')}
         </Button>
+        {help}
       </form>
     </AuthShell>
   );

@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { uploadImage } from '../utils/firestore/storage';
-import { collection, doc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { APP_BASE_PATH } from 'app';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from './HilfeLink';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import brain from "brain";
 import {
   Dialog,
   DialogContent,
@@ -17,12 +15,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { isEmailInUse } from '../utils/auth-helpers';
-import { Staff, Shop, Service, WorkingHours, updateStaff, createStaffInvitation } from '../utils/firestore';
-import { firestore as db } from '../utils/firestore-client';
+import { isEmail } from '../utils/auth-helpers';
+import { Staff, Shop, Service, WorkingHours, updateStaff, findTeamMemberByEmail, teamEmailMessage } from '../utils/firestore';
+import { StaffInvitePanel } from './StaffInvitePanel';
 import { BreakManager } from './BreakManager';
 import { RecurringBreakManager } from './RecurringBreakManager';
 import { getDayName, defaultWorkingHours } from '../utils/staff-utils';
+import { t } from '@/i18n';
 
 /**
  * Interface for EditStaffDialog component props
@@ -46,7 +45,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
   const [activeTab, setActiveTab] = useState("profile");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(staff.name);
-  const [email, setEmail] = useState(staff.email);
+  const [email, setEmail] = useState(staff.email || '');
   const [phone, setPhone] = useState(staff.phone);
   const [role, setRole] = useState(staff.role);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(staff.serviceIds || []);
@@ -55,51 +54,6 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
   const [profileImageUrl, setProfileImageUrl] = useState<string>(staff.profileImageUrl || '');
 
   const [workingHours, setWorkingHours] = useState<WorkingHours[]>(staff.workingHours?.length ? staff.workingHours : defaultWorkingHours);
-  const [registrationLink, setRegistrationLink] = useState<string>('');
-  const [emailSent, setEmailSent] = useState<boolean>(false);
-  const [emailSentTime, setEmailSentTime] = useState<string>('');
-  
-  /**
-   * Check if an invitation has already been sent to this staff member
-   */
-  useEffect(() => {
-    const checkInvitationStatus = async () => {
-      if (staff.id && open) {
-        try {
-          const staffInvitationsQuery = query(
-            collection(db, 'staff-invitations'),
-            where('staffId', '==', staff.id),
-            where('emailSent', '==', true),
-            orderBy('emailSentAt', 'desc'),
-            limit(1)
-          );
-          
-          const invitationsSnapshot = await getDocs(staffInvitationsQuery);
-          if (!invitationsSnapshot.empty) {
-            const invitation = invitationsSnapshot.docs[0].data();
-            setEmailSent(true);
-            
-            // Format timestamp if available
-            if (invitation.emailSentAt) {
-              const sentTime = invitation.emailSentAt.toDate();
-              const formattedTime = sentTime.toLocaleString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-              setEmailSentTime(formattedTime);
-            }
-          }
-        } catch (error) {
-          console.error('Fehler beim Prüfen des Einladungsstatus:', error);
-        }
-      }
-    };
-    
-    checkInvitationStatus();
-  }, [staff.id, open]);
 
   /**
    * Handle toggling selection of services for staff member
@@ -132,7 +86,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
       return await uploadImage(file, path);
     } catch (error) {
       console.error('Error uploading staff profile image:', error);
-      toast.error('Fehler beim Hochladen des Profilbilds');
+      toast.error(t('Fehler beim Hochladen des Profilbilds'));
       throw error;
     }
   };
@@ -143,10 +97,10 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
   const handleSubmit = async () => {
     // Reset previous errors
     setEmailError(null);
-    
+
     // Pflicht ist nur der Name: Der Assistent legt Personen ohne Telefon an, E-Mail ist freiwillig
     if (!name.trim()) {
-      toast.error('Bitte trag einen Namen ein.');
+      toast.error(t('Bitte trag einen Namen ein.'));
       return;
     }
 
@@ -163,25 +117,22 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
         }
       }
 
-      // Check if email changed and is already in use
-      if (email.trim() && email !== staff.email) {
-        console.log('Email changed, checking if in use:', email);
-        const emailInUse = await isEmailInUse(email);
-        console.log('Email in use result for edit:', emailInUse);
-        
-        if (emailInUse) {
-          console.log('Email already in use for edit, showing error');
-          const errorMessage = 'Diese E-Mail ist schon im Team oder eingeladen.';
-          toast.error(errorMessage, {
-            duration: 5000,
-            position: 'top-center',
-            style: { background: '#f44336', color: 'white', fontWeight: 'bold' }
-          });
-          setEmailError(errorMessage);
+      // Geänderte E-Mail: nur im eigenen Laden doppelt verboten
+      const mail = email.trim();
+      if (mail && mail.toLowerCase() !== (staff.email || '').trim().toLowerCase()) {
+        if (!isEmail(mail)) {
+          setActiveTab('profile');
+          setEmailError(t('Die E-Mail stimmt nicht. Bitte prüf sie noch einmal.'));
+          return;
+        }
+        const existing = await findTeamMemberByEmail(shop.id || staff.shopId, mail, staff.id);
+        if (existing) {
+          setActiveTab('profile');
+          setEmailError(teamEmailMessage(existing));
           return;
         }
       }
-      
+
       await updateStaff(staff.id, {
         profileImageUrl: newProfileImageUrl,
         name: name.trim(),
@@ -192,72 +143,72 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
         workingHours,
       });
 
-      toast.success('Gespeichert.');
+      toast.success(t('Gespeichert.'));
       onStaffUpdated();
       setOpen(false);
     } catch (error) {
       console.error('Error updating staff:', error);
-      toast.error('Speichern hat nicht geklappt. Bitte noch einmal.');
+      toast.error(t('Speichern hat nicht geklappt. Bitte noch einmal.'));
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Bearbeiten</Button>
+        <Button variant="outline">{t('Bearbeiten')}</Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{staff.name} bearbeiten</DialogTitle>
+          <DialogTitle>{t('{name} bearbeiten', { name: staff.name })}</DialogTitle>
           <DialogDescription>
-            Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, erstellst du hier einen Einladungslink.
+            {t('Leistungen, Arbeitszeiten und Kontakt. Hat die Person noch kein Konto, lädst du sie hier ein.')}
           </DialogDescription>
         </DialogHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-muted p-1" role="tablist">
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'profile' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('profile')}
             >
-              Profil
+              {t('Profil')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'services' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('services')}
             >
-              Leistungen
+              {t('Leistungen')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'working-hours' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('working-hours')}
             >
-              Arbeitszeiten
+              {t('Arbeitszeiten')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('breaks')}
             >
-              Tägliche Pausen
+              {t('Einzelne Pausen')}
             </button>
             <button
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === 'recurring-breaks' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50'}`}
               onClick={() => setActiveTab('recurring-breaks')}
             >
-              Wöchentliche Pausen
+              {t('Wöchentliche Pausen')}
             </button>
           </div>
-          
+
           <TabsContent value="profile" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="profileImage">Profilbild</Label>
+                <Label htmlFor="profileImage">{t('Profilbild')}</Label>
                 <div className="flex flex-col items-center gap-4">
                   {(profileImageUrl || staff.profileImageUrl) && (
                     <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary">
-                      <img 
-                        src={profileImageUrl || staff.profileImageUrl} 
-                        alt={`${staff.name} Profilbild`} 
+                      <img
+                        src={profileImageUrl || staff.profileImageUrl}
+                        alt={t('{name} Profilbild', { name: staff.name })}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -279,16 +230,16 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t('Name')}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Max Mustermann"
+                  placeholder={t('Max Mustermann')}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">E-Mail (freiwillig, für die Einladung)</Label>
+                <Label htmlFor="email">{t('E-Mail (freiwillig, für die Einladung)')}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -305,7 +256,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">Telefon (freiwillig)</Label>
+                <Label htmlFor="phone">{t('Telefon (freiwillig)')}</Label>
                 <Input
                   id="phone"
                   value={phone}
@@ -314,86 +265,33 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="role">Aufgabe (freiwillig)</Label>
+                <Label htmlFor="role">{t('Aufgabe (freiwillig)')}</Label>
                 <Input
                   id="role"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="z. B. Friseurin"
+                  placeholder={t('z. B. Friseurin')}
                 />
               </div>
 
-              <div className="space-y-4">
-                <div className="border-t pt-4">
-                  <Label>Einladungslink</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {staff.userId
-                      ? 'Die Person hat schon ein Konto.'
-                      : 'Mit diesem Link legt die Person ihr Konto an und sieht danach ihren eigenen Tag. Schick ihn per Nachricht oder E-Mail.'}
-                  </p>
-                  {registrationLink ? (
-                    <div className="space-y-2">
-                      <div className="p-2 bg-muted rounded break-all">
-                        <a href={registrationLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                          {registrationLink}
-                        </a>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          navigator.clipboard.writeText(registrationLink).then(
-                            () => toast.success('Link kopiert.'),
-                            () => toast.error('Kopieren ging nicht. Markier den Link und kopier ihn von Hand.'),
-                          );
-                        }}
-                      >
-                        Link kopieren
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => setRegistrationLink('')}
-                      >
-                        Neuen Link erstellen
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      disabled={!email.trim() || Boolean(staff.userId)}
-                      onClick={async () => {
-                        try {
-                          // Create invitation but don't send email automatically
-                          const invitation = await createStaffInvitation(shop.id, email, false);
-                          const link = `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}`;
-                          setRegistrationLink(link);
-                          toast.success('Einladungslink erstellt.');
-                        } catch (error) {
-                          console.error('Error creating staff invitation:', error);
-                          toast.error('Der Link konnte nicht erstellt werden.');
-                        }
-                      }}
-                    >
-                      Einladungslink erstellen
-                    </Button>
-                  )}
-                  {!registrationLink && !email.trim() && !staff.userId && (
-                    <p className="mt-2 text-xs text-muted-foreground">Trag zuerst eine E-Mail ein – darüber findet die Einladung die Person.</p>
-                  )}
-                </div>
+              <div className="flex flex-col gap-2 border-t pt-4">
+                <Label>{t('Einladung')}</Label>
+                <StaffInvitePanel
+                  staff={staff}
+                  emailUnsaved={email.trim().toLowerCase() !== (staff.email || '').trim().toLowerCase()}
+                  onChanged={onStaffUpdated}
+                />
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="services" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Leistungen</Label>
+                <Label>{t('Leistungen')}</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {services.map((service) => (
                     <div
@@ -405,7 +303,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                     >
                       <div>
                         <div className="font-medium">{service.name}</div>
-                        <div className="text-sm text-muted-foreground">{service.duration} Min. | {service.price.toFixed(2)} €</div>
+                        <div className="text-sm text-muted-foreground">{t('{dauer} Min. | {preis} €', { dauer: service.duration, preis: service.price.toFixed(2) })}</div>
                       </div>
                       <Switch checked={selectedServiceIds.includes(service.id)} />
                     </div>
@@ -413,15 +311,15 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 </div>
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="working-hours" className="mt-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Arbeitszeiten</Label>
+                <Label>{t('Arbeitszeiten')}</Label>
                 {workingHours.map((hours, index) => (
                   <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-2">
                     <div className="w-24">
@@ -439,7 +337,7 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                           onChange={(e) => updateWorkingHours(index, 'startTime', e.target.value)}
                           className="w-32"
                         />
-                        <span>bis</span>
+                        <span>{t('bis')}</span>
                         <Input
                           type="time"
                           value={hours.endTime}
@@ -452,16 +350,24 @@ export const EditStaffDialog = ({ staff, services, shop, onStaffUpdated }: EditS
                 ))}
               </div>
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full">Änderungen speichern</Button>
+                <Button onClick={handleSubmit} className="w-full">{t('Änderungen speichern')}</Button>
               </div>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="breaks" className="mt-4">
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('Gilt nur an einem bestimmten Tag, z. B. für einen Arzttermin. Für jede Woche gleich: „Wöchentliche Pausen“. Die Mittagspause des ganzen Ladens steht bei den Öffnungszeiten.')}{' '}
+              <HilfeLink hilfe="arbeitszeiten-und-pausen" />
+            </p>
             <BreakManager staff={staff} shopId={shop.id} />
           </TabsContent>
-          
+
           <TabsContent value="recurring-breaks" className="mt-4">
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('Jede Woche zur selben Zeit, z. B. dienstags 12–13 Uhr. In dieser Zeit bekommt die Person keine Kunden.')}{' '}
+              <HilfeLink hilfe="arbeitszeiten-und-pausen" />
+            </p>
             <RecurringBreakManager staff={staff} shopId={shop.id} />
           </TabsContent>
         </Tabs>

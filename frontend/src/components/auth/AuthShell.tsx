@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { t } from '@/i18n';
 
 /** Rahmen für Anmelden/Registrieren: große Überschrift, eine Karte, Links darunter */
 export const AuthShell = ({ title, intro, children, footer }: { title: string; intro?: ReactNode; children: ReactNode; footer?: ReactNode }) => (
@@ -23,7 +24,7 @@ export const FormError = ({ children }: { children: ReactNode }) => (
 
 export const EmailField = ({ value, onChange, invalid }: { value: string; onChange: (v: string) => void; invalid?: boolean }) => (
   <div className="flex flex-col gap-2">
-    <Label htmlFor="email">E-Mail</Label>
+    <Label htmlFor="email">{t('E-Mail')}</Label>
     <Input
       id="email"
       type="email"
@@ -37,37 +38,49 @@ export const EmailField = ({ value, onChange, invalid }: { value: string; onChan
   </div>
 );
 
-/** Passwortfeld mit Anzeigen-Schalter statt zweitem Bestätigungsfeld */
-export const PasswordField = ({ value, onChange, isNew = false }: { value: string; onChange: (v: string) => void; isNew?: boolean }) => {
+/** Passwortfeld mit Anzeigen-Schalter statt zweitem Bestätigungsfeld; id nur nötig, wenn zwei auf einer Seite stehen */
+export const PasswordField = ({
+  value,
+  onChange,
+  isNew = false,
+  label,
+  id = 'password',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  isNew?: boolean;
+  label?: string;
+  id?: string;
+}) => {
   const [visible, setVisible] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor="password">Passwort</Label>
+      <Label htmlFor={id}>{label ?? t('Passwort')}</Label>
       <div className="relative">
         <Input
-          id="password"
+          id={id}
           type={visible ? 'text' : 'password'}
           autoComplete={isNew ? 'new-password' : 'current-password'}
           minLength={isNew ? 6 : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pr-12"
-          aria-describedby={isNew ? 'password-hint' : undefined}
+          className="pe-12"
+          aria-describedby={isNew ? `${id}-hint` : undefined}
           required
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-          aria-label={visible ? 'Passwort verbergen' : 'Passwort anzeigen'}
+          className="absolute end-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          aria-label={visible ? t('Passwort verbergen') : t('Passwort anzeigen')}
           aria-pressed={visible}
         >
           {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
         </button>
       </div>
       {isNew && (
-        <p id="password-hint" className="text-xs text-muted-foreground">
-          Mindestens 6 Zeichen.
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          {t('Mindestens 6 Zeichen.')}
         </p>
       )}
     </div>

@@ -1,8 +1,10 @@
-import { doc, getDoc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
 import { listShopsOfOwner, getStaffByUserId } from './firestore';
+import { gespeichertesGeraet, startseite } from './geraet';
+import { sprache, spracheGewaehlt } from '@/i18n';
 
 export interface UpdateProfileData {
   displayName: string;
@@ -23,17 +25,17 @@ export const onProfileSaved = (listener: ProfileListener) => {
 };
 export const emitProfileSaved = (uid: string, profile: UserProfile) => profileListeners.forEach((listener) => listener(uid, profile));
 
+/** Profil laden: null nur, wenn es wirklich keins gibt. Ohne Verbindung zur Datenbank ein Fehler – das ist nicht
+ * dasselbe wie "kein Profil" (sonst landet ein bestehendes Konto in der Rollenwahl, iPhone 27.10.2026). */
+export const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const userDoc = await getDoc(doc(getFirestore(firebaseApp), 'users', userId));
+  return userDoc.exists() ? (userDoc.data() as UserProfile) : null;
+};
+
+/** Wie loadUserProfile, aber jeder Fehler gilt als "kein Profil" – nur für Anzeigen, nie für Entscheidungen über die Rolle */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  console.log('Getting user profile for:', userId);
   try {
-    const db = getFirestore(firebaseApp);
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (userDoc.exists()) {
-      console.log('User profile found:', userDoc.data());
-      return userDoc.data() as UserProfile;
-    }
-    console.log('No user profile found');
-    return null;
+    return await loadUserProfile(userId);
   } catch (error: any) {
     // Kein Toast: Aufrufer (Navigation, Login) entscheiden selbst, was angezeigt wird
     console.error('Error getting user profile:', error);
@@ -41,21 +43,41 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   }
 };
 
+/** Profil mit Rolle anlegen. Gibt es schon eins, bleibt es unverändert und wird zurückgegeben: In einer Transaktion,
+ * damit ein Profil nie überschrieben wird und ohne Verbindung nichts für später vorgemerkt bleibt. */
 export const createUserProfile = async (uid: string, email: string, role: UserRole): Promise<UserProfile> => {
   const db = getFirestore(firebaseApp);
+  const ref = doc(db, 'users', uid);
   const now = Timestamp.now();
-  
-  const profile: UserProfile = {
+  const fresh: UserProfile = {
     uid,
     email,
     role,
+    // E-Mails vom Backend an das Konto kommen in dieser Sprache (backend/app/i18n)
+    language: sprache(),
     createdAt: now,
     updatedAt: now
   };
 
-  await setDoc(doc(db, 'users', uid), profile);
+  const profile = await runTransaction(db, async (tx) => {
+    const existing = await tx.get(ref);
+    if (existing.exists()) return existing.data() as UserProfile;
+    tx.set(ref, fresh);
+    return fresh;
+  });
   emitProfileSaved(uid, profile);
   return profile;
+};
+
+/** Sprache im Profil an die gerade gewählte angleichen (beim Laden des Profils): Wer die Sprache wechselt, bekommt
+ * die nächsten E-Mails vom Backend in der neuen. Schlägt es fehl, bleibt die alte – kein Grund für eine Meldung. */
+export const syncProfileLanguage = async (userId: string, profile: UserProfile | null): Promise<void> => {
+  if (!profile || profile.language === sprache() || !spracheGewaehlt()) return;
+  try {
+    await updateDoc(doc(getFirestore(firebaseApp), 'users', userId), { language: sprache() });
+  } catch (error) {
+    console.error('Sprache im Profil nicht gespeichert:', error);
+  }
 };
 
 export const updateUserProfile = async (userId: string, data: UpdateProfileData) => {
@@ -79,12 +101,17 @@ export const updateUserProfile = async (userId: string, data: UpdateProfileData)
 };
 
 export const getRedirectPath = async (userId: string): Promise<string> => {
-  console.log('Getting redirect path for:', userId);
-  const profile = await getUserProfile(userId);
-  
+  let profile: UserProfile | null;
+  try {
+    profile = await loadUserProfile(userId);
+  } catch (error) {
+    // Ohne Verbindung nicht in die Rollenwahl, sondern auf die Startseite
+    console.error('Profil für die Weiterleitung nicht geladen:', error);
+    return '/';
+  }
+
   if (!profile) {
-    console.log('No profile found, redirecting to role selection');
-    return '/role-selection'; // Existing auth user needs to select role
+    return '/role-selection'; // Konto ohne Profil (z. B. abgebrochene Registrierung)
   }
 
   // Redirect based on role
@@ -94,7 +121,10 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
       // Noch kein Laden: gleich in den Einrichtungsassistenten. Im Zweifel (Fehler beim Laden) an den
       // Tresen – sonst landet ein bestehender Betrieb im Assistenten und legt womöglich einen zweiten Laden an.
       try {
-        return (await listShopsOfOwner(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
+        if ((await listShopsOfOwner(userId)).length === 0) return '/shop-setup';
+        // Das Gerät weiß, wofür es da ist (Tresen, eigenes Handy, Büro – utils/geraet.ts)
+        const geraet = gespeichertesGeraet();
+        return geraet ? startseite(geraet, true) : '/shop-dashboard';
       } catch (error) {
         console.error('Läden konnten nicht geladen werden:', error);
         return '/shop-dashboard';

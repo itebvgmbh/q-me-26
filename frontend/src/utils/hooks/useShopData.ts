@@ -4,6 +4,7 @@ import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/f
 import { Shop } from '../firestore';
 import { firestore as db } from '../firestore-client';
 import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { t } from '@/i18n';
 
 /**
  * Custom hook for fetching and managing shop data
@@ -18,18 +19,29 @@ export const useShopData = (shopIdFromQR: string | null) => {
   const [arrivedFromQR, setArrivedFromQR] = useState(!!shopIdFromQR);
   // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
   const [loadError, setLoadError] = useState<unknown>(null);
+  // Laden aus dem QR-Code vom Betreiber gesperrt: eigener Hinweis statt leerer Ladenliste
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadShops = async () => {
       setLoading(true);
       setLoadError(null);
+      setUnavailable(false);
       try {
         // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
         // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
         if (shopIdFromQR) {
           const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
           if (!active) return;
+          if (snap.exists() && snap.data().suspended) {
+            // Vom Betreiber gesperrt: PublicJoinQueue zeigt den Hinweis an Stelle der Ladenauswahl
+            setUnavailable(true);
+            setShops([]);
+            setSelectedShop('');
+            setArrivedFromQR(false);
+            return;
+          }
           if (snap.exists()) {
             setShops([{ id: snap.id, ...snap.data() } as Shop]);
             setSelectedShop(snap.id);
@@ -37,12 +49,12 @@ export const useShopData = (shopIdFromQR: string | null) => {
             return;
           }
           console.error('Shop from QR code not found:', shopIdFromQR);
-          toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+          toast.error(t('Der Laden aus dem QR-Code wurde nicht gefunden'));
           setSelectedShop('');
           setArrivedFromQR(false);
         }
         const snapshot = await getDocsFromServer(collection(db, 'shops'));
-        if (active) setShops(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Shop));
+        if (active) setShops(snapshot.docs.filter((d) => !d.data().suspended).map((d) => ({ id: d.id, ...d.data() }) as Shop));
       } catch (error) {
         console.error('Error loading shops:', error);
         if (!active) return;
@@ -65,6 +77,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
     setSelectedShop,
     loading,
     loadError,
+    unavailable,
     arrivedFromQR,
     setArrivedFromQR
   };

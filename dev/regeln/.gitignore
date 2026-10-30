@@ -1,0 +1,2 @@
+# Kopie von ../../storage.rules für den Start des Storage-Emulators (npm pretest); er nimmt nur Dateien im Ordner
+storage.rules

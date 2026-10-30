@@ -6,10 +6,10 @@ import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addDays, addMinutes, startOfDay } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import useTimeSlotStore from '../utils/timeSlotStore';
+import { datumsLocale, merke, t } from '@/i18n';
 
 // Sichtbarer Bereich: Arbeitszeiten der Person plus alle Termine im Zeitraum.
 // Vorher fest 9–17 Uhr – Termine davor oder danach lagen außerhalb des Rasters.
@@ -40,6 +40,10 @@ const getHourRange = (employee: Staff, appointments: Appointment[]): HourRange =
   const end = Math.min(24, Math.max(...(ends.length ? ends : [17])));
   return { start, end: Math.max(end, start + 1) };
 };
+
+// Platzhalter-Namen stehen so in Firestore – angezeigt werden sie übersetzt
+const PLATZHALTER_NAMEN: string[] = [merke('Laufkundschaft'), merke('Unbekannter Kunde'), merke('Gast')];
+const kundenName = (name?: string) => (!name ? t('Gast') : PLATZHALTER_NAMEN.includes(name) ? t(name) : name);
 
 interface DraggableAppointmentProps {
   appointment: Appointment;
@@ -88,7 +92,7 @@ const DraggableAppointment = ({
   return (
     <div
       ref={setNodeRef}
-      className={`absolute left-0 right-0 px-2 rounded-lg ${statusColor} ${conflict ? 'ring-2 ring-destructive z-10' : ''} cursor-move transition-colors group overflow-hidden flex items-center`}
+      className={`absolute start-0 end-0 px-2 rounded-lg ${statusColor} ${conflict ? 'ring-2 ring-destructive z-10' : ''} cursor-move transition-colors group overflow-hidden flex items-center`}
       style={{
         ...draggableStyle,
         paddingTop: 0,
@@ -100,10 +104,10 @@ const DraggableAppointment = ({
     >
       <div className="flex justify-between items-center w-full min-w-0 h-full">
         <div className={`${textClass} truncate flex-1 flex items-center h-full`} title={`${conflict ? conflict + ' | ' : ''}${format(appointment.startTime.toDate(), 'HH:mm')}-${format(appointment.endTime.toDate(), 'HH:mm')} | ${appointment.customerName} | ${services.find(s => s.id === appointment.serviceId)?.name}`}>
-          {conflict && <span className="mr-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">Konflikt</span>}
+          {conflict && <span className="me-1.5 rounded-full bg-destructive px-1.5 text-[10px] font-bold uppercase text-destructive-foreground">{t('Konflikt')}</span>}
           <span className="font-mono">{format(appointment.startTime.toDate(), 'HH:mm')}</span>
           <span className="mx-1.5 opacity-50">·</span>
-          {appointment.customerName || 'Gast'}
+          {kundenName(appointment.customerName)}
           <span className="mx-1.5 opacity-50">·</span>
           {services.find(s => s.id === appointment.serviceId)?.name}
         </div>
@@ -201,17 +205,18 @@ const DayView: React.FC<DayViewProps> = ({
     if (!selectedAppointment) return;
 
     try {
-      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status });
+      // Sagt der Laden ab, bekommt der Kunde Bescheid (Push/E-Mail, siehe updateAppointment)
+      const updatedAppointment = await updateAppointment(selectedAppointment.id, { status }, { notifyCustomer: true });
       onAppointmentUpdate(updatedAppointment);
       
       // Cache für diesen Shop und Datum invalidieren
       invalidateCache(employee.shopId, selectedAppointment.startTime.toDate());
       
-      toast.success('Status erfolgreich aktualisiert');
+      toast.success(t('Status geändert.'));
       setShowStatusDialog(false);
     } catch (error) {
       console.error('Error updating appointment status:', error);
-      toast.error('Fehler beim Aktualisieren des Status');
+      toast.error(t('Fehler beim Aktualisieren des Status'));
     }
   };
 
@@ -251,7 +256,7 @@ const DayView: React.FC<DayViewProps> = ({
     const start = appointment.startTime.toDate();
     const end = appointment.endTime.toDate();
     const b = breakOverlapping(start, start.getHours() * 60 + start.getMinutes(), end.getHours() * 60 + end.getMinutes());
-    return b ? `Liegt in der ${getBreakTypeLabel(b.type)} (${b.startTime}–${b.endTime}) – bitte verschieben` : undefined;
+    return b ? t('Liegt in der {pause} ({von}–{bis}) – bitte verschieben', { pause: getBreakTypeLabel(b.type), von: b.startTime, bis: b.endTime }) : undefined;
   };
 
   const getBreakStyle = (breakItem: RecurringBreak) => {
@@ -269,11 +274,11 @@ const DayView: React.FC<DayViewProps> = ({
 
   const getBreakTypeLabel = (type?: string): string => {
     switch (type) {
-      case 'lunch': return 'Mittagspause';
-      case 'coffee': return 'Kaffeepause';
-      case 'personal': return 'Persönliche Pause';
-      case 'other': return 'Sonstige Pause';
-      default: return 'Pause';
+      case 'lunch': return t('Mittagspause');
+      case 'coffee': return t('Kaffeepause');
+      case 'personal': return t('Persönliche Pause');
+      case 'other': return t('Sonstige Pause');
+      default: return t('Pause');
     }
   };
 
@@ -311,10 +316,10 @@ const DayView: React.FC<DayViewProps> = ({
 
   return (
     <div className="relative h-[600px] overflow-hidden rounded-3xl border border-border bg-card">
-      <div className="absolute left-0 right-0 z-30 border-b border-border bg-card px-4 py-2">
+      <div className="absolute start-0 end-0 z-30 border-b border-border bg-card px-4 py-2">
         <div className="flex justify-between items-center">
           <div className="font-medium">
-            {format(date, 'EEEE, d. MMMM', { locale: de })}
+            {format(date, t('EEEE, d. MMMM'), { locale: datumsLocale() })}
           </div>
           <Button
             variant="outline"
@@ -330,7 +335,7 @@ const DayView: React.FC<DayViewProps> = ({
               setShowCreateDialog(true);
             }}
           >
-            + Termin
+            {t('+ Termin')}
           </Button>
         </div>
       </div>
@@ -338,12 +343,12 @@ const DayView: React.FC<DayViewProps> = ({
       <div ref={scrollRef} className="pt-12 pb-4 px-4 h-full overflow-y-auto">
         <div className="relative">
           {/* Time grid */}
-          <div className="absolute inset-0 ml-16 pointer-events-none z-0">
+          <div className="absolute inset-0 ms-16 pointer-events-none z-0">
             {/* Hour lines */}
             {HOURS.map((hour) => (
               <div
                 key={`hour-${hour}`}
-                className="absolute left-0 right-0 border-t border-border"
+                className="absolute start-0 end-0 border-t border-border"
                 style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
               />
             ))}
@@ -351,7 +356,7 @@ const DayView: React.FC<DayViewProps> = ({
             {HOURS.map((hour) => (
               <div
                 key={`half-${hour}`}
-                className="absolute left-0 right-0 border-t border-border/50"
+                className="absolute start-0 end-0 border-t border-border/50"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 30}px` }}
               />
             ))}
@@ -359,12 +364,12 @@ const DayView: React.FC<DayViewProps> = ({
             {HOURS.map((hour) => [
               <div
                 key={`quarter1-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                className="absolute start-0 end-0 border-t border-dotted border-border/40"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 15}px` }}
               />,
               <div
                 key={`quarter2-${hour}`}
-                className="absolute left-0 right-0 border-t border-dotted border-border/40"
+                className="absolute start-0 end-0 border-t border-dotted border-border/40"
                 style={{ top: `${(hour - FIRST_HOUR) * 60 + 45}px` }}
               />
             ])}
@@ -374,7 +379,7 @@ const DayView: React.FC<DayViewProps> = ({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="absolute left-0 font-mono text-xs text-muted-foreground"
+              className="absolute start-0 font-mono text-xs text-muted-foreground"
               style={{ top: `${(hour - FIRST_HOUR) * 60}px` }}
             >
               {`${hour}:00`}
@@ -384,7 +389,7 @@ const DayView: React.FC<DayViewProps> = ({
           {/* Current time indicator */}
           {isCurrentDay(date) && (
             <div
-              className="absolute left-16 right-0 z-10 border-t-2 border-destructive"
+              className="absolute start-16 end-0 z-10 border-t-2 border-destructive"
               style={getCurrentTimePosition()}
             />
           )}
@@ -393,7 +398,7 @@ const DayView: React.FC<DayViewProps> = ({
           {getBreaksForDay(date).map((breakItem) => (
             <div
               key={breakItem.id}
-              className="absolute left-16 right-0 z-5 border border-dashed border-foreground/30 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,hsl(var(--muted))_6px,hsl(var(--muted))_12px)]"
+              className="absolute start-16 end-0 z-5 border border-dashed border-foreground/30 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,hsl(var(--muted))_6px,hsl(var(--muted))_12px)]"
               style={getBreakStyle(breakItem)}
               title={getBreakTypeLabel(breakItem.type)}
             >
@@ -408,7 +413,7 @@ const DayView: React.FC<DayViewProps> = ({
           {/* Appointment blocks */}
           <DroppableArea
             style={{ minHeight: `${(LAST_HOUR - FIRST_HOUR) * 60}px` }}
-            className="ml-16 relative cursor-pointer transition-colors hover:bg-muted/40 z-20"
+            className="ms-16 relative cursor-pointer transition-colors hover:bg-muted/40 z-20"
             date={date}
             onDrop={() => {}}
             onClick={(e) => {
@@ -423,7 +428,7 @@ const DayView: React.FC<DayViewProps> = ({
               const clicked = hour * 60 + minutes;
               const pause = breakOverlapping(date, clicked, clicked + 1);
               if (pause) {
-                toast.info(`Da ist ${getBreakTypeLabel(pause.type)} (${pause.startTime}–${pause.endTime}).`);
+                toast.info(t('Da ist {pause} ({von}–{bis}).', { pause: getBreakTypeLabel(pause.type), von: pause.startTime, bis: pause.endTime }));
                 return;
               }
 
@@ -437,7 +442,7 @@ const DayView: React.FC<DayViewProps> = ({
             {/* Preview des Zeitraums während des Drags */}
             {dragPreview && draggedAppointment && dragPreview.startTime.toDateString() === date.toDateString() && (
               <div
-                className="pointer-events-none absolute left-0 right-0 rounded-lg border-2 border-dashed border-foreground bg-signal/30 transition-all duration-150"
+                className="pointer-events-none absolute start-0 end-0 rounded-lg border-2 border-dashed border-foreground bg-signal/30 transition-all duration-150"
                 style={{
                   top: `${(dragPreview.startTime.getHours() - FIRST_HOUR) * 60 + dragPreview.startTime.getMinutes()}px`,
                   height: `${(dragPreview.endTime.getTime() - dragPreview.startTime.getTime()) / (1000 * 60)}px`,
@@ -490,13 +495,13 @@ const DayView: React.FC<DayViewProps> = ({
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Status ändern</DialogTitle>
+            <DialogTitle>{t('Status ändern')}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant={selectedAppointment?.status === 'scheduled' ? 'default' : 'outline'} onClick={() => handleStatusChange('scheduled')}>Wartet</Button>
-            <Button variant={selectedAppointment?.status === 'in-progress' ? 'default' : 'outline'} onClick={() => handleStatusChange('in-progress')}>Ist dran</Button>
-            <Button variant={selectedAppointment?.status === 'completed' ? 'default' : 'outline'} onClick={() => handleStatusChange('completed')}>Fertig</Button>
-            <Button variant={selectedAppointment?.status === 'cancelled' ? 'default' : 'outline'} onClick={() => handleStatusChange('cancelled')}>Abgesagt</Button>
+            <Button variant={selectedAppointment?.status === 'scheduled' ? 'default' : 'outline'} onClick={() => handleStatusChange('scheduled')}>{t('Wartet')}</Button>
+            <Button variant={selectedAppointment?.status === 'in-progress' ? 'default' : 'outline'} onClick={() => handleStatusChange('in-progress')}>{t('Ist dran')}</Button>
+            <Button variant={selectedAppointment?.status === 'completed' ? 'default' : 'outline'} onClick={() => handleStatusChange('completed')}>{t('Fertig')}</Button>
+            <Button variant={selectedAppointment?.status === 'cancelled' ? 'default' : 'outline'} onClick={() => handleStatusChange('cancelled')}>{t('Abgesagt')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -706,10 +711,12 @@ export const TimelineView = ({
           }
           
           // Updaten des Termins mit den neuen Zeiten
-          updateAppointment(draggedAppointment.id, {
-            startTime: Timestamp.fromDate(dragPreview.startTime),
-            endTime: Timestamp.fromDate(dragPreview.endTime),
-          })
+          // Verschoben: der Kunde bekommt die neue Zeit per Push/E-Mail
+          updateAppointment(
+            draggedAppointment.id,
+            { startTime: Timestamp.fromDate(dragPreview.startTime), endTime: Timestamp.fromDate(dragPreview.endTime) },
+            { notifyCustomer: true },
+          )
             .then((updatedAppointment) => {
               onAppointmentUpdate(updatedAppointment);
               
@@ -723,9 +730,9 @@ export const TimelineView = ({
               const newDate = dragPreview.startTime.toDateString();
               
               if (oldDate !== newDate) {
-                toast.success(`Termin erfolgreich auf ${format(dragPreview.startTime, 'dd.MM.yyyy')} verschoben`);
+                toast.success(t('Termin erfolgreich auf {datum} verschoben', { datum: format(dragPreview.startTime, t('dd.MM.yyyy')) }));
               } else {
-                toast.success('Termin erfolgreich verschoben');
+                toast.success(t('Termin erfolgreich verschoben'));
               }
               
               // Zurücksetzen der States
@@ -734,7 +741,7 @@ export const TimelineView = ({
             })
             .catch((error) => {
               console.error('Error updating appointment time:', error);
-              toast.error(`Nicht verschoben: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`);
+              toast.error(t('Nicht verschoben: {fehler}', { fehler: error instanceof Error ? error.message : t('unbekannter Fehler') }));
               setDraggedAppointment(null);
               setDragPreview(null);
             });

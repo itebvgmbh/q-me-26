@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseAuth, useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { t, tTeile } from '@/i18n';
 import { AuthShell, EmailField, FormError, PasswordField } from '../components/auth/AuthShell';
 import { authErrorMessage, safeRedirect } from '../utils/auth-errors';
+import { requestPasswordReset } from '../utils/password-reset';
 import { getRedirectPath } from '../utils/user-profile-service';
-import { linkAnonymousBookingsToUser } from '../utils/AnonymousBookingLinker';
+import { linkAnonymousBookingsToUser, type TicketToLink } from '../utils/AnonymousBookingLinker';
 
-type LoginState = { redirectAfterLogin?: string; linkAnonymousBooking?: boolean; shopId?: string; referenceCode?: string };
+type LoginState = { redirectAfterLogin?: string; linkAnonymousBooking?: boolean } & TicketToLink;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -32,7 +34,7 @@ const Login = () => {
     setSubmitting(true);
     try {
       const { user: signedIn } = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
-      const linking = linkAnonymousBookingsToUser(signedIn.uid, state.shopId, state.referenceCode);
+      const linking = linkAnonymousBookingsToUser(state);
       // Nach "Nummer behalten" erst verknüpfen, damit sie in "Meine Termine" schon auftaucht
       if (state.linkAnonymousBooking) await linking;
       navigate(next || (await getRedirectPath(signedIn.uid)), { replace: true });
@@ -46,14 +48,14 @@ const Login = () => {
 
   const handleReset = async () => {
     if (!email.trim()) {
-      setError('Gib oben deine E-Mail ein, dann schicken wir dir einen Link zum Zurücksetzen.');
+      setError(t('Gib oben deine E-Mail ein, dann schicken wir dir einen Link zum Zurücksetzen.'));
       return;
     }
     setResetting(true);
     try {
-      await sendPasswordResetEmail(firebaseAuth, email.trim());
+      await requestPasswordReset(email.trim());
       setError(null);
-      toast.success('Wenn es ein Konto gibt, ist der Link unterwegs. Schau in dein Postfach.');
+      toast.success(t('Wenn es ein Konto gibt, ist der Link unterwegs. Schau in dein Postfach.'));
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -71,22 +73,28 @@ const Login = () => {
 
   return (
     <AuthShell
-      title="Willkommen zurück."
-      intro={cameFromBooking ? 'Melde dich an, dann geht’s direkt weiter mit deiner Buchung.' : 'Melde dich an, um deine Nummern und Termine zu sehen.'}
+      title={t('Willkommen zurück.')}
+      intro={cameFromBooking ? t('Melde dich an, dann geht’s direkt weiter mit deiner Buchung.') : t('Melde dich an, um deine Nummern und Termine zu sehen.')}
       footer={
         <>
           <p>
-            Noch kein Konto?{' '}
-            <Link to={`/register-options${registerSearch}`} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
-              Jetzt registrieren
-            </Link>
+            {tTeile('Noch kein Konto? <link>Jetzt registrieren</link>', {
+              link: (inhalt) => (
+                <Link to={`/register-options${registerSearch}`} state={location.state} className="font-semibold text-foreground underline-offset-4 hover:underline">
+                  {inhalt}
+                </Link>
+              ),
+            })}
           </p>
           {cameFromBooking && (
             <p>
-              Ohne Konto geht’s auch:{' '}
-              <Link to="/public-join-queue" className="font-semibold text-foreground underline-offset-4 hover:underline">
-                Einfach einreihen
-              </Link>
+              {tTeile('Ohne Konto geht’s auch: <link>Einfach einreihen</link>', {
+                link: (inhalt) => (
+                  <Link to="/public-join-queue" className="font-semibold text-foreground underline-offset-4 hover:underline">
+                    {inhalt}
+                  </Link>
+                ),
+              })}
             </p>
           )}
         </>
@@ -97,10 +105,10 @@ const Login = () => {
         <EmailField value={email} onChange={(v) => { setEmail(v); setError(null); }} invalid={!!error} />
         <PasswordField value={password} onChange={setPassword} />
         <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? 'Anmelden …' : 'Anmelden'}
+          {submitting ? t('Anmelden …') : t('Anmelden')}
         </Button>
         <Button type="button" variant="ghost" size="sm" className="self-center" onClick={handleReset} disabled={resetting}>
-          {resetting ? 'Wird gesendet …' : 'Passwort vergessen?'}
+          {resetting ? t('Wird gesendet …') : t('Passwort vergessen?')}
         </Button>
       </form>
     </AuthShell>

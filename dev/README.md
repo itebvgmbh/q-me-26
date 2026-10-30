@@ -31,11 +31,36 @@ python dev/fixtures.py anlegen
 # 3. Tests
 node dev/e2e/regeln.cjs                     # Pausen (Person und Laden), Öffnungs-/Arbeitszeiten, Doppelbuchung, Verschieben (24 Prüfungen)
 node dev/e2e/fruehester-platz.cjs           # Nummer ziehen: frühester Platz bei verschiedenen Uhrzeiten
+node dev/e2e/gleichzeitig.cjs               # 10 Geräte buchen im selben Moment: ein Platz nur einmal, jede Nummer nur einmal, Verschieben, Absage, Nummer ziehen im Ansturm
 node dev/e2e/speichern.cjs                  # Bearbeiten speichern ohne Kunden-ID / mit leerem Preis
 node dev/e2e/warteschlange-sonderfaelle.cjs # Zeiten je Person, Platz weggeschnappt, Platz vorbei
+node dev/e2e/schlange-tresen.cjs            # Schlange bei Verzug: Überfällige bleiben, ca.-Zeiten wandern, Rückfrage beim Aufruf, früher fertig, Kundennachricht
 node dev/e2e/absage-meldet.cjs              # Absage/Verschieben stößt "Früher dran" sofort an
 node dev/e2e/laden-einrichten.cjs           # Einrichtungsassistent durchklicken (mit nachgebildetem Google/KI, ohne, nach Abbruch), prüft die Datenbank
+node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperren im Gratis-Tarif
+node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung, QR-Plakat, Tagesnummern
+node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
+node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
+node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
+node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis (suchen, anlegen, bearbeiten, veröffentlichen, Übernahme) und graue Salons auf der Karte (Backend und Anmeldung nachgebildet, keine Testdaten nötig)
+node dev/e2e/uebernahme.cjs                 # Seite übernehmen ohne Code als Inhaber: Anfrage an den Betreiber (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig, keine Mail)
+node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
+node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
+node dev/e2e/bilder-hochladen.cjs           # Logo und Foto im Testladen hochladen, ansehen, löschen (Speicher-Regeln, deploy/README.md)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
+node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
+node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
+node dev/e2e/email-bestaetigen.cjs          # Registrieren → Profil „noch nicht bestätigt“ → noch mal schicken → /email-bestaetigen (ungültig, gültig nachgebildet); QME_RESEND_TEST=1: echter Versand an delivered+…@resend.dev (braucht das Backend ab diesem Stand)
+node dev/e2e/passwort-neu.cjs              # „Passwort vergessen?“ (Backend, ohne Resend Firebase, zu oft) und /passwort-neu (gültig, zu kurz, abgelaufen) – Backend und Firebase nachgebildet, keine Testdaten nötig
+node dev/e2e/passwort-aendern.cjs           # Mein Profil → Passwort ändern: falsches/gleiches abgelehnt, danach nur neues gültig, „vergessen?“ (Wegwerf-Konto, Mail nachgebildet)
+node dev/e2e/frueher-dran-schalter.cjs      # Meine Termine: „Früher dran“ selbst ein-/ausschalten bei einem vom Laden eingetragenen Termin, Angebot kommt und geht, Gratis-Tarif, Rechte (braucht das Backend ab diesem Stand)
+node dev/e2e/nummer-frueher-dran.cjs        # Nummer ohne Konto → „Konto anlegen“ → „Früher dran“ auf der Nummernseite einschalten
+node dev/e2e/mein-tag-zeitraum.cjs          # Mein Tag: neuer Zeitraum beginnt heute, Pfeile schieben um je einen Tag (Wegwerf-Laden, räumt sich selbst weg)
+node dev/e2e/webseite-einbau.cjs            # Mein Laden → Auf deiner Webseite: Kasten, Knopf, QR-Code (Wegwerf-Laden); Backend ab diesem Stand nötig, QME_EINBAU_LIVE=1 prüft Einbetten auf fremden Seiten
+node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
+node dev/e2e/platz-aendern.cjs              # Termin ohne Konto buchen → „Platz ändern“ → absagen (Backend /nummer/termin und /verschieben, geht auch mit QME_URL=https://dranzeit.de)
+node dev/e2e/kunden-wege.cjs                # Kunden übers Backend: Nummer ohne/mit Konto ziehen und zurückgeben, Termin mit Konto buchen und absagen (Wegwerf-Konto)
+node dev/e2e/laden-wahl.cjs                 # zwei Läden: Heute, Kalender, Laden, Leistungen, Team, Tarif, Auswertung zeigen denselben (Wegwerf-Konto)
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen
@@ -48,9 +73,47 @@ node dev/e2e/seiten.cjs                     # alle Seiten Handy + Desktop: JS-Fe
 node dev/e2e/durchlauf-warteschlange.cjs    # QR-Link bis zur Bestätigung
 node dev/e2e/durchlauf-buchung.cjs          # Termin buchen bis zur Zusammenfassung
 node dev/e2e/ladezeit.cjs handy             # Ladezeit im langsamen Handynetz
+node dev/bundle-groesse.cjs                 # JavaScript je Seite (roh, gzip) und größte Bausteine; baut dafür selbst (ohne Browser)
+node dev/e2e/verbindung.cjs                 # Verbindungsart: iPhone/Safari gleich einfach (Long-Polling), Nummernseite lädt bei hängender Datenbank nach 8 s neu (nur lesend)
+node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die einfache Verbindungsart nehmen (ohne Browser)
+node --experimental-strip-types dev/i18n-pruefen.mjs --offen   # Übersetzungen: fehlt etwas, passen Platzhalter, Text noch ohne t()? (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
+python dev/brief-muster.py brief.pdf        # Brief an einen Salon ansehen (ohne Firebase; Knopf im Betreiber-Bereich: node dev/e2e/brief.cjs)
 ```
+
+## Lasttest (gegen die Live-Seite)
+
+Eigener Laden „Lasttest (wird gleich gelöscht)“ mit 7 Konten, 4 Personen, 56 Terminen morgen und einem
+Verlauf alter Termine – getrennt vom Testladen oben, damit parallel laufende Tests sich nicht stören.
+Braucht keinen Entwicklungsserver, läuft gegen `QME_URL` (Standard: dranzeit.de, solange das nicht
+auflöst q-me.spielmacherei.de).
+
+```powershell
+node dev/e2e/lasttest.cjs alles               # anlegen, alle Szenarien, löschen (ca. 3 Minuten)
+node dev/e2e/lasttest.cjs anlegen 200         # oder einzeln: anlegen (Zahl = alte Termine bei Alex)
+node dev/e2e/lasttest.cjs lauf kaskade        # nur bestimmte Szenarien
+node dev/e2e/lasttest.cjs zeigen              # Tagesplan von morgen je Person
+node dev/e2e/lasttest.cjs loeschen
+```
+
+Szenarien: `abfragen` (freie Zeiten unter Last), `ansturm` (10 Leute ziehen gleichzeitig eine Nummer, alle werden
+eingereiht, jeder auf eine eigene Uhrzeit; `QME_ANSTURM` ändert die Zahl), `kaskade` („Früher dran“ nach 4 Absagen, alle nehmen sofort an),
+`wettlauf` (Annahme und Tresen gleichzeitig, `QME_WETTLAUF=0,25,50` setzt die Verzögerungen des Tresens),
+`absage` (Angebot nach Absage angenommen), `flut` (25× „Platz frei“), `ruhe` (nur Puls, `QME_RUHE` Sekunden).
+Ein Puls misst dabei alle 250 ms die Antwortzeit des Servers. Ergebnisse auch in `dev/out/lasttest-*.json`.
+Der Puls misst von diesem Rechner aus, also mit Leitung und DNS: Regelmäßige Ausreißer um 1,2 s kamen im Test
+von hier, nicht vom Server. Was der Server selbst gebraucht hat, steht im Caddy-Log (`/var/log/caddy/q-me.log`, Feld `duration`).
+Ein Lauf liest grob 8 000 Dokumente aus Firestore (Gratis-Kontingent: 50 000 am Tag), auch mit großem Verlauf:
+Eine Platzberechnung liest nur die Termine ihres Tages. Im Server-Log steht je Berechnung eine Zeile
+(`Freie Zeiten <laden>/<person> am <tag>: N Termine gelesen, …`).
+
+Tarif-Felder am Laden (`trialEndsAt`, `suspended`, `grant`, `billing` …) darf nur das Backend ändern
+(`firestore.rules`). Tests, die einen Laden nach der Testphase oder gesperrt brauchen, legen dafür einen eigenen
+Wegwerf-Laden mit eigenem Konto an, der den Stand schon beim Anlegen mitbringt (`lib.cjs` → `tempShop`,
+`removeTempShop`). Läden löschen geht nur zusammen mit einem Vermerk in `deleted_shops` (so machen es
+`fixtures.py`, `lasttest.cjs` und die Tests). Die Regeln selbst prüfen die Tests in `regeln/` im Emulator
+(Anleitung `regeln/README.md`).
 
 Jeder Test meldet je Prüfung `OK` oder `FEHL` und endet bei Fehlern mit Exit-Code 1.
 Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im Testladen:
@@ -63,14 +126,31 @@ Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im 
 | `QME_URL` | `http://localhost:5173` | Adresse der App. Für echte Ladezeiten den Build messen: `npm run build`, `npm run preview`, dann `http://localhost:4173` |
 | `QME_SHOP_ID` | ITEBV GmbH | Laden für Durchläufe, Seiten, Ladezeit, WLAN |
 | `QME_BROWSER_ARGS` | leer | Zusätzliche Chromium-Argumente, z. B. hinter einem Firmen-Proxy |
-| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://q-me.spielmacherei.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
+| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://dranzeit.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
 
 Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) und brauchen deshalb den
 Entwicklungsserver, nicht den Build.
 
-Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py` und
+Backend-Tests (ohne Firebase, ohne Browser): `cd backend; uv run python tests/test_earlier_slots.py`,
+`uv run python tests/test_accept_slot.py` ("Früher dran" annehmen: Belegung, abgesagte Termine, zweimal annehmen),
+`uv run python tests/test_platz_aendern.py` (fester Termin ohne Konto und „Platz ändern“: Schlüssel oder Konto, Belegung,
+Tagesnummer bei anderem Tag, Tarif und Vorlauf),
+`uv run python tests/test_customer_activation.py` (Kunden-Link /activate, Kunden-Eintrag beim Buchen mit Konto),
+`uv run python tests/test_staff_invitation.py` (Team-Einladung /staff-registration),
+`uv run python tests/test_frueher_dran.py` (Schalter „Früher dran“ unter Meine Termine) und
 `uv run python tests/test_shop_setup.py` (Laden einrichten: Google-Öffnungszeiten, Webseite lesen, Ladenpausen) und
-`uv run python tests/test_access.py` (wer ist Betreiber der App)
+`uv run python tests/test_access.py` (wer ist Betreiber der App) und `uv run python tests/test_invoices.py`
+(Rechnungen und E-Rechnung, Zugriff nur für den Inhaber) und `uv run python tests/test_queue_notify.py`
+(Schlange, „Gleich dran“, Absage/Verschieben, Früher-dran-Nachrichten) und `uv run python tests/test_verzeichnis.py`
+(Salon-Verzeichnis: Import, Seiten, Übernahme, Entfernen) und `uv run python tests/test_i18n.py` (Texte vom Backend auf
+Englisch, Türkisch, Arabisch: alles übersetzt, Platzhalter passen, Sprache aus `Accept-Language`; mit `--fehlend` nur die
+Lücken auflisten).
+
+Regel der Schlange im Frontend (`frontend/src/utils/queue-lane.ts`) ohne Browser: `node --experimental-strip-types dev/schlange.test.mjs`.
+
+E-Rechnungen gegen die offiziellen Prüfregeln (XML-Schema, EN 16931, XRechnung der KoSIT), ohne Java:
+`cd backend; uv pip install --python .venv saxonche`, dann `uv run python ../dev/e-rechnung-pruefen.py`
+(prüft die Beispiele aus `tests/test_invoices.py`; mit Dateinamen eine eigene, z. B. unter „Mein Tarif“ geladene XRechnung).
 
 ## PowerShell-Blöcke testen
 

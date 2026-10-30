@@ -1,7 +1,6 @@
 import { type FirebaseApp, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserLocalPersistence, browserSessionPersistence, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
-import { config } from "./config";
 import { simpleConnectionWanted } from "../../utils/connection";
 
 // Export the firebase app instance in case it's needed by other modules.
@@ -22,5 +21,8 @@ initializeFirestore(firebaseApp, {
   ...(simpleConnectionWanted() ? { experimentalForceLongPolling: true } : {}),
 });
 
-// Export the firebase auth instance
-export const firebaseAuth = getAuth(firebaseApp);
+// Wie getAuth(), aber ohne Anmeldung per Popup/Weiterleitung (Google & Co. bieten wir nicht an): Der Code dafür
+// fehlt so in jedem Seitenaufruf. Speicherorte und Reihenfolge wie bei getAuth(), damit Angemeldete angemeldet bleiben.
+export const firebaseAuth = initializeAuth(firebaseApp, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+});

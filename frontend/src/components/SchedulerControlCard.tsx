@@ -62,7 +62,7 @@ export const SchedulerControlCard = ({
             onClick={runNow}
             disabled={actionLoading}
           >
-            <AlertCircle className="mr-2 h-4 w-4" />
+            <AlertCircle className="me-2 h-4 w-4" />
             Jetzt einmalig prüfen
           </Button>
           
@@ -72,7 +72,7 @@ export const SchedulerControlCard = ({
             onClick={checkEarlierSlots}
             disabled={actionLoading}
           >
-            <Search className="mr-2 h-4 w-4" />
+            <Search className="me-2 h-4 w-4" />
             Frühere Slots prüfen
           </Button>
         </div>

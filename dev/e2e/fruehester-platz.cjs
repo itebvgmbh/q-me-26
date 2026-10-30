@@ -25,7 +25,7 @@ run(async () => {
   const browser = await launch();
   const rows = [];
   for (const [clock, expected, why] of scenarios) {
-    const context = await browser.newContext({ timezoneId: 'Europe/Berlin' });
+    const context = await browser.newContext({ timezoneId: 'Europe/Berlin', locale: 'de-DE' });
     const page = await context.newPage();
     const errors = collectErrors(page);
     await page.clock.setFixedTime(berlin(clock));

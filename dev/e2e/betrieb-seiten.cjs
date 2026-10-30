@@ -6,22 +6,11 @@
 //  - "Nummer vergeben": nur Leistung/Person/Name, zeigt den nächsten Platz, legt die Nummer an
 //  - keine englischen Beschriftungen, keine JavaScript-Fehler, kein waagrechtes Überlaufen
 //  - "Früher dran": Steuerung nur für den Betreiber; Verlauf nur eigene Läden (Backend)
-// Braucht: Entwicklungsserver (für das echte Backend: QME_BACKEND=https://q-me.spielmacherei.de) und Testdaten.
+// Braucht: Entwicklungsserver (für das echte Backend: QME_BACKEND=https://dranzeit.de) und Testdaten.
 // Schreibt nur im Testladen (eine Nummer); python dev/fixtures.py loeschen räumt sie weg.
-const { BASE, launch, newPage, shot, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { BASE, launch, newPage, shot, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
 
 const ENGLISH = /\b(Submit|Cancel|Loading|Save|Delete|Edit|Close|Services|Shop Name|Shop Logo|Email|Choose)\b/;
-
-const signIn = async (page, fx) => {
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2500);
-  await page.evaluate(async (fx) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    await signInWithEmailAndPassword(firebaseAuth, fx.email, fx.pw);
-  }, fx);
-};
 
 /** Felder/Knöpfe, die über den rechten Rand des offenen Dialogs ragen */
 const dialogOverflow = (page) =>
@@ -67,9 +56,9 @@ run(async () => {
 
     // Tresen + Dialoge
     await page.goto(`${BASE}/shop-dashboard`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'Nummer vergeben' }).first().waitFor({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().waitFor({ timeout: 15000 });
     await check('tresen');
-    await page.getByRole('button', { name: 'Nummer vergeben' }).first().click();
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().click();
     await page.locator('[role="dialog"]').getByText(/^Dran$|nichts frei/).first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(500);
     const queueDialog = {
@@ -80,22 +69,28 @@ run(async () => {
     await check('dlg-nummer');
     if (device === 'handy') {
       await page.locator('[role="dialog"]').getByRole('button', { name: 'Nummer vergeben' }).click();
-      await page.getByText(/Nummer vergeben: \d\d:\d\d bei Robin/).waitFor({ timeout: 15000 }).catch(() => {});
-      queueDialog.created = await page.getByText(/Nummer vergeben: \d\d:\d\d bei Robin/).count();
+      await page.getByText(/Nummer \d+ vergeben: \d\d:\d\d bei Robin/).waitFor({ timeout: 15000 }).catch(() => {});
+      queueDialog.created = await page.getByText(/Nummer \d+ vergeben: \d\d:\d\d bei Robin/).count();
+      // Bestätigung bleibt offen und zeigt die Nummer groß – der Kunde hat keine Nummernseite
+      queueDialog.confirmation = await page.locator('[role="dialog"]').innerText().catch(() => '');
+      await page.locator('[role="dialog"]').getByRole('button', { name: 'Fertig' }).click().catch(() => {});
       // Die Nummer wieder löschen – die Regeltests erwarten die Zeiten im Testladen frei
       await removeWalkIns(page, fx.shopId);
     } else {
       await page.keyboard.press('Escape');
     }
     await page.waitForTimeout(800);
-    await page.getByRole('button', { name: 'Termin eintragen' }).first().click();
+    // Am Tresen gibt es nur noch „Kunde eintragen“; feste Uhrzeit im Dialog
+    await page.getByRole('button', { name: 'Kunde eintragen' }).first().click();
+    await page.locator('[role="dialog"]').getByRole('radio', { name: 'Feste Uhrzeit' }).click();
     await page.waitForTimeout(800);
     const bookedOverflow = await dialogOverflow(page);
     await check('dlg-termin');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Weitere Aktionen' }).click();
-    await page.getByRole('menuitem', { name: 'Laden bearbeiten' }).click();
+    // „Laden bearbeiten“ steht nicht mehr im Tresen-Menü, sondern unter „Mein Laden“
+    await page.goto(`${BASE}/shop-profile`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).first().click({ timeout: 15000 });
     await page.waitForTimeout(800);
     const shopOverflow = await dialogOverflow(page);
     await check('dlg-laden');
@@ -160,11 +155,16 @@ run(async () => {
     rows.push(
       { name: `${device}: Nummer-Dialog nur Leistung/Person/Name`, pass: !queueDialog.fields.some((f) => /Datum|Uhrzeit|Dauer|Preis|Termintyp/.test(f)), detail: queueDialog.fields.join(', ') },
       { name: `${device}: Nummer-Dialog zeigt nächsten Platz`, pass: /dran|nichts frei/i.test(queueDialog.text), detail: (queueDialog.text.match(/(DRAN|Dran)[\s\S]{0,60}/) || [''])[0].replace(/\s+/g, ' ') },
-      ...(device === 'handy' ? [{ name: 'Nummer wird angelegt', pass: queueDialog.created > 0 }] : []),
+      ...(device === 'handy'
+        ? [
+            { name: 'Nummer wird angelegt', pass: queueDialog.created > 0 },
+            { name: 'Bestätigung zeigt die Nummer', pass: /NUMMER\s*\d{2,3}[\s\S]*bei Robin/i.test(queueDialog.confirmation || ''), detail: (queueDialog.confirmation || '').replace(/\s+/g, ' ').slice(0, 80) },
+          ]
+        : []),
       { name: `${device}: Dialoge ragen nicht über den Rand`, pass: !queueDialog.overflow.length && !bookedOverflow.length && !shopOverflow.length && !staffOverflow.length, detail: [...queueDialog.overflow, ...bookedOverflow, ...shopOverflow, ...staffOverflow].join(', ') },
       { name: `${device}: Person ohne Telefon speicherbar`, pass: saved && pflicht === 0 },
       { name: `${device}: Leistungsname überlappt Dauer nicht`, pass: !listOverlap },
-      { name: `${device}: Mein Tag erklärt sich für Inhaber`, pass: /Du nimmst noch keine Termine an/.test(meinTagText) },
+      { name: `${device}: Mein Tag zeigt Inhabern den Weg zum Tresen`, pass: /Termine deines Teams stehen am Tresen/.test(meinTagText) && /Zum Tresen/.test(meinTagText) },
       { name: `${device}: Früher dran ohne Steuerknöpfe`, pass: controls === 0 },
       { name: `${device}: Verlauf nur eigene Läden`, pass: api.histStatus === 200 && api.foreign === 0, detail: `${api.histStatus}, fremd ${api.foreign}` },
       { name: `${device}: Steuerung gesperrt, Dienst läuft`, pass: api.stop === 403 && api.canControl === false && api.running === true, detail: `${api.stop}, läuft ${api.running}` },

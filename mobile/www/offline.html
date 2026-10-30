@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dranzeit</title>
+  <!-- Zeigt die App, wenn https://dranzeit.de nicht lädt (capacitor.config.json, server.errorPath). Liegt in der App selbst. -->
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #eeede7; color: #141414;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+    main { max-width: 22rem; }
+    svg { width: 72px; height: 72px; }
+    h1 { font-size: 1.6rem; margin: 20px 0 8px; }
+    p { margin: 0 0 24px; line-height: 1.45; color: #555; }
+    button { font: inherit; font-weight: 700; font-size: 1.05rem; border: 0; border-radius: 999px; padding: 14px 28px; background: #141414; color: #fff; }
+  </style>
+</head>
+<body>
+  <main>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#141414"/><path fill="#FFC93C" d="M15 17h34a5 5 0 0 1 5 5v4a6 6 0 0 0 0 12v4a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5v-4a6 6 0 0 0 0-12v-4a5 5 0 0 1 5-5z"/><path d="M18 32h28" stroke="#141414" stroke-width="3.5" stroke-dasharray="5 3.5"/></svg>
+    <h1 id="titel">Keine Verbindung</h1>
+    <p id="text">Dranzeit braucht Internet, damit du siehst, wann du dran bist. Prüf WLAN oder mobile Daten.</p>
+    <button id="nochmal" type="button">Nochmal versuchen</button>
+  </main>
+  <script>
+    var texte = {
+      en: ['No connection', 'Dranzeit needs the internet to show you when it is your turn. Check Wi-Fi or mobile data.', 'Try again'],
+      tr: ['Bağlantı yok', 'Sıranın ne zaman geleceğini görmek için Dranzeit internete ihtiyaç duyar. Wi-Fi veya mobil veriyi kontrol et.', 'Tekrar dene'],
+      ar: ['لا يوجد اتصال', 'يحتاج Dranzeit إلى الإنترنت ليُريك متى يحين دورك. تحقق من الواي فاي أو بيانات الجوال.', 'حاول مرة أخرى']
+    };
+    var sprache = (navigator.language || 'de').slice(0, 2).toLowerCase();
+    if (texte[sprache]) {
+      document.getElementById('titel').textContent = texte[sprache][0];
+      document.getElementById('text').textContent = texte[sprache][1];
+      document.getElementById('nochmal').textContent = texte[sprache][2];
+      document.documentElement.lang = sprache;
+      if (sprache === 'ar') document.documentElement.dir = 'rtl';
+    }
+    function nochmal() { location.href = 'https://dranzeit.de/?app=ios'; }
+    document.getElementById('nochmal').addEventListener('click', nochmal);
+    // Kommt die Verbindung zurück, von selbst weiter
+    window.addEventListener('online', nochmal);
+  </script>
+</body>
+</html>

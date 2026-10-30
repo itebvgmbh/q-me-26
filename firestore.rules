@@ -1,0 +1,341 @@
+rules_version = '2';
+
+// Firestore-Sicherheitsregeln für Dranzeit (Firebase-Projekt qmedata-7c79e).
+// Fassung: 2026-10-29 (bei jeder Änderung neu setzen; daran erkennt der Block in deploy/README.md, was eingespielt ist)
+//
+// Eingespielt wird von Hand in der Firebase-Konsole: Anleitung und Rücknahme in deploy/README.md,
+// Abschnitt „Firestore-Regeln“. Geprüft im Emulator: dev/regeln (npm test), läuft auch auf GitHub bei jedem Push.
+//
+// Die Regeln gelten nur für den Browser (App und Testskripte mit dem öffentlichen Web-Schlüssel). Das Backend
+// arbeitet mit dem Admin SDK (Dienstkonto) und ist von ihnen nicht betroffen: Stripe-Webhook, Gründerplatz,
+// Betreiber-Bereich, Benachrichtigungen und Aufräumen dürfen weiter alles.
+//
+// Grundsatz (Stand 29.10.2026, wer was liest und schreibt: dev/regeln/README.md):
+//  - Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen: Läden, Personen (ohne Kontaktdaten),
+//    Leistungen, Pausen, die öffentliche Kurzfassung der Termine (freie Plätze, Schlange, Wartezimmer-Bildschirm),
+//    Belegung und Tagesnummern.
+//  - Personendaten nur für die, die sie brauchen: Termine (Name, Handynummer, E-Mail, Konto) lesen Laden und eigenes
+//    Konto, die Kundenliste Inhaber und Team, Kontaktdaten der Personen nur der Inhaber, Profile nur das eigene Konto.
+//  - Schreiben darf nur, wer zum Laden gehört: der Inhaber (shops.owner) oder eine Person im Team. Team heißt:
+//    Vermerk shops/{shopId}/members/{uid}, den das Backend beim Annehmen der Einladung setzt.
+//  - Kunden (ohne Anmeldung oder mit Kunden-Konto) schreiben weder Termine noch Kurzfassung, Belegung oder
+//    Tagesnummern. Nummer ziehen, buchen, Platz ändern, absagen und eine Nummer ins Konto übernehmen gehen über das
+//    Backend (backend/app/apis/nummer): Es prüft den Platz nach den Regeln und schreibt alles in einer Transaktion.
+//  - Die Tarif-Felder am Laden setzt nur das Backend. Sammlungen, die nur das Backend braucht, sind zu.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(shop) {
+      return signedIn() && shop.owner == request.auth.uid;
+    }
+
+    function docPath(coll, id) {
+      return /databases/$(database)/documents/$(coll)/$(id);
+    }
+
+    // Inhaber des Ladens mit dieser ID (fehlt der Laden, gilt das als nein)
+    function ownsShop(shopId) {
+      return signedIn() && shopId is string && get(docPath('shops', shopId)).data.owner == request.auth.uid;
+    }
+
+    // Person im Team: Vermerk, den das Backend beim Annehmen der Einladung setzt (backend/app/libs/team.py)
+    function isMember(shopId) {
+      return signedIn() && shopId is string
+        && exists(/databases/$(database)/documents/shops/$(shopId)/members/$(request.auth.uid));
+    }
+
+    function isTeam(shopId) {
+      return ownsShop(shopId) || isMember(shopId);
+    }
+
+    // Die Person gehört zu diesem Laden. Freie Plätze werden je Person gesucht (staffId), deshalb hängt niemand
+    // Termine, Pausen oder Belegung an eine Person eines anderen Ladens.
+    function staffInShop(staffId, shopId) {
+      return staffId is string && get(docPath('staff', staffId)).data.shopId == shopId;
+    }
+
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // Tarif-Felder am Laden. Wer sie schreiben kann, nutzt bezahlte Tarife umsonst oder hebt eine Sperre auf.
+    //   plan, billing         Abo (Stripe-Webhook)
+    //   trialEndsAt           Ende der Testphase (Anlegen, Gründerplatz, Betreiber)
+    //   founder, founderSince Gründerplatz (/billing/claim-founder, Betreiber)
+    //   grant                 Freischaltung ohne Stripe (Betreiber)
+    //   suspended             Laden gesperrt (Betreiber)
+    function planFields() {
+      return ['plan', 'billing', 'trialEndsAt', 'founder', 'founderSince', 'grant', 'suspended'];
+    }
+
+    // Beim Anlegen darf ein Laden Tarif-Felder nur so mitbringen, dass sein Inhaber nichts davon hat:
+    // Gratis, höchstens die normale Testphase von 30 Tagen (ein Tag Spielraum für falsch gehende Uhren),
+    // auch eine schon abgelaufene, oder gleich gesperrt. Die App setzt plan 'gratis' und trialEndsAt = jetzt + 30 Tage
+    // (utils/plans.ts, newShopPlanFields); Testskripte legen so Läden mit beendeter Testphase oder gesperrt an.
+    // createdAt zählt mit: Ohne trialEndsAt läuft die Testphase 30 Tage ab createdAt (plans.ts/plans.py, trialEnd).
+    function harmlessNewShop(shop) {
+      return !shop.keys().hasAny(['billing', 'founder', 'founderSince', 'grant'])
+        && (!('plan' in shop) || shop.plan == 'gratis')
+        && (!('trialEndsAt' in shop)
+            || (shop.trialEndsAt is timestamp && shop.trialEndsAt <= request.time + duration.value(31, 'd')))
+        && (!('createdAt' in shop)
+            || (shop.createdAt is timestamp && shop.createdAt <= request.time + duration.value(1, 'd')))
+        && (!('suspended' in shop) || shop.suspended == null
+            || (shop.suspended is map && shop.suspended.keys().hasOnly(['at'])));
+    }
+
+    function deletedShop(shopId) {
+      return /databases/$(database)/documents/deleted_shops/$(shopId);
+    }
+
+    // Läden: lesen darf jeder (Läden finden, Buchen, Nummer ziehen, Wartezimmer-Bildschirm – alles ohne Anmeldung).
+    match /shops/{shopId} {
+      allow read: if true;
+
+      // Anlegen nur für sich selbst (Einrichtungsassistent, utils/shop-setup.ts) und nicht unter der ID eines
+      // gelöschten Ladens – sonst brächte Löschen und Neuanlegen eine frische Testphase und höbe eine Sperre auf.
+      allow create: if signedIn()
+        && request.resource.data.owner == request.auth.uid
+        && harmlessNewShop(request.resource.data)
+        && !exists(deletedShop(shopId));
+
+      // Ändern nur der Inhaber (Mein Laden, Assistent, Startklar-Merker) und nie Tarif-Felder, Inhaber oder
+      // Anlegedatum. Unverändert mitgeschickte Werte stören nicht: Es zählt nur, was sich wirklich ändert.
+      // Das Team ändert den Laden nicht (Startklar merkt sich dann im Browser).
+      allow update: if isOwner(resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(planFields().concat(['owner', 'createdAt']));
+
+      // Löschen nur der Inhaber und nur zusammen mit dem Vermerk in deleted_shops (ein Schritt, writeBatch oder
+      // commit). Die App selbst löscht keine Läden; das tun nur Testskripte und das Backend (Betreiber-Bereich).
+      allow delete: if isOwner(resource.data)
+        && existsAfter(deletedShop(shopId));
+
+      // Team-Vermerk shops/{shopId}/members/{uid} ({staffId, at}): setzt das Backend beim Annehmen der Einladung.
+      // Der Inhaber nimmt ihn beim Deaktivieren einer Person weg und beim Zurückholen wieder auf – nur für eine Person
+      // dieses Ladens, die schon mit genau diesem Konto verbunden ist. Lesen braucht ihn niemand (die Regeln sehen ihn).
+      match /members/{memberUid} {
+        allow create: if isOwner(get(docPath('shops', shopId)).data)
+          && request.resource.data.keys().hasOnly(['staffId', 'at'])
+          && get(docPath('staff', request.resource.data.staffId)).data.shopId == shopId
+          && get(docPath('staff', request.resource.data.staffId)).data.userId == memberUid;
+        allow delete: if isOwner(get(docPath('shops', shopId)).data);
+      }
+
+      // Kontaktdaten der Personen (shops/{shopId}/staff_contacts/{staffId}: email, phone, inviteEmailTo): nur der
+      // Inhaber, nur für Personen dieses Ladens (utils/firestore/staff-contacts.ts). Die Adresse, an die die Einladung
+      // ging (inviteEmailTo), schreibt nur das Backend.
+      match /staff_contacts/{staffId} {
+        allow read, delete: if isOwner(get(docPath('shops', shopId)).data);
+        allow create, update: if isOwner(get(docPath('shops', shopId)).data)
+          && getAfter(docPath('staff', staffId)).data.shopId == shopId
+          && request.resource.data.keys().hasOnly(['email', 'phone', 'inviteEmailTo', 'updatedAt'])
+          && request.resource.data.get('inviteEmailTo', null) == (resource == null ? null : resource.data.get('inviteEmailTo', null));
+      }
+    }
+
+    // Vermerk „diese Laden-ID ist verbraucht“. Nur anlegen, im selben Schritt, in dem der eigene Laden gelöscht wird;
+    // ändern, löschen oder lesen im Browser nicht (die Regel oben sieht ihn trotzdem).
+    match /deleted_shops/{shopId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['owner', 'deletedAt'])
+        && request.resource.data.owner == request.auth.uid
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.owner == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/shops/$(shopId));
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Termine. Am Termin stehen Name, Handynummer, E-Mail für Benachrichtigungen und Konto – lesen dürfen ihn nur der
+    // Laden (Inhaber, Team) und das eigene Konto. Was Nummer ziehen und Buchen ohne Anmeldung (freie Plätze),
+    // /nummer/<id> und der Wartezimmer-Bildschirm (Schlange) brauchen, steht in der öffentlichen Kurzfassung
+    // public_appointments (unten).
+    // ------------------------------------------------------------------------------------------------------------
+
+    function ownAppointment() {
+      return signedIn() && resource.data.get('customerId', '') == request.auth.uid;
+    }
+
+    match /appointments/{id} {
+      allow read: if ownAppointment() || isTeam(resource.data.shopId);
+
+      // Anlegen und ändern nur der Laden (Tresen, Kalender, Mein Tag). Kunden ziehen, buchen, verschieben und sagen ab
+      // über das Backend (app/apis/nummer), das dabei auch die Nachricht ans Team vormerkt.
+      allow create: if request.resource.data.shopId is string && isTeam(request.resource.data.shopId);
+
+      allow update: if request.resource.data.shopId == resource.data.shopId && isTeam(resource.data.shopId);
+
+      // Die App löscht keine Termine (Absagen ist ein Status); Testskripte räumen ihren Laden auf
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Öffentliche Kurzfassung eines Termins (public_appointments/{Termin-ID}): Zeit, Person, Leistung, Status, Nummer,
+    // Aufrufe – keine Namen, Kontakte oder Konten (utils/firestore/public-appointments.ts, im Backend
+    // app/libs/public_appointments.py). Lesen alle. Schreiben darf sie, wer den Termin schreibt (Laden), im selben
+    // Schritt, und nur als genaue Kopie des Termins danach; staffDay/shopDay ({Person}_{Tag}, {Laden}_{Tag}) für die
+    // Abfragen.
+    function publicFields() {
+      return ['shopId', 'staffId', 'serviceId', 'type', 'status', 'startTime', 'endTime', 'referenceCode', 'isAnonymous',
+              'calledAt', 'lastCalledAt', 'completedAt'];
+    }
+
+    function same(d, a, field) {
+      return d.get(field, null) == a.get(field, null);
+    }
+
+    function dayOf(prefix, key) {
+      return key is string && key.matches(prefix + '_[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+
+    function publicCopy(id, d) {
+      let a = getAfter(docPath('appointments', id)).data;
+      return d.keys().hasOnly(publicFields().concat(['staffDay', 'shopDay']))
+        && same(d, a, 'shopId') && same(d, a, 'staffId') && same(d, a, 'serviceId') && same(d, a, 'type')
+        && same(d, a, 'status') && same(d, a, 'startTime') && same(d, a, 'endTime') && same(d, a, 'referenceCode')
+        && same(d, a, 'isAnonymous') && same(d, a, 'calledAt') && same(d, a, 'lastCalledAt') && same(d, a, 'completedAt')
+        && dayOf(a.shopId, d.get('shopDay', null))
+        && (a.get('staffId', null) == null ? !('staffDay' in d) : dayOf(a.staffId, d.get('staffDay', null)));
+    }
+
+    match /public_appointments/{id} {
+      allow read: if true;
+      allow create, update: if isTeam(request.resource.data.get('shopId', null))
+        && existsAfter(docPath('appointments', id)) && publicCopy(id, request.resource.data);
+      allow delete: if isTeam(resource.data.get('shopId', null)) && !existsAfter(docPath('appointments', id));
+    }
+
+    // Belegung je Person und Tag (schedules/{staffId}_{Tag}): wird in jeder Buchung, Absage und Änderung in derselben
+    // Transaktion mitgeschrieben – im Browser nur vom Laden (Tresen, Kalender), für Kunden vom Backend. Nur in der
+    // festen Form und nur für eine Person dieses Ladens.
+    function validSchedule(id, d) {
+      return d.keys().hasOnly(['shopId', 'staffId', 'day', 'slots', 'updatedAt'])
+        && d.day is string && d.slots is map && id == d.staffId + '_' + d.day
+        && staffInShop(d.staffId, d.shopId);
+    }
+
+    match /schedules/{id} {
+      allow read: if true;
+      allow create: if isTeam(request.resource.data.get('shopId', null)) && validSchedule(id, request.resource.data);
+      allow update: if isTeam(request.resource.data.get('shopId', null)) && validSchedule(id, request.resource.data)
+        && request.resource.data.shopId == resource.data.shopId && request.resource.data.staffId == resource.data.staffId;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Tagesnummern je Laden (shop_days/{shopId}_{Tag}): jede gezogene Nummer wird angehängt; nur in der festen Form,
+    // im Browser nur vom Laden (Nummer vergeben am Tresen), für Kunden vom Backend
+    function validShopDay(id, d) {
+      return d.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
+        && d.day is string && d.codes is list && id == d.shopId + '_' + d.day
+        && exists(docPath('shops', d.shopId));
+    }
+
+    match /shop_days/{id} {
+      allow read: if true;
+      // Kein Vergleich mit dem bisherigen Inhalt (z. B. „genau eine Nummer mehr“): Ziehen zwei gleichzeitig, prüfen die
+      // Regeln den Schreibschritt des Zweiten gegen den schon neueren Stand und lehnen ab, statt dass die Transaktion
+      // wie vorgesehen neu anläuft (dev/e2e/gleichzeitig.cjs, Nummer ziehen im Ansturm).
+      allow create: if isTeam(request.resource.data.get('shopId', null)) && validShopDay(id, request.resource.data)
+        && request.resource.data.codes.size() >= 1;
+      allow update: if isTeam(request.resource.data.get('shopId', null)) && validShopDay(id, request.resource.data)
+        && request.resource.data.shopId == resource.data.shopId && request.resource.data.codes.size() >= 1;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Personen, Leistungen, Pausen: lesen alle (freie Plätze), pflegen der Inhaber. Die Verbindung einer Person mit
+    // einem Konto (userId) und die Einladung setzt das Backend; der Inhaber nur sich selbst (Assistent, Inhaber im
+    // Team). Die Person selbst ändert nur ihre Arbeitszeiten (Mein Tag). E-Mail, Telefon und Einladungsadresse stehen
+    // nicht am öffentlichen Eintrag, sondern bei den Kontaktdaten des Ladens (shops/{shopId}/staff_contacts, oben).
+    // ------------------------------------------------------------------------------------------------------------
+    function inviteFields() {
+      return ['inviteTokenHash', 'inviteExpires', 'inviteCreatedAt', 'inviteEmailTo', 'inviteEmailSentAt', 'inviteAcceptedAt'];
+    }
+
+    function staffContactFields() {
+      return ['email', 'phone', 'inviteEmailTo'];
+    }
+
+    match /staff/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && request.resource.data.get('userId', '') in ['', request.auth.uid]
+        && !request.resource.data.keys().hasAny(inviteFields().concat(staffContactFields()));
+      allow update: if !request.resource.data.keys().hasAny(staffContactFields()) && (
+          (ownsShop(resource.data.shopId)
+            && !changed().hasAny(['shopId'].concat(inviteFields()))
+            && (!changed().hasAny(['userId']) || request.resource.data.userId == request.auth.uid))
+        || (signedIn() && resource.data.get('userId', '') == request.auth.uid
+            && changed().hasOnly(['workingHours', 'updatedAt'])));
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /services/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId;
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /breaks/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    match /recurring-breaks/{id} {
+      allow read: if true;
+      allow create: if ownsShop(request.resource.data.shopId)
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow update: if ownsShop(resource.data.shopId) && request.resource.data.shopId == resource.data.shopId
+        && staffInShop(request.resource.data.staffId, request.resource.data.shopId);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Kundenliste des Ladens: nur Inhaber und Team. Anlegen ohne Konto-Verbindung; verbinden, Link und Löschen
+    // macht das Backend (/routes/customer-activation, /routes/datenschutz).
+    // ------------------------------------------------------------------------------------------------------------
+    match /customers/{id} {
+      allow read: if isTeam(resource.data.shopId);
+      allow create: if isTeam(request.resource.data.shopId)
+        && request.resource.data.get('isActive', false) == false
+        && !request.resource.data.keys().hasAny(['userId', 'activationToken', 'activationTokenHash', 'activationExpires']);
+      allow delete: if ownsShop(resource.data.shopId);
+    }
+
+    // Profil eines Kontos: nur das eigene. Die Rolle steuert nur, was die App zeigt; Rechte hängen am Laden.
+    match /users/{userId} {
+      allow read, delete: if signedIn() && request.auth.uid == userId;
+      allow create, update: if signedIn() && request.auth.uid == userId
+        && request.resource.data.get('role', 'customer') in ['customer', 'shopOwner', 'employee'];
+    }
+
+    // Angebote „Früher dran“: schreibt das Backend; lesen darf das eigene Konto, aufräumen auch der Laden (Testskripte)
+    match /earlier_slot_notifications/{id} {
+      allow read, delete: if signedIn()
+        && (resource.data.get('userId', '') == request.auth.uid || ownsShop(resource.data.get('shopId', '')));
+    }
+
+    // Alte Warteschlange: die App fragt beim Nummer ziehen nur die eigenen Einträge ab und schreibt sie nicht mehr
+    match /queue/{id} {
+      allow read: if signedIn() && resource.data.get('customerId', '') == request.auth.uid;
+    }
+
+    // Keine Regel, also für den Browser zu – nur das Backend:
+    //   meta                 Zähler der Gründerplätze (meta/gruender). Wer ihn zurücksetzt, bekäme Gründerpreise.
+    //   push_subscriptions   Push-Adressen der Geräte (anmelden über /routes/push)
+    //   team_push_subscriptions  Geräte von Inhaber und Team für Nachrichten über Kunden (/routes/team-push)
+    //   staff-invitations    alt; Einladungen stehen gehasht am staff-Eintrag
+    //   verzeichnis          Salon-Verzeichnis (/friseur/…); Seiten und Karte liefert das Backend
+    //   telefon_leitungen    Rufnummer des Telefon-Assistenten → Laden (vergibt der Betreiber-Bereich)
+    //   und jede Sammlung, die hier nicht steht.
+  }
+}

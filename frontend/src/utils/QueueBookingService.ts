@@ -1,13 +1,16 @@
 import { User } from 'firebase/auth';
-import { Timestamp } from 'firebase/firestore';
-import { toast } from 'sonner';
 import { TimeSlot } from './types';
-import { 
-  createAppointment, 
-  createCustomer, 
-  isCustomerInQueue 
-} from './firestore';
+import { linkOwnCustomerEntry } from './firestore';
 import { saveAnonymousBookingCode } from './localStorageUtils';
+import { pullNumber, type PulledNumber } from './ticket-key';
+import { sprache, t } from '@/i18n';
+
+/** Platz, den die Nummer tatsächlich bekommen hat, und ob er später liegt als angezeigt (früher: kein Hinweis nötig) */
+const bookedSlotOf = (pulled: PulledNumber, shown: Date) => ({
+  bookedSlot: { start: pulled.start, end: pulled.end, isAvailable: true },
+  bookedStaffId: pulled.staffId,
+  moved: pulled.start.getTime() > shown.getTime()
+});
 
 /**
  * Interface for booking request data
@@ -21,6 +24,8 @@ export interface BookingRequest {
   user: User | null;
   /** Name und Telefon bei Buchung ohne Konto */
   contact?: { name: string; phone: string };
+  /** Wer in Frage kommt, wenn der Platz schon weg ist: die gewählte Person, bei „Egal wer“ alle (Standard: selectedStaffForSlot) */
+  staffChoices?: string[];
 }
 
 /**
@@ -29,7 +34,16 @@ export interface BookingRequest {
 export interface BookingResponse {
   success: boolean;
   referenceCode?: string;
+  /** ID des angelegten Termins – für die Nummernseite /nummer/:id */
+  appointmentId?: string;
+  /** Nummer ohne Konto: Schlüssel für den Link der Nummernseite (utils/ticket-key.ts) */
+  ticketKey?: string;
   isAnonymous: boolean;
+  /** Platz, den die Nummer tatsächlich bekommen hat */
+  bookedSlot?: TimeSlot;
+  bookedStaffId?: string;
+  /** true, wenn der angezeigte Platz weg war und die Nummer eine andere Zeit bekommen hat */
+  moved?: boolean;
   message?: string;
   error?: any;
 }
@@ -40,183 +54,53 @@ export interface BookingResponse {
  */
 export const QueueBookingService = {
   /**
-   * Process a booking request and create appointment
-   * @param request The booking request data
-   * @returns BookingResponse with status and reference code if available
+   * Nummer ziehen über das Backend (backend/app/apis/nummer, /nummer/ziehen), mit oder ohne Konto. Das Backend nimmt
+   * den frühesten freien Platz am Tag des angezeigten – ist der beim Speichern schon weg (jemand war schneller, z. B. im
+   * Ansturm), den nächsten bei derselben Person, bei „Egal wer“ bei allen in staffChoices. Doppelt vergeben wird dabei
+   * nie (Belegung, app/libs/schedule.py). Ist der Tag voll, entscheidet der Kunde selbst über einen anderen.
+   * Inhaber und gebuchte Person bekommen Bescheid (app/libs/team_notify.py).
    */
   async processBooking(request: BookingRequest): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      nextAvailableSlot, 
-      checkEarlierOptions, 
-      user,
-      contact
-    } = request;
-    
-    const startTime = nextAvailableSlot.start;
-    const endTime = nextAvailableSlot.end;
-    
+    const { selectedShop, selectedService, selectedStaffForSlot, nextAvailableSlot, checkEarlierOptions, user, contact, staffChoices } = request;
+    const shown = nextAvailableSlot.start;
     try {
-      // Authenticated user booking
+      const pulled = await pullNumber({
+        shopId: selectedShop,
+        serviceId: selectedService,
+        staffIds: staffChoices?.length ? staffChoices : [selectedStaffForSlot],
+        shownStart: shown,
+        signedIn: Boolean(user),
+        // Ohne Konto Name und Telefon aus dem Formular; mit Konto nimmt das Backend beides aus dem Profil
+        name: user ? undefined : contact?.name.trim() || undefined,
+        phone: user ? undefined : contact?.phone.trim() || undefined,
+        // Push und E-Mails zur Nummer kommen in dieser Sprache (backend/app/i18n)
+        language: sprache(),
+        checkEarlier: checkEarlierOptions,
+      });
       if (user) {
-        return await this.processAuthenticatedBooking({
-          selectedShop, 
-          selectedService, 
-          selectedStaffForSlot, 
-          startTime, 
-          endTime, 
-          checkEarlierOptions, 
-          user
-        });
-      } 
-      // Anonymous booking
-      else {
-        return await this.processAnonymousBooking({
-          selectedShop, 
-          selectedService, 
-          selectedStaffForSlot, 
-          startTime, 
-          endTime, 
-          checkEarlierOptions,
-          contact
-        });
+        // Kunden-Eintrag im Laden, mit dem Konto verbunden – sonst landen Termine aus "Mein Tag" nicht beim Konto
+        void linkOwnCustomerEntry(selectedShop);
+        return { success: true, isAnonymous: false, appointmentId: pulled.appointmentId, ...bookedSlotOf(pulled, shown), message: t('Du bist eingereiht') };
       }
+      // Termin-ID merken, um die Buchung später eindeutig einem Konto zuzuordnen (der Schlüssel liegt schon im Browser)
+      saveAnonymousBookingCode(selectedShop, pulled.appointmentId);
+      return {
+        success: true,
+        isAnonymous: true,
+        appointmentId: pulled.appointmentId,
+        ticketKey: pulled.ticketKey,
+        referenceCode: pulled.referenceCode || '',
+        ...bookedSlotOf(pulled, shown),
+        message: t('Termin erfolgreich gebucht!')
+      };
     } catch (error) {
       console.error('Error creating booking:', error);
       return {
         success: false,
         isAnonymous: !user,
         error,
-        message: error instanceof Error && error.message ? error.message : 'Das hat nicht geklappt. Versuch es gleich noch einmal.'
+        message: error instanceof Error && error.message ? error.message : t('Das hat nicht geklappt. Versuch es gleich noch einmal.')
       };
     }
-  },
-  
-  /**
-   * Process booking for authenticated users
-   * @param params Booking parameters for authenticated users
-   * @returns BookingResponse with status
-   */
-  async processAuthenticatedBooking(params: {
-    selectedShop: string;
-    selectedService: string;
-    selectedStaffForSlot: string;
-    startTime: Date;
-    endTime: Date;
-    checkEarlierOptions: boolean;
-    user: User;
-  }): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      startTime, 
-      endTime, 
-      checkEarlierOptions, 
-      user 
-    } = params;
-    
-    // Check if customer is already in queue for this shop
-    const alreadyInQueue = await isCustomerInQueue(selectedShop, user.uid);
-    if (alreadyInQueue) {
-      return {
-        success: false,
-        isAnonymous: false,
-        message: 'Du stehst schon in der Schlange dieses Shops.'
-      };
-    }
-    
-    // Create customer record if this is their first interaction
-    await createCustomer({
-      shopId: selectedShop,
-      name: user.displayName || user.email?.split('@')[0] || 'Unbekannt',
-      email: user.email || '',
-    });
-
-    // Create queue appointment with customer data
-    await createAppointment({
-      shopId: selectedShop,
-      staffId: selectedStaffForSlot,
-      customerId: user.uid,
-      // Improved name determination with multiple fallbacks
-      customerName: user.displayName || 
-                  (user.email ? user.email.split('@')[0] : null) || 
-                  user.providerData?.[0]?.displayName || 
-                  'Unbekannt',
-      serviceId: selectedService,
-      startTime: Timestamp.fromDate(startTime),
-      endTime: Timestamp.fromDate(endTime),
-      status: 'scheduled',
-      type: 'queue', // Mark as queue appointment
-      checkEarlierOptions: checkEarlierOptions,
-      // Only add if option is enabled
-      ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    });
-
-    return {
-      success: true,
-      isAnonymous: false,
-      message: 'Du bist eingereiht'
-    };
-  },
-  
-  /**
-   * Process booking for anonymous users
-   * @param params Booking parameters for anonymous users
-   * @returns BookingResponse with status and reference code
-   */
-  async processAnonymousBooking(params: {
-    selectedShop: string;
-    selectedService: string;
-    selectedStaffForSlot: string;
-    startTime: Date;
-    endTime: Date;
-    checkEarlierOptions: boolean;
-    contact?: { name: string; phone: string };
-  }): Promise<BookingResponse> {
-    const { 
-      selectedShop, 
-      selectedService, 
-      selectedStaffForSlot, 
-      startTime, 
-      endTime, 
-      checkEarlierOptions,
-      contact
-    } = params;
-    const name = contact?.name.trim();
-    const phone = contact?.phone.trim();
-
-    // Anonymous booking without customer data
-    const appointment = await createAppointment({
-      shopId: selectedShop,
-      staffId: selectedStaffForSlot,
-      serviceId: selectedService,
-      startTime: Timestamp.fromDate(startTime),
-      endTime: Timestamp.fromDate(endTime),
-      status: 'scheduled',
-      type: 'queue',
-      isAnonymous: true, // Mark as anonymous booking
-      ...(name ? { customerName: name } : {}),
-      ...(phone ? { customerPhone: phone } : {}),
-      checkEarlierOptions: checkEarlierOptions,
-      // Firestore lehnt Felder mit undefined ab – nur setzen, wenn gewünscht
-      ...(checkEarlierOptions ? { checkEarlierOptionsCreatedAt: Timestamp.now() } : {})
-    });
-
-    console.log('Anonymous booking successfully created:', appointment);
-    
-    // Termin-ID merken, um die Buchung später eindeutig einem Konto zuzuordnen
-    if (appointment.id) {
-      saveAnonymousBookingCode(selectedShop, appointment.id);
-    }
-    
-    return {
-      success: true,
-      isAnonymous: true,
-      referenceCode: appointment.referenceCode || '',
-      message: 'Termin erfolgreich gebucht!'
-    };
   }
 };

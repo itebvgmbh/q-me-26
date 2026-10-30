@@ -1,18 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { User } from 'firebase/auth';
-import { Staff, Service, getStaffByUserId, getServicesByShopId } from '../firestore';
-import { createUserProfile } from '../user-profile-service';
+import { Staff, Service, getStaffEntriesByUserId, getServicesByShopId, getShopById } from '../firestore';
 import { ensureStaffUserProfile } from '../firestore/staff';
+import { t } from '@/i18n';
+
+/** Ein Eintrag im Team mit dem Namen seines Ladens (für die Auswahl bei mehreren Läden) */
+export type StaffEntry = Staff & { shopName: string };
+
+const REMEMBER = 'meinTag.staffId';
+const remembered = () => {
+  try {
+    return localStorage.getItem(REMEMBER);
+  } catch {
+    return null;
+  }
+};
 
 /**
- * Hook to load employee data and services for the employee dashboard
+ * Hook to load employee data and services for the employee dashboard.
+ * Steht das Konto in mehreren Läden im Team, wählt ?staffId= (oder die letzte Wahl) den Laden.
  */
 export function useEmployeeData(user: User | null) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wanted = searchParams.get('staffId');
+  const [entries, setEntries] = useState<StaffEntry[]>([]);
   const [employee, setEmployee] = useState<Staff | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const loadEmployeeData = async () => {
       if (!user) {
         setLoading(false);
@@ -20,14 +38,20 @@ export function useEmployeeData(user: User | null) {
       }
 
       try {
-        console.log('Loading employee data for user:', user.uid);
-        const employeeData = await getStaffByUserId(user.uid);
-        console.log('Employee data loaded:', employeeData);
-        
+        const all = await getStaffEntriesByUserId(user.uid);
+        const withNames: StaffEntry[] =
+          all.length > 1
+            ? await Promise.all(all.map(async (s) => ({ ...s, shopName: (await getShopById(s.shopId).catch(() => null))?.name || t('Laden') })))
+            : all.map((s) => ({ ...s, shopName: '' }));
+        withNames.sort((a, b) => a.shopName.localeCompare(b.shopName, 'de'));
+        const employeeData = withNames.find((s) => s.id === wanted) || withNames.find((s) => s.id === remembered()) || withNames[0] || null;
+        if (!active) return;
+        setEntries(withNames);
+
         if (employeeData) {
           // Ensure this staff member has a user profile in the users collection
           await ensureStaffUserProfile(employeeData);
-          
+
           // Initialize working hours if not set
           if (!employeeData.workingHours || employeeData.workingHours.length === 0) {
             employeeData.workingHours = [
@@ -40,19 +64,40 @@ export function useEmployeeData(user: User | null) {
               { dayOfWeek: 6, startTime: '09:00', endTime: '17:00', isWorking: false },
             ];
           }
-          setEmployee(employeeData);
           const servicesData = await getServicesByShopId(employeeData.shopId);
+          if (!active) return;
+          setEmployee(employeeData);
           setServices(servicesData);
+        } else {
+          setEmployee(null);
         }
       } catch (error) {
         console.error('Error loading employee data:', error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadEmployeeData();
-  }, [user]);
+    return () => {
+      active = false;
+    };
+  }, [user, wanted]);
 
-  return { employee, services, loading, setEmployee };
+  /** Anderen Laden wählen (nur bei mehreren Einträgen) */
+  const selectEntry = useCallback(
+    (staffId: string) => {
+      try {
+        localStorage.setItem(REMEMBER, staffId);
+      } catch {
+        /* privater Modus: nur für diese Sitzung */
+      }
+      const next = new URLSearchParams(searchParams);
+      next.set('staffId', staffId);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  return { employee, entries, selectEntry, services, loading, setEmployee };
 }

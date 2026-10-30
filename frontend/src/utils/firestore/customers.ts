@@ -1,7 +1,48 @@
 import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, limit } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
+import { auth, firebaseApp } from 'app';
 import { Customer } from './types';
+import { t } from '@/i18n';
+
+/**
+ * Neuer Link, mit dem eine angelegte Person ihr Konto verbindet (Seite /activate), z. B. https://dranzeit.de/activate?token=…
+ * Erzeugt das Backend (backend/app/apis/customer_activation): Es speichert nur einen Hash des Tokens, den Link gibt es
+ * nur in dieser Antwort. Der alte Link gilt danach nicht mehr. Wirft mit einer Meldung für den Laden.
+ */
+export const createActivationLink = async (customerId: string): Promise<{ link: string; expires: string }> => {
+  let res: Response;
+  try {
+    const headers = { Authorization: await auth.getAuthHeaderValue(), 'Content-Type': 'application/json' };
+    res = await fetch('/routes/customer-activation', { method: 'POST', headers, body: JSON.stringify({ customer_id: customerId }) });
+  } catch {
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof body?.detail === 'string' && body.detail ? body.detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
+  return body;
+};
+
+/**
+ * customerId für einen Termin dieser Person. Hat sie ihr Konto verbunden, gehört der Termin dem Konto –
+ * dann steht er unter "Meine Termine", und "Früher dran" kann sie erreichen. Sonst die ID des Eintrags.
+ */
+export const appointmentCustomerId = (customer: Customer) => customer.userId || customer.id;
+
+/**
+ * Nach dem Buchen mit Konto (Nummer ziehen, Termin buchen): eigenen Kunden-Eintrag im Laden gleich verbunden anlegen,
+ * oder einen vorhandenen mit derselben bestätigten E-Mail verbinden. Das macht das Backend
+ * (backend/app/apis/customer_activation), damit niemand über eine fremde Adresse einen Eintrag übernimmt.
+ * Wirft nie: Die Buchung zählt, der Eintrag ist Beiwerk.
+ */
+export const linkOwnCustomerEntry = async (shopId: string): Promise<void> => {
+  try {
+    const headers = { Authorization: await auth.getAuthHeaderValue() };
+    const res = await fetch(`/routes/customer-link/${encodeURIComponent(shopId)}`, { method: 'POST', headers });
+    if (!res.ok) console.error('Kunden-Eintrag nicht verbunden, Status', res.status);
+  } catch (error) {
+    console.error('Kunden-Eintrag nicht verbunden:', error);
+  }
+};
 
 // Filter customers to ensure unique entries by ID and email
 export const getUniqueCustomers = (customers: Customer[]): Customer[] => {
@@ -59,6 +100,13 @@ export const getCustomersByShopId = async (shopId: string): Promise<Customer[]> 
   }
 };
 
+/** Alle Einträge eines Ladens, auch doppelte – für die Kundenliste, aus der man löschen kann */
+export const getCustomerEntries = async (shopId: string): Promise<Customer[]> => {
+  const db = getFirestore(firebaseApp);
+  const snapshot = await getDocs(query(collection(db, 'customers'), where('shopId', '==', shopId)));
+  return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as Customer).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
+};
+
 /**
  * Sucht nach einem Kunden anhand von Email und ShopId
  * @param email Email des Kunden
@@ -106,7 +154,7 @@ export const findCustomerByEmailAndShop = async (email: string, shopId: string):
  * @param data Kundendaten
  * @returns Erstellter oder existierender Kunde
  */
-export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationToken' | 'activationExpires' | 'isActive'>): Promise<Customer> => {
+export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationTokenHash' | 'activationExpires' | 'isActive'>): Promise<Customer> => {
   console.log('Creating customer with data:', data);
   try {
     // Prüfe zuerst, ob bereits ein Kunde mit dieser Email für diesen Shop existiert
@@ -121,16 +169,11 @@ export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | '
     // Wenn kein Kunde gefunden wurde, erstelle einen neuen
     const db = getFirestore(firebaseApp);
     const customerRef = doc(collection(db, 'customers'));
-    
+
     const now = Timestamp.now();
-    const activationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    const activationExpires = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-    
     const customerData = {
       id: customerRef.id,
       ...data,
-      activationToken,
-      activationExpires,
       isActive: false,
       createdAt: now,
       updatedAt: now,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
 import { fetchMarketplaceShops, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
@@ -13,14 +13,27 @@ import { Search, MapPin, Navigation2 } from 'lucide-react';
 import { geocodeAddress, calculateDistance, enrichShopsWithCoordinates } from '../utils/geocoding';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { INDUSTRIES } from '../utils/industries';
+import { loadKartenSalons, type KartenSalon } from '../utils/verzeichnis';
+import { t, tn } from '@/i18n';
 
-// Leaflet icon fix für Webpack/React
+// Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
+
+// Salons aus dem Verzeichnis (noch ohne Dranzeit): grauer Marker
+const verzeichnisIcon = L.icon({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  className: 'grayscale opacity-75',
 });
 
 // Komponente zur Zentrierung der Karte auf den Benutzerstandort
@@ -59,6 +72,20 @@ const ShopMap = () => {
   const [maxDistance, setMaxDistance] = useState<number>(20); // Standardmäßig 20 km
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('');
+  // Salons ohne Dranzeit (Verzeichnis): zeigen, wo sie sind; buchen geht dort nicht
+  const [salons, setSalons] = useState<KartenSalon[]>([]);
+  const [searchCenter, setSearchCenter] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    loadKartenSalons().then(setSalons);
+  }, []);
+
+  const reference = searchCenter ?? userPosition;
+  const visibleSalons = salons
+    .filter((s) => !selectedIndustry || selectedIndustry === 'barbershop')
+    .map((s) => ({ ...s, distance: reference ? calculateDistance(reference[0], reference[1], s.latitude, s.longitude) : undefined }))
+    .filter((s) => s.distance === undefined || s.distance <= maxDistance)
+    .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0) || a.name.localeCompare(b.name));
 
   // Benutzerstandort ermitteln
   const getUserLocation = () => {
@@ -153,6 +180,7 @@ const ShopMap = () => {
         const coordinates = await geocodeAddress(searchInput);
         if (coordinates) {
           setMapCenter(coordinates);
+          setSearchCenter(coordinates);
           // Wir setzen nicht den userPosition, um die Unterscheidung zwischen
           // tatsächlichem Standort und Suchposition zu bewahren
           
@@ -194,8 +222,8 @@ const ShopMap = () => {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">Shops finden</h1>
-        <p className="text-muted-foreground">Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Läden finden')}</h1>
+        <p className="text-muted-foreground">{t('Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.')}</p>
       </div>
 
       <form
@@ -207,20 +235,20 @@ const ShopMap = () => {
         }}
       >
         <div className="flex flex-col gap-2 md:flex-row">
-          <label htmlFor="karte-suche" className="sr-only">Adresse, Ort oder PLZ</label>
+          <label htmlFor="karte-suche" className="sr-only">{t('Adresse, Ort oder PLZ')}</label>
           <div className="relative flex-grow">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input id="karte-suche" className="pl-10" placeholder="Adresse, Ort oder PLZ" value={searchInput} onChange={handleSearchChange} />
+            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input id="karte-suche" className="ps-10" placeholder={t('Adresse, Ort oder PLZ')} value={searchInput} onChange={handleSearchChange} />
           </div>
-          <Button type="submit">Suchen</Button>
+          <Button type="submit">{t('Suchen')}</Button>
           <Button type="button" variant="outline" onClick={getUserLocation} className="whitespace-nowrap">
-            <MapPin className="mr-2 h-4 w-4" aria-hidden="true" />
-            In meiner Nähe
+            <MapPin className="me-2 h-4 w-4" aria-hidden="true" />
+            {t('In meiner Nähe')}
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-entfernung">Umkreis: {maxDistance} km</Label>
+            <Label htmlFor="karte-entfernung">{t('Umkreis: {km} km', { km: maxDistance })}</Label>
             <input
               id="karte-entfernung"
               type="range"
@@ -232,14 +260,14 @@ const ShopMap = () => {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-branche">Branche</Label>
+            <Label htmlFor="karte-branche">{t('Branche')}</Label>
             <select
               id="karte-branche"
               className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
             >
-              <option value="">Alle Branchen</option>
+              <option value="">{t('Alle Branchen')}</option>
               {INDUSTRIES.map((industry) => (
                 <option key={industry.id} value={industry.id}>
                   {industry.name}
@@ -250,7 +278,7 @@ const ShopMap = () => {
         </div>
         {locationPermission === 'denied' && (
           <p className="rounded-2xl bg-muted p-3 text-sm">
-            Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.
+            {t('Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.')}
           </p>
         )}
       </form>
@@ -258,22 +286,42 @@ const ShopMap = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-3 lg:col-span-1">
           <h2 className="font-display text-xl font-bold">
-            {userPosition ? `${shops.length} ${shops.length === 1 ? 'Shop' : 'Shops'} gefunden` : 'Alle Shops'}
+            {userPosition ? tn(shops.length, '{n} Laden gefunden', '{n} Läden gefunden') : t('Alle Läden')}
           </h2>
           {loadError ? (
             <ConnectionProblem error={loadError} />
           ) : loading ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Shops werden geladen">
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Läden werden geladen')}>
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
               <div className="h-40 animate-pulse rounded-3xl bg-muted" />
             </div>
-          ) : shops.length === 0 ? (
-            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">Hier ist noch kein Shop. Vergrößer den Umkreis oder such woanders.</p>
+          ) : shops.length === 0 && visibleSalons.length === 0 ? (
+            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.')}</p>
           ) : (
-            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pr-1">
+            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
               {shops.map((shop) => (
                 <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} />
               ))}
+              {visibleSalons.length > 0 && (
+                <>
+                  <h3 className="pt-2 font-display text-lg font-bold">{t('Weitere Salons')}</h3>
+                  <p className="-mt-2 text-sm text-muted-foreground">{t('Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.')}</p>
+                  {visibleSalons.map((s) => (
+                    <div key={s.id} className="flex flex-col rounded-3xl border border-border bg-card transition-colors hover:bg-muted/40">
+                      <a href={s.pfad} className="flex flex-col gap-0.5 p-4 pb-2">
+                        <span className="font-display font-bold">{s.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {[s.street, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                          {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
+                        </span>
+                      </a>
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="self-start px-4 pb-4 text-sm font-semibold underline underline-offset-4">
+                        {t('Dein Salon? Übernehmen')}
+                      </Link>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -294,7 +342,7 @@ const ShopMap = () => {
               {userPosition && (
                 <Marker position={userPosition}>
                   <Popup>
-                    Du bist hier
+                    {t('Du bist hier')}
                   </Popup>
                 </Marker>
               )}
@@ -323,7 +371,7 @@ const ShopMap = () => {
                       </p>
                       {shop.distance !== undefined && (
                         <p className="text-sm">
-                          {shop.distance.toFixed(1)} km entfernt
+                          {t('{km} km entfernt', { km: shop.distance.toFixed(1) })}
                         </p>
                       )}
                       <div className="mt-2">
@@ -332,7 +380,7 @@ const ShopMap = () => {
                           className="w-full" 
                           onClick={() => navigate(`/public-join-queue?shopId=${shop.id}`)}
                         >
-                          Einreihen
+                          {t('Nummer ziehen')}
                         </Button>
                       </div>
                     </div>
@@ -340,6 +388,24 @@ const ShopMap = () => {
                 </Marker>
               ))}
               
+              {visibleSalons.map((s) => (
+                <Marker key={`v-${s.id}`} position={[s.latitude, s.longitude]} icon={verzeichnisIcon}>
+                  <Popup>
+                    <div className="text-center">
+                      <h3 className="font-display font-bold">{s.name}</h3>
+                      <p className="text-sm">{[s.street, s.postalCode, s.city].filter(Boolean).join(', ')}</p>
+                      <p className="text-sm text-muted-foreground">{t('Noch nicht online buchbar')}</p>
+                      <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
+                        {t('Ansehen')}
+                      </a>
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="mt-1 block text-sm underline">
+                        {t('Dein Salon? Übernehmen')}
+                      </Link>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
               <LocateMe position={userPosition} />
             </MapContainer>
           </div>

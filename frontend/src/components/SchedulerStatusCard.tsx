@@ -61,7 +61,7 @@ export const SchedulerStatusCard = ({
           onClick={loadStatus}
           disabled={actionLoading}
         >
-          <RotateCw className="mr-2 h-4 w-4" />
+          <RotateCw className="me-2 h-4 w-4" />
           Aktualisieren
         </Button>
         {status?.is_running ? (
@@ -70,7 +70,7 @@ export const SchedulerStatusCard = ({
             onClick={stopScheduler}
             disabled={actionLoading}
           >
-            <Pause className="mr-2 h-4 w-4" />
+            <Pause className="me-2 h-4 w-4" />
             Stoppen
           </Button>
         ) : (
@@ -80,7 +80,7 @@ export const SchedulerStatusCard = ({
             onClick={startScheduler}
             disabled={actionLoading}
           >
-            <Play className="mr-2 h-4 w-4" />
+            <Play className="me-2 h-4 w-4" />
             Starten
           </Button>
         )}

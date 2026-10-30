@@ -1,10 +1,11 @@
-import { APP_BASE_PATH } from 'app';
 import brain from 'brain';
 import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteServicesData } from '../brain/data-contracts';
-import { createService, createShop, createStaff, createStaffInvitation, updateShop } from './firestore';
+import { createService, createShop, createStaff, updateShop } from './firestore';
+import { createStaffInvite } from './staff-invitation';
 import type { BusinessHoursDay } from './firestore/types';
 import { defaultHours, normalizeHours, workingHoursFromOpening } from './opening-hours';
 import { templatesFor } from './service-templates';
+import { intlSprache, t } from '@/i18n';
 
 /**
  * Laden einrichten: Entwurf, den der Assistent Frage für Frage füllt, und das Anlegen am Ende.
@@ -32,7 +33,8 @@ export interface SetupProgress {
   serviceIds: Record<string, string>;
   /** Personen-Keys, die schon angelegt sind */
   staffKeys: string[];
-  invitations: { name: string; email: string; link: string }[];
+  /** emailSent: Einladung ging per E-Mail raus; sonst steht in emailProblem, warum nicht */
+  invitations: { name: string; email: string; link: string; emailSent?: boolean; emailProblem?: string }[];
 }
 
 export interface DraftPerson {
@@ -55,7 +57,8 @@ export const OWNER_KEY = 'owner';
 
 export interface ShopDraft {
   step: string;
-  source: 'google' | 'manual' | null;
+  /** verzeichnis: vorausgefüllt aus der eigenen Seite im Salon-Verzeichnis (utils/uebernahme.ts) */
+  source: 'google' | 'manual' | 'verzeichnis' | null;
   googlePlaceId: string;
   name: string;
   street: string;
@@ -85,6 +88,8 @@ export interface ShopDraft {
   everyoneDoesAll: boolean | null;
   sameHours: boolean | null;
   progress?: SetupProgress;
+  /** Seite im Salon-Verzeichnis, die dieser Laden übernimmt; mit Code verknüpft das Backend nach dem Anlegen sofort */
+  verzeichnis?: { eintragId: string; pfad: string; code?: string };
 }
 
 export const emptyDraft = (email = '', ownerName = ''): ShopDraft => ({
@@ -162,9 +167,9 @@ const call = async <T>(request: Promise<Response>): Promise<T> => {
       } catch {
         /* keine JSON-Antwort */
       }
-      throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${error.status}).`);
+      throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: error.status }));
     }
-    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
   }
 };
 
@@ -220,16 +225,18 @@ export const mergeWebsiteServices = (services: DraftService[], found: SuggestedS
 /**
  * Vorlagen der Branche bereitlegen: selbst angekreuzte Vorlagen (auch einer früheren Branche) bleiben,
  * unberührte Vorlagen werden durch die der aktuellen Branche ersetzt.
+ * Name und Kategorie in der Sprache der Oberfläche – so werden sie auch gespeichert (auf Deutsch wie bisher).
  */
 export const withTemplates = (services: DraftService[], industry: string): DraftService[] => {
   const kept = services.filter((s) => s.source !== 'template' || (s.selected && !s.autoSelected));
   const names = new Set(kept.map((s) => s.name.toLowerCase()));
   const hasOwn = kept.some((s) => s.source === 'website');
   const templates: DraftService[] = templatesFor(industry)
-    .filter((t) => !names.has(t.name.toLowerCase()))
-    .map((t) => {
-      const selected = Boolean(t.common) && !hasOwn;
-      return { key: newKey('t'), name: t.name, category: t.category, duration: t.duration, price: t.price, selected, autoSelected: selected, source: 'template' };
+    .map((vorlage) => ({ ...vorlage, name: t(vorlage.name), category: vorlage.category ? t(vorlage.category) : '' }))
+    .filter((vorlage) => !names.has(vorlage.name.toLowerCase()))
+    .map((vorlage) => {
+      const selected = Boolean(vorlage.common) && !hasOwn;
+      return { key: newKey('t'), name: vorlage.name, category: vorlage.category, duration: vorlage.duration, price: vorlage.price, selected, autoSelected: selected, source: 'template' };
     });
   return [...kept, ...templates];
 };
@@ -309,7 +316,7 @@ export const createFromDraft = async (
     googlePlaceId: draft.googlePlaceId || undefined,
   };
 
-  onProgress('Laden anlegen …');
+  onProgress(t('Laden anlegen …'));
   if (progress.shopId) {
     await updateShop(progress.shopId, shopData); // schon angelegt: nur auf den letzten Stand bringen
   } else {
@@ -318,7 +325,7 @@ export const createFromDraft = async (
   }
   const shopId = progress.shopId;
 
-  onProgress('Leistungen eintragen …');
+  onProgress(t('Leistungen eintragen …'));
   const chosen = draft.services.filter((s) => s.selected && s.name.trim());
   for (const s of chosen) {
     if (progress.serviceIds[s.key]) continue;
@@ -326,7 +333,8 @@ export const createFromDraft = async (
       shopId,
       name: s.name.trim(),
       category: s.category || '',
-      description: s.priceFrom ? `Preis ab ${s.price.toLocaleString('de-DE')} €, je nach Aufwand` : '',
+      // wird gespeichert und Kunden gezeigt – in der Sprache, in der der Laden eingerichtet wird (auf Deutsch wie bisher)
+      description: s.priceFrom ? t('Preis ab {preis} €, je nach Aufwand', { preis: s.price.toLocaleString(intlSprache()) }) : '',
       duration: s.duration,
       setupTime: 0,
       price: s.price,
@@ -335,18 +343,19 @@ export const createFromDraft = async (
     save();
   }
 
-  onProgress('Team eintragen …');
+  onProgress(t('Team eintragen …'));
   for (const p of peopleOf(draft)) {
     if (progress.staffKeys.includes(p.key)) continue;
     const { serviceKeys, days } = effectiveAssignment(draft, p.key);
     const email = p.email.trim();
-    await createStaff({
+    const staff = await createStaff({
       shopId,
       userId: p.isOwner ? uid : '',
       name: p.name.trim(),
       email,
       phone: '',
-      role: p.isOwner ? 'Inhaber' : 'Team',
+      // freier Text (unter „Team“ änderbar), wird nirgends verglichen
+      role: p.isOwner ? t('Inhaber') : t('Team'),
       serviceIds: serviceKeys.map((k) => progress.serviceIds[k]).filter(Boolean),
       isActive: true,
       workingHours: workingHoursFromOpening(hours, days),
@@ -356,10 +365,19 @@ export const createFromDraft = async (
     save();
     if (!p.isOwner && email) {
       try {
-        const invitation = await createStaffInvitation(shopId, email, false);
-        progress.invitations.push({ name: p.name.trim(), email, link: `${window.location.origin}${APP_BASE_PATH}/staff-registration?token=${invitation.token}` });
+        // Link vom Backend (am Eintrag, nur als Hash gespeichert), gleich per E-Mail an die Person
+        const invitation = await createStaffInvite(staff.id, true);
+        progress.invitations.push({
+          name: p.name.trim(),
+          email,
+          link: invitation.link,
+          emailSent: invitation.email_sent,
+          emailProblem: invitation.email_problem,
+        });
       } catch (error) {
+        // Ohne Link trotzdem aufführen: Die Fertig-Seite sagt dann, wo es ihn gibt
         console.error('Einladung fehlgeschlagen:', error);
+        progress.invitations.push({ name: p.name.trim(), email, link: '' });
       }
     }
     save();
