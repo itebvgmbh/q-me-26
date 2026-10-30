@@ -174,13 +174,13 @@ const Uebernehmen = () => {
     const { shop, seite } = verbunden;
     return (
       <Rahmen
-        title={seite.stand === 'verbunden' ? t('Verbunden.') : t('Noch nicht verbunden.')}
+        title={seite.stand === 'verbunden' ? t('Verbunden.') : seite.stand === 'pruefen' ? t('Angefragt.') : t('Noch nicht verbunden.')}
         intro={
           seite.stand === 'verbunden'
             ? t('Deine Seite gehört jetzt zu {laden}. Kunden ziehen dort ab sofort eine Nummer.', { laden: shop.name })
             : seite.stand === 'fehler'
               ? seite.text
-              : undefined
+              : t('Wir prüfen kurz, ob es dein Salon ist, und verbinden die Seite dann mit {laden}.', { laden: shop.name })
         }
       >
         <Karte>
@@ -272,7 +272,7 @@ const Uebernehmen = () => {
 
         {rolle === 'laden' && (
           <div className="flex flex-col gap-2">
-            {offen.code && shops.length > 0 && (
+            {shops.length > 0 && (
               <>
                 <p className="text-sm font-semibold">{t('Dein Laden ist schon bei Dranzeit? Dann verbinde die Seite damit:')}</p>
                 {shops.map((shop) => (
@@ -283,7 +283,7 @@ const Uebernehmen = () => {
                 ))}
               </>
             )}
-            <Button size="lg" variant={offen.code && shops.length > 0 ? 'outline' : 'signal'} onClick={() => navigate('/shop-setup')}>
+            <Button size="lg" variant={shops.length > 0 ? 'outline' : 'signal'} onClick={() => navigate('/shop-setup')}>
               {shops.length > 0 ? t('Neuen Laden einrichten') : t('Laden einrichten')}
             </Button>
           </div>

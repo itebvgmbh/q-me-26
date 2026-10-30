@@ -137,6 +137,27 @@ def test_uebernahme_abgleich():
     assert not vz.namen_aehnlich("Friseur Berlin", "Barbershop Berlin")
 
 
+def test_abgleich_anfrage_des_inhabers():
+    """Übernahme ohne Code: Die angefragte Seite geht an diesen Laden, auch wenn der Name nicht passt"""
+    listing = eintrag("e1", "Haarwerk Müller", anfrage={"shopId": "s5", "am": MONDAY})
+    shops = [
+        {"id": "s1", "name": "Haarwerk", "postalCode": "10439", "city": "Berlin"},  # Name und PLZ passen, aber angefragt hat s5
+        {"id": "s5", "name": "Studio Kamm", "postalCode": "10115", "city": "Berlin"},
+    ]
+    plan = vz.abgleich([listing], shops)
+    assert plan["vorschlaege"] == {"e1": {"shopId": "s5", "name": "Studio Kamm", "grund": vz.GRUND_ANFRAGE}}
+    assert [s["id"] for s in plan["neu"]] == ["s1"]
+    # Abgelehnt: die Anfrage zählt nicht mehr, der Abgleich über den Namen wieder schon
+    plan = vz.abgleich([{**listing, "abgelehnt": ["s5"]}], shops)
+    assert plan["vorschlaege"]["e1"]["shopId"] == "s1" and [s["id"] for s in plan["neu"]] == ["s5"]
+    # Den anfragenden Laden gibt es (noch) nicht in der Liste: dann wie bisher
+    plan = vz.abgleich([listing], shops[:1])
+    assert plan["vorschlaege"]["e1"]["shopId"] == "s1"
+    # Der Laden hat schon eine eigene Seite aus dem Abgleich: Die Anfrage gilt trotzdem
+    plan = vz.abgleich([listing, eintrag("laden-s5", "Studio Kamm", shopId="s5")], shops)
+    assert plan["vorschlaege"]["e1"]["shopId"] == "s5" and "laden-s5" not in plan["vorschlaege"]
+
+
 def test_abgleich_ausfuehren_legt_seiten_an():
     store = frisch([eintrag("e1", "Haarwerk", googlePlaceId="P1", vorschlag={"shopId": "alt", "name": "x", "grund": "y"})])
     shops = [{"id": "s3", "name": "Kings Barber", "city": "Berlin", "street": "Weg 1", "postalCode": "10115"}]
@@ -514,7 +535,7 @@ def test_uebernahme_api():
     assert seiten.daten()["nach_pfad"]["/friseur/berlin/haarwerk"]["typ"] == "laden"
     frisch([eintrag("e3", "Kamm & Co")])
     html = seiten.render_salon(seiten.daten()["nach_pfad"]["/friseur/berlin/kamm-co"], seiten.daten(), MONDAY)
-    assert 'href="/uebernehmen?eintrag=e3"' in html
+    assert '<a class="btn main" href="/uebernehmen?eintrag=e3">Seite übernehmen</a>' in html and "Ist das dein Salon?" in html
     # Raten wird gebremst
     public_api._calls.clear()
     codes = [c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "AAAAA-AAAA" + x}).status_code for x in "ABCDEFGHJKMNPQRSTUVWX"]
@@ -572,6 +593,69 @@ def test_brief_api():
     # Eingelöst: kein Brief mehr
     ue.einloesen(code, "s1", store, MONDAY)
     assert c.post("/routes/betreiber/verzeichnis/e1/brief", json={"code": code}).status_code == 409
+
+
+def test_uebernahme_anfrage_ohne_code():
+    shop = {"id": "s5", "name": "Studio Kamm", "street": "Torstraße 1", "postalCode": "10115", "city": "Berlin", "phone": "030 9"}
+    store = frisch([eintrag("e1", "Haarwerk"), eintrag("e2", "Entwurf", status="entwurf")], [shop])
+    public_api._calls.clear()
+    app = FastAPI()
+    app.include_router(public_api.router, prefix="/routes")
+    app.include_router(admin_api.router, prefix="/routes")
+    app.dependency_overrides[get_authorized_user] = lambda: USER
+    c = TestClient(app)
+    import app.libs.mail as mail
+
+    mails = []
+    mail.send_mail = lambda to, subject, html_body, text_body="", reply_to="": mails.append((to, subject, html_body, text_body)) or True
+    os.environ["QME_ADMIN_EMAILS"] = "betreiber@example.com"
+
+    def fremd(user, shop_id):
+        raise HTTPException(status_code=403, detail="Das ist nicht dein Laden.")
+
+    public_api.require_shop_of_owner = fremd
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).status_code == 403
+    public_api.require_shop_of_owner = lambda user, shop_id: None
+    public_api._laden = lambda shop_id: dict(shop) if shop_id == "s5" else {}
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s9"}).status_code == 404
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e2", "shopId": "s5"}).status_code == 404
+    ok = c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).json()
+    assert ok == {"ok": True, "pfad": "/friseur/berlin/haarwerk"}
+    e = store.hole("e1")
+    assert e["anfrage"]["shopId"] == "s5" and e["vorschlag"]["shopId"] == "s5" and e["vorschlag"]["grund"] == vz.GRUND_ANFRAGE
+    assert not e.get("shopId")  # verbunden wird erst nach Bestätigung
+    assert protokoll.read(1)[0]["action"] == "Verzeichnis: Übernahme angefragt"
+    # Mail an den Betreiber mit beiden Adressen und dem Weg in den Betreiber-Bereich
+    assert len(mails) == 1 and mails[0][0] == "betreiber@example.com" and mails[0][1] == "Übernahme angefragt: Haarwerk"
+    assert "Studio Kamm · Torstraße 1, 10115 Berlin · 030 9 · chef@dranzeit.de" in mails[0][3]
+    assert "/betreiber?reiter=verzeichnis" in mails[0][2] and "https://dranzeit.de/friseur/berlin/haarwerk" in mails[0][3]
+    # Noch einmal: keine zweite Mail; der Abgleich behält den Vorschlag, der Laden bekommt keine eigene Seite
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).status_code == 200
+    assert len(mails) == 1
+    row = next(x for x in admin_api.liste()["eintraege"] if x["id"] == "e1")
+    assert row["vorschlag"]["shopId"] == "s5" and not store.hole("laden-s5")
+    # Abgelehnt: Anfrage weg, erneut anfragen geht nicht
+    assert c.post("/routes/betreiber/verzeichnis/e1/uebernahme-ablehnen", json={"shopId": "s5"}).status_code == 200
+    e = store.hole("e1")
+    assert e["anfrage"] is None and e["abgelehnt"] == ["s5"]
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).status_code == 409
+    # Bestätigt: die Seite gehört dem Laden
+    store.aendere("e1", {"abgelehnt": [], "anfrage": None})
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).status_code == 200
+    assert c.post("/routes/betreiber/verzeichnis/e1/uebernahme", json={"shopId": "s5"}).status_code == 200
+    assert store.hole("e1")["shopId"] == "s5" and len(mails) == 2
+    # Laden mit eigener Seite aus dem Abgleich: Vorschlag übersteht den nächsten Abgleich, Bestätigen leitet die alte Seite um
+    store = frisch([eintrag("e1", "Haarwerk"), eintrag("laden-s5", "Studio Kamm", shopId="s5", slug="studio-kamm")], [shop])
+    public_api._calls.clear()
+    assert c.post("/routes/verzeichnis/uebernahme/anfragen", json={"eintragId": "e1", "shopId": "s5"}).status_code == 200
+    assert next(x for x in admin_api.liste()["eintraege"] if x["id"] == "e1")["vorschlag"]["shopId"] == "s5"
+    assert c.post("/routes/betreiber/verzeichnis/e1/uebernahme", json={"shopId": "s5"}).status_code == 200
+    assert store.hole("e1")["shopId"] == "s5" and not store.hole("laden-s5")
+    assert store.hole("e1")["altePfade"] == ["/friseur/berlin/studio-kamm"] and len(mails) == 3
+    # Ohne Betreiber-Adresse: nur ins Log
+    os.environ["QME_ADMIN_EMAILS"] = ""
+    public_api.anfrage_melden(eintrag("e3", "Kamm & Co"), shop, "")
+    assert len(mails) == 3
 
 
 if __name__ == "__main__":

@@ -239,6 +239,7 @@ TEXTE: dict = {
     "Dieser Laden hat keine Seite im Verzeichnis.": "This shop doesn't have a page in the directory.",
     "Bitte bestätigen, dass du zu diesem Salon gehörst.": "Please confirm that you belong to this salon.",
     # Übernahme per Code (app/libs/uebernahme.py)
+    "Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.": "According to our check, this page belongs to a different salon. Write to us at hilfe@dranzeit.de if that's not right.",
     "Diese Seite gehört schon zu einem Dranzeit-Laden.": "This page already belongs to a Dranzeit shop.",
     "Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal.": "We don't recognise this code. Please check it again.",
     "Dieser Code ist schon eingelöst. Melde dich mit dem Konto an, mit dem du deinen Laden eingerichtet hast.": "This code has already been redeemed. Log in with the account you used to set up your shop.",

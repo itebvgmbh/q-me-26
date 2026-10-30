@@ -251,6 +251,7 @@ TEXTE: dict = {
     "Dieser Laden hat keine Seite im Verzeichnis.": "ليس لهذا المحل صفحة في الدليل.",
     "Bitte bestätigen, dass du zu diesem Salon gehörst.": "يرجى التأكيد أنك تنتمي إلى هذا الصالون.",
     # Übernahme per Code (app/libs/uebernahme.py)
+    "Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.": "بحسب مراجعتنا، هذه الصفحة تخص صالونًا آخر. إذا لم يكن ذلك صحيحًا، اكتب لنا على hilfe@dranzeit.de.",
     "Diese Seite gehört schon zu einem Dranzeit-Laden.": "هذه الصفحة تابعة بالفعل لمحل على Dranzeit.",
     "Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal.": "لا نعرف هذا الرمز. يُرجى التحقق منه مرة أخرى.",
     "Dieser Code ist schon eingelöst. Melde dich mit dem Konto an, mit dem du deinen Laden eingerichtet hast.": "تم استخدام هذا الرمز بالفعل. سجّل الدخول بالحساب الذي أعددت به محلك.",

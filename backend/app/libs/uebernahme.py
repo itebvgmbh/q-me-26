@@ -6,8 +6,8 @@ reicht als Nachweis, wie bei Googles Postkarte. Ablauf:
   2. /uebernehmen#code=… prüft den Code (pruefen) und füllt den Einrichtungsassistenten mit der Seite vor (vorschau)
   3. Nach dem Anlegen des Ladens: einloesen – der Eintrag wird die Seite des Ladens (vz.verknuepfen), der Code ist verbraucht
 
-Ohne Code (Knopf „Ist das dein Salon?“ auf der Seite) füllt der Assistent genauso vor; verknüpft wird dann wie bisher über
-den Abgleich, den der Betreiber bestätigt.
+Ohne Code (Knopf „Ist das dein Salon?“ auf der Seite oder „Dein Salon? Übernehmen“ auf der Karte) füllt der Assistent genauso
+vor. Nach dem Anlegen geht eine Anfrage an den Betreiber (Feld anfrage am Eintrag, Mail); er bestätigt den Vorschlag.
 
 Code: 10 Zeichen ohne Verwechsler (kein 0/O, 1/I/L), angezeigt als ABCDE-FGHJK, rund 50 Bit. Gespeichert als PBKDF2-Hash
 mit festem Salz: nachschlagbar, aber wer die Hashes liest, muss trotzdem lange raten. Das Backend begrenzt Versuche je IP.

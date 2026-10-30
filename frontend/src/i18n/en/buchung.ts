@@ -117,6 +117,7 @@ const texte: Texte = {
   "Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.": "No online numbers here yet – but you'll still find the address, hours and prices.",
   "Du bist hier": "You are here",
   "{km} km entfernt": "{km} km away",
+  "Dein Salon? Übernehmen": "Your salon? Claim your page",
   "Noch nicht online buchbar": "Not bookable online yet",
   "Ansehen": "View",
 

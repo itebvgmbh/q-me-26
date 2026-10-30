@@ -4,52 +4,10 @@
 //  - Anmeldung nachgebildet (Firebase-Auth-Antworten aus page.route): kein Testkonto nötig, keine Testdaten.
 //  - Karte: echte Läden aus Firestore (ohne Anmeldung lesbar), dazu ein nachgebildeter Salon aus dem Verzeichnis.
 // Braucht: Entwicklungsserver (npm run dev). Die Salonseiten selbst prüft backend/tests/test_verzeichnis.py.
-const { BASE, launch, newPage, shot, collectErrors, report, run } = require('./lib.cjs');
+const { BASE, launch, newPage, shot, collectErrors, mockAuth, signInFake, report, run } = require('./lib.cjs');
 
 const NOW = new Date();
 const iso = (days) => new Date(NOW.getTime() + days * 86_400_000).toISOString();
-const UID = 'betreiber-test';
-const EMAIL = 'chef@example.com';
-
-const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-const fakeToken = () => {
-  const now = Math.floor(Date.now() / 1000);
-  return `${b64({ alg: 'none', typ: 'JWT' })}.${b64({
-    iss: 'https://securetoken.google.com/qmedata-7c79e', aud: 'qmedata-7c79e', auth_time: now, user_id: UID, sub: UID,
-    iat: now, exp: now + 3600, email: EMAIL, email_verified: true, firebase: { identities: { email: [EMAIL] }, sign_in_provider: 'password' },
-  })}.x`;
-};
-
-/** Firebase-Anmeldung beantworten, ohne Google zu fragen; Firestore mit dem falschen Token gar nicht erst fragen */
-const mockAuth = async (page) => {
-  const token = fakeToken();
-  const user = {
-    localId: UID, email: EMAIL, emailVerified: true, displayName: 'Chef', createdAt: '1700000000000', lastLoginAt: String(Date.now()),
-    providerUserInfo: [{ providerId: 'password', email: EMAIL, federatedId: EMAIL, rawId: EMAIL }],
-  };
-  await page.route('**/identitytoolkit.googleapis.com/**', (route) => {
-    const url = route.request().url();
-    const body = url.includes('accounts:lookup')
-      ? { kind: 'identitytoolkit#GetAccountInfoResponse', users: [user] }
-      : { kind: 'identitytoolkit#VerifyPasswordResponse', localId: UID, email: EMAIL, displayName: 'Chef', idToken: token, registered: true, refreshToken: 'r', expiresIn: '3600' };
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-  });
-  await page.route('**/securetoken.googleapis.com/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: token, id_token: token, expires_in: '3600', refresh_token: 'r', token_type: 'Bearer', user_id: UID }) }),
-  );
-  await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-};
-
-const signInFake = async (page) => {
-  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2000);
-  await page.evaluate(async ({ email }) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    await signInWithEmailAndPassword(firebaseAuth, email, 'egal');
-  }, { email: EMAIL });
-};
 
 const HOURS = [1, 2, 3, 4, 5].map((d) => ({ dayOfWeek: d, isOpen: true, openTime: '09:00', closeTime: '18:00', breaks: [] }));
 const entry = (id, name, extra = {}) => ({
@@ -191,6 +149,12 @@ run(async () => {
   rows.push({ name: 'Handy: nichts ragt heraus', pass: (await overflow(page)) <= 0, detail: `${await overflow(page)} px` });
   await shot(page, 'verzeichnis-handy');
 
+  // Link aus der Mail „Übernahme angefragt“
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(`${BASE}/betreiber?reiter=verzeichnis`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Übernahme bestätigen').waitFor({ timeout: 30000 });
+  rows.push({ name: 'Link aus der Mail öffnet den Reiter', pass: await page.getByText('Übernahme bestätigen').isVisible() });
+
   // --- Karte: graue Salons aus dem Verzeichnis ---
   const map = await newPage(browser, { viewport: { width: 1280, height: 900 } });
   const mapErrors = collectErrors(map);
@@ -199,14 +163,26 @@ run(async () => {
       { id: 'nord', name: 'Salon Nord (Test)', kategorie: 'friseur', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin', ortsteil: 'Wedding', latitude: 52.55, longitude: 13.35, pfad: '/friseur/berlin/nord' },
     ] }) }),
   );
+  await map.route('**/routes/verzeichnis/nord/vorschau', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      id: 'nord', pfad: '/friseur/berlin/nord', name: 'Salon Nord (Test)', kategorie: 'friseur', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin',
+      phone: '', website: '', beschreibung: '', googlePlaceId: '', coordinates: null, businessHoursByDay: [], services: [],
+    }) }),
+  );
   await map.goto(`${BASE}/shop-map`, { waitUntil: 'domcontentloaded' });
   await map.getByText('Weitere Salons').waitFor({ timeout: 30000 });
   const card = map.getByRole('link', { name: /Salon Nord \(Test\)/ });
   rows.push({ name: 'Karte: Salon in der Liste mit Link', pass: (await card.getAttribute('href')) === '/friseur/berlin/nord' });
+  const uebernehmen = map.getByRole('link', { name: 'Dein Salon? Übernehmen' });
+  rows.push({ name: 'Karte: Übernehmen in der Liste', pass: (await uebernehmen.first().getAttribute('href')) === '/uebernehmen?eintrag=nord' });
   rows.push({ name: 'Karte: grauer Marker', pass: (await map.locator('img.leaflet-marker-icon.grayscale').count()) === 1 });
   await map.locator('img.leaflet-marker-icon.grayscale').click({ force: true });
   rows.push({ name: 'Karte: Hinweis im Marker', pass: await map.getByText('Noch nicht online buchbar').isVisible() });
   await shot(map, 'verzeichnis-karte', false);
+  // Aus dem Marker direkt in die vorausgefüllte Übernahme
+  await map.locator('.leaflet-popup').getByRole('link', { name: 'Dein Salon? Übernehmen' }).click();
+  await map.getByRole('heading', { name: 'Salon Nord (Test)' }).waitFor({ timeout: 30000 });
+  rows.push({ name: 'Karte: Marker führt zur Übernahme', pass: new URL(map.url()).pathname === '/uebernehmen' && await map.getByRole('button', { name: 'Konto anlegen und loslegen' }).isVisible() });
   rows.push({ name: 'Karte: keine JavaScript-Fehler', pass: mapErrors.length === 0, detail: mapErrors.join(' | ') });
 
   await browser.close();

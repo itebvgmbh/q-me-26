@@ -43,6 +43,7 @@ node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Te
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
 node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
 node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis (suchen, anlegen, bearbeiten, veröffentlichen, Übernahme) und graue Salons auf der Karte (Backend und Anmeldung nachgebildet, keine Testdaten nötig)
+node dev/e2e/uebernahme.cjs                 # Seite übernehmen ohne Code als Inhaber: Anfrage an den Betreiber (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig, keine Mail)
 node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
 node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
 node dev/e2e/bilder-hochladen.cjs           # Logo und Foto im Testladen hochladen, ansehen, löschen (Speicher-Regeln, deploy/README.md)
@@ -78,6 +79,7 @@ node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die e
 node --experimental-strip-types dev/i18n-pruefen.mjs --offen   # Übersetzungen: fehlt etwas, passen Platzhalter, Text noch ohne t()? (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
 python dev/daten.py 2026-10-16              # Termine eines Tages und offene "Früher dran"-Angebote
+python dev/brief-muster.py brief.pdf        # Brief an einen Salon ansehen (ohne Firebase; Knopf im Betreiber-Bereich: node dev/e2e/brief.cjs)
 ```
 
 ## Lasttest (gegen die Live-Seite)
