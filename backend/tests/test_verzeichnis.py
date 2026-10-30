@@ -534,7 +534,7 @@ def test_uebernahme_api():
     assert seiten.daten()["nach_pfad"]["/friseur/berlin/haarwerk"]["typ"] == "laden"
     frisch([eintrag("e3", "Kamm & Co")])
     html = seiten.render_salon(seiten.daten()["nach_pfad"]["/friseur/berlin/kamm-co"], seiten.daten(), MONDAY)
-    assert 'href="/uebernehmen?eintrag=e3"' in html
+    assert '<a class="btn main" href="/uebernehmen?eintrag=e3">Seite übernehmen</a>' in html and "Ist das dein Salon?" in html
     # Raten wird gebremst
     public_api._calls.clear()
     codes = [c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "AAAAA-AAAA" + x}).status_code for x in "ABCDEFGHJKMNPQRSTUVWX"]

@@ -356,9 +356,12 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
         aktion = (
             "<section class=\"hinweis\" id=\"wunsch\" aria-label=\"Online Nummer ziehen\">"
             f"<p><strong>Bei {_e(s['name'])} kannst du über Dranzeit noch keine Nummer ziehen.</strong> "
-            f"Du möchtest das? Sag es uns – je mehr fragen, desto eher klappt es.{_e(andere)}</p>{wunsch}"
-            "<p class=\"klein\">Ist das dein Salon? Mit Dranzeit ziehen deine Kunden online eine Nummer und warten, wo sie wollen. "
-            f"<a href=\"/features\">So funktioniert’s</a> · <a href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen, 30 Tage kostenlos</a></p></section>"
+            f"Du möchtest das? Sag es uns – je mehr fragen, desto eher klappt es.{_e(andere)}</p>{wunsch}</section>"
+            "<section class=\"card\" id=\"uebernehmen\" aria-labelledby=\"uebernehmen-titel\"><h2 id=\"uebernehmen-titel\">Ist das dein Salon?</h2>"
+            "<p>Übernimm diese Seite: Deine Kunden ziehen online eine Nummer und warten, wo sie wollen. Die Angaben von hier sind "
+            "schon ausgefüllt. 30 Tage kostenlos, ohne Zahlungsdaten.</p>"
+            f"<div class=\"btns\"><a class=\"btn main\" href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen</a>"
+            "<a class=\"btn\" href=\"/features\">So funktioniert’s</a></div></section>"
         )
 
     ueber = ""
@@ -416,9 +419,10 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
             "<p class=\"klein\">Angaben ohne Gewähr. Quelle: Webseite des Salons" + (f" (Stand {_e(st)})" if st else "")
             + "; der Text ist mit KI zusammengefasst und von uns geprüft. Lage und Ortsteil: © OpenStreetMap-Mitwirkende. "
             "Du kannst hier nicht buchen – Dranzeit arbeitet (noch) nicht mit diesem Salon zusammen.</p>"
-            "<details id=\"entfernen\"><summary class=\"klein\">Das ist mein Salon: Angaben falsch oder Eintrag entfernen</summary>"
+            "<details id=\"entfernen\"><summary class=\"klein\">Angaben falsch? Korrigieren oder Eintrag entfernen</summary>"
             f"<form class=\"form\" method=\"post\" action=\"/routes/verzeichnis/{_e(s['id'])}/entfernen\">"
-            "<p class=\"klein\">Der Eintrag geht sofort offline. Falsche Angaben korrigieren wir gern – schreib es einfach dazu.</p>"
+            "<p class=\"klein\">Der Eintrag geht sofort offline. Falsche Angaben korrigieren wir gern – schreib es einfach dazu. "
+            f"Lieber selbst pflegen? <a href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen</a>.</p>"
             "<label>Was ist falsch oder warum soll er weg? (freiwillig)<textarea name=\"grund\" rows=\"3\" maxlength=\"1000\"></textarea></label>"
             "<label>E-Mail oder Telefon für Rückfragen (freiwillig)<input type=\"text\" name=\"kontakt\" maxlength=\"200\"></label>"
             "<label class=\"check\"><input type=\"checkbox\" name=\"inhaber\" value=\"ja\" required> Ich gehöre zu diesem Salon.</label>"
