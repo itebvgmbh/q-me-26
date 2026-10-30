@@ -301,6 +301,8 @@ const texte: Texte = {
   "Seite übernehmen": "Sayfanızı devralın",
   "Code aus unserem Brief": "Mektubumuzdaki kod",
   "Code prüfen": "Kodu kontrol et",
+  "Angefragt.": "Talep edildi.",
+  "Wir prüfen kurz, ob es dein Salon ist, und verbinden die Seite dann mit {laden}.": "Bunun sizin salonunuz olduğunu kısaca kontrol edip sayfayı {laden} ile bağlayacağız.",
   "Noch nicht verbunden.": "Henüz bağlanmadı.",
   "Deine Seite gehört jetzt zu {laden}. Kunden ziehen dort ab sofort eine Nummer.": "Sayfanız artık {laden} salonuna ait. Müşteriler artık orada sıra numarası alıyor.",
   "Seite ansehen": "Sayfayı görüntüle",

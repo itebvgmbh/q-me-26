@@ -199,24 +199,40 @@ def passt_zu(entry: dict, shop: dict) -> str:
     return ""
 
 
+GRUND_ANFRAGE = "vom Inhaber angefragt"
+
+
 def abgleich(entries: list, shops: list) -> dict:
     """Was zu tun ist, damit jeder Laden genau eine Seite hat.
 
     Ergebnis: {"vorschlaege": {entryId: {shopId, name, grund}}, "neu": [shop, ...]}
-    - Laden schon verknüpft (ein Eintrag hat seine shopId): nichts.
-    - Ein Verzeichnis-Eintrag ohne Laden passt zu ihm: Vorschlag (der Betreiber bestätigt), noch keine eigene Seite.
+    - Der Inhaber hat eine Seite angefragt (Übernahme ohne Code, Feld anfrage): Vorschlag für genau diese Seite, auch wenn
+      der Laden schon eine eigene Seite hat (beim Bestätigen leitet die hierher, siehe verknuepfen).
+    - Sonst: Laden schon verknüpft (ein Eintrag hat seine shopId): nichts.
+    - Sonst passt ein Verzeichnis-Eintrag ohne Laden zu ihm: Vorschlag (der Betreiber bestätigt), noch keine eigene Seite.
     - Sonst: neuer Eintrag für den Laden.
     """
     linked = {e.get("shopId") for e in entries if e.get("shopId")}
     offen = [e for e in entries if not e.get("shopId") and e.get("status") != "entfernt"]
+    aktiv = [s for s in shops if not testladen(s)]
+    ids = {s["id"] for s in aktiv}
+    angefragt: dict = {}
+    for e in offen:
+        sid = (e.get("anfrage") or {}).get("shopId")
+        if sid in ids and sid not in (e.get("abgelehnt") or []):
+            angefragt.setdefault(sid, e)
+    reserviert = {e["id"] for e in angefragt.values()}  # nicht über den Namen an einen anderen Laden
     vorschlaege: dict = {}
     neu = []
-    for shop in shops:
-        if shop["id"] in linked or testladen(shop):
+    for shop in aktiv:
+        if shop["id"] in angefragt:
+            vorschlaege[angefragt[shop["id"]]["id"]] = {"shopId": shop["id"], "name": shop.get("name", ""), "grund": GRUND_ANFRAGE}
+            continue
+        if shop["id"] in linked:
             continue
         treffer = None
         for e in offen:
-            if shop["id"] in (e.get("abgelehnt") or []) or e["id"] in vorschlaege:
+            if shop["id"] in (e.get("abgelehnt") or []) or e["id"] in vorschlaege or e["id"] in reserviert:
                 continue
             grund = passt_zu(e, shop)
             if grund:

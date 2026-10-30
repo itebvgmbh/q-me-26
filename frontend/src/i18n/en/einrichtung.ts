@@ -301,6 +301,8 @@ const texte: Texte = {
   "Seite übernehmen": "Claim your page",
   "Code aus unserem Brief": "Code from our letter",
   "Code prüfen": "Check code",
+  "Angefragt.": "Requested.",
+  "Wir prüfen kurz, ob es dein Salon ist, und verbinden die Seite dann mit {laden}.": "We'll quickly check that it's your salon, then connect the page to {laden}.",
   "Noch nicht verbunden.": "Not connected yet.",
   "Deine Seite gehört jetzt zu {laden}. Kunden ziehen dort ab sofort eine Nummer.": "Your page now belongs to {laden}. From now on, customers take a number there.",
   "Seite ansehen": "View page",

@@ -1,6 +1,6 @@
 // Übernahme: Ein Salon aus dem Verzeichnis (/friseur/…) macht seine Seite zum Dranzeit-Laden.
-// Mit dem Code aus dem Brief verknüpft das Backend Seite und Laden sofort; ohne Code füllt nur der Assistent vor,
-// und der Betreiber bestätigt die Verknüpfung wie bisher. Backend: backend/app/libs/uebernahme.py,
+// Mit dem Code aus dem Brief verknüpft das Backend Seite und Laden sofort; ohne Code geht eine Anfrage an den
+// Betreiber (Mail), der die Verknüpfung bestätigt. Backend: backend/app/libs/uebernahme.py,
 // Endpunkte in backend/app/apis/verzeichnis. Seite: pages/Uebernehmen.tsx, Assistent: pages/ShopSetup.tsx.
 import { auth } from 'app';
 import { t } from '@/i18n';
@@ -67,6 +67,9 @@ export const holeVorschau = (eintragId: string) => request<Vorschau>(`/routes/ve
 
 export const loeseEin = (code: string, shopId: string) =>
   request<{ ok: boolean; pfad: string }>('/routes/verzeichnis/uebernahme/einloesen', { code, shopId }, true);
+
+export const frageAn = (eintragId: string, shopId: string) =>
+  request<{ ok: boolean; pfad: string }>('/routes/verzeichnis/uebernahme/anfragen', { eintragId, shopId }, true);
 
 // --- Gemerkt bis nach dem Anlegen (Konto anlegen und Anmelden liegen dazwischen) -----------------------------------
 
@@ -138,18 +141,19 @@ const leistungen = (services: Vorschau['services']): DraftService[] =>
 
 export type Verbindung =
   | { stand: 'verbunden'; pfad: string; gruender: boolean }
-  /** ohne Code: der Betreiber bestätigt (Abgleich über Name und PLZ bzw. Google-Eintrag) */
+  /** ohne Code: Anfrage ist raus, der Betreiber bestätigt */
   | { stand: 'pruefen'; pfad: string }
   /** nochmal: keine Verbindung, später erneut versuchen */
   | { stand: 'fehler'; pfad: string; text: string; nochmal: boolean };
 
 export const verbindeSeite = async (verzeichnis: NonNullable<ShopDraft['verzeichnis']>, shopId: string): Promise<Verbindung> => {
-  const { pfad, code } = verzeichnis;
-  if (!code) {
-    vergissUebernahme();
-    return { stand: 'pruefen', pfad };
-  }
+  const { eintragId, pfad, code } = verzeichnis;
   try {
+    if (!code) {
+      const res = await frageAn(eintragId, shopId);
+      vergissUebernahme();
+      return { stand: 'pruefen', pfad: res.pfad || pfad };
+    }
     const res = await loeseEin(code, shopId);
     vergissUebernahme();
     // Wer per Brief kommt, bekommt den Gründerplatz gleich mit (solange frei); ohne ist der Laden trotzdem fertig
