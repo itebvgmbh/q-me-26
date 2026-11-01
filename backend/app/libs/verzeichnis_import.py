@@ -14,11 +14,11 @@ import json
 import os
 import re
 import time
-from html import unescape
 from typing import List
 from urllib.parse import unquote, urlparse
 
 import requests
+from bs4 import BeautifulSoup
 from fastapi import HTTPException
 
 from app.libs import verzeichnis as vz
@@ -135,8 +135,13 @@ def webseite_lesen(url: str) -> tuple:
 
 
 def adressen_im_text(seite: str) -> set:
-    """Mail-Adressen im HTML einer Seite, auch als info(at)salon.de geschrieben, als &#64; verschlüsselt oder nur im mailto-Link"""
-    text = unquote(unescape(seite))
+    """Mail-Adressen, die auf einer Seite zu lesen sind oder in einem mailto-Link stehen, auch als info(at)salon.de. Nicht aus
+    dem übrigen HTML: Dort stehen Muster aus Formularen (name@example.com), Bilder (logo@2x.png) und Schlüssel von Drittdiensten."""
+    from app.apis.shop_setup import page_text
+
+    links = [a["href"].strip() for a in BeautifulSoup(seite, "html.parser").find_all("a", href=True)]
+    mailto = [unquote(link[7:]) for link in links if link.lower().startswith("mailto:")]
+    text = "\n".join([page_text(seite), *mailto])
     text = _PUNKT.sub(".", _AT.sub("@", text))
     return {a.lower() for a in _ADRESSE.findall(text)}
 
