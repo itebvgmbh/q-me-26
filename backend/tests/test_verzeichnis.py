@@ -9,6 +9,8 @@ import os
 import re
 import sys
 import tempfile
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -361,6 +363,7 @@ def test_karte_und_wunsch():
 # --- Eintrag entfernen -------------------------------------------------------------------------------------------------
 
 ADRESSEN_ECHT = imp.adressen_der_webseite
+HINTERGRUND_ECHT = public_api._im_hintergrund
 FORM = {"content-type": "application/x-www-form-urlencoded", "accept": "text/html"}
 
 
@@ -371,6 +374,7 @@ def entfernen_aufbau(entries, adressen=(), mail_klappt=True):
     store = frisch(entries)
     public_api._calls.clear()
     imp.adressen_der_webseite = lambda url: set(adressen)
+    public_api._im_hintergrund = lambda fn, *args: fn(*args)  # gleich erledigt, dann brauchen die Tests nicht zu warten
     os.environ["QME_ADMIN_EMAILS"] = "betreiber@example.com"
     mails = []
 
@@ -415,7 +419,8 @@ def test_entfernen_ohne_adresse_aendert_nichts():
 def test_falsche_adresse_mail_an_betreiber_eintrag_bleibt():
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk", phone="030 123 45")])
     r = antrag(c, email="Fremder@Gmail.com", grund="<b>Bitte weg</b>", aktion="entfernen")
-    assert r.status_code == 200 and "nicht zuordnen" in r.text and "@salon.example" in r.text and "bleibt so lange online" in r.text
+    assert r.status_code == 200 and "Deine Anfrage ist angekommen" in r.text and "fremder@gmail.com" in r.text
+    assert "der Domain salon.example" in r.text and "bleibt so lange online" in r.text
     assert store.hole("e1")["status"] == "online" and "entfernen" not in store.hole("e1")
     assert [m[0] for m in mails] == ["betreiber@example.com"]  # nichts an den Salon, nichts an den Fremden
     to, betreff, html_body, text_body, reply_to = mails[0]
@@ -431,7 +436,7 @@ def test_falsche_adresse_mail_an_betreiber_eintrag_bleibt():
 def test_passende_adresse_link_und_erst_der_knopf_entfernt():
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
     r = antrag(c, email="info@salon.example", grund="Geheimtext für den Betreiber", aktion="entfernen")
-    assert r.status_code == 200 and "Schau in dein Postfach" in r.text and "info@salon.example" in r.text
+    assert r.status_code == 200 and "Deine Anfrage ist angekommen" in r.text and "info@salon.example" in r.text
     assert store.hole("e1")["status"] == "online"
     assert sorted(m[0] for m in mails) == ["betreiber@example.com", "info@salon.example"]
     salon = next(m for m in mails if m[0] == "info@salon.example")
@@ -494,10 +499,10 @@ def test_abgelaufener_und_ersetzter_link_gelten_nicht():
 def test_adresse_von_der_webseite_passt():
     """Gmail-Adresse aus dem Impressum geht, dieselbe Adresse ohne Impressum nicht"""
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], adressen={"haarwerk.berlin@gmail.com"})
-    assert "Schau in dein Postfach" in antrag(c, email="haarwerk.berlin@gmail.com").text
+    assert "Deine Anfrage ist angekommen" in antrag(c, email="haarwerk.berlin@gmail.com").text
     assert any(m[0] == "haarwerk.berlin@gmail.com" for m in mails)
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], adressen={"andere@gmail.com"})
-    assert "nicht zuordnen" in antrag(c, email="haarwerk.berlin@gmail.com").text
+    assert "Deine Anfrage ist angekommen" in antrag(c, email="haarwerk.berlin@gmail.com").text
     assert [m[0] for m in mails] == ["betreiber@example.com"]
 
 
@@ -575,29 +580,79 @@ def test_korrektur_aendert_nichts_am_eintrag():
 def test_mail_geht_nicht_raus():
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], mail_klappt=False)
     r = antrag(c, email="info@salon.example")
-    assert r.status_code == 200 and "nicht verschicken" in r.text and store.hole("e1")["status"] == "online"
+    assert r.status_code == 200 and "Deine Anfrage ist angekommen" in r.text and store.hole("e1")["status"] == "online"
     assert [m[0] for m in mails] == ["betreiber@example.com"] and "Link nicht verschickt" in mails[0][1]
+
+
+def test_scheitert_der_link_erfaehrt_es_der_betreiber():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+
+    def kaputt(entry_id, changes):
+        raise RuntimeError("Firestore weg")
+
+    store.aendere = kaputt
+    r = antrag(c, email="info@salon.example")
+    assert r.status_code == 200 and [m[0] for m in mails] == ["betreiber@example.com"] and "Link nicht verschickt" in mails[0][1]
+    assert protokoll.read(5)[0]["after"]["ergebnis"] == "nicht_verschickt"
+
+
+def test_mehrfach_klicken_zaehlt_einmal():
+    """Echttest 01.11.2026: Zehn Klicks in 15 Sekunden, fünf Mails, und die Tagesgrenze war weg"""
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    antworten = [antrag(c, email="fremd@gmail.com", grund="Bitte weg", aktion="entfernen") for _ in range(10)]
+    assert all(r.status_code == 200 and "Deine Anfrage ist angekommen" in r.text for r in antworten)
+    assert [m[0] for m in mails] == ["betreiber@example.com"]
+    # Die Grenze ist dadurch nicht verbraucht: noch vier andere Adressen, dann erst Schluss
+    for nr in range(4):
+        assert antrag(c, email=f"fremd{nr}@gmail.com").status_code == 200
+    assert antrag(c, email="fremd4@gmail.com").status_code == 429
+    # Auch der zweite Klick sagt nicht „angekommen“, wenn nichts passiert ist
+    assert antrag(c, email="fremd4@gmail.com").status_code == 429 and len(mails) == 5
+    # Anderes Anliegen mit derselben Adresse ist eine neue Anfrage
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    antrag(c, email="fremd@gmail.com", grund="Montag zu", aktion="entfernen")
+    antrag(c, email="fremd@gmail.com", grund="Montag zu", aktion="korrigieren")
+    assert len(mails) == 2
+
+
+def test_antwort_wartet_nicht_auf_die_webseite():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    public_api._im_hintergrund = HINTERGRUND_ECHT
+    weiter = threading.Event()
+
+    def langsam(url):
+        assert weiter.wait(5)
+        return {"salon.haar@gmail.com"}
+
+    imp.adressen_der_webseite = langsam
+    r = antrag(c, email="salon.haar@gmail.com")
+    assert r.status_code == 200 and "Deine Anfrage ist angekommen" in r.text and not mails  # Antwort da, Webseite noch nicht gelesen
+    weiter.set()
+    frist = time.monotonic() + 5
+    while len(mails) < 2 and time.monotonic() < frist:
+        time.sleep(0.01)
+    assert sorted(m[0] for m in mails) == ["betreiber@example.com", "salon.haar@gmail.com"]
+    # Fehler im Hintergrund landen im Log und reißen nichts mit
+    fertig = threading.Event()
+    HINTERGRUND_ECHT(lambda: 1 / 0)
+    HINTERGRUND_ECHT(fertig.set)
+    assert fertig.wait(5)
 
 
 def test_bremsen():
     # Je Eintrag ein Link pro Stunde; der nächste Versuch landet beim Betreiber
-    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk"), eintrag("e2", "Kamm")])
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
     antrag(c, email="info@salon.example")
     mails.clear()
     r = antrag(c, email="chef@salon.example")
-    assert "schon unterwegs" in r.text and [m[0] for m in mails] == ["betreiber@example.com"]
-    # Je IP fünf Anfragen am Tag
-    for _ in range(3):
-        assert antrag(c, "e2", email="fremd@gmail.com").status_code == 200
-    r = antrag(c, "e2", email="fremd@gmail.com")
-    assert r.status_code == 429 and "Zu viele Anfragen" in r.text
+    assert r.status_code == 200 and [m[0] for m in mails] == ["betreiber@example.com"] and "Schon ein Link unterwegs" in mails[0][1]
     # Obergrenze aller Mails: danach einmal Bescheid sagen, dann Ruhe; Einträge bleiben online
     c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
     alt = public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"]
     public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"] = (2, 86400), (100, 86400)
     try:
-        for _ in range(6):
-            antrag(c, email="fremd@gmail.com")
+        for nr in range(6):
+            antrag(c, email=f"fremd{nr}@gmail.com")
     finally:
         public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"] = alt
     assert len(mails) == 3 and "ungewöhnlich viele" in mails[-1][1] and store.hole("e1")["status"] == "online"

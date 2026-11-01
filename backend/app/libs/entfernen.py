@@ -6,7 +6,7 @@
   2. Der Link zeigt nur eine Seite mit Knopf, weil Mail-Programme Links zum Prüfen von selbst aufrufen. Erst der Knopf
      nimmt den Eintrag offline.
 Passt die Adresse nicht, bleibt der Eintrag online und der Betreiber prüft von Hand. Er bekommt zu jeder Anfrage und jeder
-Entfernung eine Mail. Zurückholen kann er den Eintrag im Betreiber-Bereich; gelöscht wird dabei nichts.
+Entfernung eine Mail. Geprüft wird im Hintergrund, die Antwort aufs Formular kommt sofort und nennt das Ergebnis nicht. Zurückholen kann er den Eintrag im Betreiber-Bereich; gelöscht wird dabei nichts.
 
 Feld am Eintrag: entfernen {tokenHash, am, gueltigBis}. Das Token selbst steht nirgends; Adresse und Grund stehen nur im
 Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore.

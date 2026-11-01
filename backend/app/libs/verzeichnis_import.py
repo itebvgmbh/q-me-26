@@ -44,7 +44,7 @@ KONTAKT_LINK = re.compile(r"impressum|kontakt|contact|imprint|anfahrt|öffnungsz
 
 # Mail-Adressen auf der Webseite des Salons (Nachweis beim Entfernen, app/libs/entfernen.py)
 IMPRESSUM_LINK = re.compile(r"impressum|imprint|kontakt|contact", re.I)
-ADRESSEN_SEKUNDEN = 15  # alle Seiten zusammen; der Salon wartet auf die Antwort
+ADRESSEN_SEKUNDEN = 15  # alle Seiten zusammen
 _ADRESSE = re.compile(r"[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
 _AT = re.compile(r"\s*[\[({]\s*(?:at|ät)\s*[\])}]\s*", re.I)
 _PUNKT = re.compile(r"\s*[\[({]\s*(?:dot|punkt)\s*[\])}]\s*", re.I)
