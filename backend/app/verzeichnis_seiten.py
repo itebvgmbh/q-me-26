@@ -11,7 +11,8 @@ alles von seiner eigenen Webseite, vom Betreiber geprüft (app/libs/verzeichnis_
 Wartenden und die Knöpfe zum Nummer ziehen und Buchen.
 
 Neutral bleiben (BGH zu Jameda, VI ZR 30/17): auf der Seite eines Salons keine Werbung für andere. „In der Nähe“
-listet alle Salons gleich, nach Entfernung. Wer zum Salon gehört, nimmt den Eintrag selbst offline (/routes/verzeichnis).
+listet alle Salons gleich, nach Entfernung. Wer zum Salon gehört, nimmt den Eintrag mit einem Mail-Link selbst offline
+(/routes/verzeichnis, app/libs/entfernen.py).
 
 Fertiges HTML wie die Stadtseiten (app/seo.py); Caddy leitet /friseur und /barbershop ans Backend
 (deploy/caddy-domain.py), zusätzlich unter /routes/seo/... erreichbar.
@@ -24,6 +25,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app import seo
+from app.libs import entfernen as ent
 from app.libs import verzeichnis as vz
 from app.seo import BERLIN, _e, _html, _page, public_url
 
@@ -58,7 +60,8 @@ button.btn{cursor:pointer;background:transparent;font:inherit;font-weight:700}bu
 details{margin-top:12px}summary{cursor:pointer}
 .form{display:grid;gap:10px;margin-top:12px;max-width:520px}
 .form label{display:grid;gap:4px;font-size:14px}.form label.check{display:flex;gap:8px;align-items:flex-start}
-.form textarea,.form input[type=text]{font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.knoepfe{display:flex;flex-wrap:wrap;gap:8px}
+.form textarea,.form input[type=email]{font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 """
 
 
@@ -415,18 +418,22 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
 
     if s["typ"] == "eintrag":
         st = stand(s)
+        domain = ent.eigene_domain(s)
+        nachweis = (f"Zum Entfernen gib eine E-Mail-Adresse deines Salons an: mit der Domain {_e(domain)} oder die aus deinem Impressum. "
+                    "Wir schicken dir einen Link, erst damit geht der Eintrag offline. Mit einer anderen Adresse prüfen wir es von Hand und melden uns."
+                    if domain else "Zum Entfernen gib deine E-Mail-Adresse an. Wir prüfen es von Hand und melden uns.")
         fuss = (
             "<p class=\"klein\">Angaben ohne Gewähr. Quelle: Webseite des Salons" + (f" (Stand {_e(st)})" if st else "")
             + "; der Text ist mit KI zusammengefasst und von uns geprüft. Lage und Ortsteil: © OpenStreetMap-Mitwirkende. "
             "Du kannst hier nicht buchen – Dranzeit arbeitet (noch) nicht mit diesem Salon zusammen.</p>"
             "<details id=\"entfernen\"><summary class=\"klein\">Angaben falsch? Korrigieren oder Eintrag entfernen</summary>"
             f"<form class=\"form\" method=\"post\" action=\"/routes/verzeichnis/{_e(s['id'])}/entfernen\">"
-            "<p class=\"klein\">Der Eintrag geht sofort offline. Falsche Angaben korrigieren wir gern – schreib es einfach dazu. "
+            f"<p class=\"klein\">{nachweis} Falsche Angaben korrigieren wir gern. "
             f"Lieber selbst pflegen? <a href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen</a>.</p>"
-            "<label>Was ist falsch oder warum soll er weg? (freiwillig)<textarea name=\"grund\" rows=\"3\" maxlength=\"1000\"></textarea></label>"
-            "<label>E-Mail oder Telefon für Rückfragen (freiwillig)<input type=\"text\" name=\"kontakt\" maxlength=\"200\"></label>"
-            "<label class=\"check\"><input type=\"checkbox\" name=\"inhaber\" value=\"ja\" required> Ich gehöre zu diesem Salon.</label>"
-            "<div><button class=\"btn\" type=\"submit\">Eintrag entfernen</button></div></form></details>"
+            "<label>E-Mail-Adresse<input type=\"email\" name=\"email\" required maxlength=\"200\" autocomplete=\"email\"></label>"
+            "<label>Was ist falsch oder warum soll der Eintrag weg?<textarea name=\"grund\" rows=\"3\" maxlength=\"1000\"></textarea></label>"
+            "<div class=\"knoepfe\"><button class=\"btn\" type=\"submit\" name=\"aktion\" value=\"entfernen\">Eintrag entfernen</button>"
+            "<button class=\"btn\" type=\"submit\" name=\"aktion\" value=\"korrigieren\">Nur Angaben korrigieren</button></div></form></details>"
         )
     else:
         fuss = (f"<p class=\"klein\">{_e(s['name'])} nutzt Dranzeit. Lage und Ortsteil: © OpenStreetMap-Mitwirkende. "
@@ -533,10 +540,53 @@ def render_index(kat: str, d: dict) -> str:
                  f"/{kat}", body, None, EXTRA_STYLE)
 
 
+def _hinweis(titel: str, text: str, unten: str = "") -> str:
+    unten = unten or "<p><a class=\"btn\" href=\"/\">Zur Startseite</a></p>"
+    body = f"<h1>{_e(titel)}</h1><p class=\"lead\">{text}</p>{unten}"
+    return _page(f"{titel} | Dranzeit", titel, "/friseur", body, None, EXTRA_STYLE, "noindex")
+
+
 def render_entfernt(name: str) -> str:
-    body = (f"<h1>Erledigt</h1><p class=\"lead\">Der Eintrag „{_e(name)}“ ist offline. Hast du uns einen Kontakt dagelassen, "
-            "melden wir uns, falls wir eine Frage haben.</p><p><a class=\"btn\" href=\"/\">Zur Startseite</a></p>")
-    return _page("Eintrag entfernt | Dranzeit", "Der Eintrag ist offline.", "/friseur", body, None, EXTRA_STYLE, "noindex")
+    return _hinweis("Erledigt", f"Der Eintrag „{_e(name)}“ ist offline.")
+
+
+def render_anfrage(ergebnis: str, entry: dict, email: str = "") -> str:
+    """Antwort aufs Formular unter „Eintrag entfernen“"""
+    name = _e(entry.get("name", ""))
+    angekommen = "Deine Anfrage ist bei uns angekommen, wir prüfen sie von Hand und melden uns. Der Eintrag bleibt so lange online."
+    zurueck = f"<p><a class=\"btn\" href=\"{_e(vz.pfad(entry))}#entfernen\">Zurück zum Eintrag</a></p>"
+    if ergebnis == "link":
+        return _hinweis("Schau in dein Postfach", f"Wir haben einen Link an <strong>{_e(email)}</strong> geschickt. Erst wenn du ihn bestätigst, geht der "
+                        f"Eintrag „{name}“ offline. Er gilt {ent.GUELTIG_STUNDEN} Stunden. Keine Mail da? Schau auch im Spam-Ordner nach.")
+    if ergebnis == "passt_nicht":
+        return _hinweis("Wir prüfen das von Hand", f"Die Adresse <strong>{_e(email)}</strong> können wir „{name}“ nicht zuordnen. {angekommen}"
+                        f" Schneller geht es mit einer Adresse @{_e(ent.eigene_domain(entry))} oder der aus deinem Impressum.", zurueck)
+    if ergebnis == "keine_webseite":
+        return _hinweis("Wir prüfen das von Hand", angekommen)
+    if ergebnis == "gebremst":
+        return _hinweis("Der Link ist schon unterwegs", f"Für „{name}“ ging vor Kurzem schon ein Link raus. Schau auch im Spam-Ordner nach. "
+                        "Deine Anfrage ist außerdem bei uns angekommen, wir melden uns, falls es nicht klappt.")
+    if ergebnis == "nicht_verschickt":
+        return _hinweis("Wir prüfen das von Hand", f"Den Link konnten wir gerade nicht verschicken. {angekommen}")
+    if ergebnis == "korrektur":
+        return _hinweis("Danke für den Hinweis", f"Wir schauen uns deine Angaben zu „{name}“ an und melden uns, falls wir eine Frage haben.")
+    if ergebnis == "zu_viele":
+        return _hinweis("Zu viele Anfragen", "Bitte versuch es morgen noch einmal oder schreib uns an hilfe@dranzeit.de.", zurueck)
+    if ergebnis == "grund_fehlt":
+        return _hinweis("Da fehlt noch etwas", "Schreib bitte kurz dazu, was an den Angaben falsch ist.", zurueck)
+    return _hinweis("Da fehlt noch etwas", "Bitte gib eine gültige E-Mail-Adresse an.", zurueck)
+
+
+def render_entfernen_knopf(entry: dict, token: str) -> str:
+    """Hinter dem Link aus der Mail. Erst der Knopf nimmt den Eintrag offline."""
+    form = (f"<form method=\"post\" action=\"/routes/verzeichnis/{_e(entry['id'])}/entfernen/bestaetigen\">"
+            f"<input type=\"hidden\" name=\"t\" value=\"{_e(token)}\"><button class=\"btn\" type=\"submit\">Ja, Eintrag entfernen</button></form>")
+    return _hinweis("Eintrag entfernen?", f"Der Eintrag „{_e(entry.get('name', ''))}“ geht damit sofort offline.", form)
+
+
+def render_link_ungueltig() -> str:
+    return _hinweis("Dieser Link gilt nicht mehr", "Er ist abgelaufen, oder es gibt schon einen neueren. Einen neuen forderst du unten auf der "
+                    "Seite deines Salons unter „Eintrag entfernen“ an.")
 
 
 # --- Routen --------------------------------------------------------------------------------------------------------

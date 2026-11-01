@@ -14,8 +14,9 @@ import json
 import os
 import re
 import time
+from html import unescape
 from typing import List
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import requests
 from fastapi import HTTPException
@@ -40,6 +41,13 @@ FREMDE_SEITEN = (
     "meinestadt.de", "werkenntdenbesten.de", "tripadvisor.de", "ivof.com", "jimdosite.com",
 )
 KONTAKT_LINK = re.compile(r"impressum|kontakt|contact|imprint|anfahrt|öffnungszeit|oeffnungszeit|über|ueber|about|team", re.I)
+
+# Mail-Adressen auf der Webseite des Salons (Nachweis beim Entfernen, app/libs/entfernen.py)
+IMPRESSUM_LINK = re.compile(r"impressum|imprint|kontakt|contact", re.I)
+ADRESSEN_SEKUNDEN = 15  # alle Seiten zusammen; der Salon wartet auf die Antwort
+_ADRESSE = re.compile(r"[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
+_AT = re.compile(r"\s*[\[({]\s*(?:at|ät)\s*[\])}]\s*", re.I)
+_PUNKT = re.compile(r"\s*[\[({]\s*(?:dot|punkt)\s*[\])}]\s*", re.I)
 
 
 def google_key() -> str:
@@ -124,6 +132,40 @@ def webseite_lesen(url: str) -> tuple:
         parts.append(f"### Seite: {final}\n{page_text(sub_html)}")
     parts.append(f"### Seite: {start_url}\n{page_text(html)}")
     return pages, "\n\n".join(parts)[:MAX_TEXT]
+
+
+def adressen_im_text(seite: str) -> set:
+    """Mail-Adressen im HTML einer Seite, auch als info(at)salon.de geschrieben, als &#64; verschlüsselt oder nur im mailto-Link"""
+    text = unquote(unescape(seite))
+    text = _PUNKT.sub(".", _AT.sub("@", text))
+    return {a.lower() for a in _ADRESSE.findall(text)}
+
+
+def adressen_der_webseite(url: str) -> set:
+    """Mail-Adressen auf Startseite und Impressum-/Kontaktseiten des Salons (app/libs/entfernen.py). Plattformen zählen
+    nicht, auch nicht nach einer Weiterleitung. Antwortet die Seite nicht, ist das Ergebnis leer."""
+    from app.apis.shop_setup import fetch_page, price_links
+
+    if not url or fremde_seite(url):
+        return set()
+    deadline = time.monotonic() + ADRESSEN_SEKUNDEN
+    try:  # Eine kaputte Seite darf die Anfrage nicht verschlucken: Dann prüft der Betreiber von Hand
+        start_url, html = fetch_page(url if "://" in url else f"https://{url}", deadline)
+    except Exception as e:
+        print(f"Verzeichnis: Adressen auf {url} nicht lesbar: {e}")
+        return set()
+    if fremde_seite(start_url):
+        return set()
+    gefunden = adressen_im_text(html)
+    for link in price_links(html, start_url, 3, IMPRESSUM_LINK):
+        try:
+            final, unterseite = fetch_page(link, deadline)
+        except Exception as e:
+            print(f"Verzeichnis: Adressen auf {link} nicht lesbar: {e}")
+            continue
+        if not fremde_seite(final):
+            gefunden |= adressen_im_text(unterseite)
+    return gefunden
 
 
 # --- Claude: Profil aus dem Webseitentext --------------------------------------------------------------------------

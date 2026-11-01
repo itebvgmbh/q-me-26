@@ -24,6 +24,7 @@ import app.verzeichnis_seiten as seiten  # noqa: E402
 from app.apis import verzeichnis as public_api  # noqa: E402
 from app.apis.betreiber import verzeichnis as admin_api  # noqa: E402
 from app.libs import brief  # noqa: E402
+from app.libs import entfernen as ent  # noqa: E402
 from app.libs import protokoll  # noqa: E402
 from app.libs import uebernahme as ue  # noqa: E402
 from app.libs import verzeichnis as vz  # noqa: E402
@@ -342,7 +343,7 @@ def test_routen_und_sitemap():
     assert 'href="/barbershop/berlin/kings-barber"' in city and "shop-details" not in city
 
 
-def test_karte_wunsch_entfernen():
+def test_karte_und_wunsch():
     store = frisch([eintrag("e1", "Haarwerk"), eintrag("e2", "Entwurf", status="entwurf")])
     app = FastAPI()
     app.include_router(public_api.router, prefix="/routes")
@@ -355,13 +356,258 @@ def test_karte_wunsch_entfernen():
     c.post("/routes/verzeichnis/e1/wunsch", headers=form, follow_redirects=False)
     assert store.hole("e1")["wuensche"] == 1  # je Person und Tag einmal
     assert c.post("/routes/verzeichnis/e2/wunsch").status_code == 404
-    assert c.post("/routes/verzeichnis/e1/entfernen", content="grund=falsch", headers=form).status_code == 400
-    r = c.post("/routes/verzeichnis/e1/entfernen", content="grund=Bitte+weg&kontakt=ina%40salon.de&inhaber=ja", headers=form)
-    assert r.status_code == 200 and "ist offline" in r.text
-    assert store.hole("e1")["status"] == "entfernt"
+
+
+# --- Eintrag entfernen -------------------------------------------------------------------------------------------------
+
+ADRESSEN_ECHT = imp.adressen_der_webseite
+FORM = {"content-type": "application/x-www-form-urlencoded", "accept": "text/html"}
+
+
+def entfernen_aufbau(entries, adressen=(), mail_klappt=True):
+    """Client, Speicher und gesammelte Mails (an, Betreff, HTML, Text, Antwort an)"""
+    import app.libs.mail as mail
+
+    store = frisch(entries)
+    public_api._calls.clear()
+    imp.adressen_der_webseite = lambda url: set(adressen)
+    os.environ["QME_ADMIN_EMAILS"] = "betreiber@example.com"
+    mails = []
+
+    def senden(to, subject, html_body, text_body="", reply_to=""):
+        if not mail_klappt and to != "betreiber@example.com":
+            raise mail.MailError("Resend lehnt ab")
+        mails.append((to, subject, html_body, text_body, reply_to))
+        return True
+
+    mail.send_mail = senden
+    app = FastAPI()
+    app.include_router(public_api.router, prefix="/routes")
+    return TestClient(app), store, mails
+
+
+def antrag(c, id_="e1", **felder):
+    from urllib.parse import urlencode
+
+    return c.post(f"/routes/verzeichnis/{id_}/entfernen", content=urlencode(felder), headers=FORM)
+
+
+def link_aus(mails, an="info@salon.example"):
+    text = next(m[3] for m in mails if m[0] == an)
+    return re.search(r"https?://\S+", text).group(0)
+
+
+def bestaetigen(c, link, token=None):
+    pfad = "/routes" + link.split("/routes", 1)[-1].split("?")[0]
+    return c.post(pfad, content=f"t={token if token is not None else link.split('t=')[-1]}", headers=FORM)
+
+
+def test_entfernen_ohne_adresse_aendert_nichts():
+    """Die alte Lücke: Ein Häkchen reichte, und der Eintrag war offline"""
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    r = c.post("/routes/verzeichnis/e1/entfernen", content="grund=Bitte+weg&kontakt=ina%40salon.de&inhaber=ja", headers=FORM)
+    assert r.status_code == 400 and "gültige E-Mail-Adresse" in r.text
+    assert antrag(c, email="kein-mail").status_code == 400
+    assert antrag(c, email="a@b.example\nBcc: x@y.example").status_code == 400
+    assert store.hole("e1")["status"] == "online" and not mails
+
+
+def test_falsche_adresse_mail_an_betreiber_eintrag_bleibt():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk", phone="030 123 45")])
+    r = antrag(c, email="Fremder@Gmail.com", grund="<b>Bitte weg</b>", aktion="entfernen")
+    assert r.status_code == 200 and "nicht zuordnen" in r.text and "@salon.example" in r.text and "bleibt so lange online" in r.text
+    assert store.hole("e1")["status"] == "online" and "entfernen" not in store.hole("e1")
+    assert [m[0] for m in mails] == ["betreiber@example.com"]  # nichts an den Salon, nichts an den Fremden
+    to, betreff, html_body, text_body, reply_to = mails[0]
+    assert "Adresse passt nicht" in betreff and "Haarwerk" in betreff and reply_to == "fremder@gmail.com"
+    assert "fremder@gmail.com" in html_body and "030 123 45" in html_body and "/betreiber?reiter=verzeichnis" in html_body
+    assert "&lt;b&gt;Bitte weg" in html_body and "<b>Bitte weg" not in html_body and "<b>Bitte weg" in text_body
     log = protokoll.read(5)[0]
-    assert log["reason"] == "Bitte weg" and log["after"]["kontakt"] == "ina@salon.de"
-    assert "kontakt" not in store.hole("e1")  # nicht in Firestore (dort ohne Anmeldung lesbar)
+    assert log["action"] == "Verzeichnis: Entfernen angefragt" and log["reason"] == "<b>Bitte weg</b>"
+    assert log["after"]["kontakt"] == "fremder@gmail.com" and log["after"]["ergebnis"] == "passt_nicht"
+    assert "kontakt" not in store.hole("e1") and "email" not in store.hole("e1")  # Adresse nicht in Firestore
+
+
+def test_passende_adresse_link_und_erst_der_knopf_entfernt():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    r = antrag(c, email="info@salon.example", grund="Geheimtext für den Betreiber", aktion="entfernen")
+    assert r.status_code == 200 and "Schau in dein Postfach" in r.text and "info@salon.example" in r.text
+    assert store.hole("e1")["status"] == "online"
+    assert sorted(m[0] for m in mails) == ["betreiber@example.com", "info@salon.example"]
+    salon = next(m for m in mails if m[0] == "info@salon.example")
+    betreiber = next(m for m in mails if m[0] == "betreiber@example.com")
+    assert "Geheimtext" not in salon[2] + salon[3]  # Freitext aus dem Formular geht nie an den Salon
+    assert "Geheimtext" in betreiber[2] and "Link verschickt" in betreiber[1]
+    link = link_aus(mails)
+    assert "/routes/verzeichnis/e1/entfernen/bestaetigen?t=" in link
+    token = link.split("t=")[-1]
+    info = store.hole("e1")["entfernen"]
+    assert token not in json.dumps(info, default=str) and info["tokenHash"] and "email" not in info  # nur der Hash, keine Adresse
+
+    # Mail-Programme öffnen Links von selbst: Das Öffnen ändert nichts
+    pfad = "/routes" + link.split("/routes", 1)[-1]
+    seite = c.get(pfad)
+    assert seite.status_code == 200 and "Ja, Eintrag entfernen" in seite.text and seite.headers["cache-control"] == "no-store"
+    assert store.hole("e1")["status"] == "online"
+
+    # Falsches Token ändert nichts
+    assert bestaetigen(c, link, "falsch").status_code == 410
+    assert c.get(pfad.split("?")[0] + "?t=falsch").status_code == 410
+    assert bestaetigen(c, link, "").status_code == 410
+    assert store.hole("e1")["status"] == "online"
+
+    mails.clear()
+    r = bestaetigen(c, link)
+    assert r.status_code == 200 and "ist offline" in r.text
+    gespeichert = store.hole("e1")
+    assert gespeichert["status"] == "entfernt" and gespeichert["entferntAm"] and gespeichert["entfernen"] is None
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and "Eintrag entfernt" in mails[0][1] and "Haarwerk" in mails[0][1]
+    assert protokoll.read(5)[0]["action"] == "Verzeichnis: vom Salon entfernt"
+    seiten_app = FastAPI()
+    seiten_app.include_router(seiten.router)
+    assert TestClient(seiten_app).get("/friseur/berlin/haarwerk").status_code == 404
+
+    # Zweimal klicken: bleibt erledigt, keine zweite Mail
+    mails.clear()
+    assert "ist offline" in bestaetigen(c, link).text and not mails
+
+
+def test_abgelaufener_und_ersetzter_link_gelten_nicht():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    antrag(c, email="info@salon.example")
+    link = link_aus(mails)
+    token = link.split("t=")[-1]
+    gueltig = store.hole("e1")["entfernen"]
+    store.aendere("e1", {"entfernen": {**gueltig, "gueltigBis": vz.now() - timedelta(minutes=1)}})
+    assert bestaetigen(c, link).status_code == 410 and store.hole("e1")["status"] == "online"
+    # Offline genommener oder übernommener Eintrag: Der Link gilt nicht mehr
+    assert ent.link_gilt({"status": "online", "entfernen": gueltig}, token)
+    assert not ent.link_gilt({"status": "offline", "entfernen": gueltig}, token)
+    assert not ent.link_gilt({"status": "online", "shopId": "s1", "entfernen": gueltig}, token)
+    assert not ent.link_gilt(None, "x") and not ent.link_gilt({"status": "online"}, "x")
+    # Ein neuer Link macht den vorigen ungültig
+    store.aendere("e1", {"entfernen": gueltig})
+    ent.link_schicken(store.hole("e1"), "info@salon.example")
+    assert bestaetigen(c, link).status_code == 410 and store.hole("e1")["status"] == "online"
+
+
+def test_adresse_von_der_webseite_passt():
+    """Gmail-Adresse aus dem Impressum geht, dieselbe Adresse ohne Impressum nicht"""
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], adressen={"haarwerk.berlin@gmail.com"})
+    assert "Schau in dein Postfach" in antrag(c, email="haarwerk.berlin@gmail.com").text
+    assert any(m[0] == "haarwerk.berlin@gmail.com" for m in mails)
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], adressen={"andere@gmail.com"})
+    assert "nicht zuordnen" in antrag(c, email="haarwerk.berlin@gmail.com").text
+    assert [m[0] for m in mails] == ["betreiber@example.com"]
+
+
+def test_domain_regeln():
+    passt = lambda website, email: ent.adresse_passt({"website": website}, email)  # noqa: E731
+    imp.adressen_der_webseite = lambda url: set()
+    assert passt("https://www.Salon-Mueller.de/kontakt", "info@salon-mueller.de")
+    assert passt("salon-mueller.de", "info@salon-mueller.de")
+    assert not passt("https://salon-mueller.de", "info@salon-mueller.de.evil.example")
+    assert not passt("https://salon-mueller.de", "info@evil-salon-mueller.de")
+    assert not passt("https://salon.gmx.de", "x@gmx.de")  # Unterseite eines Mail-Anbieters: jede @gmx.de käme sonst durch
+    assert not passt("https://www.instagram.com/salon", "x@instagram.com")  # Plattform: zählt nicht als eigene Webseite
+    assert not passt("", "x@salon.de")
+    assert ent.eigene_domain({"website": "https://www.treatwell.de/ort/salon"}) == ""
+    assert ent.adresse_gueltig("info@salon-mueller.de") and not ent.adresse_gueltig("a b@salon.de") and not ent.adresse_gueltig("info@salon")
+
+
+def test_adressen_auf_der_webseite_lesen():
+    from app.apis import shop_setup
+
+    assert imp.adressen_im_text('<a href="mailto:Info@Salon.de?subject=x">Schreib uns</a>') == {"info@salon.de"}
+    assert imp.adressen_im_text("info(at)salon.de und chef [at] salon [dot] de") == {"info@salon.de", "chef@salon.de"}
+    assert imp.adressen_im_text("inhaber&#64;salon&#46;de") == {"inhaber@salon.de"}
+    assert imp.adressen_im_text("mailto:salon%40web.de") == {"salon@web.de"}
+    assert imp.adressen_im_text("Keine Adresse hier") == set()
+
+    web = {
+        "https://salon.example/": ("https://salon.example/", '<a href="/impressum">Impressum</a><a href="/preise">Preise</a> start@salon.example'),
+        "https://salon.example/impressum": ("https://salon.example/impressum", "E-Mail: salon.haar(at)gmail.com"),
+    }
+    abrufe = []
+
+    def holen(url, deadline=None):
+        abrufe.append(url)
+        if url not in web:
+            raise ValueError("nicht erreichbar")
+        return web[url]
+
+    echt = shop_setup.fetch_page
+    shop_setup.fetch_page = holen
+    try:
+        assert ADRESSEN_ECHT("https://salon.example/") == {"start@salon.example", "salon.haar@gmail.com"}
+        assert "https://salon.example/preise" not in abrufe  # nur Impressum und Kontakt
+        abrufe.clear()
+        assert ADRESSEN_ECHT("https://www.instagram.com/salon") == set() and not abrufe  # Plattform wird gar nicht gelesen
+        assert ADRESSEN_ECHT("https://nicht-da.example/") == set()  # Seite antwortet nicht
+        web["https://umzug.example/"] = ("https://www.instagram.com/salon", "fremd@example.com")
+        assert ADRESSEN_ECHT("https://umzug.example/") == set()  # Weiterleitung auf eine Plattform
+    finally:
+        shop_setup.fetch_page = echt
+
+
+def test_eintrag_ohne_eigene_webseite_nur_von_hand():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk", website=""), eintrag("e2", "Kamm", website="https://www.instagram.com/kamm")])
+    for id_ in ("e1", "e2"):
+        r = antrag(c, id_, email="info@salon.example")
+        assert r.status_code == 200 and "von Hand" in r.text and store.hole(id_)["status"] == "online"
+    assert [m[0] for m in mails] == ["betreiber@example.com"] * 2 and "Von Hand prüfen" in mails[0][1]
+
+
+def test_korrektur_aendert_nichts_am_eintrag():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    assert antrag(c, email="info@salon.example", aktion="korrigieren").status_code == 400 and not mails  # ohne Text
+    r = antrag(c, email="info@salon.example", grund="Montag zu", aktion="korrigieren")
+    assert r.status_code == 200 and "Danke für den Hinweis" in r.text and store.hole("e1")["status"] == "online"
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and "Korrektur" in mails[0][1] and "Montag zu" in mails[0][2]
+    assert "entfernen" not in store.hole("e1")
+
+
+def test_mail_geht_nicht_raus():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], mail_klappt=False)
+    r = antrag(c, email="info@salon.example")
+    assert r.status_code == 200 and "nicht verschicken" in r.text and store.hole("e1")["status"] == "online"
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and "Link nicht verschickt" in mails[0][1]
+
+
+def test_bremsen():
+    # Je Eintrag ein Link pro Stunde; der nächste Versuch landet beim Betreiber
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk"), eintrag("e2", "Kamm")])
+    antrag(c, email="info@salon.example")
+    mails.clear()
+    r = antrag(c, email="chef@salon.example")
+    assert "schon unterwegs" in r.text and [m[0] for m in mails] == ["betreiber@example.com"]
+    # Je IP fünf Anfragen am Tag
+    for _ in range(3):
+        assert antrag(c, "e2", email="fremd@gmail.com").status_code == 200
+    r = antrag(c, "e2", email="fremd@gmail.com")
+    assert r.status_code == 429 and "Zu viele Anfragen" in r.text
+    # Obergrenze aller Mails: danach einmal Bescheid sagen, dann Ruhe; Einträge bleiben online
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    alt = public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"]
+    public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"] = (2, 86400), (100, 86400)
+    try:
+        for _ in range(6):
+            antrag(c, email="fremd@gmail.com")
+    finally:
+        public_api.LIMITS["entfernen-mails"], public_api.LIMITS["entfernen"] = alt
+    assert len(mails) == 3 and "ungewöhnlich viele" in mails[-1][1] and store.hole("e1")["status"] == "online"
+
+
+def test_formular_auf_der_seite():
+    frisch([eintrag("e1", "Haarwerk", website="https://www.haarwerk.example/"), eintrag("e2", "Kamm", website="", slug="kamm")])
+    app = FastAPI()
+    app.include_router(seiten.router)
+    c = TestClient(app)
+    page = c.get("/friseur/berlin/haarwerk").text
+    assert 'action="/routes/verzeichnis/e1/entfernen"' in page and 'type="email" name="email" required' in page
+    assert "mit der Domain haarwerk.example" in page and 'value="korrigieren"' in page
+    assert "Ich gehöre zu diesem Salon" not in page and "sofort offline" not in page
+    assert "Wir prüfen es von Hand" in c.get("/friseur/berlin/kamm").text
 
 
 def test_laden_seite_fuer_canonical():
