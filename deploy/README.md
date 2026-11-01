@@ -702,8 +702,15 @@ bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
   `ABCDE-FGHJK`, 180 Tage gültig) und der Link `https://dranzeit.de/uebernehmen#code=…` samt QR-Code werden nur
   in diesem Moment gezeigt; gespeichert ist nur ein Hash. Mit dem Code richtet der Salon seinen Laden vorausgefüllt
   ein (Name, Adresse, Zeiten, Preise der Seite), und die Seite gehört ihm danach **ohne Bestätigung hier**; dazu
-  bekommt er einen Gründerplatz, solange frei. Ohne Code („Seite übernehmen“ auf der Seite) füllt der Assistent
-  genauso vor, verbunden wird aber erst über „Übernahme bestätigen“. Ein neuer Code macht den alten ungültig.
+  bekommt er einen Gründerplatz, solange frei. Ein neuer Code macht den alten ungültig. Zu jeder Übernahme bekommen die
+  Adressen aus `QME_ADMIN_EMAILS` eine Mail.
+- **Übernahme ohne Brief**: „Seite übernehmen“ auf der Seite führt zuerst zum Nachweis per E-Mail
+  (`backend/app/libs/uebernahme_mail.py`, Regel wie beim Entfernen): Liegt die Adresse an der Domain der Salon-Webseite oder
+  steht sie dort, geht ein Link mit Code an sie (7 Tage), ab da läuft alles wie mit dem Brief. Der Code aus dem Brief gilt
+  daneben weiter. Passt die Adresse nicht, ändert sich nichts, und zu jeder Anfrage kommt eine Mail an `QME_ADMIN_EMAILS`
+  (Antworten gehen an die angegebene Adresse). Wer keine passende Adresse hat, kann den Laden trotzdem vorausgefüllt
+  einrichten; verbunden wird dann erst über „Übernahme bestätigen“. Gleiche Angaben beweisen dabei nichts, sie stammen aus
+  der Seite: vorher die Nummer von der Seite anrufen.
 - **Vom Salon entfernt**: Jede Seite hat unten „Eintrag entfernen“ für den Salon selbst (Widerspruch), mit Nachweis
   (`backend/app/libs/entfernen.py`): Liegt die angegebene Adresse an der Domain der Salon-Webseite oder steht sie auf
   deren Start-, Impressums- oder Kontaktseite, geht ein Link dorthin (24 Stunden); erst damit geht die Seite offline.

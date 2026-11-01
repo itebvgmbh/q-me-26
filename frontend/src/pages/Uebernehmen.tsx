@@ -11,6 +11,7 @@ import { getFoundersLeft } from '../utils/billing';
 import { getUserProfile } from '../utils/user-profile-service';
 import {
   codeAnzeigen,
+  fordereLinkAn,
   holeVorschau,
   merkeUebernahme,
   Offen,
@@ -24,8 +25,9 @@ import { inStoreApp } from '../utils/app-shell';
 
 /**
  * Seite übernehmen: Ein Salon aus dem Verzeichnis (/friseur/…) wird Dranzeit-Laden.
- * - Brief mit QR-Code: /uebernehmen#code=ABCDEFGHJK – Seite und Laden werden nach dem Einrichten sofort verbunden
- * - Knopf „Ist das dein Salon?“ auf der Seite: /uebernehmen?eintrag=<id> – vorausgefüllt, verbunden wird nach Prüfung
+ * - Brief mit QR-Code oder Link aus der Mail: /uebernehmen#code=ABCDEFGHJK – Seite und Laden werden nach dem Einrichten sofort verbunden
+ * - Link „Seite übernehmen“ auf der Seite: /uebernehmen?eintrag=<id> – erst der Nachweis per E-Mail; ohne passende Adresse
+ *   vorausgefüllt einrichten, verbunden wird dann nach Prüfung von Hand
  * Gemerkt wird die Seite im Browser (utils/uebernahme.ts), damit sie Konto anlegen und Anmelden übersteht;
  * der Einrichtungsassistent (/shop-setup) füllt sich dann damit.
  */
@@ -80,6 +82,54 @@ const CodeForm = ({ start, busy, onCode }: { start?: string; busy: boolean; onCo
           {t('Code prüfen')}
         </Button>
       </div>
+    </form>
+  );
+};
+
+const MailNachweis = ({ eintragId, domain }: { eintragId: string; domain: string }) => {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const [gesendet, setGesendet] = useState('');
+
+  if (gesendet) {
+    return (
+      <div className="flex flex-col gap-1" role="status">
+        <p className="font-semibold">{t('Deine Anfrage ist angekommen.')}</p>
+        <p className="text-sm text-muted-foreground">{t('Gehört {adresse} zu deinem Salon, kommt gleich eine E-Mail mit dem Link. Sonst prüfen wir es von Hand und melden uns dort.', { adresse: gesendet })}</p>
+      </div>
+    );
+  }
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={async (ev: FormEvent) => {
+        ev.preventDefault();
+        setBusy(true);
+        setFehler('');
+        try {
+          await fordereLinkAn(eintragId, email.trim());
+          setGesendet(email.trim());
+        } catch (e) {
+          setFehler((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div className="flex flex-col gap-1">
+        <p className="font-semibold">{t('Zeig uns, dass es dein Salon ist')}</p>
+        <p className="text-sm text-muted-foreground">{t('Wir schicken einen Link an eine Adresse deines Salons. Sie endet auf @{domain} oder steht auf deiner Webseite, zum Beispiel im Impressum.', { domain })}</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="salon-mail">{t('E-Mail-Adresse deines Salons')}</Label>
+        <Input id="salon-mail" type="email" dir="ltr" required maxLength={200} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12" />
+      </div>
+      {fehler && <FormError>{fehler}</FormError>}
+      <Button type="submit" size="lg" variant="signal" disabled={busy || !email.trim()}>
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+        {t('Link anfordern')}
+      </Button>
     </form>
   );
 };
@@ -213,6 +263,9 @@ const Uebernehmen = () => {
   const e = offen.eintrag;
   const adresse = [e.street, [e.postalCode, e.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const offeneTage = (e.businessHoursByDay || []).filter((d) => d.isOpen).length;
+  // Mit eigener Webseite kommt zuerst der Nachweis per E-Mail; der Weg von Hand bleibt für alle ohne passende Adresse
+  const nachweis = !offen.code && Boolean(e.domain);
+  const hauptknopf = nachweis ? 'outline' : 'signal';
 
   const verbinde = async (shop: Shop) => {
     setBusy(true);
@@ -223,10 +276,67 @@ const Uebernehmen = () => {
     setVerbunden({ shop, seite });
   };
 
+  const aktionen = (
+    <>
+        {fehler && <FormError>{fehler}</FormError>}
+
+        {rolle === 'gast' && (
+          <div className="flex flex-col gap-2">
+            <Button size="lg" variant={hauptknopf} onClick={() => navigate(`/register-shop-owner?next=${encodeURIComponent('/shop-setup')}`)}>
+              {t('Konto anlegen und loslegen')}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              {tTeile('Schon ein Konto? <link>Anmelden</link>', {
+                link: (inhalt) => (
+                  <Link to={`/login?next=${encodeURIComponent('/uebernehmen')}`} className="font-semibold text-foreground underline-offset-4 hover:underline">
+                    {inhalt}
+                  </Link>
+                ),
+              })}
+            </p>
+          </div>
+        )}
+
+        {rolle === 'laden' && (
+          <div className="flex flex-col gap-2">
+            {shops.length > 0 && (
+              <>
+                <p className="text-sm font-semibold">{t('Dein Laden ist schon bei Dranzeit? Dann verbinde die Seite damit:')}</p>
+                {shops.map((shop) => (
+                  <Button key={shop.id} size="lg" variant={hauptknopf} disabled={busy} onClick={() => verbinde(shop)}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                    {t('Mit {laden} verbinden', { laden: shop.name })}
+                  </Button>
+                ))}
+              </>
+            )}
+            <Button size="lg" variant={shops.length > 0 ? 'outline' : hauptknopf} onClick={() => navigate('/shop-setup')}>
+              {shops.length > 0 ? t('Neuen Laden einrichten') : t('Laden einrichten')}
+            </Button>
+          </div>
+        )}
+
+        {rolle === 'anders' && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm">{t('Du bist mit einem Kundenkonto angemeldet. Für deinen Laden legst du ein eigenes Konto an.')}</p>
+            <Button size="lg" variant={hauptknopf} onClick={() => auth.signOut().then(() => navigate(`/register-shop-owner?next=${encodeURIComponent('/shop-setup')}`))}>
+              {t('Abmelden und Laden-Konto anlegen')}
+            </Button>
+          </div>
+        )}
+    </>
+  );
+
   return (
     <Rahmen
       title={e.name}
-      intro={offen.code ? t('Dein Code passt. Richte deinen Laden ein – danach gehört diese Seite dir.') : t('Ist das dein Salon? Richte deinen Laden ein, die Angaben dieser Seite sind schon ausgefüllt.')}
+      intro={
+        offen.code
+          ? t('Bestätigt. Richte deinen Laden ein – danach gehört diese Seite dir.')
+          : nachweis
+            ? t('Ist das dein Salon? Bestätige es per E-Mail, dann richtest du deinen Laden ein. Die Angaben dieser Seite sind schon ausgefüllt.')
+            : t('Ist das dein Salon? Richte deinen Laden ein, die Angaben dieser Seite sind schon ausgefüllt.')
+      }
     >
       <Karte>
         <div className="flex flex-col gap-1">
@@ -251,58 +361,30 @@ const Uebernehmen = () => {
             ? tn(plaetze, '30 Tage kostenlos, ohne Zahlungsdaten. Dazu noch {n} Gründerplatz: 3 Monate gratis, danach Laden für 19 € im Monat.', '30 Tage kostenlos, ohne Zahlungsdaten. Dazu noch {n} Gründerplätze: 3 Monate gratis, danach Laden für 19 € im Monat.')
             : t('30 Tage kostenlos, ohne Zahlungsdaten.')}
         </p>
-        {fehler && <FormError>{fehler}</FormError>}
-
-        {rolle === 'gast' && (
-          <div className="flex flex-col gap-2">
-            <Button size="lg" variant="signal" onClick={() => navigate(`/register-shop-owner?next=${encodeURIComponent('/shop-setup')}`)}>
-              {t('Konto anlegen und loslegen')}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              {tTeile('Schon ein Konto? <link>Anmelden</link>', {
-                link: (inhalt) => (
-                  <Link to={`/login?next=${encodeURIComponent('/uebernehmen')}`} className="font-semibold text-foreground underline-offset-4 hover:underline">
-                    {inhalt}
-                  </Link>
-                ),
-              })}
-            </p>
-          </div>
-        )}
-
-        {rolle === 'laden' && (
-          <div className="flex flex-col gap-2">
-            {shops.length > 0 && (
-              <>
-                <p className="text-sm font-semibold">{t('Dein Laden ist schon bei Dranzeit? Dann verbinde die Seite damit:')}</p>
-                {shops.map((shop) => (
-                  <Button key={shop.id} size="lg" variant="signal" disabled={busy} onClick={() => verbinde(shop)}>
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-                    {t('Mit {laden} verbinden', { laden: shop.name })}
-                  </Button>
-                ))}
-              </>
-            )}
-            <Button size="lg" variant={shops.length > 0 ? 'outline' : 'signal'} onClick={() => navigate('/shop-setup')}>
-              {shops.length > 0 ? t('Neuen Laden einrichten') : t('Laden einrichten')}
-            </Button>
-          </div>
-        )}
-
-        {rolle === 'anders' && (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm">{t('Du bist mit einem Kundenkonto angemeldet. Für deinen Laden legst du ein eigenes Konto an.')}</p>
-            <Button size="lg" variant="signal" onClick={() => auth.signOut().then(() => navigate(`/register-shop-owner?next=${encodeURIComponent('/shop-setup')}`))}>
-              {t('Abmelden und Laden-Konto anlegen')}
-            </Button>
-          </div>
-        )}
+        {!nachweis && aktionen}
       </Karte>
+
+      {nachweis && (
+        <Karte>
+          <MailNachweis eintragId={e.id} domain={e.domain || ''} />
+        </Karte>
+      )}
+
+      {nachweis && (
+        <Karte>
+          <p className="text-sm text-muted-foreground">
+            {t('Keine passende Adresse? Dann richte deinen Laden trotzdem ein. Mit der Seite verbinden wir ihn, sobald wir von Hand geprüft haben, dass es dein Salon ist.')}
+          </p>
+          {aktionen}
+        </Karte>
+      )}
 
       {!offen.code && (
         <Karte>
           <p className="text-sm text-muted-foreground">
-            {t('Ohne Code verbinden wir die Seite mit deinem Laden, sobald wir kurz geprüft haben, dass es dein Salon ist. Hast du einen Brief von uns? Mit dem Code darin geht es sofort.')}
+            {nachweis
+              ? t('Hast du einen Brief von uns? Mit dem Code darin geht es sofort.')
+              : t('Ohne Code verbinden wir die Seite mit deinem Laden, sobald wir kurz geprüft haben, dass es dein Salon ist. Hast du einen Brief von uns? Mit dem Code darin geht es sofort.')}
           </p>
           <CodeForm busy={busy} onCode={mitCode} />
         </Karte>

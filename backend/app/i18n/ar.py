@@ -183,6 +183,7 @@ TEXTE: dict = {
     "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "لا توجد أرقام أخرى عبر Dranzeit هذا الشهر. تعال مباشرة إلى المحل.",
     "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "بدون تسجيل الدخول ينقص مفتاح الرقم. أعد تحميل الصفحة.",
     "Bitte gib deinen Namen an.": "يرجى إدخال اسمك.",
+    "Bitte gib eine gültige E-Mail-Adresse an.": "يرجى إدخال عنوان بريد إلكتروني صحيح.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "هذا المحل لا يقدم إشعارات.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "الإشعارات لهذا الرقم تعمل فقط على الهاتف الذي أُخذ به الرقم، أو بحسابك.",
@@ -249,7 +250,6 @@ TEXTE: dict = {
     "Zu viele Anfragen. Bitte später noch einmal.": "طلبات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
     "Diesen Eintrag gibt es nicht.": "هذا الإدخال غير موجود.",
     "Dieser Laden hat keine Seite im Verzeichnis.": "ليس لهذا المحل صفحة في الدليل.",
-    "Bitte bestätigen, dass du zu diesem Salon gehörst.": "يرجى التأكيد أنك تنتمي إلى هذا الصالون.",
     # Übernahme per Code (app/libs/uebernahme.py)
     "Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.": "بحسب مراجعتنا، هذه الصفحة تخص صالونًا آخر. إذا لم يكن ذلك صحيحًا، اكتب لنا على hilfe@dranzeit.de.",
     "Diese Seite gehört schon zu einem Dranzeit-Laden.": "هذه الصفحة تابعة بالفعل لمحل على Dranzeit.",

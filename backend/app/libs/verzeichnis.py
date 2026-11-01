@@ -17,7 +17,7 @@ Felder eines Eintrags:
     phone, website, businessHoursByDay (wie am Laden, 0 = Sonntag), services [{name, category, price, priceFrom}]
     beschreibung, schwerpunkte [..], ohneTermin (ja|nein|""), status (entwurf|online|offline|entfernt)
     slug, stadtSlug, altePfade [..], shopId, googlePlaceId, quelle {website, seiten, gelesenAm}
-    wuensche (Zahl), vorschlag {shopId, name, grund, am}, abgelehnt [shopIds]
+    wuensche (Zahl), vorschlag {shopId, name, grund, am}, abgelehnt [shopIds], uebernahme, mailCode (app/libs/uebernahme.py)
     angelegtAm, geaendertAm, veroeffentlichtAm
 """
 
@@ -299,8 +299,9 @@ class FirestoreStore:
 
     def per_code(self, code_hash: str) -> Optional[dict]:
         """Eintrag zum Übernahme-Code (app/libs/uebernahme.py)"""
-        for d in self._col().where("uebernahme.codeHash", "==", code_hash).limit(1).stream():
-            return {**(d.to_dict() or {}), "id": d.id}
+        for feld in ("uebernahme.codeHash", "mailCode.codeHash"):
+            for d in self._col().where(feld, "==", code_hash).limit(1).stream():
+                return {**(d.to_dict() or {}), "id": d.id}
         return None
 
 
@@ -336,7 +337,7 @@ class MemoryStore:
         self.data[entry_id]["wuensche"] = int(self.data[entry_id].get("wuensche") or 0) + 1
 
     def per_code(self, code_hash: str) -> Optional[dict]:
-        return next((e for e in self.alle() if (e.get("uebernahme") or {}).get("codeHash") == code_hash), None)
+        return next((e for e in self.alle() if code_hash in ((e.get("uebernahme") or {}).get("codeHash"), (e.get("mailCode") or {}).get("codeHash"))), None)
 
 
 _store = None

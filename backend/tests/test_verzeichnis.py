@@ -841,7 +841,8 @@ def test_uebernahme_api():
     assert seiten.daten()["nach_pfad"]["/friseur/berlin/haarwerk"]["typ"] == "laden"
     frisch([eintrag("e3", "Kamm & Co")])
     html = seiten.render_salon(seiten.daten()["nach_pfad"]["/friseur/berlin/kamm-co"], seiten.daten(), MONDAY)
-    assert '<a class="btn main" href="/uebernehmen?eintrag=e3">Seite übernehmen</a>' in html and "Ist das dein Salon?" in html
+    assert '<p class="klein" id="uebernehmen">Ist das dein Salon? <a href="/uebernehmen?eintrag=e3">Seite übernehmen</a></p>' in html
+    assert 'class="btn main" href="/uebernehmen' not in html  # sichtbar, aber nicht im Fokus
     # Raten wird gebremst
     public_api._calls.clear()
     codes = [c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": "AAAAA-AAAA" + x}).status_code for x in "ABCDEFGHJKMNPQRSTUVWX"]
@@ -962,6 +963,121 @@ def test_uebernahme_anfrage_ohne_code():
     os.environ["QME_ADMIN_EMAILS"] = ""
     public_api.anfrage_melden(eintrag("e3", "Kamm & Co"), shop, "")
     assert len(mails) == 3
+
+
+# --- Übernahme per E-Mail (app/libs/uebernahme_mail.py) --------------------------------------------------------------
+
+
+def nachweis(c, email, id_="e1"):
+    return c.post("/routes/verzeichnis/uebernahme/nachweis", json={"eintragId": id_, "email": email})
+
+
+def code_aus(mails, an="info@salon.example"):
+    text = next(m[3] for m in mails if m[0] == an)
+    return re.search(r"/uebernehmen#code=([A-Z2-9]{10})", text).group(1)
+
+
+def test_nachweis_passende_adresse_erst_der_laden_verbindet():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    assert c.get("/routes/verzeichnis/e1/vorschau").json()["domain"] == "salon.example"
+    r = nachweis(c, " Info@Salon.example ")
+    assert r.status_code == 200 and r.json() == {"ok": True}  # die Antwort nennt das Ergebnis nicht
+    e = store.hole("e1")
+    assert not e.get("shopId") and e["status"] == "online"
+    assert sorted(m[0] for m in mails) == ["betreiber@example.com", "info@salon.example"]
+    code = code_aus(mails)
+    assert e["mailCode"]["codeHash"] == ue.code_hash(code) and code not in json.dumps(e, default=str)
+    assert code not in json.dumps(protokoll.read(5), default=str)
+    an_salon = next(m for m in mails if m[0] == "info@salon.example")
+    assert an_salon[1] == "Seite übernehmen: Haarwerk" and "Warst du das nicht?" in an_salon[3] and "https://dranzeit.de/uebernehmen#code=" in an_salon[2]
+    an_mich = next(m for m in mails if m[0] == "betreiber@example.com")
+    assert "Link verschickt" in an_mich[1] and an_mich[4] == "info@salon.example" and code not in an_mich[2] + an_mich[3]
+    log = protokoll.read(5)[0]
+    assert log["action"] == "Verzeichnis: Übernahme per E-Mail angefragt" and log["after"]["kontakt"] == "info@salon.example" and log["after"]["ergebnis"] == "link"
+    # Den Link aufzurufen ändert nichts (Mail-Programme tun das von selbst)
+    assert c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": code}).json()["eintrag"]["id"] == "e1"
+    assert not store.hole("e1").get("shopId")
+    # Erst mit dem eigenen Laden gehört die Seite ihm, und der Betreiber erfährt es
+    c.app.dependency_overrides[get_authorized_user] = lambda: USER
+    public_api.require_shop_of_owner = lambda user, shop_id: None
+    public_api._laden = lambda shop_id: {"id": shop_id, "name": "Haarwerk"}
+    mails.clear()
+    ok = c.post("/routes/verzeichnis/uebernahme/einloesen", json={"code": code, "shopId": "s1"}).json()
+    assert ok == {"ok": True, "pfad": "/friseur/berlin/haarwerk"} and store.hole("e1")["shopId"] == "s1"
+    assert protokoll.read(1)[0]["after"]["nachweis"] == "Link an die Salon-Adresse"
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and mails[0][1] == "Seite übernommen: Haarwerk"
+    assert "Link an die Salon-Adresse" in mails[0][3] and "chef@dranzeit.de" in mails[0][3]
+    # Der Link geht danach nicht noch einmal
+    assert c.post("/routes/verzeichnis/uebernahme/pruefen", json={"code": code}).status_code == 409
+    assert nachweis(c, "info@salon.example").status_code == 404
+
+
+def test_nachweis_falsche_adresse_nur_mail_an_betreiber():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    assert nachweis(c, "Fremder@Gmail.com").status_code == 200
+    e = store.hole("e1")
+    assert "mailCode" not in e and not e.get("shopId") and "fremder" not in json.dumps(e, default=str)
+    assert [m[0] for m in mails] == ["betreiber@example.com"]  # nichts an den Salon, nichts an den Fremden
+    to, betreff, html_body, text_body, reply_to = mails[0]
+    assert "Adresse passt nicht" in betreff and "Haarwerk" in betreff and reply_to == "fremder@gmail.com"
+    assert "fremder@gmail.com" in html_body and "030 123 45" in html_body and "/betreiber?reiter=verzeichnis" in html_body
+    assert protokoll.read(5)[0]["after"]["ergebnis"] == "passt_nicht"
+    # Eine Adresse, die auf der Webseite steht, passt auch ohne eigene Domain
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], adressen=["haarwerk@gmail.com"])
+    assert nachweis(c, "haarwerk@gmail.com").status_code == 200
+    assert "haarwerk@gmail.com" in [m[0] for m in mails] and store.hole("e1")["mailCode"]
+
+
+def test_nachweis_ohne_webseite_und_ungueltig():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk", website=""), eintrag("e2", "Entwurf", status="entwurf"), eintrag("e3", "Laden", shopId="s1")])
+    assert c.get("/routes/verzeichnis/e1/vorschau").json()["domain"] == ""
+    assert nachweis(c, "info@salon.example").status_code == 200
+    assert "mailCode" not in store.hole("e1") and [m[0] for m in mails] == ["betreiber@example.com"] and "Von Hand prüfen" in mails[0][1]
+    mails.clear()
+    assert nachweis(c, "kein-mail").status_code == 400 and nachweis(c, "a@b.example\nBcc: x@y.example").status_code == 400
+    assert nachweis(c, "info@salon.example", "e2").status_code == 404 and nachweis(c, "info@salon.example", "e3").status_code == 404
+    assert not mails
+
+
+def test_scheitert_der_nachweis_erfaehrt_es_der_betreiber():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")], mail_klappt=False)
+    assert nachweis(c, "info@salon.example").status_code == 200
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and "Link nicht verschickt" in mails[0][1]
+    assert protokoll.read(5)[0]["after"]["ergebnis"] == "nicht_verschickt"
+
+
+def test_mail_code_neben_dem_brief():
+    store = frisch([eintrag("e1", "Haarwerk")])
+    brief = ue.code_erzeugen(store.hole("e1"), store, MONDAY)["code"]
+    erste = ue.mail_code_erzeugen(store.hole("e1"), store, MONDAY)
+    zweite = ue.mail_code_erzeugen(store.hole("e1"), store, MONDAY)
+    # Wer den Link an die öffentliche Salon-Adresse auslöst, entwertet keinen Brief; ein neuer Link nur den vorigen Link
+    assert ue.pruefen(brief, store, MONDAY)["id"] == "e1" and ue.pruefen(zweite, store, MONDAY)["id"] == "e1"
+    assert _fehler(ue.pruefen, erste, store, MONDAY) == 404
+    assert ue.per_mail(store.hole("e1"), zweite) and not ue.per_mail(store.hole("e1"), brief)
+    # Der Link läuft früher ab als der Brief
+    spaeter = MONDAY + timedelta(days=ue.MAIL_GUELTIG_TAGE + 1)
+    assert _fehler(ue.pruefen, zweite, store, spaeter) == 410 and ue.pruefen(brief, store, spaeter)["id"] == "e1"
+    # Der Betreiber-Bereich zeigt keinen Hash
+    assert "codeHash" not in json.dumps(admin_api.zeile(store.hole("e1"), {}), default=str)
+    # Eingelöst: beide sind verbraucht
+    ue.einloesen(zweite, "s1", store, MONDAY)
+    assert store.hole("e1")["shopId"] == "s1" and store.hole("e1")["uebernahme"]["eingeloestAm"] == MONDAY
+    assert _fehler(ue.pruefen, brief, store, MONDAY) == 409 and _fehler(ue.pruefen, zweite, store, MONDAY) == 409
+
+
+def test_nachweis_bremsen():
+    c, store, mails = entfernen_aufbau([eintrag("e1", "Haarwerk")])
+    # Ungeduldig geklickt: eine Anfrage, ein Link, eine Mail an den Betreiber
+    assert all(nachweis(c, "info@salon.example").status_code == 200 for _ in range(10))
+    assert sorted(m[0] for m in mails) == ["betreiber@example.com", "info@salon.example"]
+    # Je Eintrag ein Link pro Stunde; der nächste Versuch landet beim Betreiber
+    mails.clear()
+    assert nachweis(c, "chef@salon.example").status_code == 200
+    assert [m[0] for m in mails] == ["betreiber@example.com"] and "Schon ein Link unterwegs" in mails[0][1]
+    # Tagesgrenze je IP: fünf Anfragen, die sechste nicht, auch nicht beim zweiten Klick
+    assert all(nachweis(c, f"fremd{nr}@gmail.com").status_code == 200 for nr in range(3))
+    assert nachweis(c, "noch@gmail.com").status_code == 429 and nachweis(c, "noch@gmail.com").status_code == 429
 
 
 if __name__ == "__main__":

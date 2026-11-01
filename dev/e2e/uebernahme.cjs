@@ -1,4 +1,4 @@
-// Seite übernehmen ohne Code, als Inhaber mit Laden: Anfrage an den Betreiber, und was die Seite dazu zeigt.
+// Seite übernehmen ohne Code, als Inhaber mit Laden: Anfrage an den Betreiber, Nachweis per E-Mail, und was die Seite dazu zeigt.
 // Anmeldung, Inhaber und Backend sind nachgebildet: kein Testkonto nötig, kein Eintrag ändert sich, keine Mail geht raus.
 // Braucht: Entwicklungsserver (npm run dev), weil Vite die Seite als einzelnes Modul ausliefert.
 // Den Weg dorthin von der Karte prüft verzeichnis.cjs, das Backend backend/tests/test_verzeichnis.py.
@@ -76,6 +76,51 @@ run(async () => {
   await nochmal.click();
   await page.getByText('Keine Verbindung zum Server').waitFor({ timeout: 15000 });
   check('Keine Verbindung: Knopf bleibt', await nochmal.isVisible());
+
+  // Mit eigener Webseite: zuerst der Nachweis per E-Mail, der Weg von Hand bleibt darunter
+  const MIT_WEBSEITE = { ...VORSCHAU, id: 'sued', website: 'https://salon.example/', domain: 'salon.example' };
+  const nachweise = [];
+  let nachweisAntwort = null;
+  await page.route('**/routes/verzeichnis/sued/vorschau', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MIT_WEBSEITE) }),
+  );
+  await page.route('**/routes/verzeichnis/uebernahme/nachweis', (route) => {
+    nachweise.push({ ...route.request().postDataJSON(), auth: route.request().headers().authorization });
+    return nachweisAntwort(route);
+  });
+  await page.goto(`${BASE}/uebernehmen?eintrag=sued`, { waitUntil: 'domcontentloaded' });
+  const anfordern = page.getByRole('button', { name: 'Link anfordern' });
+  await anfordern.waitFor({ timeout: 30000 });
+  check('Mit Webseite: Hinweis nennt die Domain', await page.getByText('@salon.example').first().isVisible());
+  const vonHand = page.getByRole('button', { name: `Mit ${LADEN.name} verbinden` });
+  await vonHand.waitFor({ timeout: 30000 });
+  const hintergrund = (knopf) => knopf.evaluate((el) => getComputedStyle(el).backgroundColor);
+  check('Mit Webseite: Weg von Hand bleibt, aber nicht als Hauptknopf', (await hintergrund(vonHand)) !== (await hintergrund(anfordern)));
+  await shot(page, 'uebernahme-nachweis');
+
+  // Adresse abgelehnt: Meldung vom Backend, Formular bleibt
+  await page.getByLabel('E-Mail-Adresse deines Salons').fill('info@salon.example');
+  nachweisAntwort = (route) => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ detail: 'Bitte gib eine gültige E-Mail-Adresse an.' }) });
+  await anfordern.click();
+  await page.getByText('Bitte gib eine gültige E-Mail-Adresse an.').waitFor({ timeout: 15000 });
+  check('Abgelehnt: Formular bleibt', await anfordern.isVisible());
+
+  // Angekommen: sagt nicht, ob die Adresse gepasst hat
+  nachweisAntwort = (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  await anfordern.click();
+  await page.getByText('Deine Anfrage ist angekommen.').waitFor({ timeout: 15000 });
+  check('Nachweis: Seite und Adresse ans Backend, ohne Anmeldung', nachweise[1]?.eintragId === 'sued' && nachweise[1]?.email === 'info@salon.example' && !nachweise[1]?.auth, JSON.stringify(nachweise[1]));
+  check('Nachweis: Antwort nennt die Adresse', await page.getByText('Gehört info@salon.example zu deinem Salon').isVisible());
+  await shot(page, 'uebernahme-nachweis-angekommen');
+
+  // Link aus der Mail: wie mit dem Brief, kein zweiter Nachweis
+  await page.route('**/routes/verzeichnis/uebernahme/pruefen', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 'ABCDE-FGHJK', eintrag: { ...MIT_WEBSEITE, domain: undefined } }) }),
+  );
+  await page.goto(`${BASE}/uebernehmen#code=ABCDEFGHJK`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Bestätigt. Richte deinen Laden ein').waitFor({ timeout: 30000 });
+  await vonHand.waitFor({ timeout: 30000 });
+  check('Link aus der Mail: kein zweiter Nachweis', !(await anfordern.isVisible()));
 
   check('Keine JavaScript-Fehler', errors.length === 0, errors.join(' | '));
   await browser.close();
