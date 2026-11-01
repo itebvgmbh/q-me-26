@@ -705,6 +705,9 @@ Probelauf ohne Speichern (zeigt, ob Google-Textsuche und Claude gehen und was au
 cd /opt/q-me/backend && .venv/bin/python ../deploy/verzeichnis-probe.py --suche "Friseur Tegel" --anlegen 2
 ```
 
+„Eintrag entfernen“ echt durchspielen, ohne dass ein Salon Post bekommt: `deploy/verzeichnis-testeintrag.py` legt einen
+Eintrag mit der Webseite itebv.de an (`anlegen`, `status`, `loeschen`). Eine Adresse @itebv.de passt dann zum Eintrag.
+
 Voraussetzungen: `GOOGLE_MAPS_API_KEY` mit **Places API (New)** (wie der Einrichtungsassistent; die Textsuche kostet je
 Seite mit 20 Treffern ein paar Cent), `ANTHROPIC_API_KEY`, Caddy mit den Pfaden `/friseur` und `/barbershop`
 (`python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de dranzeit.com www.dranzeit.com`
