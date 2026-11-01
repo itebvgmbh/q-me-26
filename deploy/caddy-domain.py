@@ -30,6 +30,7 @@ BACKEND_PATHS = (
     "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
     " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
     " /einbau/*"  # Kasten für Webseiten der Läden (backend/app/einbau.py)
+    " /vergleich /vergleich/*"  # Vergleich der Buchungsplattformen (backend/app/vergleich.py)
 )
 # Nur diese Pfade dürfen fremde Seiten einbetten (iframe); alles andere nur Dranzeit selbst (Schutz vor Clickjacking)
 EMBEDDABLE_PATHS = "/einbau/* /routes/seo/einbau/*"

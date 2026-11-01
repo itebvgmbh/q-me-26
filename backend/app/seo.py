@@ -121,7 +121,7 @@ def _e(value) -> str:
 # App aus Google Play bzw. dem App Store: Dort wird nichts verkauft (Erklärung und gleiche Erkennung in
 # frontend/src/utils/app-shell.ts). Links zu Tarif, Preisen und den Hilfe-Artikeln über Preise verschwinden,
 # diese Artikel selbst leiten zur Hilfe-Übersicht weiter.
-APP_VERKAUF = ("/tarif", "/preise", "/hilfe/tarife", "/hilfe/abo", "/hilfe/gruenderangebot")
+APP_VERKAUF = ("/tarif", "/preise", "/vergleich", "/hilfe/tarife", "/hilfe/abo", "/hilfe/gruenderangebot")
 APP_STYLE = ",".join(f'.in-app a[href^="{p}"]' for p in APP_VERKAUF) + "{display:none!important}"
 APP_JS = (
     "(function(){var k='dranzeit:app',a=null;try{a=sessionStorage.getItem(k)}catch(e){}"
@@ -160,7 +160,7 @@ footer{color:var(--muted);font-size:14px;padding-block:24px;display:flex;gap:16p
 
 
 def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | list | None = None,
-          extra_style: str = "", robots: str = "") -> str:
+          extra_style: str = "", robots: str = "", extra_head: str = "", og_bild: str = "/og-bild.png") -> str:
     """robots z. B. "noindex,follow" für dünne Seiten; json_ld ein Block oder eine Liste"""
     blocks = json_ld if isinstance(json_ld, list) else [json_ld] if json_ld else []
     ld = "".join(
@@ -176,14 +176,14 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
         f"<meta property=\"og:url\" content=\"{_e(url)}\"><meta property=\"og:site_name\" content=\"Dranzeit\">"
         "<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"de_DE\">"
-        f"<meta property=\"og:image\" content=\"{_e(public_url())}/og-bild.png\"><meta property=\"og:image:width\" content=\"1200\">"
+        f"<meta property=\"og:image\" content=\"{_e(public_url())}{_e(og_bild)}\"><meta property=\"og:image:width\" content=\"1200\">"
         "<meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\">"
-        f"<style>{STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
+        f"{extra_head}<style>{STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
         "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
         "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
         f"{body}"
         "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
-        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/hilfe\">Hilfe</a>"
+        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/vergleich/buchungsplattformen-friseure\">Anbieter im Vergleich</a><a href=\"/hilfe\">Hilfe</a>"
         "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a></footer></div></body></html>"
     )
 
@@ -310,7 +310,7 @@ def _verzeichnis_pfade() -> dict[str, str]:
 @router.get("/sitemap.xml")
 def sitemap() -> Response:
     base = public_url()
-    paths = ["/", "/features", "/preise", "/shop-map", BASE_PATH]
+    paths = ["/", "/features", "/preise", "/vergleich/buchungsplattformen-friseure", "/shop-map", BASE_PATH]
     shops = load_shops()
     paths += [f"{BASE_PATH}/{slug}" for slug in cities(shops)]
     pages = _verzeichnis_pfade()

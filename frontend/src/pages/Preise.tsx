@@ -95,6 +95,15 @@ function PreiseSeite() {
             ),
           })}
         </p>
+        <p className="text-muted-foreground">
+          {tTeile('Treatwell, Planity und andere dagegen rechnen? <vergleich>Buchungsplattformen im Vergleich</vergleich>', {
+            vergleich: (inhalt) => (
+              <a href="/vergleich/buchungsplattformen-friseure" className="font-semibold text-foreground underline underline-offset-4">
+                {inhalt}
+              </a>
+            ),
+          })}
+        </p>
         <p className="text-sm text-muted-foreground">
           {tTeile('Alle Preise netto zuzüglich Mehrwertsteuer, nur für Unternehmen. Es gelten unsere <agb>AGB</agb>.', {
             agb: (inhalt) => (

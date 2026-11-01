@@ -78,6 +78,8 @@ const texte: Texte = {
   "Den Platz sicherst du nach der Anmeldung unter „Tarif“.": "You claim your spot after signing up, under “Plan”.",
   "Gründerplatz sichern": "Claim a founder spot",
   "Häufige Fragen": "Frequently asked questions",
+  "Treatwell, Planity und andere dagegen rechnen? <vergleich>Buchungsplattformen im Vergleich</vergleich>": "Want to compare with Treatwell, Planity and others? <vergleich>Booking platforms compared</vergleich>",
+  "Noch unentschieden? <vergleich>Dranzeit, Treatwell, Planity und andere im Vergleich</vergleich>": "Still undecided? <vergleich>Dranzeit, Treatwell, Planity and others compared</vergleich>",
   "Noch Fragen? Mehr Antworten unter <fragen>Häufige Fragen von Läden</fragen>, oder schreib uns an <mail/>.": "Still have questions? Find more answers in <fragen>FAQs from shops</fragen>, or email us at <mail/>.",
   "Alle Preise netto zuzüglich Mehrwertsteuer, nur für Unternehmen. Es gelten unsere <agb>AGB</agb>.": "All prices are net, plus VAT, for businesses only. Our <agb>Terms</agb> apply.",
 

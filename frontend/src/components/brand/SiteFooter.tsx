@@ -18,6 +18,7 @@ export const SiteFooter = () => {
           <Link to="/book-appointment" className="hover:text-foreground">{t('Termin buchen')}</Link>
           <Link to="/features" className="hover:text-foreground">{t('Für Läden')}</Link>
           {!inStoreApp() && <Link to="/preise" className="hover:text-foreground">{t('Preise')}</Link>}
+          {!inStoreApp() && <a href="/vergleich/buchungsplattformen-friseure" className="hover:text-foreground">{t('Anbieter im Vergleich')}</a>}
           <a href="/hilfe" className="hover:text-foreground">{t('Hilfe')}</a>
           <a href="/friseur-ohne-termin" className="hover:text-foreground">{t('Friseur ohne Termin')}</a>
           {user ? (
