@@ -550,31 +550,24 @@ def render_entfernt(name: str) -> str:
     return _hinweis("Erledigt", f"Der Eintrag „{_e(name)}“ ist offline.")
 
 
-def render_anfrage(ergebnis: str, entry: dict, email: str = "") -> str:
-    """Antwort aufs Formular unter „Eintrag entfernen“"""
+def render_anfrage(art: str, entry: dict, email: str = "") -> str:
+    """Antwort aufs Formular unter „Eintrag entfernen“. Kommt sofort; ob die Adresse passt, zeigt sich erst im Hintergrund."""
     name = _e(entry.get("name", ""))
-    angekommen = "Deine Anfrage ist bei uns angekommen, wir prüfen sie von Hand und melden uns. Der Eintrag bleibt so lange online."
     zurueck = f"<p><a class=\"btn\" href=\"{_e(vz.pfad(entry))}#entfernen\">Zurück zum Eintrag</a></p>"
-    if ergebnis == "link":
-        return _hinweis("Schau in dein Postfach", f"Wir haben einen Link an <strong>{_e(email)}</strong> geschickt. Erst wenn du ihn bestätigst, geht der "
-                        f"Eintrag „{name}“ offline. Er gilt {ent.GUELTIG_STUNDEN} Stunden. Keine Mail da? Schau auch im Spam-Ordner nach.")
-    if ergebnis == "passt_nicht":
-        return _hinweis("Wir prüfen das von Hand", f"Die Adresse <strong>{_e(email)}</strong> können wir „{name}“ nicht zuordnen. {angekommen}"
-                        f" Schneller geht es mit einer Adresse @{_e(ent.eigene_domain(entry))} oder der aus deinem Impressum.", zurueck)
-    if ergebnis == "keine_webseite":
-        return _hinweis("Wir prüfen das von Hand", angekommen)
-    if ergebnis == "gebremst":
-        return _hinweis("Der Link ist schon unterwegs", f"Für „{name}“ ging vor Kurzem schon ein Link raus. Schau auch im Spam-Ordner nach. "
-                        "Deine Anfrage ist außerdem bei uns angekommen, wir melden uns, falls es nicht klappt.")
-    if ergebnis == "nicht_verschickt":
-        return _hinweis("Wir prüfen das von Hand", f"Den Link konnten wir gerade nicht verschicken. {angekommen}")
-    if ergebnis == "korrektur":
+    if art == "korrektur":
         return _hinweis("Danke für den Hinweis", f"Wir schauen uns deine Angaben zu „{name}“ an und melden uns, falls wir eine Frage haben.")
-    if ergebnis == "zu_viele":
+    if art == "zu_viele":
         return _hinweis("Zu viele Anfragen", "Bitte versuch es morgen noch einmal oder schreib uns an hilfe@dranzeit.de.", zurueck)
-    if ergebnis == "grund_fehlt":
+    if art == "grund_fehlt":
         return _hinweis("Da fehlt noch etwas", "Schreib bitte kurz dazu, was an den Angaben falsch ist.", zurueck)
-    return _hinweis("Da fehlt noch etwas", "Bitte gib eine gültige E-Mail-Adresse an.", zurueck)
+    if art == "adresse_fehlt":
+        return _hinweis("Da fehlt noch etwas", "Bitte gib eine gültige E-Mail-Adresse an.", zurueck)
+    domain = ent.eigene_domain(entry)
+    if not domain:
+        return _hinweis("Deine Anfrage ist angekommen", f"Wir prüfen sie von Hand und melden uns unter <strong>{_e(email)}</strong>. Der Eintrag bleibt so lange online.")
+    return _hinweis("Deine Anfrage ist angekommen", f"Wir prüfen jetzt <strong>{_e(email)}</strong>. Liegt die Adresse an der Domain {_e(domain)} oder steht sie in "
+                    f"deinem Impressum, bekommst du gleich einen Link per Mail; erst damit geht der Eintrag „{name}“ offline. Schau auch im Spam-Ordner nach. "
+                    "Sonst prüfen wir es von Hand und melden uns. Der Eintrag bleibt so lange online.")
 
 
 def render_entfernen_knopf(entry: dict, token: str) -> str:

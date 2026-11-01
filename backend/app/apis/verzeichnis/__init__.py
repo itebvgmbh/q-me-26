@@ -20,7 +20,9 @@ import hashlib
 import re
 import threading
 import time
+import traceback
 from collections import defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from urllib.parse import parse_qs
 
@@ -44,6 +46,7 @@ _calls: dict = defaultdict(deque)
 LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "wunsch": (30, 3600),
     "entfernen": (5, 86400),
+    "entfernen-gleich": (1, 3600),  # dieselbe Anfrage noch einmal zählt nicht
     "entfernen-link": (1, 3600),  # Bestätigungsmails je Eintrag
     "entfernen-mails": (60, 86400),  # alle Mails dieses Wegs zusammen, damit niemand über uns Salons oder den Betreiber eindeckt
     "entfernen-obergrenze": (1, 86400),  # Hinweis an den Betreiber, dass die Obergrenze erreicht ist
@@ -51,6 +54,7 @@ LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "einloesen": (10, 3600),
     "anfrage": (10, 3600),
 }
+_arbeit = ThreadPoolExecutor(max_workers=4, thread_name_prefix="verzeichnis")  # begrenzt; ein Neustart wartet, bis sie fertig sind
 _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein Wunsch einmal; um Mitternacht vergessen
 
 
@@ -162,39 +166,67 @@ def _entfernen_melden(entry: dict, email: str, grund: str, ergebnis: str) -> Non
         ent.obergrenze_melden()
 
 
-def _entfernen_anfrage(entry_id: str, who: str, email: str, grund: str, aktion: str, background: BackgroundTasks) -> HTMLResponse:
+def _im_hintergrund(fn, *args) -> None:
+    """Läuft weiter, auch wenn der Browser die Verbindung abbricht. Fehler stehen im Log."""
+
+    def lauf() -> None:
+        try:
+            fn(*args)
+        except Exception:
+            traceback.print_exc()
+
+    _arbeit.submit(lauf)
+
+
+def _entfernen_bearbeiten(entry: dict, email: str, grund: str, art: str) -> None:
+    """Im Hintergrund, weil das Lesen der Salon-Webseite Sekunden dauert: Im Echttest (01.11.2026) blieb die Seite stehen, und
+    zehn Klicks in 15 Sekunden verbrauchten die Tagesgrenze. Scheitert etwas, erfährt es der Betreiber trotzdem."""
+    try:
+        if art == "korrektur":
+            ergebnis = "korrektur"
+        elif not ent.eigene_domain(entry):
+            ergebnis = "keine_webseite"
+        elif not ent.adresse_passt(entry, email):
+            ergebnis = "passt_nicht"
+        elif not (_frei("entfernen-link", entry["id"]) and _frei("entfernen-mails", "alle")):
+            ergebnis = "gebremst"
+        else:
+            ergebnis = "link" if ent.link_schicken(entry, email) else "nicht_verschickt"
+    except Exception:
+        traceback.print_exc()
+        ergebnis = "nicht_verschickt"
+    protokoll.write(_Bot(), "Verzeichnis: Korrektur gemeldet" if art == "korrektur" else "Verzeichnis: Entfernen angefragt",
+                    {"verzeichnisId": entry["id"], "name": entry.get("name")}, grund,
+                    after={"kontakt": email, "ergebnis": ergebnis, "pfad": vz.pfad(entry)})
+    _entfernen_melden(entry, email, grund, ergebnis)
+
+
+def _entfernen_anfrage(entry_id: str, who: str, email: str, grund: str, aktion: str) -> HTMLResponse:
     from app import verzeichnis_seiten as seiten
 
     entry = _online_eintrag(entry_id)
-    if not _frei("entfernen", who):
-        return HTMLResponse(seiten.render_anfrage("zu_viele", entry), status_code=429)
     if not ent.adresse_gueltig(email):
         return HTMLResponse(seiten.render_anfrage("adresse_fehlt", entry), status_code=400)
-    if aktion == "korrigieren":
-        if not grund:
-            return HTMLResponse(seiten.render_anfrage("grund_fehlt", entry), status_code=400)
-        ergebnis = "korrektur"
-    elif not ent.eigene_domain(entry):
-        ergebnis = "keine_webseite"
-    elif not ent.adresse_passt(entry, email):
-        ergebnis = "passt_nicht"
-    elif not (_frei("entfernen-link", entry_id) and _frei("entfernen-mails", "alle")):
-        ergebnis = "gebremst"
-    else:
-        ergebnis = "link" if ent.link_schicken(entry, email) else "nicht_verschickt"
-    protokoll.write(_Bot(), "Verzeichnis: Korrektur gemeldet" if ergebnis == "korrektur" else "Verzeichnis: Entfernen angefragt",
-                    {"verzeichnisId": entry_id, "name": entry.get("name")}, grund,
-                    after={"kontakt": email, "ergebnis": ergebnis, "pfad": vz.pfad(entry)})
-    background.add_task(_entfernen_melden, entry, email, grund, ergebnis)
-    return HTMLResponse(seiten.render_anfrage(ergebnis, entry, email))
+    art = "korrektur" if aktion == "korrigieren" else "entfernen"
+    if art == "korrektur" and not grund:
+        return HTMLResponse(seiten.render_anfrage("grund_fehlt", entry), status_code=400)
+    # Dieselbe Anfrage noch einmal (ungeduldig geklickt) bekommt dieselbe Antwort, zählt aber nicht und löst nichts aus
+    gleich = f"{who}:{entry_id}:{email}:{art}"
+    if _frei("entfernen-gleich", gleich):
+        if not _frei("entfernen", who):
+            _calls.pop(("entfernen-gleich", gleich), None)  # nicht bearbeitet: Auch der nächste Klick darf nicht „angekommen“ sagen
+            return HTMLResponse(seiten.render_anfrage("zu_viele", entry), status_code=429)
+        _im_hintergrund(_entfernen_bearbeiten, entry, email, grund, art)
+    return HTMLResponse(seiten.render_anfrage(art, entry, email))
 
 
 @router.post("/verzeichnis/{entry_id}/entfernen")
-async def entfernen(entry_id: str, request: Request, background: BackgroundTasks) -> HTMLResponse:
-    """Das Formular allein ändert nichts am Eintrag: Eine passende Adresse bekommt einen Link, sonst prüft der Betreiber."""
+async def entfernen(entry_id: str, request: Request) -> HTMLResponse:
+    """Das Formular allein ändert nichts am Eintrag: Die Antwort kommt sofort, geprüft wird im Hintergrund. Eine passende Adresse
+    bekommt einen Link, sonst prüft der Betreiber."""
     form = _formular(await request.body())
     return await run_in_threadpool(_entfernen_anfrage, entry_id, _ip(request), _feld(form, "email", 201).lower(),
-                                   _feld(form, "grund", 1000), _feld(form, "aktion", 20), background)
+                                   _feld(form, "grund", 1000), _feld(form, "aktion", 20))
 
 
 def _link_pruefen(entry_id: str, token: str) -> tuple:
@@ -220,7 +252,7 @@ def entfernen_knopf(entry_id: str, t: str = "") -> HTMLResponse:
     return HTMLResponse(seiten.render_entfernen_knopf(entry, t), headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
 
-def _entfernen_bestaetigt(entry_id: str, token: str, background: BackgroundTasks) -> HTMLResponse:
+def _entfernen_bestaetigt(entry_id: str, token: str) -> HTMLResponse:
     from app import verzeichnis_seiten as seiten
 
     entry, antwort = _link_pruefen(entry_id, token)
@@ -230,14 +262,14 @@ def _entfernen_bestaetigt(entry_id: str, token: str, background: BackgroundTasks
     protokoll.write(_Bot(), "Verzeichnis: vom Salon entfernt", {"verzeichnisId": entry_id, "name": entry.get("name")},
                     after={"nachweis": "Link an die Salon-Adresse", "pfad": vz.pfad(entry)})
     seiten.vergessen()
-    background.add_task(ent.entfernt_melden, entry)
+    _im_hintergrund(ent.entfernt_melden, entry)
     return HTMLResponse(seiten.render_entfernt(entry.get("name", "")))
 
 
 @router.post("/verzeichnis/{entry_id}/entfernen/bestaetigen")
-async def entfernen_bestaetigt(entry_id: str, request: Request, background: BackgroundTasks) -> HTMLResponse:
+async def entfernen_bestaetigt(entry_id: str, request: Request) -> HTMLResponse:
     form = _formular(await request.body())
-    return await run_in_threadpool(_entfernen_bestaetigt, entry_id, _feld(form, "t", 100), background)
+    return await run_in_threadpool(_entfernen_bestaetigt, entry_id, _feld(form, "t", 100))
 
 
 # --- Übernahme: der Salon macht seine Seite zum Dranzeit-Laden (app/libs/uebernahme.py) -------------------------------
