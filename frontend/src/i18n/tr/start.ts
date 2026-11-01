@@ -78,6 +78,8 @@ const texte: Texte = {
   "Den Platz sicherst du nach der Anmeldung unter „Tarif“.": "Yerinizi kayıt olduktan sonra “Paket” bölümünden ayırtırsınız.",
   "Gründerplatz sichern": "Kurucu yerini ayırt",
   "Häufige Fragen": "Sık sorulan sorular",
+  "Treatwell, Planity und andere dagegen rechnen? <vergleich>Buchungsplattformen im Vergleich</vergleich>": "Treatwell, Planity ve diğerleriyle karşılaştırmak mı istiyorsunuz? <vergleich>Rezervasyon platformları karşılaştırması</vergleich>",
+  "Noch unentschieden? <vergleich>Dranzeit, Treatwell, Planity und andere im Vergleich</vergleich>": "Hâlâ kararsız mısınız? <vergleich>Dranzeit, Treatwell, Planity ve diğerlerinin karşılaştırması</vergleich>",
   "Noch Fragen? Mehr Antworten unter <fragen>Häufige Fragen von Läden</fragen>, oder schreib uns an <mail/>.": "Başka sorunuz mu var? Daha fazla yanıt için <fragen>Salonlardan sık gelen sorular</fragen> sayfasına bakın ya da <mail/> adresine yazın.",
   "Alle Preise netto zuzüglich Mehrwertsteuer, nur für Unternehmen. Es gelten unsere <agb>AGB</agb>.": "Tüm fiyatlar net olup KDV hariçtir, yalnızca işletmeler içindir. <agb>Kullanım koşullarımız</agb> geçerlidir.",
 

@@ -24,6 +24,7 @@ const texte: Texte = {
   "Menü öffnen": "Open menu",
   "Menü": "Menu",
   "Fußzeile": "Footer",
+  "Anbieter im Vergleich": "Providers compared",
   "Friseur ohne Termin": "Walk-in hairdressers",
   "Rechtliches": "Legal",
   "Impressum": "Legal notice",

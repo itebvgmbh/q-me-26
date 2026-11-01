@@ -24,6 +24,7 @@ const texte: Texte = {
   "Menü öffnen": "فتح القائمة",
   "Menü": "القائمة",
   "Fußzeile": "تذييل الصفحة",
+  "Anbieter im Vergleich": "مقارنة مقدمي الخدمة",
   "Friseur ohne Termin": "حلاق بدون موعد",
   "Rechtliches": "معلومات قانونية",
   "Impressum": "بيانات الناشر",

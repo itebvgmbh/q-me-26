@@ -121,6 +121,17 @@ export default function Features() {
             ),
           })}
         </p>
+        {!inStoreApp() && (
+          <p className="text-muted-foreground">
+            {tTeile("Noch unentschieden? <vergleich>Dranzeit, Treatwell, Planity und andere im Vergleich</vergleich>", {
+              vergleich: (inhalt) => (
+                <a href="/vergleich/buchungsplattformen-friseure" className="font-semibold text-foreground underline underline-offset-4">
+                  {inhalt}
+                </a>
+              ),
+            })}
+          </p>
+        )}
       </section>
 
       <section className="bg-signal">

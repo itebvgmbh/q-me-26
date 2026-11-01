@@ -85,6 +85,8 @@ const texte: Texte = {
   "Den Platz sicherst du nach der Anmeldung unter „Tarif“.": "تحجز مكانك بعد التسجيل من قسم «الباقة».",
   "Gründerplatz sichern": "احجز مكانك كمؤسس",
   "Häufige Fragen": "الأسئلة الشائعة",
+  "Treatwell, Planity und andere dagegen rechnen? <vergleich>Buchungsplattformen im Vergleich</vergleich>": "هل تريد المقارنة مع Treatwell وPlanity وغيرهما؟ <vergleich>مقارنة منصات الحجز</vergleich>",
+  "Noch unentschieden? <vergleich>Dranzeit, Treatwell, Planity und andere im Vergleich</vergleich>": "لم تقرر بعد؟ <vergleich>مقارنة Dranzeit وTreatwell وPlanity وغيرها</vergleich>",
   "Noch Fragen? Mehr Antworten unter <fragen>Häufige Fragen von Läden</fragen>, oder schreib uns an <mail/>.": "هل لديك أسئلة أخرى؟ تجد المزيد من الإجابات في <fragen>الأسئلة الشائعة من المحلات</fragen>، أو راسلنا على <mail/>.",
   "Alle Preise netto zuzüglich Mehrwertsteuer, nur für Unternehmen. Es gelten unsere <agb>AGB</agb>.": "جميع الأسعار صافية غير شاملة ضريبة القيمة المضافة، وللشركات فقط. تسري <agb>الشروط والأحكام</agb> الخاصة بنا.",
 
