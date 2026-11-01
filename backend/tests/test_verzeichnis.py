@@ -521,8 +521,13 @@ def test_adressen_auf_der_webseite_lesen():
     assert imp.adressen_im_text('<a href="mailto:Info@Salon.de?subject=x">Schreib uns</a>') == {"info@salon.de"}
     assert imp.adressen_im_text("info(at)salon.de und chef [at] salon [dot] de") == {"info@salon.de", "chef@salon.de"}
     assert imp.adressen_im_text("inhaber&#64;salon&#46;de") == {"inhaber@salon.de"}
-    assert imp.adressen_im_text("mailto:salon%40web.de") == {"salon@web.de"}
+    assert imp.adressen_im_text('<a href="mailto:salon%40web.de">Mail</a>') == {"salon@web.de"}
+    assert imp.adressen_im_text('<a href="&#109;ailto:salon&#64;web.de">Mail</a>') == {"salon@web.de"}
     assert imp.adressen_im_text("Keine Adresse hier") == set()
+    # Im Echttest gefunden: Das zählt nicht als Adresse des Salons, auch wenn es im HTML steht
+    assert imp.adressen_im_text('<img srcset="logo@2x.png 2x" alt="x"><input placeholder="name@example.com">') == set()
+    assert imp.adressen_im_text('<form><label>muster@gmail.com</label></form>') == set()
+    assert imp.adressen_im_text('<script>var dsn = "https://abc123@sentry.io/1"</script><a href="https://x@y.example/">Link</a>') == set()
 
     web = {
         "https://salon.example/": ("https://salon.example/", '<a href="/impressum">Impressum</a><a href="/preise">Preise</a> start@salon.example'),
