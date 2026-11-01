@@ -690,8 +690,12 @@ bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
   ein (Name, Adresse, Zeiten, Preise der Seite), und die Seite gehört ihm danach **ohne Bestätigung hier**; dazu
   bekommt er einen Gründerplatz, solange frei. Ohne Code („Seite übernehmen“ auf der Seite) füllt der Assistent
   genauso vor, verbunden wird aber erst über „Übernahme bestätigen“. Ein neuer Code macht den alten ungültig.
-- **Vom Salon entfernt**: Jede Seite hat unten „Eintrag entfernen“ für den Salon selbst (Widerspruch). Die Seite
-  geht sofort offline; Grund und Kontakt stehen im Protokoll (nicht in Firestore).
+- **Vom Salon entfernt**: Jede Seite hat unten „Eintrag entfernen“ für den Salon selbst (Widerspruch), mit Nachweis
+  (`backend/app/libs/entfernen.py`): Liegt die angegebene Adresse an der Domain der Salon-Webseite oder steht sie auf
+  deren Start-, Impressums- oder Kontaktseite, geht ein Link dorthin (24 Stunden); erst damit geht die Seite offline.
+  Passt die Adresse nicht, bleibt die Seite online. Zu jeder Anfrage und jeder Entfernung bekommen die Adressen aus
+  `QME_ADMIN_EMAILS` eine Mail. „Nur Angaben korrigieren“ schickt nur diese Mail. Adresse und Grund stehen im Protokoll
+  (nicht in Firestore). Offline nehmen von Hand und Zurückholen geht hier im Reiter.
 - **Wünsche**: „Das wünsch ich mir“ auf der Seite zählt mit (je Person und Tag einmal) – Liste nach Wünschen für den
   Vertrieb.
 

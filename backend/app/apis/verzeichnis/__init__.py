@@ -3,13 +3,15 @@
     GET  /routes/verzeichnis/karte                   Salons ohne Dranzeit mit Lage, für die Karte (/shop-map)
     GET  /routes/verzeichnis/laden/{shopId}          Seite eines Dranzeit-Ladens im Verzeichnis (Canonical der Ladenansicht)
     POST /routes/verzeichnis/{id}/wunsch             Kunde wünscht sich Online-Nummern bei diesem Salon (zählt nur)
-    POST /routes/verzeichnis/{id}/entfernen          Jemand vom Salon nimmt den Eintrag offline (Formular auf der Seite)
+    POST /routes/verzeichnis/{id}/entfernen          Formular auf der Seite: Link an die Salon-Adresse, sonst prüft der Betreiber
+    GET  /routes/verzeichnis/{id}/entfernen/bestaetigen  Link aus der Mail: zeigt nur den Knopf
+    POST /routes/verzeichnis/{id}/entfernen/bestaetigen  Der Knopf: Erst hier geht der Eintrag offline (app/libs/entfernen.py)
     GET  /routes/verzeichnis/{id}/vorschau           Angaben der Seite für den Einrichtungsassistenten („Ist das dein Salon?“)
     POST /routes/verzeichnis/uebernahme/pruefen      Übernahme-Code aus dem Brief: zu welcher Seite gehört er?
     POST /routes/verzeichnis/uebernahme/einloesen    Code einlösen (angemeldet, eigener Laden): Seite wird die des Ladens
     POST /routes/verzeichnis/uebernahme/anfragen     Ohne Code (angemeldet, eigener Laden): Vorschlag + Mail an den Betreiber
 
-Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Grund und Kontakt beim
+Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Adresse und Grund beim
 Entfernen stehen nur im Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur
 gehasht und nur im Speicher gezählt.
 """
@@ -23,11 +25,13 @@ from datetime import date
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.libs import entfernen as ent
 from app.libs import protokoll
 from app.libs import uebernahme as ue
 from app.libs import verzeichnis as vz
@@ -40,6 +44,9 @@ _calls: dict = defaultdict(deque)
 LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "wunsch": (30, 3600),
     "entfernen": (5, 86400),
+    "entfernen-link": (1, 3600),  # Bestätigungsmails je Eintrag
+    "entfernen-mails": (60, 86400),  # alle Mails dieses Wegs zusammen, damit niemand über uns Salons oder den Betreiber eindeckt
+    "entfernen-obergrenze": (1, 86400),  # Hinweis an den Betreiber, dass die Obergrenze erreicht ist
     "code": (20, 3600),
     "einloesen": (10, 3600),
     "anfrage": (10, 3600),
@@ -48,7 +55,7 @@ _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein 
 
 
 class _Bot:
-    """Wer im Protokoll steht, wenn jemand vom Salon den Eintrag entfernt (kein Konto)"""
+    """Wer im Protokoll steht, wenn jemand über das Formular auf der Seite kommt (kein Konto)"""
     email = "Salon (Formular auf der Seite)"
     sub = ""
 
@@ -69,6 +76,14 @@ def _limit(kind: str, who: str) -> None:
         if len(calls) >= count:
             raise HTTPException(status_code=429, detail="Zu viele Anfragen. Bitte später noch einmal.")
         calls.append(now)
+
+
+def _frei(kind: str, who: str) -> bool:
+    try:
+        _limit(kind, who)
+    except HTTPException:
+        return False
+    return True
 
 
 def _online_eintrag(entry_id: str) -> dict:
@@ -132,23 +147,97 @@ def wunsch(entry_id: str, request: Request):
     return {"ok": True}
 
 
-@router.post("/verzeichnis/{entry_id}/entfernen")
-async def entfernen(entry_id: str, request: Request):
-    entry = _online_eintrag(entry_id)
-    _limit("entfernen", _ip(request))
-    form = parse_qs((await request.body()).decode("utf-8", errors="replace")[:5000])
-    field = lambda name, limit: (form.get(name) or [""])[0].strip()[:limit]  # noqa: E731
-    if field("inhaber", 10) != "ja":
-        raise HTTPException(status_code=400, detail="Bitte bestätigen, dass du zu diesem Salon gehörst.")
-    vz.store().aendere(entry_id, {"status": "entfernt", "entferntAm": vz.now(), "geaendertAm": vz.now()})
-    protokoll.write(_Bot(), "Verzeichnis: vom Salon entfernt", {"verzeichnisId": entry_id, "name": entry.get("name")},
-                    field("grund", 1000), after={"kontakt": field("kontakt", 200), "pfad": vz.pfad(entry)})
-    from app import verzeichnis_seiten
+def _formular(body: bytes) -> dict:
+    return parse_qs(body.decode("utf-8", errors="replace")[:5000])
 
-    verzeichnis_seiten.vergessen()
-    if _wants_html(request):
-        return HTMLResponse(verzeichnis_seiten.render_entfernt(entry.get("name", "")))
-    return {"ok": True}
+
+def _feld(form: dict, name: str, limit: int) -> str:
+    return (form.get(name) or [""])[0].strip()[:limit]
+
+
+def _entfernen_melden(entry: dict, email: str, grund: str, ergebnis: str) -> None:
+    if _frei("entfernen-mails", "alle"):
+        ent.anfrage_melden(entry, email, grund, ergebnis)
+    elif _frei("entfernen-obergrenze", "alle"):
+        ent.obergrenze_melden()
+
+
+def _entfernen_anfrage(entry_id: str, who: str, email: str, grund: str, aktion: str, background: BackgroundTasks) -> HTMLResponse:
+    from app import verzeichnis_seiten as seiten
+
+    entry = _online_eintrag(entry_id)
+    if not _frei("entfernen", who):
+        return HTMLResponse(seiten.render_anfrage("zu_viele", entry), status_code=429)
+    if not ent.adresse_gueltig(email):
+        return HTMLResponse(seiten.render_anfrage("adresse_fehlt", entry), status_code=400)
+    if aktion == "korrigieren":
+        if not grund:
+            return HTMLResponse(seiten.render_anfrage("grund_fehlt", entry), status_code=400)
+        ergebnis = "korrektur"
+    elif not ent.eigene_domain(entry):
+        ergebnis = "keine_webseite"
+    elif not ent.adresse_passt(entry, email):
+        ergebnis = "passt_nicht"
+    elif not (_frei("entfernen-link", entry_id) and _frei("entfernen-mails", "alle")):
+        ergebnis = "gebremst"
+    else:
+        ergebnis = "link" if ent.link_schicken(entry, email) else "nicht_verschickt"
+    protokoll.write(_Bot(), "Verzeichnis: Korrektur gemeldet" if ergebnis == "korrektur" else "Verzeichnis: Entfernen angefragt",
+                    {"verzeichnisId": entry_id, "name": entry.get("name")}, grund,
+                    after={"kontakt": email, "ergebnis": ergebnis, "pfad": vz.pfad(entry)})
+    background.add_task(_entfernen_melden, entry, email, grund, ergebnis)
+    return HTMLResponse(seiten.render_anfrage(ergebnis, entry, email))
+
+
+@router.post("/verzeichnis/{entry_id}/entfernen")
+async def entfernen(entry_id: str, request: Request, background: BackgroundTasks) -> HTMLResponse:
+    """Das Formular allein ändert nichts am Eintrag: Eine passende Adresse bekommt einen Link, sonst prüft der Betreiber."""
+    form = _formular(await request.body())
+    return await run_in_threadpool(_entfernen_anfrage, entry_id, _ip(request), _feld(form, "email", 201).lower(),
+                                   _feld(form, "grund", 1000), _feld(form, "aktion", 20), background)
+
+
+def _link_pruefen(entry_id: str, token: str) -> tuple:
+    """(Eintrag, None) bei gültigem Link, sonst (None, Antwort)"""
+    from app import verzeichnis_seiten as seiten
+
+    entry = vz.store().hole(entry_id) if ID_RE.fullmatch(entry_id or "") else None
+    if ent.link_gilt(entry, token):
+        return entry, None
+    if entry and entry.get("status") == "entfernt":
+        return None, HTMLResponse(seiten.render_entfernt(entry.get("name", "")))
+    return None, HTMLResponse(seiten.render_link_ungueltig(), status_code=410)
+
+
+@router.get("/verzeichnis/{entry_id}/entfernen/bestaetigen")
+def entfernen_knopf(entry_id: str, t: str = "") -> HTMLResponse:
+    """Zeigt nur den Knopf und ändert nichts: Mail-Programme rufen Links zum Prüfen von selbst auf."""
+    from app import verzeichnis_seiten as seiten
+
+    entry, antwort = _link_pruefen(entry_id, t)
+    if antwort:
+        return antwort
+    return HTMLResponse(seiten.render_entfernen_knopf(entry, t), headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
+def _entfernen_bestaetigt(entry_id: str, token: str, background: BackgroundTasks) -> HTMLResponse:
+    from app import verzeichnis_seiten as seiten
+
+    entry, antwort = _link_pruefen(entry_id, token)
+    if antwort:
+        return antwort
+    ent.offline_nehmen(entry)
+    protokoll.write(_Bot(), "Verzeichnis: vom Salon entfernt", {"verzeichnisId": entry_id, "name": entry.get("name")},
+                    after={"nachweis": "Link an die Salon-Adresse", "pfad": vz.pfad(entry)})
+    seiten.vergessen()
+    background.add_task(ent.entfernt_melden, entry)
+    return HTMLResponse(seiten.render_entfernt(entry.get("name", "")))
+
+
+@router.post("/verzeichnis/{entry_id}/entfernen/bestaetigen")
+async def entfernen_bestaetigt(entry_id: str, request: Request, background: BackgroundTasks) -> HTMLResponse:
+    form = _formular(await request.body())
+    return await run_in_threadpool(_entfernen_bestaetigt, entry_id, _feld(form, "t", 100), background)
 
 
 # --- Übernahme: der Salon macht seine Seite zum Dranzeit-Laden (app/libs/uebernahme.py) -------------------------------
@@ -253,13 +342,8 @@ def anfragen(body: AnfrageRequest, background: BackgroundTasks, user: Authorized
 
 def anfrage_melden(entry: dict, shop: dict, email: str) -> None:
     """Mail an die Betreiber (QME_ADMIN_EMAILS): Eine Übernahme ohne Code wartet auf Bestätigung"""
-    from app.auth.access import admin_lists
-    from app.libs.mail import MailError, branded_html, esc, public_url, send_mail
+    from app.libs.mail import an_betreiber, esc, public_url
 
-    an = sorted(a for a in admin_lists()[0] if "@" in a)
-    if not an:
-        print(f"Übernahme angefragt, aber kein Betreiber in QME_ADMIN_EMAILS: {entry.get('id')} ← Laden {shop.get('id')}")
-        return
     adresse = lambda d: ", ".join(x for x in (d.get("street"), " ".join(y for y in (d.get("postalCode"), d.get("city")) if y)) if x)  # noqa: E731
     base = public_url()
     seite = f"{base}{vz.pfad(entry)}"
@@ -275,8 +359,4 @@ def anfrage_melden(entry: dict, shop: dict, email: str) -> None:
     text = (f"Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief.\n\nLaden: {laden}\n"
             f"Seite: {salon}\n{seite}\n\nBestätigen oder ablehnen: {ziel}\n")
     betreff = " ".join(f"Übernahme angefragt: {entry.get('name') or ''}".split())
-    for to in an:
-        try:
-            send_mail(to, betreff, branded_html("Übernahme angefragt", absaetze, "Im Betreiber-Bereich prüfen", ziel), text)
-        except MailError as e:
-            print(f"Mail „Übernahme angefragt“ an {to} nicht verschickt: {e}")
+    an_betreiber(betreff, "Übernahme angefragt", absaetze, text, "Im Betreiber-Bereich prüfen", ziel)

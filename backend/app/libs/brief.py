@@ -100,7 +100,7 @@ def texte(entry: dict, basis: str, plaetze_frei: int) -> dict:
             "<b>Keine Provision.</b> Keine Kosten pro Kunde, keine App für deine Kunden, monatlich kündbar.",
         ],
         "angebot": angebot + "Zum Start brauchst du keine Zahlungsdaten. Ohne Abo läuft dein Laden danach im kostenlosen Tarif weiter.",
-        "widerspruch": (f"Du möchtest das nicht? Ganz unten auf deiner Seite kannst du mit „Eintrag entfernen“ die Seite sofort offline nehmen. "
+        "widerspruch": (f"Du möchtest das nicht? Ganz unten auf deiner Seite kannst du mit „Eintrag entfernen“ die Seite offline nehmen. "
                         f"Keine Post mehr von uns: kurz an {HILFE} oder an die Absenderadresse schreiben. Mehr dazu: {escape(host)}/datenschutz."),
     }
 

@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="21.10.2026">
+    <LegalPage title="Datenschutz" updated="01.11.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -59,7 +59,11 @@ export default function Datenschutz() {
             Angaben stammen von der eigenen Webseite des Salons und sind dort öffentlich; die Beschreibung fassen wir mit
             KI zusammen und prüfen sie. Wir wollen Kunden helfen, einen Salon in der Nähe zu finden (Art. 6 Abs. 1 lit. f
             DSGVO). Wer zum Salon gehört, kann dem jederzeit widersprechen: über „Eintrag entfernen“ auf der Seite des
-            Salons, dann geht sie sofort offline, oder per E-Mail an uns. An die Geschäftsadresse des Salons können wir
+            Salons oder per E-Mail an uns. Damit niemand fremde Einträge entfernt, geben Salons dort eine E-Mail-Adresse an:
+            Liegt sie an der Domain der Salon-Webseite oder steht sie auf dieser Webseite (dazu rufen wir deren Start-,
+            Impressums- und Kontaktseite auf), schicken wir einen Bestätigungslink, und mit dem Bestätigen geht die Seite
+            offline. Sonst prüfen wir die Anfrage von Hand und melden uns. Adresse und Grund stehen im Protokoll auf
+            unserem Server. An die Geschäftsadresse des Salons können wir
             einen Brief schicken, der auf die Seite hinweist und anbietet, sie zu übernehmen (ebenfalls Art. 6 Abs. 1 lit. f
             DSGVO); auch dem lässt sich jederzeit widersprechen, dann schreiben wir nicht mehr. Der Knopf „Das wünsch ich mir“ zählt nur mit;
             damit niemand mehrfach zählt, halten wir bis zum Ende des Tages eine Prüfsumme der IP-Adresse im

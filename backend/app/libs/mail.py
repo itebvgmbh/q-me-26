@@ -56,6 +56,20 @@ def send_mail(to: str, subject: str, html_body: str, text_body: str = "", reply_
     return True
 
 
+def an_betreiber(betreff: str, heading: str, absaetze: list[str], text: str, knopf: str = "", ziel: str = "", reply_to: str = "") -> None:
+    """Mail an alle Betreiber (QME_ADMIN_EMAILS). Ohne Adresse oder bei Fehlern nur ins Log. absaetze wie bei branded_html."""
+    from app.auth.access import admin_lists
+
+    an = sorted(a for a in admin_lists()[0] if "@" in a)
+    if not an:
+        print(f"Kein Betreiber in QME_ADMIN_EMAILS für die Mail „{betreff}“")
+    for to in an:
+        try:
+            send_mail(to, betreff, branded_html(heading, absaetze, knopf, ziel), text, reply_to)
+        except MailError as e:
+            print(f"Mail „{betreff}“ an {to} nicht verschickt: {e}")
+
+
 def esc(value: object) -> str:
     """Nutzereingaben (Ladenname, Kundenname) vor dem Einsetzen ins HTML entschärfen."""
     return html.escape(str(value or ""), quote=True)
