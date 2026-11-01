@@ -9,10 +9,11 @@
     GET  /routes/verzeichnis/{id}/vorschau           Angaben der Seite für den Einrichtungsassistenten („Ist das dein Salon?“)
     POST /routes/verzeichnis/uebernahme/pruefen      Übernahme-Code aus dem Brief: zu welcher Seite gehört er?
     POST /routes/verzeichnis/uebernahme/einloesen    Code einlösen (angemeldet, eigener Laden): Seite wird die des Ladens
+    POST /routes/verzeichnis/uebernahme/nachweis     Ohne Code, ohne Konto: Link mit Code an die Salon-Adresse (app/libs/uebernahme_mail.py)
     POST /routes/verzeichnis/uebernahme/anfragen     Ohne Code (angemeldet, eigener Laden): Vorschlag + Mail an den Betreiber
 
-Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Adresse und Grund beim
-Entfernen stehen nur im Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur
+Die Seiten selbst liefert app/verzeichnis_seiten.py, die Übernahme app/libs/uebernahme.py. Die Adresse beim Entfernen und
+beim Nachweis und der Grund stehen nur im Protokoll auf dem Server (app/libs/protokoll.py), nicht in Firestore. IP-Adressen werden nur
 gehasht und nur im Speicher gezählt.
 """
 
@@ -36,6 +37,7 @@ from app.auth.access import require_shop_of_owner
 from app.libs import entfernen as ent
 from app.libs import protokoll
 from app.libs import uebernahme as ue
+from app.libs import uebernahme_mail as ue_mail
 from app.libs import verzeichnis as vz
 
 router = APIRouter()
@@ -48,11 +50,14 @@ LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "entfernen": (5, 86400),
     "entfernen-gleich": (1, 3600),  # dieselbe Anfrage noch einmal zählt nicht
     "entfernen-link": (1, 3600),  # Bestätigungsmails je Eintrag
-    "entfernen-mails": (60, 86400),  # alle Mails dieses Wegs zusammen, damit niemand über uns Salons oder den Betreiber eindeckt
+    "entfernen-mails": (60, 86400),  # alle Mails von Entfernen und Nachweis zusammen, damit niemand über uns Salons oder den Betreiber eindeckt
     "entfernen-obergrenze": (1, 86400),  # Hinweis an den Betreiber, dass die Obergrenze erreicht ist
     "code": (20, 3600),
     "einloesen": (10, 3600),
     "anfrage": (10, 3600),
+    "nachweis": (5, 86400),
+    "nachweis-gleich": (1, 3600),
+    "nachweis-link": (1, 3600),  # Mails mit Link je Eintrag
 }
 _arbeit = ThreadPoolExecutor(max_workers=4, thread_name_prefix="verzeichnis")  # begrenzt; ein Neustart wartet, bis sie fertig sind
 _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein Wunsch einmal; um Mitternacht vergessen
@@ -159,11 +164,26 @@ def _feld(form: dict, name: str, limit: int) -> str:
     return (form.get(name) or [""])[0].strip()[:limit]
 
 
-def _entfernen_melden(entry: dict, email: str, grund: str, ergebnis: str) -> None:
+def _melden(melde, *args) -> None:
     if _frei("entfernen-mails", "alle"):
-        ent.anfrage_melden(entry, email, grund, ergebnis)
+        melde(*args)
     elif _frei("entfernen-obergrenze", "alle"):
         ent.obergrenze_melden()
+
+
+def _adresse_pruefen(entry: dict, email: str, bremse: str, schicke) -> str:
+    """Der Nachweis, gleich beim Entfernen und Übernehmen: Eine passende Adresse bekommt einen Link. Scheitert etwas, erfährt es der Betreiber trotzdem."""
+    try:
+        if not ent.eigene_domain(entry):
+            return "keine_webseite"
+        if not ent.adresse_passt(entry, email):
+            return "passt_nicht"
+        if not (_frei(bremse, entry["id"]) and _frei("entfernen-mails", "alle")):
+            return "gebremst"
+        return "link" if schicke(entry, email) else "nicht_verschickt"
+    except Exception:
+        traceback.print_exc()
+        return "nicht_verschickt"
 
 
 def _im_hintergrund(fn, *args) -> None:
@@ -180,25 +200,12 @@ def _im_hintergrund(fn, *args) -> None:
 
 def _entfernen_bearbeiten(entry: dict, email: str, grund: str, art: str) -> None:
     """Im Hintergrund, weil das Lesen der Salon-Webseite Sekunden dauert: Im Echttest (01.11.2026) blieb die Seite stehen, und
-    zehn Klicks in 15 Sekunden verbrauchten die Tagesgrenze. Scheitert etwas, erfährt es der Betreiber trotzdem."""
-    try:
-        if art == "korrektur":
-            ergebnis = "korrektur"
-        elif not ent.eigene_domain(entry):
-            ergebnis = "keine_webseite"
-        elif not ent.adresse_passt(entry, email):
-            ergebnis = "passt_nicht"
-        elif not (_frei("entfernen-link", entry["id"]) and _frei("entfernen-mails", "alle")):
-            ergebnis = "gebremst"
-        else:
-            ergebnis = "link" if ent.link_schicken(entry, email) else "nicht_verschickt"
-    except Exception:
-        traceback.print_exc()
-        ergebnis = "nicht_verschickt"
+    zehn Klicks in 15 Sekunden verbrauchten die Tagesgrenze."""
+    ergebnis = "korrektur" if art == "korrektur" else _adresse_pruefen(entry, email, "entfernen-link", ent.link_schicken)
     protokoll.write(_Bot(), "Verzeichnis: Korrektur gemeldet" if art == "korrektur" else "Verzeichnis: Entfernen angefragt",
                     {"verzeichnisId": entry["id"], "name": entry.get("name")}, grund,
                     after={"kontakt": email, "ergebnis": ergebnis, "pfad": vz.pfad(entry)})
-    _entfernen_melden(entry, email, grund, ergebnis)
+    _melden(ent.anfrage_melden, entry, email, grund, ergebnis)
 
 
 def _entfernen_anfrage(entry_id: str, who: str, email: str, grund: str, aktion: str) -> HTMLResponse:
@@ -279,7 +286,7 @@ async def entfernen_bestaetigt(entry_id: str, request: Request) -> HTMLResponse:
 def vorschau(entry_id: str) -> JSONResponse:
     """Angaben einer Seite für den Einrichtungsassistenten – dieselben, die öffentlich auf der Seite stehen"""
     entry = _online_eintrag(entry_id)
-    return JSONResponse(ue.vorschau(entry), headers={"Cache-Control": "no-store"})
+    return JSONResponse({**ue.vorschau(entry), "domain": ent.eigene_domain(entry)}, headers={"Cache-Control": "no-store"})
 
 
 class CodeRequest(BaseModel):
@@ -294,6 +301,11 @@ class EinloesenRequest(BaseModel):
 class AnfrageRequest(BaseModel):
     eintragId: str
     shopId: str
+
+
+class NachweisRequest(BaseModel):
+    eintragId: str
+    email: str
 
 
 def _ue_fehler(e: ue.Fehler) -> HTTPException:
@@ -329,7 +341,7 @@ def _eigener_laden(user, shop_id: str) -> dict:
 
 
 @router.post("/verzeichnis/uebernahme/einloesen")
-def code_einloesen(body: EinloesenRequest, request: Request, user: AuthorizedUser) -> dict:
+def code_einloesen(body: EinloesenRequest, request: Request, background: BackgroundTasks, user: AuthorizedUser) -> dict:
     """Nach dem Anlegen des Ladens: Seite und Laden verknüpfen, ohne dass der Betreiber bestätigt"""
     _limit("code", _ip(request))
     _limit("einloesen", user.sub)
@@ -338,18 +350,46 @@ def code_einloesen(body: EinloesenRequest, request: Request, user: AuthorizedUse
         entry = ue.einloesen(body.code, shop["id"])
     except ue.Fehler as e:
         raise _ue_fehler(e) from e
+    weg = "Link an die Salon-Adresse" if ue.per_mail(entry, body.code) else "Code aus dem Brief"
     protokoll.write(user, "Verzeichnis: per Code übernommen", {"verzeichnisId": entry["id"], "shopId": shop["id"], "name": shop.get("name")},
-                    before={"name": entry.get("name"), "status": entry.get("status")}, after={"pfad": vz.pfad(entry)})
+                    before={"name": entry.get("name"), "status": entry.get("status")}, after={"pfad": vz.pfad(entry), "nachweis": weg})
     from app import verzeichnis_seiten
 
     verzeichnis_seiten.vergessen()
+    background.add_task(ue_mail.uebernommen_melden, entry, shop, getattr(user, "email", "") or "", weg)
     return {"ok": True, "pfad": vz.pfad(entry)}
+
+
+def _nachweis_bearbeiten(entry: dict, email: str) -> None:
+    """Im Hintergrund wie beim Entfernen, das Lesen der Salon-Webseite dauert Sekunden"""
+    ergebnis = _adresse_pruefen(entry, email, "nachweis-link", ue_mail.link_schicken)
+    protokoll.write(_Bot(), "Verzeichnis: Übernahme per E-Mail angefragt", {"verzeichnisId": entry["id"], "name": entry.get("name")},
+                    after={"kontakt": email, "ergebnis": ergebnis, "pfad": vz.pfad(entry)})
+    _melden(ue_mail.anfrage_melden, entry, email, ergebnis)
+
+
+@router.post("/verzeichnis/uebernahme/nachweis")
+def nachweis(body: NachweisRequest, request: Request) -> dict:
+    """Ohne Konto: Das Formular allein ändert nichts. Die Antwort kommt sofort und nennt das Ergebnis nicht; eine passende Adresse
+    bekommt einen Link mit Code, sonst prüft der Betreiber. Dieselbe Anfrage noch einmal zählt nicht und löst nichts aus."""
+    entry = _online_eintrag(body.eintragId)
+    email = body.email.strip().lower()[:201]
+    if not ent.adresse_gueltig(email):
+        raise HTTPException(status_code=400, detail="Bitte gib eine gültige E-Mail-Adresse an.")
+    who = _ip(request)
+    gleich = f"{who}:{entry['id']}:{email}"
+    if _frei("nachweis-gleich", gleich):
+        if not _frei("nachweis", who):
+            _calls.pop(("nachweis-gleich", gleich), None)  # nicht bearbeitet: Auch der nächste Klick darf nicht „angekommen“ sagen
+            raise HTTPException(status_code=429, detail="Zu viele Anfragen. Bitte später noch einmal.")
+        _im_hintergrund(_nachweis_bearbeiten, entry, email)
+    return {"ok": True}
 
 
 @router.post("/verzeichnis/uebernahme/anfragen")
 def anfragen(body: AnfrageRequest, background: BackgroundTasks, user: AuthorizedUser) -> dict:
-    """Ohne Code: Der Inhaber fragt an, ob die Seite die seines Ladens wird. Der Betreiber bestätigt den Vorschlag im
-    Betreiber-Bereich und bekommt dazu eine Mail. Dieselbe Anfrage noch einmal schickt keine zweite Mail."""
+    """Ohne Code und ohne passende Adresse: Der Inhaber fragt an, ob die Seite die seines Ladens wird. Der Betreiber bestätigt den
+    Vorschlag im Betreiber-Bereich und bekommt dazu eine Mail. Dieselbe Anfrage noch einmal schickt keine zweite Mail."""
     _limit("anfrage", user.sub)
     shop = _eigener_laden(user, body.shopId)
     entry = _online_eintrag(body.eintragId)
@@ -381,14 +421,16 @@ def anfrage_melden(entry: dict, shop: dict, email: str) -> None:
     seite = f"{base}{vz.pfad(entry)}"
     laden = " · ".join(x for x in (shop.get("name"), adresse(shop), shop.get("phone"), email) if x)
     salon = " · ".join(x for x in (entry.get("name"), adresse(entry), entry.get("phone")) if x)
+    pruefen = ("Gleiche Angaben beweisen nichts, der Assistent übernimmt sie aus der Seite. Ruf vor dem Bestätigen die Nummer von der Seite an. "
+               "Stimmt es, bestätige im Betreiber-Bereich unter „Verzeichnis“, sonst lehne ab. Bis dahin bleibt die Seite grau.")
     absaetze = [
-        "Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief.",
+        "Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief und ohne Nachweis per E-Mail.",
         f"<strong>Laden:</strong> {esc(laden)}",
         f"<strong>Seite:</strong> <a href=\"{esc(seite)}\">{esc(salon)}</a>",
-        "Ist es derselbe Salon? Dann bestätige im Betreiber-Bereich unter „Verzeichnis“, sonst lehne ab. Bis dahin bleibt die Seite grau.",
+        pruefen,
     ]
     ziel = f"{base}/betreiber?reiter=verzeichnis"
-    text = (f"Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief.\n\nLaden: {laden}\n"
-            f"Seite: {salon}\n{seite}\n\nBestätigen oder ablehnen: {ziel}\n")
+    text = (f"Ein Laden möchte eine Seite aus dem Salon-Verzeichnis übernehmen, ohne Code aus einem Brief und ohne Nachweis per E-Mail.\n\nLaden: {laden}\n"
+            f"Seite: {salon}\n{seite}\n\n{pruefen}\n\nBestätigen oder ablehnen: {ziel}\n")
     betreff = " ".join(f"Übernahme angefragt: {entry.get('name') or ''}".split())
     an_betreiber(betreff, "Übernahme angefragt", absaetze, text, "Im Betreiber-Bereich prüfen", ziel)

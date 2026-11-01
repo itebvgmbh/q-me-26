@@ -167,6 +167,7 @@ TEXTE: dict = {
     "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "Bu ay Dranzeit üzerinden başka numara verilmiyor. Doğrudan dükkana gelin.",
     "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "Giriş yapmadan numaranın anahtarı eksik. Lütfen sayfayı yenileyin.",
     "Bitte gib deinen Namen an.": "Lütfen adınızı girin.",
+    "Bitte gib eine gültige E-Mail-Adresse an.": "Lütfen geçerli bir e-posta adresi girin.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "Bu salon bildirim sunmuyor.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Bu numara için bildirimler yalnızca numaranın alındığı telefonda veya hesabınızla çalışır.",
@@ -235,7 +236,6 @@ TEXTE: dict = {
     "Zu viele Anfragen. Bitte später noch einmal.": "Çok fazla istek. Lütfen daha sonra tekrar deneyin.",
     "Diesen Eintrag gibt es nicht.": "Bu kayıt mevcut değil.",
     "Dieser Laden hat keine Seite im Verzeichnis.": "Bu salonun rehberde sayfası yok.",
-    "Bitte bestätigen, dass du zu diesem Salon gehörst.": "Lütfen bu salona ait olduğunuzu onaylayın.",
     # Übernahme per Code (app/libs/uebernahme.py)
     "Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.": "Kontrolümüze göre bu sayfa başka bir salona ait. Doğru değilse hilfe@dranzeit.de adresine yaz.",
     "Diese Seite gehört schon zu einem Dranzeit-Laden.": "Bu sayfa zaten bir Dranzeit dükkânına ait.",

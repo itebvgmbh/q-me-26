@@ -360,11 +360,7 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
             "<section class=\"hinweis\" id=\"wunsch\" aria-label=\"Online Nummer ziehen\">"
             f"<p><strong>Bei {_e(s['name'])} kannst du über Dranzeit noch keine Nummer ziehen.</strong> "
             f"Du möchtest das? Sag es uns – je mehr fragen, desto eher klappt es.{_e(andere)}</p>{wunsch}</section>"
-            "<section class=\"card\" id=\"uebernehmen\" aria-labelledby=\"uebernehmen-titel\"><h2 id=\"uebernehmen-titel\">Ist das dein Salon?</h2>"
-            "<p>Übernimm diese Seite: Deine Kunden ziehen online eine Nummer und warten, wo sie wollen. Die Angaben von hier sind "
-            "schon ausgefüllt. 30 Tage kostenlos, ohne Zahlungsdaten.</p>"
-            f"<div class=\"btns\"><a class=\"btn main\" href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen</a>"
-            "<a class=\"btn\" href=\"/features\">So funktioniert’s</a></div></section>"
+            f"<p class=\"klein\" id=\"uebernehmen\">Ist das dein Salon? <a href=\"/uebernehmen?eintrag={_e(s['id'])}\">Seite übernehmen</a></p>"
         )
 
     ueber = ""

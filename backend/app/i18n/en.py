@@ -170,6 +170,7 @@ TEXTE: dict = {
     "Über Dranzeit gehen in diesem Monat keine Nummern mehr. Komm einfach direkt im Laden vorbei.": "No more numbers via Dranzeit this month. Just come straight to the shop.",
     "Ohne Anmeldung fehlt der Schlüssel der Nummer. Lade die Seite neu.": "Without signing in, the key for this number is missing. Please reload the page.",
     "Bitte gib deinen Namen an.": "Please enter your name.",
+    "Bitte gib eine gültige E-Mail-Adresse an.": "Please enter a valid email address.",
     "Dieser Laden bietet keine Benachrichtigungen an.": "This shop doesn't offer notifications.",
     "Benachrichtigungen für diese Nummer gehen nur auf dem Handy, mit dem sie gezogen wurde, oder mit deinem Konto.":
         "Notifications for this number only work on the phone it was taken with, or with your account.",
@@ -237,7 +238,6 @@ TEXTE: dict = {
     "Zu viele Anfragen. Bitte später noch einmal.": "Too many requests. Please try again later.",
     "Diesen Eintrag gibt es nicht.": "This entry doesn't exist.",
     "Dieser Laden hat keine Seite im Verzeichnis.": "This shop doesn't have a page in the directory.",
-    "Bitte bestätigen, dass du zu diesem Salon gehörst.": "Please confirm that you belong to this salon.",
     # Übernahme per Code (app/libs/uebernahme.py)
     "Diese Seite gehört nach unserer Prüfung zu einem anderen Salon. Schreib uns an hilfe@dranzeit.de, wenn das nicht stimmt.": "According to our check, this page belongs to a different salon. Write to us at hilfe@dranzeit.de if that's not right.",
     "Diese Seite gehört schon zu einem Dranzeit-Laden.": "This page already belongs to a Dranzeit shop.",

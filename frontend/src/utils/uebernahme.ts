@@ -1,6 +1,6 @@
 // Übernahme: Ein Salon aus dem Verzeichnis (/friseur/…) macht seine Seite zum Dranzeit-Laden.
-// Mit dem Code aus dem Brief verknüpft das Backend Seite und Laden sofort; ohne Code geht eine Anfrage an den
-// Betreiber (Mail), der die Verknüpfung bestätigt. Backend: backend/app/libs/uebernahme.py,
+// Mit dem Code aus dem Brief oder aus dem Link an die Salon-Adresse verknüpft das Backend Seite und Laden sofort; ohne Code
+// geht eine Anfrage an den Betreiber (Mail), der die Verknüpfung bestätigt. Backend: backend/app/libs/uebernahme.py,
 // Endpunkte in backend/app/apis/verzeichnis. Seite: pages/Uebernehmen.tsx, Assistent: pages/ShopSetup.tsx.
 import { auth } from 'app';
 import { t } from '@/i18n';
@@ -24,6 +24,8 @@ export interface Vorschau {
   coordinates: { latitude: number; longitude: number } | null;
   businessHoursByDay: BusinessHoursDay[];
   services: { name: string; category: string; price: number; priceFrom: boolean }[];
+  /** Domain der eigenen Webseite, nur bei holeVorschau; ohne sie gibt es keinen Nachweis per E-Mail */
+  domain?: string;
 }
 
 /** Antwort mit Fehlerstatus vom Backend (Code falsch, schon eingelöst …) – anders als „keine Verbindung“ */
@@ -67,6 +69,10 @@ export const holeVorschau = (eintragId: string) => request<Vorschau>(`/routes/ve
 
 export const loeseEin = (code: string, shopId: string) =>
   request<{ ok: boolean; pfad: string }>('/routes/verzeichnis/uebernahme/einloesen', { code, shopId }, true);
+
+/** Link mit Code an die Salon-Adresse. Die Antwort nennt das Ergebnis nicht: Passt die Adresse nicht, prüft der Betreiber. */
+export const fordereLinkAn = (eintragId: string, email: string) =>
+  request<{ ok: boolean }>('/routes/verzeichnis/uebernahme/nachweis', { eintragId, email });
 
 export const frageAn = (eintragId: string, shopId: string) =>
   request<{ ok: boolean; pfad: string }>('/routes/verzeichnis/uebernahme/anfragen', { eintragId, shopId }, true);

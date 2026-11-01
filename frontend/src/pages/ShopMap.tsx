@@ -315,7 +315,7 @@ const ShopMap = () => {
                           {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
                         </span>
                       </a>
-                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="self-start px-4 pb-4 text-sm font-semibold underline underline-offset-4">
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="self-start px-4 pb-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
                         {t('Dein Salon? Übernehmen')}
                       </Link>
                     </div>
@@ -398,7 +398,7 @@ const ShopMap = () => {
                       <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
                         {t('Ansehen')}
                       </a>
-                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="mt-1 block text-sm underline">
+                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="mt-1 block text-xs !text-muted-foreground underline">
                         {t('Dein Salon? Übernehmen')}
                       </Link>
                     </div>
