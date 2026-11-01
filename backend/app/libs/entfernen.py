@@ -153,5 +153,5 @@ def obergrenze_melden() -> None:
     """Einmal am Tag, wenn so viele Anfragen kommen, dass keine weiteren Mails mehr rausgehen"""
     from app.libs.mail import an_betreiber
 
-    satz = "Heute kamen ungewöhnlich viele Anfragen, Einträge zu entfernen. Bis morgen gehen dazu keine Mails mehr raus; die Anfragen stehen im Protokoll. Ohne bestätigten Link bleiben die Einträge online."
+    satz = "Heute kamen ungewöhnlich viele Anfragen, Einträge zu entfernen oder zu übernehmen. Bis morgen gehen dazu keine Mails mehr raus; die Anfragen stehen im Protokoll. Ohne bestätigten Link ändert sich an den Einträgen nichts."
     an_betreiber("Verzeichnis: ungewöhnlich viele Anfragen", "Ungewöhnlich viele Anfragen", [satz], satz + "\n")

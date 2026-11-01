@@ -186,7 +186,8 @@ function Vorschlaege({ entries, onChanged }: { entries: Eintrag[]; onChanged: ()
       <h2 className="font-display text-xl font-bold">Übernahme bestätigen</h2>
       <p className="text-sm">
         Diese Salons haben sich bei Dranzeit angemeldet. Bestätigen heißt: Die Seite im Verzeichnis wird ihre Seite – Adresse und Ranking bleiben,
-        ab sofort mit Nummer ziehen.
+        ab sofort mit Nummer ziehen. Gleiche Angaben beweisen nichts, der Assistent übernimmt sie aus der Seite: Ruf vor dem Bestätigen die
+        Nummer von der Seite an.
       </p>
       <ul className="flex flex-col gap-2">
         {entries.map((e) => (

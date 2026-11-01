@@ -6,13 +6,15 @@ reicht als Nachweis, wie bei Googles Postkarte. Ablauf:
   2. /uebernehmen#code=… prüft den Code (pruefen) und füllt den Einrichtungsassistenten mit der Seite vor (vorschau)
   3. Nach dem Anlegen des Ladens: einloesen – der Eintrag wird die Seite des Ladens (vz.verknuepfen), der Code ist verbraucht
 
-Ohne Code (Knopf „Ist das dein Salon?“ auf der Seite oder „Dein Salon? Übernehmen“ auf der Karte) füllt der Assistent genauso
-vor. Nach dem Anlegen geht eine Anfrage an den Betreiber (Feld anfrage am Eintrag, Mail); er bestätigt den Vorschlag.
+Ohne Brief (Link „Seite übernehmen“ auf der Seite oder „Dein Salon? Übernehmen“ auf der Karte) zeigt der Salon per E-Mail, dass
+es seiner ist (app/libs/uebernahme_mail.py): Der Link dort enthält einen Code wie der Brief, ab da ist alles gleich. Ohne passende
+Adresse füllt der Assistent genauso vor; nach dem Anlegen geht eine Anfrage an den Betreiber (Feld anfrage am Eintrag, Mail), und er
+bestätigt den Vorschlag. Name und Adresse des Ladens beweisen dabei nichts, sie stammen ja aus der Seite.
 
 Code: 10 Zeichen ohne Verwechsler (kein 0/O, 1/I/L), angezeigt als ABCDE-FGHJK, rund 50 Bit. Gespeichert als PBKDF2-Hash
 mit festem Salz: nachschlagbar, aber wer die Hashes liest, muss trotzdem lange raten. Das Backend begrenzt Versuche je IP.
 
-Feld am Eintrag: uebernahme {codeHash, erstelltAm, gueltigBis, eingeloestAm, shopId}
+Felder am Eintrag: uebernahme {codeHash, erstelltAm, gueltigBis, eingeloestAm, shopId}, mailCode {codeHash, am, gueltigBis}
 """
 
 import hashlib
@@ -26,6 +28,7 @@ from app.libs import verzeichnis as vz
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 LAENGE = 10
 GUELTIG_TAGE = 180
+MAIL_GUELTIG_TAGE = 7
 SALZ = b"dranzeit-uebernahme"
 RUNDEN = 100_000
 
@@ -74,6 +77,20 @@ def code_erzeugen(entry: dict, st=None, now: Optional[datetime] = None) -> dict:
     return {"code": anzeigen(code), "gueltigBis": gueltig}
 
 
+def mail_code_erzeugen(entry: dict, st=None, now: Optional[datetime] = None) -> str:
+    """Code für den Link per E-Mail; ein neuer ersetzt nur den vorigen aus einer Mail. Der Code aus dem Brief gilt weiter: Die
+    Salon-Adresse ist öffentlich, jeder kann den Link dorthin anfordern, und das darf keinen Brief entwerten."""
+    now = now or vz.now()
+    code = neuer_code()
+    (st or vz.store()).aendere(entry["id"], {"mailCode": {"codeHash": code_hash(code), "am": now, "gueltigBis": now + timedelta(days=MAIL_GUELTIG_TAGE)}})
+    return code
+
+
+def per_mail(entry: dict, code: str) -> bool:
+    """Kam dieser Code mit der Mail und nicht mit dem Brief?"""
+    return (entry.get("mailCode") or {}).get("codeHash") == code_hash(code)
+
+
 def _aware(value) -> Optional[datetime]:
     if value is None:
         return None
@@ -87,13 +104,15 @@ def pruefen(code: str, st=None, now: Optional[datetime] = None) -> dict:
     st = st or vz.store()
     if len(normalisieren(code)) != LAENGE:
         raise Fehler(404, merke("Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal."))
-    entry = st.per_code(code_hash(code))
+    gesucht = code_hash(code)
+    entry = st.per_code(gesucht)
     if not entry:
         raise Fehler(404, merke("Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal."))
     info = entry.get("uebernahme") or {}
     if info.get("eingeloestAm") or entry.get("shopId"):
         raise Fehler(409, merke("Dieser Code ist schon eingelöst. Melde dich mit dem Konto an, mit dem du deinen Laden eingerichtet hast."))
-    gueltig = _aware(info.get("gueltigBis"))
+    mail = entry.get("mailCode") or {}
+    gueltig = _aware((mail if mail.get("codeHash") == gesucht else info).get("gueltigBis"))
     if gueltig and gueltig < (now or vz.now()):
         raise Fehler(410, merke("Dieser Code ist abgelaufen. Schreib uns an hilfe@dranzeit.de, dann bekommst du einen neuen."))
     return entry

@@ -179,6 +179,11 @@ run(async () => {
   await map.locator('img.leaflet-marker-icon.grayscale').click({ force: true });
   rows.push({ name: 'Karte: Hinweis im Marker', pass: await map.getByText('Noch nicht online buchbar').isVisible() });
   await shot(map, 'verzeichnis-karte', false);
+  // Sichtbar, aber nicht im Fokus: klein, nicht fett, gedämpft, in der Liste und im Marker gleich
+  const stil = (link) => link.evaluate((el) => { const s = getComputedStyle(el); return { size: parseFloat(s.fontSize), weight: Number(s.fontWeight), color: s.color }; });
+  const liste = await stil(uebernehmen.first());
+  const marker = await stil(map.locator('.leaflet-popup').getByRole('link', { name: 'Dein Salon? Übernehmen' }));
+  rows.push({ name: 'Karte: Übernehmen ist unauffällig', pass: liste.size <= 12 && liste.weight < 600 && marker.size <= 12 && marker.color === liste.color, detail: JSON.stringify({ liste, marker }) });
   // Aus dem Marker direkt in die vorausgefüllte Übernahme
   await map.locator('.leaflet-popup').getByRole('link', { name: 'Dein Salon? Übernehmen' }).click();
   await map.getByRole('heading', { name: 'Salon Nord (Test)' }).waitFor({ timeout: 30000 });
