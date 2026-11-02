@@ -9,6 +9,8 @@ abgesagt. Anders als im Profil geht es hier auch für Läden und Team:
 - Team-Einträge des Kontos in Läden, die bleiben: nur die Verbindung zum Konto wird gelöst (userId leer).
   Person und Termine bleiben im Laden.
 - Gründerplätze gelöschter Läden werden wieder frei (meta/gruender, wie /billing/claim-founder zählt).
+- Die automatisch angelegte Seite des Ladens im Verzeichnis (laden-<id>) geht mit. Eine Seite, die ein Salon übernommen hat, bleibt:
+  Sie gab es schon vorher, ohne Laden ist sie aus, und der Betreiber entscheidet im Reiter Verzeichnis.
 """
 
 import re
@@ -24,6 +26,7 @@ SHOP_COLLECTIONS = (
     "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "public_appointments", "customers",
     "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen", "team_push_subscriptions",
 )
+VERZEICHNIS = "verzeichnis"  # wie app/libs/verzeichnis.py
 # Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py)
 SHOP_SUBCOLLECTIONS = ("members", "staff_contacts")
 TEST_SCRIPTS = (
@@ -252,6 +255,9 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {shop['billing'].get('customerId') or '?'}, Abo {shop['billing'].get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
+        seite = fs.collection(VERZEICHNIS).document(f"laden-{sid}").get()
+        if seite.exists:
+            related[VERZEICHNIS] = [seite]
         sub = {name: list(fs.collection("shops").document(sid).collection(name).stream()) for name in SHOP_SUBCOLLECTIONS}
         shops.append({"id": sid, "name": shop.get("name") or "", "data": shop, "founder": bool(shop.get("founder")), "related": related,
                       "members": sub["members"], "sub": sub})
@@ -393,6 +399,8 @@ def verify(fs, plan: dict, auth_exists) -> list:
     for s in plan["shops"]:
         if fs.collection("shops").document(s["id"]).get().exists:
             left.append(f"Laden {s['id']} ist noch da")
+        if fs.collection(VERZEICHNIS).document(f"laden-{s['id']}").get().exists:
+            left.append(f"Seite im Verzeichnis von Laden {s['id']} ist noch da")
         if list(fs.collection("shops").document(s["id"]).collection("members").stream()):
             left.append(f"Team-Vermerke von Laden {s['id']} sind noch da")
         if list(fs.collection("shops").document(s["id"]).collection("staff_contacts").stream()):

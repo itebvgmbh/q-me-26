@@ -27,6 +27,7 @@ const COLLECTION_LABEL: Record<string, string> = {
   earlier_slot_notifications: 'Früher-dran-Angebote',
   queue: 'alte Warteschlange',
   push_subscriptions: 'Push-Abos',
+  verzeichnis: 'Seite im Verzeichnis',
 };
 
 /** Löschen mit Probelauf: erst zeigen, was wegginge und was es verhindert, dann Namen eintippen */

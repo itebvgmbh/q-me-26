@@ -740,6 +740,7 @@ def loeschen(body: DeleteRequest, user: AuthorizedUser) -> dict:
 
     result = konten.execute(get_firestore_db(), plan, delete_auth_user)
     left = konten.verify(get_firestore_db(), plan, auth_exists)
+    _verzeichnis._vergessen()  # die Seite des Ladens ist mit weg
     for u in plan["users"]:
         protokoll.set_blocked(u["uid"], False)
     protokoll.write(user, "Gelöscht", {"shopIds": [s["id"] for s in plan["shops"]], "uids": [u["uid"] for u in plan["users"]],
