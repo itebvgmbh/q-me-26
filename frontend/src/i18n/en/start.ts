@@ -226,6 +226,13 @@ const texte: Texte = {
   "Mehr dazu": "Learn more",
   "(öffnet in neuem Tab)": "(opens in a new tab)",
   "Laden...": "Loading...",
+
+  // Telefon-Assistent auf Preise, Für Läden und Startseite
+  "Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage.": "If no one picks up, an AI answers the call. It offers free appointments, books them, tells callers the waiting time and issues numbers. On request.",
+  "Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.": "If no one in the shop picks up, an AI answers the call. It offers free appointments, books them, tells callers the waiting time, issues numbers and answers questions about the shop.",
+  "Im Testbetrieb, Preis auf Anfrage: <mail/>": "In testing, price on request: <mail/>",
+  "So funktioniert der Telefon-Assistent": "How the phone assistant works",
+  "Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.": "And if no one can get to the phone, the phone assistant answers the call.",
 };
 
 export default texte;

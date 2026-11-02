@@ -49,6 +49,24 @@ function PreiseSeite() {
             </Button>
           )}
         />
+        <div className="flex max-w-3xl flex-col gap-2 rounded-3xl border border-border bg-card p-6">
+          <h2 className="font-display text-2xl font-extrabold tracking-[-0.03em]">{t('Telefon-Assistent')}</h2>
+          <p className="text-muted-foreground">
+            {t('Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.')}
+          </p>
+          <p className="font-semibold">
+            {tTeile('Im Testbetrieb, Preis auf Anfrage: <mail/>', {
+              mail: () => (
+                <a href={`mailto:${HILFE_MAIL}`} dir="ltr" className="underline underline-offset-4">
+                  {HILFE_MAIL}
+                </a>
+              ),
+            })}
+          </p>
+          <a href="/hilfe/telefon-assistent" className="w-fit text-sm font-semibold underline underline-offset-4">
+            {t('So funktioniert der Telefon-Assistent')}
+          </a>
+        </div>
       </section>
 
       {foundersLeft !== 0 && (

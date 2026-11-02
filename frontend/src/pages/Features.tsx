@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CalendarClock, Megaphone, QrCode, Store, Users, ArrowUpRight } from "lucide-react";
+import { CalendarClock, Megaphone, Phone, QrCode, Store, Users, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Ticket } from "../components/brand/Ticket";
 import { merke, t, tTeile } from "@/i18n";
@@ -31,6 +31,11 @@ const FEATURES = [
     icon: Users,
     title: merke("Team mit eigenem Tag"),
     text: merke("Lade Leute per Link ein. Jede Person sieht unter „Mein Tag“ nur ihre eigenen Kunden."),
+  },
+  {
+    icon: Phone,
+    title: merke("Telefon-Assistent"),
+    text: merke("Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage."),
   },
   {
     icon: Store,
