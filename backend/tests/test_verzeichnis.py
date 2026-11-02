@@ -296,6 +296,9 @@ def test_seite_eines_dranzeit_ladens():
                                leistungen=[{"name": "Schnitt", "category": "", "price": 20, "priceFrom": False, "duration": 30}])
     assert "/public-join-queue?shopId=s1" in page and "/book-appointment?shopId=s1" in page and "2 Personen warten gerade." in page
     assert "30 Min" in page and "wunsch" not in page and "entfernen" not in page
+    assert "KI-Assistent" not in page
+    mit_hinweis = seiten.render_salon(s, d, now=MONDAY, telefon_hinweis=True)
+    assert "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin." in mit_hinweis
     # gesperrt oder gelöscht: keine Seite
     assert not seiten.daten_bauen([eintrag("laden-s1", "Kings Barber", shopId="s1")], [])["seiten"]
 

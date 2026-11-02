@@ -212,7 +212,8 @@ const texte: Texte = {
   // Telefon-Assistent auf Preise, Für Läden und Startseite
   "Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage.": "Kimse açmazsa aramayı bir yapay zekâ yanıtlar. Boş randevuları söyler, randevu alır, bekleme süresini bildirir ve numara verir. Talep üzerine.",
   "Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.": "Dükkânda kimse açmazsa aramayı bir yapay zekâ yanıtlar. Boş randevuları söyler, randevu alır, bekleme süresini bildirir, numara verir ve dükkânla ilgili soruları yanıtlar.",
-  "Im Testbetrieb, Preis auf Anfrage: <mail/>": "Test aşamasında, fiyat talep üzerine: <mail/>",
+  "Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.": "Planlanan: ayda net €29, 100 dakika dahil, sonrasında dakika başına €0,20. Solo paketinden itibaren isteğe bağlı ek hizmet.",
+  "Im Testbetrieb auf Anfrage: <mail/>": "Test aşamasında, talep üzerine: <mail/>",
   "So funktioniert der Telefon-Assistent": "Telefon asistanı nasıl çalışır",
   "Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.": "Telefona bakacak kimse yoksa aramayı telefon asistanı yanıtlar.",
 };

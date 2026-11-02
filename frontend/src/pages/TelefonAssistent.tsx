@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getShopsByOwnerId, type Shop } from '../utils/firestore';
 import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
-import { ladeTelefon, speichereTelefon, zumWaehlen, type TelefonStand } from '../utils/telefon-assistent';
+import { ladeTelefon, nummerFuerKunden, speichereTelefon, zumWaehlen, type TelefonStand } from '../utils/telefon-assistent';
 import { merke, t } from '@/i18n';
 
 const HILFE = 'hilfe@dranzeit.de';
@@ -87,13 +88,54 @@ const Anleitung = ({ weg, ziel }: { weg: Weg; ziel: string }) => {
           <p className="text-sm">{t('Gib diese Codes nacheinander ein und drück jeweils die Wähltaste:')}</p>
           <Code code={handy ? `**61*${ziel}**20#` : `*61*${ziel}#`} wann={t('wenn nach 20 Sekunden niemand rangeht')} />
           <Code code={handy ? `**67*${ziel}#` : `*67*${ziel}#`} wann={t('wenn besetzt ist')} />
+          {handy && <Code code={`**62*${ziel}#`} wann={t('wenn das Handy aus ist oder kein Netz hat')} />}
           <p className="text-sm text-muted-foreground">
-            {t('Zum Ausschalten:')} {aus(handy ? '##61#' : '#61#')} {t('und')} {aus(handy ? '##67#' : '#67#')}
+            {t('Zum Ausschalten:')} {aus(handy ? '##61#' : '#61#')}
+            {handy && <>, {aus('##62#')}</>} {t('und')} {aus(handy ? '##67#' : '#67#')}
           </p>
-          {handy && <p className="text-sm text-muted-foreground">{t('Geht trotzdem die Mailbox ran, schalte sie bei deinem Anbieter aus.')}</p>}
         </>
       )}
     </>
+  );
+};
+
+/** Google, Webseite und Tür pflegt nur der Laden selbst: Hier bekommt er die Texte dafür */
+const Weitersagen = ({ nummer, shopId, kopieren }: { nummer: string; shopId: string; kopieren: (text: string, meldung: string) => void }) => {
+  const texte = [
+    {
+      titel: t('Google-Eintrag'),
+      wo: t('Häng das an die Beschreibung deines Eintrags an:'),
+      text: t('Geht bei uns gerade niemand ans Telefon, nimmt unser KI-Assistent deinen Anruf an. Er nennt dir freie Termine und bucht sie direkt, sagt dir die Wartezeit und beantwortet Fragen zu Öffnungszeiten, Adresse und Preisen.'),
+    },
+    {
+      titel: t('Webseite und Instagram'),
+      text: t('Lieber telefonisch? Ruf uns an: {nummer}. Sind wir gerade beim Kunden, nimmt unser KI-Assistent ab. Er bucht deinen Termin, nennt dir die Wartezeit und zieht dir auf Wunsch eine Nummer.', { nummer }),
+    },
+    {
+      titel: t('Am Tresen'),
+      text: t('Wenn wir mal nicht rangehen, ruf ruhig an. Dann nimmt unser KI-Assistent ab und bucht dir den Termin.'),
+    },
+  ];
+  return (
+    <Schritt nummer={4} titel={t('Jetzt weitersagen')}>
+      <p className="text-sm">{t('Deine Kunden wählen weiter deine normale Nummer. Sag ihnen, dass jetzt auch dann jemand abnimmt, wenn du beim Kunden bist.')}</p>
+      {texte.map((eintrag) => (
+        <div key={eintrag.titel} className="flex flex-col items-start gap-2 rounded-2xl border border-border p-4">
+          <h3 className="font-semibold">{eintrag.titel}</h3>
+          {eintrag.wo && <p className="text-sm text-muted-foreground">{eintrag.wo}</p>}
+          <p className="text-sm">{eintrag.text}</p>
+          <Button type="button" size="sm" variant="outline" onClick={() => kopieren(eintrag.text, t('Text kopiert.'))}>
+            {t('Kopieren')}
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" className="w-fit" asChild>
+        <Link to={`/plakat?shopId=${encodeURIComponent(shopId)}`}>{t('Plakat mit Telefon-Hinweis drucken')}</Link>
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        {t('Trag in Google nur die Nummer deines Ladens ein, nie die Nummer des Assistenten. Schaltest du den Assistenten aus, nimm die Hinweise wieder raus.')}
+      </p>
+    </Schritt>
   );
 };
 
@@ -155,10 +197,10 @@ export default function TelefonAssistent() {
     }
   };
 
-  const kopieren = async (text: string) => {
+  const kopieren = async (text: string, meldung: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(t('Nummer kopiert.'));
+      toast.success(meldung);
     } catch {
       toast.error(t('Kopieren ging nicht.'));
     }
@@ -201,6 +243,7 @@ export default function TelefonAssistent() {
 
   const ziel = zumWaehlen(stand.zielnummer);
   const aufgebraucht = stand.minuten >= stand.freiminuten;
+  const kundenNummer = stand.aktiv && stand.weitersagen ? nummerFuerKunden(stand, shops?.find((s) => s.id === shopId)?.phone) : '';
 
   return seite(
     <>
@@ -244,7 +287,7 @@ export default function TelefonAssistent() {
                 {ziel || t('Noch nicht eingerichtet')}
               </strong>
               {ziel && (
-                <Button type="button" size="sm" variant="outline" onClick={() => kopieren(ziel)}>
+                <Button type="button" size="sm" variant="outline" onClick={() => kopieren(ziel, t('Nummer kopiert.'))}>
                   {t('Kopieren')}
                 </Button>
               )}
@@ -257,6 +300,7 @@ export default function TelefonAssistent() {
               ))}
             </div>
             {ziel && <Anleitung weg={weg} ziel={ziel} />}
+            <p className="text-sm text-muted-foreground">{t('Läuft ein Anrufbeantworter oder eine Mailbox, schalte sie aus. Sonst nehmen sie den Anruf an, bevor er zum Assistenten kommt.')}</p>
           </Schritt>
 
           <Schritt nummer={3} titel={t('Probeanruf')}>
@@ -273,6 +317,8 @@ export default function TelefonAssistent() {
               </>
             )}
           </Schritt>
+
+          {kundenNummer && <Weitersagen nummer={kundenNummer} shopId={shopId} kopieren={kopieren} />}
         </>
       )}
 

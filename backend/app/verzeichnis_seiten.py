@@ -180,6 +180,16 @@ def laden_leistungen(shop_id: str) -> list:
     return seo._cached(f"leistungen:{shop_id}", load)
 
 
+def laden_telefon_hinweis(shop_id: str) -> bool:
+    def load():
+        from app.apis.firebase_utils import get_firestore_db
+        from app.libs import telefon_laeden
+
+        return telefon_laeden.nimmt_an(get_firestore_db(), shop_id)
+
+    return seo._cached(f"telefon-hinweis:{shop_id}", load)
+
+
 def sitemap_pfade() -> list:
     d = daten()
     pfade = ["/friseur"]
@@ -331,7 +341,7 @@ def naechste(s: dict, seiten: list, n: int = 6) -> list:
 
 
 def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: bool = False,
-                 leistungen: Optional[list] = None, waiting: Optional[int] = None) -> str:
+                 leistungen: Optional[list] = None, waiting: Optional[int] = None, telefon_hinweis: bool = False) -> str:
     kat_name = vz.KATEGORIEN[s["kategorie"]]
     ort = vz.ortsname(s)
     today = heute(s, now)
@@ -394,7 +404,9 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
                    f"{c['latitude']}/{c['longitude']}\" rel=\"nofollow noopener\">Karte</a>")
         kontakt.append(f"<div>{_e(adresse(s))}{osm}</div>")
     if s.get("phone"):
-        kontakt.append(f"<div><a href=\"{_e(tel_link(s['phone']))}\">{_e(s['phone'])}</a></div>")
+        kontakt.append(f"<div><a href=\"{_e(tel_link(s['phone']))}\">{_e(s['phone'])}</a>"
+                       + ("<br><span class=\"klein\">Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.</span>" if telefon_hinweis else "")
+                       + "</div>")
     if s.get("website"):
         kontakt.append(f"<div><a href=\"{_e(s['website'])}\" rel=\"noopener\">{_e(webseite_anzeige(s['website']))}</a></div>")
     kontakt_html = f"<section class=\"card\"><h2>Kontakt</h2><div class=\"facts\">{''.join(kontakt)}</div></section>" if kontakt else ""
@@ -615,6 +627,7 @@ def _salon(kat: str, stadt: str, slug: str, request: Request):
             return RedirectResponse(target_path, status_code=301)
         return _not_found(kat, d)
     leistungen = waiting = None
+    telefon_hinweis = False
     if s["typ"] == "laden":
         waiting = _wartende(s)
         try:
@@ -622,8 +635,12 @@ def _salon(kat: str, stadt: str, slug: str, request: Request):
         except Exception as e:
             print(f"Verzeichnis: Leistungen für {s['shopId']} nicht lesbar: {e}")
             leistungen = []
+        try:
+            telefon_hinweis = laden_telefon_hinweis(s["shopId"])
+        except Exception as e:
+            print(f"Verzeichnis: Telefon-Assistent für {s['shopId']} nicht lesbar: {e}")
     gewuenscht = request.query_params.get("gewuenscht") == "1"
-    return _html(render_salon(s, d, gewuenscht=gewuenscht, leistungen=leistungen, waiting=waiting))
+    return _html(render_salon(s, d, gewuenscht=gewuenscht, leistungen=leistungen, waiting=waiting, telefon_hinweis=telefon_hinweis))
 
 
 def _routen(kat: str) -> None:

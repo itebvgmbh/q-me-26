@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 import app.apis.telefon as tel  # noqa: E402
 import app.apis.telefon_eingang as eingang  # noqa: E402
+import app.apis.telefon_hinweis as hinweis  # noqa: E402
 from app.libs import telefon as t  # noqa: E402
 from app.libs import telefon_laeden as tl  # noqa: E402
 
@@ -329,6 +330,97 @@ def test_eigene_nummer_braucht_keinen_probeanruf():
     stand = tl.stand(d.db, "salon", d.data["shops"]["salon"])
     assert stand["freigegeben"] and stand["aktiv"] and stand["status"] == "aktiv"
     assert stand["zielnummer"] == "+493077777777" and stand["eigeneNummer"]
+
+
+# --- Hinweise für Kunden -----------------------------------------------------------------------------------------------
+
+
+MIT_TERMINEN = {"trialEndsAt": datetime.now(timezone.utc) + timedelta(days=5)}
+OHNE_TERMINE = {"trialEndsAt": datetime.now(timezone.utc) - timedelta(days=1)}
+
+
+def test_hinweis_wenn_der_anruf_auf_die_ladennummer_beim_assistenten_landet():
+    assert tl.nimmt_an(Db(aktiv(), MIT_TERMINEN).db, "salon") is True
+
+
+def test_kein_hinweis_wenn_niemand_abnimmt_oder_nichts_gebucht_werden_kann():
+    faelle = [
+        (aktiv(aktiv=False), MIT_TERMINEN),
+        (aktiv(freigegeben=False), MIT_TERMINEN),
+        (aktiv(sekunden=1800), MIT_TERMINEN),
+        (aktiv(status="wartet"), MIT_TERMINEN),
+        (aktiv(), {**MIT_TERMINEN, "suspended": {"at": datetime.now(timezone.utc)}}),
+        (aktiv(), OHNE_TERMINE),
+    ]
+    for laden, shop in faelle:
+        assert tl.nimmt_an(Db(laden, shop).db, "salon") is False, (laden, shop)
+
+
+def test_kein_hinweis_neben_einer_nummer_die_nicht_umleitet():
+    assert tl.nimmt_an(Db(aktiv(), {**MIT_TERMINEN, "phone": "030 66666666"}).db, "salon") is False
+    assert tl.nimmt_an(Db(aktiv(), {**MIT_TERMINEN, "phone": ""}).db, "salon") is False
+
+
+def test_kein_hinweis_ohne_eintrag_oder_ohne_laden():
+    assert tl.nimmt_an(Db(shop=MIT_TERMINEN).db, "salon") is False
+    assert tl.nimmt_an(Db(aktiv(), MIT_TERMINEN).db, "gibts-nicht") is False
+
+
+def test_hinweis_bei_eigener_nummer_ohne_probeanruf():
+    laden = {"shopId": "salon", "freigegeben": True, "aktiv": True}
+    d = Db(laden, MIT_TERMINEN, leitungen={"+493077777777": {"shopId": "salon"}})
+    assert tl.nimmt_an(d.db, "salon") is True
+
+
+def test_stand_sagt_ob_der_laden_es_weitersagen_kann():
+    d = Db(aktiv(), MIT_TERMINEN)
+    assert tl.stand(d.db, "salon", d.data["shops"]["salon"])["weitersagen"] is True
+    d = Db(aktiv(status="wartet"), MIT_TERMINEN)
+    assert tl.stand(d.db, "salon", d.data["shops"]["salon"])["weitersagen"] is False
+    d = Db(aktiv(sekunden=1800), MIT_TERMINEN)
+    assert tl.stand(d.db, "salon", d.data["shops"]["salon"])["weitersagen"] is False
+
+
+def test_weitersagen_haengt_nicht_an_der_nummer_in_den_ladendaten():
+    """Der Laden gibt die umgeleitete Nummer selbst weiter, auch wenn in den Ladendaten eine andere steht"""
+    d = Db(aktiv(), {**MIT_TERMINEN, "phone": "030 66666666"})
+    assert tl.stand(d.db, "salon", d.data["shops"]["salon"])["weitersagen"] is True
+
+
+def hinweis_app():
+    app_hinweis = FastAPI()
+    app_hinweis.include_router(hinweis.router, prefix="/routes")
+    return TestClient(app_hinweis)
+
+
+def test_schnittstelle_sagt_nur_ja_oder_nein():
+    d = Db(aktiv(sekunden=600), MIT_TERMINEN)
+    hinweis.get_firestore_db = lambda: d.db
+    antwort = hinweis_app().get("/routes/telefon-hinweis/salon")
+    assert antwort.status_code == 200 and antwort.json() == {"annahme": True}
+    assert "max-age" in antwort.headers["cache-control"]
+
+
+def test_schnittstelle_bei_unbekanntem_laden_und_unsinn():
+    d = Db(shop=MIT_TERMINEN)
+    hinweis.get_firestore_db = lambda: d.db
+    assert hinweis_app().get("/routes/telefon-hinweis/salon").json() == {"annahme": False}
+    assert hinweis_app().get("/routes/telefon-hinweis/a%20b").json() == {"annahme": False}
+
+
+def test_schnittstelle_schweigt_bei_einer_stoerung():
+    def kaputt():
+        raise RuntimeError("Datenbank weg")
+
+    hinweis.get_firestore_db = kaputt
+    antwort = hinweis_app().get("/routes/telefon-hinweis/salon")
+    assert antwort.status_code == 200 and antwort.json() == {"annahme": False}
+
+
+def test_schnittstelle_braucht_keine_anmeldung():
+    pfad = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "routers.json")
+    with open(pfad, encoding="utf-8") as datei:
+        assert json.load(datei)["routers"]["telefon_hinweis"]["disableAuth"] is True
 
 
 # --- Werkzeuge: welcher Laden ------------------------------------------------------------------------------------------

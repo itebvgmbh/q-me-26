@@ -18,6 +18,7 @@ from google.cloud import firestore as gcf
 
 from app.i18n import merke
 from app.libs import telefon as t
+from app.libs.plans import has_feature, is_suspended
 
 WARTET_TAGE = 7  # so lange hält ein Laden eine Nummer ohne Probeanruf, danach darf sie ein anderer eintragen
 
@@ -67,6 +68,28 @@ def gemeinsame_nummer() -> Optional[str]:
     return t.e164(os.environ.get("QME_TELEFON_NUMMER", ""))
 
 
+def _laeuft(daten: dict, shop: dict, eigene: Optional[str]) -> bool:
+    """Nimmt der Assistent gerade ab und kann er einen Termin buchen? Nur dann darf man es Kunden sagen."""
+    if t.entscheiden(daten, is_suspended(shop)) != t.ANNEHMEN or not has_feature(shop, "termine"):
+        return False
+    return bool(eigene) or daten.get("status") == "aktiv"
+
+
+def nimmt_an(db, shop_id: str) -> bool:
+    """Für den Hinweis neben der Nummer des Ladens (Ladenseite, Salonseite). Steht dort eine andere Nummer als die
+    umgeleitete, landet der Anruf nicht beim Assistenten."""
+    daten = eintrag(db, shop_id)
+    if not daten:
+        return False
+    snap = db.collection("shops").document(shop_id).get()
+    if not snap.exists:
+        return False
+    shop = snap.to_dict() or {}
+    eigene = eigene_nummer(db, shop_id)
+    nummer = t.e164(shop.get("phone"))
+    return _laeuft(daten, shop, eigene) and bool(nummer) and (bool(eigene) or nummer == daten.get("anschluss"))
+
+
 def stand(db, shop_id: str, shop: dict) -> dict:
     """Was der Inhaber und der Betreiber zu sehen bekommen"""
     daten = eintrag(db, shop_id)
@@ -74,6 +97,7 @@ def stand(db, shop_id: str, shop: dict) -> dict:
     return {
         "freigegeben": bool(daten.get("freigegeben")),
         "aktiv": bool(daten.get("aktiv")),
+        "weitersagen": _laeuft(daten, shop, eigene),
         "status": "aktiv" if eigene else daten.get("status") or "aus",
         "anschluss": daten.get("anschluss") or "",
         "vorschlag": t.e164(shop.get("phone")) or "",
