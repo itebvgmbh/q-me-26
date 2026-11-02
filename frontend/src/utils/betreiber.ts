@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth, firebaseAuth, useCurrentUser } from 'app';
 import type { PlanId } from './plans';
+import type { TelefonStand } from './telefon-assistent';
 
 /** Anfrage mit Anmeldung; Fehler als Error mit dem Text vom Server */
 export const request = async (path: string, body?: unknown): Promise<Response> => {
@@ -156,8 +157,9 @@ export interface ShopDetail {
   trialEnd: string;
   staff: { id: string; name: string; email: string; role: string; userId: string; active: boolean }[];
   owner: { uid: string; email: string; emailVerified: boolean; disabled: boolean; lastSignIn: string | null } | null;
-  /** Rufnummer des Telefon-Assistenten (höchstens eine) */
+  /** Eigene Rufnummer des Telefon-Assistenten (höchstens eine) */
   telefon: string[];
+  telefonLaden?: TelefonStand;
   protokoll: LogEntry[];
 }
 
@@ -196,6 +198,9 @@ export const suspendShop = (id: string, reason: string) =>
 export const unsuspendShop = (id: string, reason = '') => send<{ changed: boolean; accounts?: number; kept?: number }>(shopPath(id, 'entsperren'), { reason });
 /** Rufnummer des Telefon-Assistenten zuordnen; leer = Zuordnung aufheben */
 export const setPhoneLine = (id: string, nummer: string, reason = '') => send<{ telefon: string[] }>(shopPath(id, 'telefon'), { nummer, reason });
+
+/** Laden zum Telefon-Assistenten zulassen und festlegen, wie viele Minuten er frei hat */
+export const setPhoneAccess = (id: string, freigegeben: boolean, freiminuten: number) => send<TelefonStand>(shopPath(id, 'telefon-freigabe'), { freigegeben, freiminuten });
 
 export const blockAccount = (uid: string, reason: string) => send(accountPath(uid, 'sperren'), { reason });
 export const unblockAccount = (uid: string, reason = '') => send(accountPath(uid, 'entsperren'), { reason });

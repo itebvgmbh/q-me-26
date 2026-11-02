@@ -2,7 +2,7 @@
 
 - **ID:** telefon-assistent
 - **Stand:** 23.10.2026, mit Stefan abgestimmt
-- **Status:** Entwurf – Anbieter und endgültige Preise erst nach dem Probelauf (siehe „Offen“). Für den Probelauf gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer) und Rufnummer im Betreiber-Bereich, Anleitung in `deploy/telefon-assistent.md`
+- **Status:** Entwurf – Anbieter und endgültige Preise erst nach dem Probelauf (siehe „Offen“). Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Zulassung und freie Minuten im Betreiber-Bereich. Zubuchen im Tarif, Abrechnung und Anrufliste fehlen noch. Anleitung in `deploy/telefon-assistent.md`
 
 ## Worum es geht
 
@@ -19,7 +19,7 @@ Beteiligt sind:
 ## Ablauf für den Laden
 
 1. **Zubuchen:** Unter „Tarif“ ab Solo. In der Testphase sind 30 Minuten frei, danach braucht es den Zusatz.
-2. **Eigene Rufnummer:** Der Laden bekommt eine Rufnummer, die nur für ihn gilt. Die Anrufer sehen sie nie, sie wählen weiter die Nummer des Ladens.
+2. **Nummer des Ladens:** Der Laden trägt seine Nummer ein und sieht die Rufnummer, auf die er umleitet. Die Anrufer sehen sie nie, sie wählen weiter die Nummer des Ladens.
 3. **Rufumleitung:** Der Laden richtet bei seinem Telefonanbieter eine Umleitung auf diese Nummer ein. Empfohlen: bei Nichtmelden nach etwa 20 Sekunden und bei besetzt. „Immer“ geht auch.
    - Dranzeit zeigt Anleitungen für die gängigen Fälle: Telekom, Vodafone, O2/Telefónica, 1&1, Fritzbox und die Codes fürs Handy.
    - Ein Probeanruf zeigt, ob die Umleitung ankommt.
@@ -140,7 +140,7 @@ Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Eins
 
 ## Vorschlag zur Umsetzung (nicht Teil der Anforderung)
 
-- **Rufnummern:** Eine Rufnummer je Laden, weil eine umgeleitete Rufnummer nicht zuverlässig verrät, welche Nummer ursprünglich gewählt wurde. Ortsnetznummern gibt es nur mit Sitz im Ortsnetz, daher alle als Berliner 030-Nummern auf die ITEBV. Umleitungen auf deutsche Festnetznummern sind in den üblichen Flatrates enthalten.
+- **Rufnummern:** Eine gemeinsame Berliner 030-Nummer auf die ITEBV. Das Backend erkennt den Laden an der Nummer, die bei der Umleitung mitkommt (`ForwardedFrom`), und nimmt nur Anrufe von zugelassenen Läden an, bevor die KI abnimmt (geprüft mit simon mobile am 02.11.2026, Festnetz noch offen). Kommt die Nummer bei einem Anbieter nicht an, zeigt das der Probeanruf, und der Laden bekommt eine eigene Nummer. Ortsnetznummern gibt es nur mit Sitz im Ortsnetz. Umleitungen auf deutsche Festnetznummern sind in den üblichen Flatrates enthalten.
 - **Sprach-KI:** Eine fertige Plattform übernimmt Stimme, Spracherkennung und Telefonleitung. Sie ruft unser Backend auf für:
   - freie Zeiten (vorhandene Berechnung)
   - buchen

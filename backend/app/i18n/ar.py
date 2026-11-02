@@ -289,4 +289,10 @@ TEXTE: dict = {
     },
     "Neu bei {laden}": "جديد في {laden}",
     "Dieses Konto gehört zu keinem Laden.": "هذا الحساب لا ينتمي إلى أي محل.",
+    "Bitte eine deutsche Rufnummer eintragen.": "يرجى إدخال رقم هاتف ألماني.",
+    "Das ist die Nummer des Assistenten. Trag hier die Nummer deines Ladens ein.": "هذا رقم المساعد. أدخل هنا رقم محلك.",
+    "Diese Nummer ist schon bei einem anderen Laden eingetragen. Schreib uns an hilfe@dranzeit.de.": "هذا الرقم مسجل لدى محل آخر. راسلنا على hilfe@dranzeit.de.",
+    "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "لم يتم تفعيل مساعد الهاتف لهذا المحل بعد.",
+    "Das ist keine Rufnummer (z. B. 030 1234567).": "هذا ليس رقم هاتف (مثال: 030 1234567).",
+    "Trag zuerst die Nummer deines Ladens ein.": "أدخل رقم محلك أولًا.",
 }

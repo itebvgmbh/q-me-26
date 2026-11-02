@@ -30,7 +30,8 @@ from app.libs import konten, protokoll
 from app.libs.konten import BERLIN, ITEBV_SHOP, utc
 from app.libs.plans import ACTIVE_BILLING, FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, PLANS, effective_plan, trial_end
 from app.libs.staff_contacts import contacts_of_shop
-from app.libs.telefon import LEITUNGEN, e164
+from app.libs import telefon_laeden
+from app.libs.telefon import FREIMINUTEN, LEITUNGEN, e164
 
 router = APIRouter()
 admin = APIRouter(dependencies=[Depends(require_admin)])
@@ -267,6 +268,7 @@ def laden(shop_id: str) -> dict:
         "staff": staff,
         "owner": owner,
         "telefon": _telefon_nummern(shop_id),
+        "telefonLaden": telefon_laeden.stand(get_firestore_db(), shop_id, shop),
         "protokoll": protokoll.read(100, shop_id=shop_id),
     })
 
@@ -455,10 +457,35 @@ def telefon_zuordnen(shop_id: str, body: TelefonRequest, user: AuthorizedUser) -
             fs.collection(LEITUNGEN).document(old).delete()
     if nummer and nummer not in before:
         fs.collection(LEITUNGEN).document(nummer).set({"shopId": shop_id, "nummer": nummer, "createdAt": _now()})
+    if nummer:
+        telefon_laeden.eigene_nummer_zugeordnet(fs, shop_id)
     protokoll.write(user, "Telefon-Nummer zugeordnet" if nummer else "Telefon-Nummer entfernt",
                     {"shopId": shop_id, "name": shop.get("name")}, body.reason.strip(), {"telefon": before},
                     {"telefon": [nummer] if nummer else []})
     return {"telefon": [nummer] if nummer else []}
+
+
+class TelefonFreigabe(BaseModel):
+    freigegeben: bool
+    freiminuten: int = FREIMINUTEN
+    reason: str = ""
+
+
+@admin.post("/betreiber/laden/{shop_id}/telefon-freigabe")
+def telefon_freigeben(shop_id: str, body: TelefonFreigabe, user: AuthorizedUser) -> dict:
+    """Lässt einen Laden zum Telefon-Assistenten zu und legt fest, wie viele Minuten er frei hat"""
+    _, shop = _shop(shop_id)
+    fs = get_firestore_db()
+    vorher = telefon_laeden.stand(fs, shop_id, shop)
+    try:
+        telefon_laeden.freigeben(fs, shop_id, body.freigegeben, body.freiminuten)
+    except telefon_laeden.Abgelehnt as nein:
+        raise HTTPException(status_code=nein.status, detail=nein.text) from nein
+    protokoll.write(user, "Telefon-Assistent freigegeben" if body.freigegeben else "Telefon-Assistent nicht mehr freigegeben",
+                    {"shopId": shop_id, "name": shop.get("name")}, body.reason.strip(),
+                    {"freigegeben": vorher["freigegeben"], "freiminuten": vorher["freiminuten"]},
+                    {"freigegeben": body.freigegeben, "freiminuten": body.freiminuten})
+    return telefon_laeden.stand(fs, shop_id, shop)
 
 
 def _shop_accounts(shop_id: str, shop: dict) -> list:

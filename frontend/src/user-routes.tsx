@@ -21,6 +21,7 @@ const Auswertung = lazyPage(() => import("./pages/Auswertung.tsx"));
 const Betreiber = lazyPage(() => import("./pages/Betreiber.tsx"));
 const Preise = lazyPage(() => import("./pages/Preise.tsx"));
 const Tarif = lazyPage(() => import("./pages/Tarif.tsx"));
+const TelefonAssistent = lazyPage(() => import("./pages/TelefonAssistent.tsx"));
 const Uebernehmen = lazyPage(() => import("./pages/Uebernehmen.tsx"));
 const CodeHealth = lazyPage(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazyPage(() => import("./pages/CustomerProfile.tsx"));
@@ -79,6 +80,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/agb", element: <Agb />},
 	{ path: "/preise", element: <Preise />},
 	{ path: "/tarif", element: <UserGuard><Tarif /></UserGuard>},
+	{ path: "/telefon-assistent", element: <UserGuard><TelefonAssistent /></UserGuard>},
 	{ path: "/uebernehmen", element: <Uebernehmen />},
 	{ path: "/auswertung", element: <UserGuard><Auswertung /></UserGuard>},
 	// Nur für den Betreiber der App; das Backend prüft jeden Aufruf (backend/app/apis/betreiber)

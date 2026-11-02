@@ -3,9 +3,13 @@
 Die Schnittstelle für die Sprach-KI steht in app/apis/telefon. Getestet in tests/test_telefon.py.
 """
 
+import base64
+import hashlib
+import hmac
 import re
 from datetime import date, datetime, timedelta
 from typing import Optional, Tuple
+from xml.sax.saxutils import escape
 
 WOCHENTAGE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
 MONATE = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
@@ -15,6 +19,13 @@ FIRESTORE_TAGE = (1, 2, 3, 4, 5, 6, 0)
 ID_RE = re.compile(r"[A-Za-z0-9_-]{1,128}")
 # Rufnummer → Laden: telefon_leitungen/{+49…} = {shopId, nummer}; nur das Backend liest und schreibt (Betreiber-Bereich)
 LEITUNGEN = "telefon_leitungen"
+# Stand je Laden und laufende Anrufe: app/libs/telefon_laeden.py
+LAEDEN = "telefon_laeden"
+ANRUFE = "telefon_anrufe"
+FREIMINUTEN = 30  # so viele Minuten hat ein freigegebener Laden, solange es noch keinen bezahlten Zusatz gibt
+ANRUF_ZU_ENDE = ("completed", "busy", "failed", "no-answer", "canceled")
+ANNEHMEN, ANSAGE = "annehmen", "ansage"
+STOERUNG = "Das ist eine automatische Ansage. Gerade ist niemand erreichbar. Bitte versuchen Sie es später noch einmal. Auf Wiederhören."
 
 
 def e164(nummer) -> Optional[str]:
@@ -37,6 +48,42 @@ def e164(nummer) -> Optional[str]:
     if not 8 <= len(digits) <= 15 or digits.startswith("0"):
         return None
     return "+" + digits
+
+
+def twilio_signatur_ok(url: str, felder: dict, signatur: Optional[str], token: str) -> bool:
+    """X-Twilio-Signature: HMAC-SHA1 über die Adresse und die Formularfelder, sortiert nach Namen"""
+    if not signatur:
+        return False
+    daten = url + "".join(name + str(felder[name]) for name in sorted(felder))
+    erwartet = base64.b64encode(hmac.new(token.encode(), daten.encode(), hashlib.sha1).digest()).decode()
+    return hmac.compare_digest(erwartet, signatur)
+
+
+def entscheiden(daten: dict, gesperrt: bool) -> str:
+    """Nimmt die KI ab oder hört der Anrufer nur eine kurze Ansage? daten: Eintrag des Ladens aus telefon_laeden"""
+    if gesperrt or not daten.get("freigegeben") or not daten.get("aktiv"):
+        return ANSAGE
+    frei = daten.get("freiminuten")
+    frei = FREIMINUTEN if frei is None else int(frei)
+    return ANNEHMEN if int(daten.get("sekunden") or 0) < frei * 60 else ANSAGE
+
+
+def begruessung(name: str) -> str:
+    """Erster Satz des Assistenten: sagt, dass er eine KI ist (Art. 50 Abs. 1 KI-Verordnung)"""
+    return f"Hallo, hier ist der KI-Assistent von {name}. Wie kann ich helfen?"
+
+
+def ansage_text(name: str) -> str:
+    return f"Das ist eine automatische Ansage von {name}. Gerade ist niemand erreichbar. Termine können Sie online auf dranzeit punkt de buchen. Auf Wiederhören."
+
+
+def twiml_ansage(text: str) -> str:
+    return f'<?xml version="1.0" encoding="UTF-8"?><Response><Say language="de-DE">{escape(text)}</Say><Hangup/></Response>'
+
+
+def twiml_abweisen() -> str:
+    """Twilio nimmt nicht ab und berechnet nichts"""
+    return '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
 
 
 def tag_text(day: date, heute: date) -> str:
