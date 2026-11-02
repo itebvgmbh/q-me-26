@@ -167,14 +167,7 @@ def _finde(items: List[dict], wert: Optional[str]) -> Optional[dict]:
     return part[0] if len(part) == 1 else None
 
 
-def _leistungen(db, shop_id: str) -> List[dict]:
-    """Angebotene Leistungen (gelöschte nicht), wie offeredServices im Frontend"""
-    items = []
-    for snap in db.collection("services").where("shopId", "==", shop_id).stream():
-        s = snap.to_dict() or {}
-        if not s.get("archived"):
-            items.append({**s, "id": snap.id, "name": str(s.get("name") or "").strip()})
-    return sorted(items, key=lambda s: s["name"].casefold())
+_leistungen = tl.leistungen
 
 
 def _leistung(db, shop_id: str, wert: Optional[str]) -> dict:
