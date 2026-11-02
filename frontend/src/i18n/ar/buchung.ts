@@ -141,6 +141,7 @@ const texte: Texte = {
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "لا يمكن حاليًا أخذ رقم انتظار أو حجز موعد عبر الإنترنت.",
   "Vielleicht ist der Link alt. Such den Laden einfach neu.": "ربما الرابط قديم. ابحث عن المحل من جديد.",
   "Noch keine Leistungen eingetragen.": "لم تُضف أي خدمات بعد.",
+  "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.": "إذا لم يرد أحد، يجيب مساعد ذكاء اصطناعي باللغة الألمانية ويحجز لك موعدًا.",
   "Öffnungszeiten": "ساعات العمل",
   "Nicht angegeben.": "غير محدد.",
 

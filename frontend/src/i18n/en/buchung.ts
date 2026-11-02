@@ -127,6 +127,7 @@ const texte: Texte = {
   "Online geht im Moment weder Nummer ziehen noch Termin buchen.": "Taking a number or booking online isn't possible at the moment.",
   "Vielleicht ist der Link alt. Such den Laden einfach neu.": "Maybe the link is old. Just search for the shop again.",
   "Noch keine Leistungen eingetragen.": "No services listed yet.",
+  "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.": "If no one picks up, an AI assistant answers in German and books you an appointment.",
   "Öffnungszeiten": "Opening hours",
   "Nicht angegeben.": "Not specified.",
 

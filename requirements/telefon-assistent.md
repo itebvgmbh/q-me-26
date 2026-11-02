@@ -1,8 +1,8 @@
 # Anforderung: Telefon-Assistent
 
 - **ID:** telefon-assistent
-- **Stand:** 23.10.2026, mit Stefan abgestimmt
-- **Status:** Entwurf – Anbieter und endgültige Preise erst nach dem Probelauf (siehe „Offen“). Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Zulassung und freie Minuten im Betreiber-Bereich. Zubuchen im Tarif, Abrechnung und Anrufliste fehlen noch. Anleitung in `deploy/telefon-assistent.md`
+- **Stand:** 02.11.2026, mit Stefan abgestimmt
+- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und freie Minuten im Betreiber-Bereich. Zubuchen im Tarif, Abrechnung und Anrufliste fehlen noch. Anleitung in `deploy/telefon-assistent.md`
 
 ## Worum es geht
 
@@ -86,12 +86,23 @@ Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Eins
 ## Abrechnung
 
 - **Posten im Abo:** Ab Solo zubuchbar, als eigener Posten im bestehenden Abo, monatlich.
-- **Preismodell:** Grundpreis mit Inklusivminuten, darüber ein Minutenpreis. Vorschlag: 19 € netto im Monat mit 100 Minuten inklusive, danach 0,20 € pro Minute. Die endgültigen Zahlen kommen nach dem Probelauf.
+- **Preismodell:** 29 € netto im Monat mit 100 Minuten inklusive, danach 0,20 € pro Minute. Gleich in jedem Tarif, nicht im Gründerpreis enthalten. Abgerechnet wird erst, wenn Zubuchen, Kostendeckel und Anrufliste gebaut sind.
 - **Zählung:** Gezählt wird die Gesprächszeit vom Annehmen bis zum Auflegen, sekundengenau. Die Monatssumme wird auf volle Minuten aufgerundet. Durchgestellte Gespräche zählen mit. Ansagen ohne KI (Deckel, gesperrt, gekündigt) kosten den Laden nichts.
 - **Testphase:** 30 Minuten frei. Danach kommt die Ansage, bis der Zusatz gebucht ist.
-- **Kostendeckel:** Der Laden legt einen Höchstbetrag je Monat fest. Bei 80 % und bei 100 % bekommt er eine Mail und einen Hinweis im Dashboard. Ab 100 % kommt bis zum Monatsende die Ansage.
+- **Kostendeckel:** Der Laden legt einen Höchstbetrag je Monat fest, ohne eigene Angabe gelten 59 € insgesamt (250 Minuten). Bei 80 % und bei 100 % bekommt er eine Mail und einen Hinweis im Dashboard. Ab 100 % kommt bis zum Monatsende die Ansage. Die Warnung gilt auch für die Testminuten und muss stehen, bevor fremde Läden freigegeben werden. Sonst hören Anrufer nur noch die Ansage, ohne dass der Laden es erfährt.
 - **Rechnung:** Die Monatsrechnung zeigt die Minuten als eigenen Posten. Der Betreiber-Bereich zeigt die Minuten je Laden und Monat.
 - **Kündigung:** Zum Monatsende. Bis die Nummer freigegeben wird, kommt die Ansage.
+
+## Hinweise für Kunden
+
+Die Kunden wählen weiter die Nummer des Ladens. Der Hinweis steht nur dort, wo jemand diese Nummer sucht. Wer online bucht, soll nicht zum Telefon wechseln, denn online kostet den Laden nichts.
+
+- **Einrichtung:** Sobald der Assistent abnimmt, zeigt `/telefon-assistent` fertige Texte für Google-Eintrag, Webseite und Tresen. Die Stellen außerhalb von Dranzeit pflegt nur der Laden.
+- **QR-Plakat:** Eine Zeile mit der Nummer, abwählbar. Gedruckt bleibt sie hängen, auch wenn der Assistent später aus ist.
+- **Ladenseite und Salonseite:** Eine Zeile unter der Nummer. Die Seite fragt `/routes/telefon-hinweis/{Laden-ID}` und bekommt nur Ja oder Nein.
+- **Bedingungen für den Hinweis:** Freigegeben, eingeschaltet, Probeanruf bestanden, Minuten übrig, nicht gesperrt, Tarif mit Terminen. Auf Laden- und Salonseite muss außerdem die dort genannte Nummer die umgeleitete sein.
+- **Nicht versprechen:** Es gibt keine Rückrufbitte, keine SMS und nur Deutsch. In anderen Sprachen sagt der Hinweis deshalb „auf Deutsch“. „Rund um die Uhr“ steht nirgends.
+- **Bewusst ohne Hinweis:** Nummernseite, Erinnerungen und Push (der Assistent kann bestehende Termine nicht verschieben oder absagen), Buchung (gleiche freie Zeiten), Anrufbeantworter (er muss aus, sonst nimmt er vor der Umleitung ab).
 
 ## Datenschutz und Recht
 
@@ -133,9 +144,8 @@ Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Eins
   - Kosten pro Minute
   - Verarbeitung in der EU und Vertrag zur Auftragsverarbeitung
   - deutsche Rufnummern
-- **Preise:** endgültiger Grundpreis, Inklusivminuten und Minutenpreis nach den gemessenen Kosten.
+- **Preise:** nach den ersten bezahlten Minuten gegen die gemessenen Kosten prüfen.
 - **SMS:** Anbieter, Absendername (Dranzeit oder Name des Ladens) und ob SMS im Minutenpreis stecken oder einzeln abgerechnet werden.
-- **Kostendeckel:** Standardwert, wenn der Laden nichts einstellt.
 - **Nummer nach Kündigung:** wie lange sie gehalten wird, bevor sie an einen anderen Laden geht.
 
 ## Vorschlag zur Umsetzung (nicht Teil der Anforderung)

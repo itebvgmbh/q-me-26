@@ -54,8 +54,9 @@ function PreiseSeite() {
           <p className="text-muted-foreground">
             {t('Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.')}
           </p>
-          <p className="font-semibold">
-            {tTeile('Im Testbetrieb, Preis auf Anfrage: <mail/>', {
+          <p className="font-semibold">{t('Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.')}</p>
+          <p className="text-muted-foreground">
+            {tTeile('Im Testbetrieb auf Anfrage: <mail/>', {
               mail: () => (
                 <a href={`mailto:${HILFE_MAIL}`} dir="ltr" className="underline underline-offset-4">
                   {HILFE_MAIL}

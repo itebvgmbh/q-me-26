@@ -230,7 +230,8 @@ const texte: Texte = {
   // Telefon-Assistent auf Preise, Für Läden und Startseite
   "Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage.": "If no one picks up, an AI answers the call. It offers free appointments, books them, tells callers the waiting time and issues numbers. On request.",
   "Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.": "If no one in the shop picks up, an AI answers the call. It offers free appointments, books them, tells callers the waiting time, issues numbers and answers questions about the shop.",
-  "Im Testbetrieb, Preis auf Anfrage: <mail/>": "In testing, price on request: <mail/>",
+  "Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.": "Planned: €29 net per month with 100 minutes, then €0.20 per minute. Optional add-on from the Solo plan.",
+  "Im Testbetrieb auf Anfrage: <mail/>": "In testing, on request: <mail/>",
   "So funktioniert der Telefon-Assistent": "How the phone assistant works",
   "Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.": "And if no one can get to the phone, the phone assistant answers the call.",
 };

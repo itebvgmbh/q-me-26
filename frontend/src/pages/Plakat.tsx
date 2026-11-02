@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { BrandMark } from '../components/brand/Logo';
 import { getShopsByOwnerId, type Shop } from '../utils/firestore';
 import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { ladeTelefon, nummerFuerKunden, type TelefonStand } from '../utils/telefon-assistent';
 import { HilfeLink } from '../components/HilfeLink';
 import { markOnboarding } from '../components/onboarding/Startklar';
 import { merke, t } from '@/i18n';
@@ -21,6 +22,8 @@ export default function Plakat() {
   const { user } = useCurrentUser();
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [shopId, setShopId] = useState('');
+  const [telefon, setTelefon] = useState<TelefonStand | null>(null);
+  const [mitTelefon, setMitTelefon] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -35,12 +38,27 @@ export default function Plakat() {
     if (shopId) merkeLaden(shopId);
   }, [shopId]);
 
+  useEffect(() => {
+    setTelefon(null);
+    if (!shopId) return;
+    let aktuell = true;
+    ladeTelefon(shopId)
+      .then((stand) => aktuell && setTelefon(stand))
+      .catch(() => undefined);
+    return () => {
+      aktuell = false;
+    };
+  }, [shopId]);
+
   const shop = shops?.find((s) => s.id === shopId);
   if (shops === null) return <div className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">{t('Plakat wird vorbereitet …')}</div>;
   if (!shop) return <div className="mx-auto max-w-3xl px-4 py-16">{t('Richte zuerst deinen Laden ein.')}</div>;
 
   const url = `${window.location.origin}${APP_BASE_PATH}/public-join-queue?shopId=${shop.id}`;
   const host = window.location.host.replace(/^www\./, '');
+  // Gedruckt bleibt die Zeile hängen, auch wenn der Assistent später aus ist: deshalb nur auf Wunsch und nur, wenn er gerade abnimmt
+  const telefonNummer = telefon?.weitersagen ? nummerFuerKunden(telefon, shop.phone) : '';
+  const mitZeile = mitTelefon && Boolean(telefonNummer);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 print:max-w-none print:p-0">
@@ -52,7 +70,13 @@ export default function Plakat() {
             {t('Auf A4 drucken und an Tür oder Tresen hängen.')} <HilfeLink hilfe="plakat">{t('Tipps fürs Aufhängen')}</HilfeLink>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {telefonNummer && (
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={mitTelefon} onChange={(e) => setMitTelefon(e.target.checked)} />
+              {t('Telefon-Hinweis aufs Plakat')}
+            </label>
+          )}
           {shops.length > 1 && (
             <select aria-label={t('Laden wählen')} className="rounded-xl border border-border bg-card px-3 py-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
               {shops.map((s) => (
@@ -74,7 +98,7 @@ export default function Plakat() {
       </div>
 
       {/* Das Blatt: auf dem Bildschirm als Vorschau, beim Drucken allein */}
-      <article className="mx-auto flex aspect-[210/297] w-full max-w-[640px] flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-border bg-white p-[6%] text-[#141414] shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+      <article className="mx-auto flex aspect-[210/297] w-full max-w-[640px] flex-col justify-between gap-6 rounded-3xl border border-border bg-white p-[6%] text-[#141414] shadow-sm print:max-w-none print:overflow-hidden print:rounded-none print:border-0 print:shadow-none">
         <header className="flex flex-col gap-3">
           <p className="text-[clamp(14px,2.4vw,18px)] font-semibold uppercase tracking-[0.12em]">{shop.name}</p>
           <h2 className="font-display text-[clamp(40px,8vw,72px)] font-extrabold leading-[0.92] tracking-[-0.045em]">
@@ -84,7 +108,7 @@ export default function Plakat() {
           </h2>
         </header>
 
-        <div className="mx-auto w-[62%] rounded-[8%] bg-[#ffc83d] p-[5%]">
+        <div className={`mx-auto rounded-[8%] bg-[#ffc83d] p-[5%] ${mitZeile ? 'w-[42%] print:w-[50%]' : 'w-[62%]'}`}>
           <QRCodeSVG value={url} size={512} className="h-auto w-full" bgColor="#ffc83d" fgColor="#141414" marginSize={0} />
         </div>
 
@@ -96,6 +120,19 @@ export default function Plakat() {
             </li>
           ))}
         </ol>
+
+        {mitZeile && (
+          <p className="text-[clamp(14px,2.4vw,18px)] font-semibold print:text-[22px]">
+            <strong className="font-display text-[clamp(18px,3vw,24px)] font-extrabold print:text-[34px]">
+              {t('Lieber anrufen?')}{' '}
+              <span dir="ltr" className="whitespace-nowrap font-mono">
+                {telefonNummer}
+              </span>
+            </strong>
+            <br />
+            {t('Geht keiner ran, nimmt unser KI-Assistent ab und bucht deinen Termin.')}
+          </p>
+        )}
 
         <footer className="flex items-center justify-between gap-3 border-t-2 border-dashed border-[#141414]/30 pt-4">
           <span className="flex items-center gap-2 font-display text-[clamp(18px,3vw,24px)] font-extrabold">
