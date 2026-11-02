@@ -8,7 +8,7 @@ import hashlib
 import hmac
 import re
 from datetime import date, datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 from xml.sax.saxutils import escape
 
 WOCHENTAGE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
@@ -25,6 +25,7 @@ ANRUFE = "telefon_anrufe"
 FREIMINUTEN = 30  # so viele Minuten hat ein freigegebener Laden, solange es noch keinen bezahlten Zusatz gibt
 ANRUF_ZU_ENDE = ("completed", "busy", "failed", "no-answer", "canceled")
 ANNEHMEN, ANSAGE = "annehmen", "ansage"
+MAX_GENANNT = 3  # so viele Leistungen nennt die Begrüßung, mehr hört am Telefon niemand zu Ende
 STOERUNG = "Das ist eine automatische Ansage. Gerade ist niemand erreichbar. Bitte versuchen Sie es später noch einmal. Auf Wiederhören."
 
 
@@ -68,9 +69,18 @@ def entscheiden(daten: dict, gesperrt: bool) -> str:
     return ANNEHMEN if int(daten.get("sekunden") or 0) < frei * 60 else ANSAGE
 
 
-def begruessung(name: str) -> str:
-    """Erster Satz des Assistenten: sagt, dass er eine KI ist (Art. 50 Abs. 1 KI-Verordnung)"""
-    return f"Hallo, hier ist der KI-Assistent von {name}. Wie kann ich helfen?"
+def begruessung(name: str, leistungen: Sequence[str] = (), termine: bool = True) -> str:
+    """Erste Worte des Assistenten: dass er eine KI ist (Art. 50 Abs. 1 KI-Verordnung) und gleich, was man buchen kann"""
+    kopf = f"Hallo, hier ist der KI-Assistent von {name}."
+    if not termine:
+        return f"{kopf} Ich kann Ihnen eine Nummer für heute ziehen und die Wartezeit nennen. Was darf es sein?"
+    if not leistungen:
+        return f"{kopf} Ich kann Ihnen direkt einen Termin buchen. Was darf es sein?"
+    if len(leistungen) == 1:
+        return f"{kopf} Ich kann Ihnen direkt einen Termin für {leistungen[0]} buchen. Soll ich schauen, wann der nächste frei ist?"
+    beispiel = "zum Beispiel " if len(leistungen) > MAX_GENANNT else ""
+    genannt = list(leistungen[:MAX_GENANNT])
+    return f"{kopf} Ich kann Ihnen direkt einen Termin buchen, {beispiel}{', '.join(genannt[:-1])} oder {genannt[-1]}. Was darf es sein?"
 
 
 def ansage_text(name: str) -> str:

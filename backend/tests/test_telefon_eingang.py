@@ -67,8 +67,9 @@ class Db:
         eingang.get_firestore_db = lambda: self.db
         eingang._assistent = self._assistent
 
-    def _assistent(self, shop_id, name, anrufer):
+    def _assistent(self, shop_id, name, begruessung, anrufer):
         self.vapi.append((shop_id, name, anrufer))
+        self.begruessung = begruessung
         return "<Response><Connect/></Response>"
 
 
@@ -161,6 +162,28 @@ def test_ansage_ohne_ki():
         antwort = anruf(ForwardedFrom=SALON)
         assert "<Say" in antwort.text and "Salon Nora &amp; Co" in antwort.text, laden
         assert not d.vapi and not d.data[t.ANRUFE], laden
+
+
+def test_begruessung_nennt_was_man_buchen_kann():
+    d = Db(aktiv(), {"trialEndsAt": datetime.now(timezone.utc) + timedelta(days=5)})
+    d.data["services"] = {
+        "a": {"shopId": "salon", "name": "Haarschnitt"},
+        "b": {"shopId": "salon", "name": "Bart"},
+        "c": {"shopId": "salon", "name": "Alt", "archived": True},
+        "d": {"shopId": "anderer", "name": "Fremd"},
+    }
+    anruf(ForwardedFrom=SALON)
+    assert d.begruessung == "Hallo, hier ist der KI-Assistent von Salon Nora & Co. Ich kann Ihnen direkt einen Termin buchen, Bart oder Haarschnitt. Was darf es sein?"
+
+
+def test_begruessung_je_nach_angebot():
+    kopf = "Hallo, hier ist der KI-Assistent von Nora."
+    assert t.begruessung("Nora", ["Bart"]) == f"{kopf} Ich kann Ihnen direkt einen Termin für Bart buchen. Soll ich schauen, wann der nächste frei ist?"
+    assert t.begruessung("Nora", ["A", "B", "C"]).endswith("buchen, A, B oder C. Was darf es sein?")
+    assert t.begruessung("Nora", ["A", "B", "C", "D"]).endswith("buchen, zum Beispiel A, B oder C. Was darf es sein?")
+    assert t.begruessung("Nora") == f"{kopf} Ich kann Ihnen direkt einen Termin buchen. Was darf es sein?"
+    assert "Nummer für heute" in t.begruessung("Nora", ["A"], termine=False)
+    assert "KI-Assistent" in t.begruessung("Nora", ["A"], termine=False)
 
 
 def test_kurz_vor_dem_limit_nimmt_er_noch_ab():

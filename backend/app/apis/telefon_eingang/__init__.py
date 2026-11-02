@@ -25,7 +25,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
 from app.libs import telefon_laeden as tl
-from app.libs.plans import is_suspended
+from app.libs.plans import has_feature, is_suspended
 
 log = logging.getLogger(__name__)
 
@@ -50,13 +50,13 @@ async def _von_twilio(request: Request, pfad: str, signatur: Optional[str]) -> d
     return felder
 
 
-def _assistent(shop_id: str, name: str, anrufer: Optional[str]) -> str:
+def _assistent(shop_id: str, name: str, begruessung: str, anrufer: Optional[str]) -> str:
     """TwiML von Vapi, das den Anruf zum Assistenten dieses Ladens verbindet"""
     body: dict = {
         "phoneNumberId": os.environ["QME_VAPI_PHONE_NUMBER_ID"],
         "assistantId": os.environ["QME_VAPI_ASSISTANT_ID"],
         "phoneCallProviderBypassEnabled": True,
-        "assistantOverrides": {"firstMessage": t.begruessung(name), "variableValues": {"laden_id": shop_id, "laden_name": name}},
+        "assistantOverrides": {"firstMessage": begruessung, "variableValues": {"laden_id": shop_id, "laden_name": name}},
     }
     if anrufer:
         body["customer"] = {"number": anrufer}
@@ -94,7 +94,8 @@ def _antwort(felder: dict) -> str:
         tl.probeanruf(db, shop_id)
     if t.entscheiden(daten, is_suspended(shop)) != t.ANNEHMEN:
         return t.twiml_ansage(t.ansage_text(name))
-    twiml = _assistent(shop_id, name, t.e164(felder.get("From")))
+    namen = [s["name"] for s in tl.leistungen(db, shop_id) if s["name"]]
+    twiml = _assistent(shop_id, name, t.begruessung(name, namen, has_feature(shop, "termine")), t.e164(felder.get("From")))
     if felder.get("CallSid"):
         tl.anruf_merken(db, felder["CallSid"], shop_id)
     return twiml

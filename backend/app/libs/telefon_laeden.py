@@ -34,6 +34,16 @@ def _jetzt() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def leistungen(db, shop_id: str) -> list:
+    """Angebotene Leistungen (gelöschte nicht), wie offeredServices im Frontend"""
+    items = []
+    for snap in db.collection("services").where("shopId", "==", shop_id).stream():
+        s = snap.to_dict() or {}
+        if not s.get("archived"):
+            items.append({**s, "id": snap.id, "name": str(s.get("name") or "").strip()})
+    return sorted(items, key=lambda s: s["name"].casefold())
+
+
 def eintrag(db, shop_id: str) -> dict:
     snap = db.collection(t.LAEDEN).document(shop_id).get()
     return (snap.to_dict() or {}) if snap.exists else {}
