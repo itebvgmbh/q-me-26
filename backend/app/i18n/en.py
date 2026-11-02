@@ -259,4 +259,10 @@ TEXTE: dict = {
     "{n} Absagen": {"one": "{n} cancellation", "other": "{n} cancellations"},
     "Neu bei {laden}": "New at {laden}",
     "Dieses Konto gehört zu keinem Laden.": "This account doesn't belong to any shop.",
+    "Bitte eine deutsche Rufnummer eintragen.": "Please enter a German phone number.",
+    "Das ist die Nummer des Assistenten. Trag hier die Nummer deines Ladens ein.": "That's the assistant's number. Enter your shop's number here.",
+    "Diese Nummer ist schon bei einem anderen Laden eingetragen. Schreib uns an hilfe@dranzeit.de.": "This number is already registered to another shop. Write to us at hilfe@dranzeit.de.",
+    "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "The phone assistant hasn't been enabled for this shop yet.",
+    "Das ist keine Rufnummer (z. B. 030 1234567).": "That isn't a phone number (e.g. 030 1234567).",
+    "Trag zuerst die Nummer deines Ladens ein.": "Enter your shop's number first.",
 }

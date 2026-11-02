@@ -11,6 +11,7 @@ import {
   grantPlan,
   loadShop,
   setFounder,
+  setPhoneAccess,
   setPhoneLine,
   setTrial,
   suspendShop,
@@ -73,6 +74,11 @@ export function LadenDetail({
   const phoneLines = detail?.telefon ?? [];
   const [phone, setPhone] = useState('');
   useEffect(() => setPhone(detail?.telefon?.[0] ?? ''), [detail]);
+  const telefon = detail?.telefonLaden;
+  const [telefonFrei, setTelefonFrei] = useState({ freigegeben: false, freiminuten: '30' });
+  useEffect(() => {
+    if (telefon) setTelefonFrei({ freigegeben: telefon.freigegeben, freiminuten: String(telefon.freiminuten) });
+  }, [telefon]);
 
   const changed = () => {
     reload();
@@ -307,9 +313,47 @@ export function LadenDetail({
       </Section>
 
       <Section title="Telefon-Assistent">
+        {telefon && (
+          <dl className="grid gap-2 sm:grid-cols-3">
+            <Fact label="Nummer des Ladens">
+              <span className="font-mono">{telefon.anschluss || '–'}</span>
+            </Fact>
+            <Fact label="Stand">{!telefon.aktiv ? 'ausgeschaltet' : telefon.status === 'aktiv' ? 'aktiv' : 'wartet auf Probeanruf'}</Fact>
+            <Fact label="Minuten">
+              {telefon.minuten} von {telefon.freiminuten}
+            </Fact>
+          </dl>
+        )}
+        <form
+          className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run('telefon-frei', () => setPhoneAccess(shop.id, telefonFrei.freigegeben, Number(telefonFrei.freiminuten)), 'Telefon-Assistent gespeichert.');
+          }}
+        >
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={telefonFrei.freigegeben} onChange={(e) => setTelefonFrei({ ...telefonFrei, freigegeben: e.target.checked })} />
+            Für diesen Laden freigegeben
+          </label>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="telefon-minuten">Freie Minuten</Label>
+            <Input
+              id="telefon-minuten"
+              type="number"
+              min={0}
+              className="w-24"
+              value={telefonFrei.freiminuten}
+              onChange={(e) => setTelefonFrei({ ...telefonFrei, freiminuten: e.target.value })}
+              required
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={busy !== ''}>
+            Speichern
+          </Button>
+        </form>
         <p className="text-sm text-muted-foreground">
-          Anrufe auf diese Nummer nimmt der KI-Assistent für diesen Laden an (eine Nummer je Laden). Einrichtung der Sprach-KI:
-          deploy/telefon-assistent.md.
+          Der Inhaber richtet den Rest unter „Laden“, „Telefon-Assistent“ selbst ein. Eine eigene Nummer braucht ein Laden nur, wenn seine Nummer bei der
+          Umleitung nicht ankommt. Einrichtung der Sprach-KI: deploy/telefon-assistent.md.
         </p>
         <p className="text-sm">
           {phoneLines.length ? (
@@ -317,7 +361,7 @@ export function LadenDetail({
               Zugeordnet: <strong className="font-mono">{phoneLines[0]}</strong>
             </>
           ) : (
-            'Keine Nummer zugeordnet.'
+            'Keine eigene Nummer zugeordnet.'
           )}
         </p>
         <form

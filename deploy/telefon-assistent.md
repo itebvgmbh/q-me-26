@@ -34,7 +34,7 @@ Zugangsschlüssel aus `deploy/README.md` („Telefon-Assistent“).
 ## 2. Systemanweisung (für beide Plattformen)
 
 ```text
-Du bist der KI-Assistent eines Friseursalons bzw. Barbershops am Telefon. Kunden rufen an, wenn im Laden gerade niemand abnimmt.
+Du bist der KI-Assistent eines Ladens am Telefon, zum Beispiel eines Friseursalons, Barbershops oder Nagelstudios. Kunden rufen an, wenn im Laden gerade niemand abnimmt.
 
 So sprichst du
 - Locker und freundlich, wie jemand am Empfang, der den Laden kennt. Alltagssprache, kurze Sätze: "Klar.", "Alles klar.", "Super."
@@ -78,7 +78,8 @@ Grenzen
 - Gib nur Auskünfte zum Laden, keine Ratschläge zu anderen Themen.
 ```
 
-**Erste Nachricht** (den Namen des Ladens direkt hineinschreiben):
+**Erste Nachricht:** Bei Anrufen setzt sie der Eingang mit dem Namen des Ladens (`backend/app/apis/telefon_eingang`). Beim
+Assistenten steht nur die Fassung für die Probe im Browser:
 
 > Hallo, hier ist der KI-Assistent von ITEBV Barbershop. Wie kann ich helfen?
 
@@ -110,7 +111,7 @@ Die Bezeichnungen stammen aus der Vapi-Dokumentation und können in der Oberflä
   | Key | Value |
   |---|---|
   | `angerufen` | `{{ phoneNumber.number }}` |
-  | `laden_id` | die Laden-ID aus Schritt 1 |
+  | `laden_id` | `{{ laden_id }}` (setzt der Eingang je Anruf) |
 
 - **Request Body:** das JSON-Schema aus der Tabelle unten, mit „Lock schema“ (keine weiteren Felder). Diese Felder
   füllt das Modell.
@@ -251,7 +252,22 @@ Vapi schätzte die Kosten am 26.10.2026 auf etwa 0,11 $ pro Minute und die Antwo
 2. **Importieren:** In Vapi unter „Phone Numbers“ → „Create Phone Number“ → „Import Twilio“: Nummer, Account SID und
    Auth Token eintragen, SMS aus. Vapi stellt die Voice-Adresse der Nummer bei Twilio dabei selbst auf
    `api.vapi.ai/twilio/inbound_call`.
-3. **Zuweisen:** Bei der Nummer unter „Inbound Settings“ → **Assistant**: `Dranzeit Probe`, dann „Save“.
+3. **Prüfstelle davor:** In der Twilio-Konsole bei der Nummer unter „Voice Configuration“ die Adresse für eingehende Anrufe
+   auf `https://dranzeit.de/routes/telefon-eingang` stellen (HTTP POST) und „Call status changes“ auf
+   `https://dranzeit.de/routes/telefon-eingang/status` (HTTP POST). Die Nummer in Vapi danach nicht mehr ändern: Vapi könnte
+   die Adresse bei Twilio dabei zurückstellen. Schlüssel und Werte auf dem Server: `deploy/README.md`, „Eingang freischalten“.
+
+Unser Backend entscheidet dann bei jedem Anruf, bevor jemand abnimmt:
+
+| Anruf | Was passiert |
+|---|---|
+| Umleitung von der Nummer eines zugelassenen, eingeschalteten Ladens mit freien Minuten | Assistent, mit dem Namen des Ladens in der Begrüßung |
+| Laden bekannt, aber ausgeschaltet, gesperrt oder Minuten verbraucht | kurze Ansage ohne KI |
+| Unbekannt, zum Beispiel ein Direktanruf | abweisen, Twilio nimmt nicht ab und berechnet nichts |
+
+Bei einer Umleitung bleibt `From` der Anrufer, die Nummer des Ladens steht in `ForwardedFrom`. Geprüft am 02.11.2026 mit
+simon mobile (sofortige Umleitung). Festnetz und Umleitung bei Nichtmelden sind noch offen. In den Logs von Vapi taucht
+diese Angabe nicht auf, deshalb sitzt die Prüfstelle vor Vapi.
 
 **Gleichzeitige Anrufe:** Eine Nummer ist nie besetzt. Die Grenzen hängen an den Konten: Twilio erlaubt ohne
 genehmigtes Business-Kundenprofil (Trust Hub → Customer Profiles) 2 gleichzeitige Anrufe, mit Profil unbegrenzt. Vapi
@@ -259,8 +275,8 @@ begrenzt je Konto, zusätzliche Leitungen lassen sich dort zubuchen. Sind alle L
 
 ### Probe
 
-1. **Im Browser:** Beim Assistenten „Chat“ (Text) oder „Talk“ (Sprache). Dabei kommt keine Rufnummer an,
-   deshalb gilt die Laden-ID.
+1. **Im Browser:** Beim Assistenten „Chat“ (Text) oder „Talk“ (Sprache). Dabei kommt keine Rufnummer an: Ohne Laden-ID und
+   ohne eigene Nummer antworten die Werkzeuge „kein Laden“. Für die Probe die Variable `laden_id` beim Test mitgeben.
 2. **Am Telefon:** Von einem Handy die Berliner Nummer anrufen.
 3. **Mit Umleitung:** Am Handy „bei Nichtmelden“ auf die Berliner Nummer umleiten, mit `**61*<Nummer>**20#`. Dann
    das Handy anrufen und nicht abnehmen. So läuft es später bei einem Salon. Danach mit `##61#` wieder ausschalten.
@@ -328,7 +344,6 @@ Danach entscheiden wir über den Anbieter und die Preise (siehe „Offen“ in d
 - Rückrufbitte und Durchstellen aufs Handy, SMS-Bestätigung
 - Anrufliste im Dashboard, Kennzeichen „per Telefon“ in der Oberfläche
 - Zubuchen im Tarif, Abrechnung nach Minuten, Kostendeckel und Ansage ohne KI
-- Begrüßung mit dem richtigen Ladennamen bei mehreren Läden: Vapi und ElevenLabs können vor dem Gespräch eine
-  Adresse aufrufen, die den Assistenten mit den Daten des Ladens liefert. Das bauen wir, sobald die Plattform feststeht.
-- Welcher Laden gemeint ist, wenn mehrere dieselbe Nummer nutzen: Das hängt am Umleitungstest (`ForwardedFrom`, siehe
-  „Prüfen“). Kommt die Salonnummer nicht verlässlich an, bleibt eine eigene Nummer oder Durchwahl je Laden.
+- Zusatz im Tarif statt Zulassung im Betreiber-Bereich: bezahlter Zusatz über Stripe, Kostendeckel
+- Umleitung im Festnetz prüfen (`ForwardedFrom`, siehe „Prüfen“). Kommt die Salonnummer nicht verlässlich an, bleibt eine
+  eigene Nummer oder Durchwahl je Laden

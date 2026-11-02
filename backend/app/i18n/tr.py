@@ -257,4 +257,10 @@ TEXTE: dict = {
     "{n} Absagen": "{n} iptal",
     "Neu bei {laden}": "{laden}: yeni bildirimler",
     "Dieses Konto gehört zu keinem Laden.": "Bu hesap hiçbir dükkâna ait değil.",
+    "Bitte eine deutsche Rufnummer eintragen.": "Lütfen Almanya'dan bir telefon numarası girin.",
+    "Das ist die Nummer des Assistenten. Trag hier die Nummer deines Ladens ein.": "Bu, asistanın numarası. Buraya salonunuzun numarasını girin.",
+    "Diese Nummer ist schon bei einem anderen Laden eingetragen. Schreib uns an hilfe@dranzeit.de.": "Bu numara başka bir salonda kayıtlı. hilfe@dranzeit.de adresine yazın.",
+    "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "Telefon asistanı bu salon için henüz açılmadı.",
+    "Das ist keine Rufnummer (z. B. 030 1234567).": "Bu bir telefon numarası değil (örn. 030 1234567).",
+    "Trag zuerst die Nummer deines Ladens ein.": "Önce salonunuzun numarasını girin.",
 }

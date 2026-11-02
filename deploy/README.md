@@ -462,11 +462,48 @@ Ob ein Schlüssel gesetzt ist (ohne ihn zu zeigen): `grep -c ^QME_TELEFON_TOKEN=
 erzeugt einen neuen Schlüssel, und der alte gilt dann sofort nicht mehr. Dann muss der neue Schlüssel auch bei
 der Plattform eingetragen werden.
 
-**Rufnummer zuordnen:** Im Betreiber-Bereich den Laden öffnen. Im Abschnitt „Telefon-Assistent“ die Nummer
-eintragen, die bei der Plattform ankommt. Pro Laden gibt es eine Nummer. Gespeichert wird sie in
-`telefon_leitungen/{+49…}`, nur das Backend liest das. Wird der Laden gelöscht, wird seine Nummer wieder frei.
-Ohne Telefon (Probe im Browser der Plattform) geht statt der Nummer die Laden-ID, aber nur für Läden mit
-zugeordneter Nummer.
+**Eingang freischalten:** Den Block in PowerShell einfügen. Er fragt den Twilio Auth Token (Twilio-Konsole, Dashboard,
+„Account Info“) und den Vapi Private Key (Vapi, „API Keys“) verdeckt ab und schreibt sie auf den Server. Danach muss
+`https://dranzeit.de/routes/telefon-eingang` ohne Unterschrift mit 403 antworten.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $skript = ssh -o BatchMode=yes $server 'grep -c QME_TWILIO_AUTH_TOKEN /opt/q-me/deploy/set-secret.sh' 2>&1 | Out-String
+  if ($skript -notmatch '^\s*[1-9]') { Write-Host 'Abbruch: Der Server kennt den Telefon-Eingang noch nicht. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
+  $eintraege = @(@('QME_TWILIO_AUTH_TOKEN', 'Twilio Auth Token (wird nicht angezeigt)'), @('QME_VAPI_API_KEY', 'Vapi Private Key (wird nicht angezeigt)'))
+  foreach ($eintrag in $eintraege) {
+    $geheim = Read-Host $eintrag[1] -AsSecureString
+    $zeiger = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
+    $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($zeiger)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($zeiger)
+    if (-not $wert) { Write-Host ('Abbruch: Nichts eingegeben fuer ' + $eintrag[0] + '.') -ForegroundColor Red; return }
+    $wert | ssh -o BatchMode=yes $server ('bash /opt/q-me/deploy/set-secret.sh ' + $eintrag[0])
+    $ende = $LASTEXITCODE
+    $wert = $null
+    if ($ende -ne 0) { Write-Host ('Abbruch: ' + $eintrag[0] + ' konnte nicht gesetzt werden, Meldung oben.') -ForegroundColor Red; return }
+  }
+  $status = ''
+  for ($i = 0; $i -lt 10 -and $status -ne '403'; $i++) { Start-Sleep -Seconds 3; $status = (curl.exe -s -o NUL -w '%{http_code}' -X POST https://dranzeit.de/routes/telefon-eingang | Out-String).Trim() }
+  if ($status -eq '403') { Write-Host 'Fertig: Beide Schluessel sind eingetragen, der Eingang antwortet.' -ForegroundColor Green } else { Write-Host "Eingetragen, aber der Eingang antwortet mit Status '$status' statt 403. Ausgabe vom Server:" -ForegroundColor Yellow; ssh -o BatchMode=yes $server 'journalctl -u q-me -n 30 --no-pager' }
+}
+```
+
+Ohne `QME_TWILIO_AUTH_TOKEN` antwortet der Eingang mit 503. Kein Geheimnis sind die übrigen Werte, sie stehen ebenfalls in
+`/etc/q-me.env`: `QME_VAPI_ASSISTANT_ID`, `QME_VAPI_PHONE_NUMBER_ID` und `QME_TELEFON_NUMMER`, die gemeinsame Nummer, die
+Läden als Ziel ihrer Umleitung sehen (ohne Pluszeichen, z. B. `4930…`).
+
+**Laden zulassen:** Im Betreiber-Bereich den Laden öffnen, Abschnitt „Telefon-Assistent“, „Für diesen Laden freigegeben“
+ankreuzen und die freien Minuten festlegen. Solange es keinen Zusatz im Tarif gibt, sieht nur ein zugelassener Laden die
+Kachel „Telefon-Assistent“ unter „Laden“. Der Inhaber trägt dort seine Nummer ein, richtet die Umleitung ein und macht
+einen Probeanruf.
+
+**Eigene Nummer:** Kommt die Nummer eines Ladens bei der Umleitung nicht an, bleibt der Probeanruf aus. Dann im
+Betreiber-Bereich unter „Rufnummer“ eine eigene Twilio-Nummer eintragen. Sie muss in Twilio auf denselben Eingang zeigen.
+Sie steht in `telefon_leitungen/{+49…}`, nur das Backend liest das. Wird der Laden gelöscht, wird seine Nummer wieder frei.
+Ohne Telefon (Probe im Browser der Plattform) gilt die gewählte Nummer dieser Zeile.
 
 **Was ein Anruf anlegt:** Termine und Nummern wie bei einer Buchung ohne Konto, also mit Tagesnummer, Name und
 Telefonnummer des Anrufers, gekennzeichnet mit `source: "telefon"`. Sie stehen ganz normal im Kalender, in der

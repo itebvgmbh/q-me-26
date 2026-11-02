@@ -24,7 +24,7 @@ KATALOGE = {"en": en.TEXTE, "tr": tr.TEXTE, "ar": ar.TEXTE}
 KATALOG_DATEIEN = {f"i18n/{sprache}.py" for sprache in KATALOGE}
 # Bleibt deutsch (Betreiber-Bereich, Werkzeuge, Aufrufe von Maschinen): feste Fehlermeldungen hier müssen nicht in den Katalog
 OHNE_DETAIL = (
-    "apis/betreiber/", "apis/telefon/", "apis/stripe_webhook/", "apis/schedulers/", "apis/code_history/", "apis/notifications/",
+    "apis/betreiber/", "apis/telefon/", "apis/telefon_eingang/", "apis/stripe_webhook/", "apis/schedulers/", "apis/code_history/", "apis/notifications/",
     "libs/verzeichnis_import.py",
 )
 PLATZHALTER = re.compile(r"\{(\w+)\}")

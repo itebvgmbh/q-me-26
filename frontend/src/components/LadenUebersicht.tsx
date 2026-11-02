@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CreditCard, Monitor, Plus, Scissors, Store, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, CreditCard, Monitor, Phone, Plus, Scissors, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GeraetWahl } from './GeraetWahl';
 import { TeamPushSchalter } from './TeamPushSchalter';
 import { inStoreApp } from '../utils/app-shell';
 import { ROLLEN, gespeichertesGeraet, merkeGeraet, type GeraetRolle } from '../utils/geraet';
+import { useTelefonFreigegeben } from '../utils/telefon-assistent';
 import { merke, t } from '@/i18n';
 
 type Kachel = { to: string; icon: typeof Users; titel: string; text: string; verkauf?: boolean };
@@ -19,6 +20,7 @@ const KACHELN: Kachel[] = [
   { to: '/tarif', icon: CreditCard, titel: merke('Tarif'), text: merke('Dein Tarif und Rechnungen'), verkauf: true },
   { to: '/shop-setup', icon: Plus, titel: merke('Weiterer Laden'), text: merke('Noch einen Laden einrichten') },
 ];
+const TELEFON: Kachel = { to: '/telefon-assistent', icon: Phone, titel: merke('Telefon-Assistent'), text: merke('Nimmt Anrufe an, wenn im Laden niemand rangeht') };
 
 /** „Laden“: alles, was nicht Heute oder Kalender ist – Verwalten und was auf diesem Gerät gilt */
 export function LadenUebersicht({ shopId }: { shopId: string }) {
@@ -26,6 +28,7 @@ export function LadenUebersicht({ shopId }: { shopId: string }) {
   const [geraet, setGeraet] = useState(gespeichertesGeraet);
   const [fragen, setFragen] = useState(false);
   const rolle = ROLLEN.find((r) => r.rolle === geraet?.rolle);
+  const telefon = useTelefonFreigegeben(shopId);
 
   const waehle = (neu: GeraetRolle) => {
     const gewaehlt = { rolle: neu, shopId };
@@ -44,7 +47,7 @@ export function LadenUebersicht({ shopId }: { shopId: string }) {
           {t('Verwalten')}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {KACHELN.filter((k) => !(k.verkauf && inStoreApp())).map(({ to, icon: Icon, titel, text }) => (
+          {(telefon ? [...KACHELN, TELEFON] : KACHELN).filter((k) => !(k.verkauf && inStoreApp())).map(({ to, icon: Icon, titel, text }) => (
             <Link key={to} to={to} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground">
               <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
               <span className="flex flex-col gap-0.5">

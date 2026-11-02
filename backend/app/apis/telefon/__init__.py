@@ -12,8 +12,9 @@ so oder in der Sprache des Anrufers sagen kann; bei ok = false dazu "grund" als 
     POST /telefon/nummer        Nummer ziehen: frühester Platz heute, wie Nummer ziehen online
     POST /telefon/aendern       eben gebuchten Termin bzw. gezogene Nummer: Namen berichtigen oder absagen
 
-Welcher Laden: "angerufen" ist die gewählte Rufnummer, die zugehörige Zeile in telefon_leitungen/{Nummer}
-vergibt der Betreiber-Bereich. Ohne Telefon (Probe im Browser) geht "laden_id" – nur für Läden mit Nummer.
+Welcher Laden: "laden_id" setzt der Eingang je Anruf (app/apis/telefon_eingang) und gilt für freigegebene Läden und
+Läden mit eigener Nummer. Ohne sie (Probe im Browser) zählt "angerufen", die gewählte Rufnummer: die zugehörige Zeile
+in telefon_leitungen/{Nummer} vergibt der Betreiber-Bereich.
 Zugang: Kopfzeile "Authorization: Bearer <QME_TELEFON_TOKEN>" aus /etc/q-me.env; ohne Eintrag antwortet alles 503.
 
 Freie Plätze rechnet dieselbe Berechnung wie "Früher dran" (app/apis/available_timeslots), heute für Nummern mit
@@ -32,6 +33,7 @@ from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
+from app.libs import telefon_laeden as tl
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
 from app.libs.notify_worker import wake
 from app.libs.online_platz import MonatVoll, monatsgrenze, naechste_plaetze, vorlauf_minuten
@@ -130,14 +132,14 @@ def _jetzt() -> datetime:
 
 def _laden(db, anfrage: Anruf) -> Tuple[str, dict]:
     shop_id = None
+    if anfrage.laden_id and t.ID_RE.fullmatch(anfrage.laden_id):
+        if tl.eintrag(db, anfrage.laden_id).get("freigegeben") or tl.eigene_nummer(db, anfrage.laden_id):
+            shop_id = anfrage.laden_id
     nummer = t.e164(anfrage.angerufen)
-    if nummer:
+    if not shop_id and nummer:
         snap = db.collection(t.LEITUNGEN).document(nummer).get()
         if snap.exists:
             shop_id = (snap.to_dict() or {}).get("shopId")
-    if not shop_id and anfrage.laden_id and t.ID_RE.fullmatch(anfrage.laden_id):
-        if next(iter(db.collection(t.LEITUNGEN).where("shopId", "==", anfrage.laden_id).limit(1).stream()), None):
-            shop_id = anfrage.laden_id
     if not shop_id:
         raise _Nein("kein_laden", "Diese Nummer gehört zu keinem Laden.")
     snap = db.collection("shops").document(shop_id).get()
