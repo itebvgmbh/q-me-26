@@ -21,17 +21,11 @@ from app import seo
 
 BASE_PATH = "/vergleich"
 PFAD = BASE_PATH + "/buchungsplattformen-friseure"
-STAND = "1. November 2026"
-STAND_ISO = "2026-11-01"
-# Fresha zeigt auch auf der deutschen Preisseite US-Dollar; EZB-Referenzkurs vom 30.10.2026
-USD_JE_EUR = 1.1172
+STAND = "2. November 2026"
+STAND_ISO = "2026-11-02"
 ANMELDEN = "/register-shop-owner"
 
 router = APIRouter(include_in_schema=False)
-
-
-def _usd(wert: float) -> float:
-    return round(wert / USD_JE_EUR, 2)
 
 
 QUELLEN = [
@@ -39,19 +33,24 @@ QUELLEN = [
     ("dranzeit-fragen", "Dranzeit: Häufige Fragen von Läden", "/hilfe/fragen-fuer-laeden"),
     ("treatwell", "Treatwell: Preise für Partner", "https://www.treatwell.de/partners/preise/"),
     ("treatwell-partner", "Treatwell: Partner-Seite (Reichweite)", "https://www.treatwell.de/partners/"),
+    ("treatwell-warteliste", "Treatwell-Hilfe: Warteliste in Treatwell Connect, 11.03.2026", "https://partnercare.treatwell.com/s/?language=de&view=article&path=Wie-verwalte-und-nutze-ich-die-Warteliste-in-Treatwell-Connect"),
     ("treatwell-hilfe", "Treatwell-Hilfe: Provisionsmodell, Stand 14.10.2026", "https://propartnercare.treatwell.com/s/article/Das-Provisionsmodell-von-Treatwell-erkl%C3%A4rt?language=de"),
+    ("planity-friseur", "Planity: Software für Friseure, FAQ zu den Kosten", "https://info.planity.com/de-de/deine-branche/friseur"),
+    ("planity-warteliste", "Planity-Hilfe: Wie funktioniert die Warteliste?", "https://support.planity.com/hc/de/articles/27978508818578-Wie-funktioniert-die-Warteliste"),
     ("planity-pabau", "Pabau: Planity Kosten, Stand 13.10.2026 (Pabau ist selbst Anbieter)", "https://pabau.com/de/blog/planity-kosten/"),
     ("planity-studiolution", "studiolution: Vergleich mit Planity, Stand März 2026 (studiolution ist selbst Anbieter)", "https://www.studiolution.com/vergleich/planity/"),
     ("planity-basic", "BASIC thinking: Planity, 02.03.2026", "https://www.basicthinking.de/blog/2026/03/02/planity-die-all-in-one-software-fuer-kosmetikstudios/"),
-    ("fresha", "Fresha: Preise", "https://www.fresha.com/de/pricing"),
+    ("fresha", "Fresha: Preise für Deutschland, ohne 19 % MwSt.", "https://www.fresha.com/de/pricing"),
+    ("fresha-gebuehr", "Fresha-Hilfe: Marketplace-Neukundengebühren", "https://www.fresha.com/de/help-center/knowledge-base/abrechnung-und-gebuhren/101357-marketplace-neukundengebuhren"),
     ("fresha-plan", "Fresha: Up Next 2026, zuletzt aktualisiert 14.01.2026", "https://www.fresha.com/blog/Up-Next-2026"),
     ("booksy", "Booksy Biz Deutschland", "https://biz.booksy.com/de-de/"),
+    ("booksy-preise", "Booksy Biz Deutschland: Preise", "https://biz.booksy.com/de-de/preise"),
     ("booksy-boost", "Booksy: Boost (britische Seite)", "https://biz.booksy.com/en-gb/features/boost"),
     ("booksy-warteliste", "Booksy: So funktioniert die Warteliste", "https://support.booksy.com/hc/en-gb/articles/16463469277714-How-does-the-waitlist-work"),
     ("shore", "Shore: Preise", "https://www.shore.com/de/preise/"),
+    ("shore-pakete", "Shore: Alle Pakete im Vergleich", "https://www.shore.com/de/preise/alle-shore-pakete-vergleich"),
     ("salonkee", "Salonkee: Preise", "https://salonkee.com/pro/de/preise/"),
     ("salonkee-profil", "Friseur-News: Salonkee-Profil, August 2026 (Anbieterangaben)", "https://friseur-news.de/2026/08/salonkee-terminsoftware/"),
-    ("ezb", "Europäische Zentralbank: Referenzkurs vom 30.10.2026 (1 € = 1,1172 $)", "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html"),
 ]
 QUELLE_NR = {schluessel: i + 1 for i, (schluessel, _, _) in enumerate(QUELLEN)}
 
@@ -69,7 +68,7 @@ ANBIETER = {
     },
     "treatwell": {
         "name": "Treatwell", "url": "https://www.treatwell.de/partners/", "preis": {"fest": 39}, "provision": {"satz": 0.35, "min": 0},
-        "laufkundschaft": None, "preis_oeffentlich": True, "monatlich": True, "gratis": False, "test_tage": 0,
+        "laufkundschaft": "warteliste", "preis_oeffentlich": True, "monatlich": True, "gratis": False, "test_tage": 0,
         "kasse": True, "online_zahlung": True, "marktplatz": True,
         "kurz": "Viel Reichweite, laut Treatwell täglich eine halbe Million Suchende. Dafür 35 % auf die erste Buchung neuer Kunden.",
         "passt": "Salons mit freien Terminen, die Neukunden über einen Marktplatz gewinnen wollen",
@@ -77,20 +76,20 @@ ANBIETER = {
     },
     "planity": {
         "name": "Planity", "url": "https://www.planity.com/de-DE", "preis": {"fest": 69}, "provision": None,
-        "laufkundschaft": None, "preis_oeffentlich": False, "monatlich": False, "gratis": False, "test_tage": 0,
+        "laufkundschaft": "warteliste", "preis_oeffentlich": False, "monatlich": True, "gratis": False, "test_tage": 0,
         "kasse": True, "online_zahlung": True, "marktplatz": True,
         "kurz": "Kalender, Kasse und Terminal im Paket, laut Planity ohne Provision. Einen Preis erfährst du erst im Beratungsgespräch.",
         "passt": "Salons, die Kasse und Kalender im Paket und persönliche Beratung wollen",
         "rechner_hinweis": "Preis laut Drittquelle",
     },
     "fresha": {
-        "name": "Fresha", "url": "https://www.fresha.com/de", "preis": {"solo": _usd(19.95), "erste": _usd(14.95), "weitere": _usd(14.95)},
-        "provision": {"satz": 0.20, "min": _usd(6)},
+        "name": "Fresha", "url": "https://www.fresha.com/de", "preis": {"solo": 12.95, "erste": 8.95, "weitere": 8.95},
+        "provision": None,
         "laufkundschaft": "warteliste", "preis_oeffentlich": True, "monatlich": True, "gratis": False, "test_tage": 7,
         "kasse": True, "online_zahlung": True, "marktplatz": True,
-        "kurz": "Für eine Person günstig, mit Kasse und Marktplatz. Dafür 20 % auf Marktplatz-Neukunden und ein Preis je Person.",
-        "passt": "Kleine Salons, die Online-Zahlung wollen und Provision einplanen",
-        "rechner_hinweis": "umgerechnet aus US-Dollar",
+        "kurz": "Niedriger Preis je Person, mit Kasse und Marktplatz. Die Angaben zur Gebühr für Neukunden gehen auseinander, eine Warteschlange ist nur angekündigt.",
+        "passt": "Kleine Salons, die einen niedrigen Preis, Marktplatz und Online-Zahlung wollen",
+        "rechner_hinweis": "Selbstständig oder Team",
     },
     "booksy": {
         "name": "Booksy", "url": "https://biz.booksy.com/de-de/", "preis": {"solo": 35, "erste": 35, "weitere": 7}, "provision": None,
@@ -101,12 +100,12 @@ ANBIETER = {
         "rechner_hinweis": "ohne Boost",
     },
     "shore": {
-        "name": "Shore", "url": "https://www.shore.com/de/", "preis": {"fest": 59.90}, "provision": None,
+        "name": "Shore", "url": "https://www.shore.com/de/", "preis": {"stufen": [[5, 59.90], [10, 79.90]]}, "provision": None,
         "laufkundschaft": None, "preis_oeffentlich": True, "monatlich": True, "gratis": False, "test_tage": 14,
         "kasse": True, "online_zahlung": True, "marktplatz": False,
         "kurz": "Buchung, Marketing und Kasse in Paketen, ohne ausgewiesene Provision. Ein Marktplatz für Neukunden ist nicht ausgewiesen.",
         "passt": "Betriebe, die Stammkunden pflegen und Marketing-Werkzeuge brauchen",
-        "rechner_hinweis": "Booking, monatlich gezahlt",
+        "rechner_hinweis": "Booking, ab 6 Personen mit Marketing",
     },
     "salonkee": {
         "name": "Salonkee", "url": "https://salonkee.com/pro/de/", "preis": {"fest": 59}, "provision": None,
@@ -202,19 +201,19 @@ TABELLE = [
         ("Einstieg im Monat", {
             "dranzeit": _t("<b>0 €</b>, mit Online-Terminen 19 €", "dranzeit"), "treatwell": _t("39 €", "treatwell"),
             "planity": _t("nicht öffentlich, laut Drittquelle 69 €", "planity-pabau", "planity-studiolution"),
-            "fresha": _t("19,95 $ (≈ 17,86 €)", "fresha", "ezb"), "booksy": _t("35 €", "booksy"),
+            "fresha": _t("12,95 €", "fresha"), "booksy": _t("35 €", "booksy"),
             "shore": _t("59,90 €", "shore"), "salonkee": _t("ab 59 €", "salonkee"),
         }),
         ("Weitere Personen", {
             "dranzeit": _t("<b>Im Tarif:</b> bis 4 für 39 €, bis 10 für 59 €", "dranzeit"),
             "treatwell": _t("Advanced: unbegrenzt ohne Aufpreis", "treatwell"), "planity": _na("planity-pabau"),
-            "fresha": _t("14,95 $ je buchbare Person", "fresha"), "booksy": _t("+7 € je Person", "booksy"),
-            "shore": _na("shore"), "salonkee": _na("salonkee"),
+            "fresha": _t("Team: 8,95 € je buchbare Person", "fresha"), "booksy": _t("+7 € je Person", "booksy"),
+            "shore": _t("Booking bis 5 Personen, darüber 79,90 €", "shore-pakete"), "salonkee": _na("salonkee"),
         }),
         ("Provision auf Neukunden", {
             "dranzeit": _t("<b>0 %</b>", "dranzeit"), "treatwell": _t("35 % auf die erste Marktplatz-Buchung", "treatwell"),
-            "planity": _t("0 % laut Planity", "planity-pabau"), "fresha": _t("20 %, mindestens 6 $", "fresha"),
-            "booksy": _t("keine genannt, Boost optional", "booksy", "booksy-boost"), "shore": _na("shore"),
+            "planity": _t("0 % laut Planity", "planity-pabau"), "fresha": _t("Preisseite: kostenlos, Hilfe nennt einmalige Gebühr ohne Betrag", "fresha", "fresha-gebuehr"),
+            "booksy": _t("keine laut Preisseite, Boost optional", "booksy-preise", "booksy-boost"), "shore": _na("shore"),
             "salonkee": _t("keine laut Anbieter", "salonkee-profil"),
         }),
         ("Öffentlicher Preis", {
@@ -222,7 +221,7 @@ TABELLE = [
             "fresha": _ja("", "fresha"), "booksy": _ja("", "booksy"), "shore": _ja("", "shore"), "salonkee": _ja("Ab-Preis", "salonkee"),
         }),
         ("Monatlich kündbar", {
-            "dranzeit": _ja("", "dranzeit-fragen"), "treatwell": _ja("", "treatwell"), "planity": _na("planity-pabau"),
+            "dranzeit": _ja("", "dranzeit-fragen"), "treatwell": _ja("", "treatwell"), "planity": _ja("laut Friseurseite, Hilfe nennt auch Jahresabos", "planity-friseur"),
             "fresha": _ja("", "fresha"), "booksy": _ja("", "booksy"), "shore": _ja("14 Tage Frist", "shore"), "salonkee": _ja("", "salonkee-profil"),
         }),
         ("Dauerhaft kostenlos", {
@@ -237,10 +236,10 @@ TABELLE = [
     ("Laufkundschaft", [
         ("Nummer ziehen vom Handy, ohne App und Konto", {
             "dranzeit": _ja("<b>per QR-Code</b>", "dranzeit-fragen"), "treatwell": _na("treatwell", "treatwell-partner"), "planity": _na("planity-pabau"),
-            "fresha": _t("angekündigt, Stand Januar 2026", "fresha-plan"), "booksy": _na("booksy"), "shore": _na("shore"), "salonkee": _na("salonkee"),
+            "fresha": _t("angekündigt, Start nicht belegt", "fresha-plan"), "booksy": _na("booksy"), "shore": _na("shore"), "salonkee": _na("salonkee"),
         }),
         ("Warteliste für frei werdende Plätze", {
-            "dranzeit": _ja("„Früher dran“, ab Solo", "dranzeit"), "treatwell": _na("treatwell"), "planity": _na("planity-pabau"),
+            "dranzeit": _ja("„Früher dran“, ab Solo", "dranzeit"), "treatwell": _ja("über das Buchungs-Widget", "treatwell-warteliste"), "planity": _ja("", "planity-warteliste"),
             "fresha": _ja("", "fresha"), "booksy": _ja("", "booksy-warteliste"), "shore": _na("shore"), "salonkee": _ja("", "salonkee"),
         }),
         ("Wartezimmer-Bildschirm", {
@@ -255,7 +254,7 @@ TABELLE = [
         }),
         ("Online-Zahlung, Anzahlung", {
             "dranzeit": _nein("gibt es nicht"), "treatwell": _ja("2 bis 2,5 % Gebühr", "treatwell", "treatwell-hilfe"), "planity": _ja("", "planity-basic"),
-            "fresha": _ja("2,79 % + 0,20 $", "fresha"), "booksy": _na("booksy"), "shore": _ja("PayPal", "shore"), "salonkee": _ja("Payments-Modul", "salonkee"),
+            "fresha": _ja("1,29 % + 0,20 €", "fresha"), "booksy": _na("booksy"), "shore": _ja("PayPal", "shore"), "salonkee": _ja("Payments-Modul", "salonkee"),
         }),
         ("Marktplatz für Neukunden", {
             "dranzeit": _t("Karte und Stadtseiten, noch klein"), "treatwell": _ja("", "treatwell-partner"), "planity": _ja("", "planity-pabau"),
@@ -289,11 +288,11 @@ DETAILS = {
     "fresha": {
         "titel": "Fresha: Kosten und Gebühren",
         "zeilen": [
-            ("Kosten", _t("Selbstständige zahlen 19,95 $ im Monat, Teams 14,95 $ je buchbare Person, ohne Mehrwertsteuer. Die deutsche Preisseite zeigte beim Abruf US-Dollar, das sind rund 17,86 € und 13,38 €.", "fresha", "ezb")),
-            ("Provision", _t("20 % auf die erste Buchung neuer Kunden vom Marktplatz, mindestens 6 $. Bestandskunden und direkte Links kosten nichts. Kartenzahlung online 2,79 % + 0,20 $, vor Ort 2,29 % + 0,20 $.", "fresha")),
+            ("Kosten", _t("Selbstständige zahlen 12,95 € im Monat, Teams 8,95 € je buchbare Person, ohne Mehrwertsteuer. Bei vier Personen sind das 35,80 €.", "fresha")),
+            ("Provision", _t("Die deutsche Preisseite beschreibt bei Neukunden vom Marktplatz eine einmalige Gebühr und zeigt dazu „Kostenlos“, das Hilfe-Center nennt eine einmalige Gebühr ohne Betrag. Lass dir das bestätigen. Kartenzahlung online und vor Ort 1,29 % + 0,20 €.", "fresha", "fresha-gebuehr")),
             ("Bindung", _t("Keine Mindestlaufzeit, monatlich kündbar, 7 Tage Testphase.", "fresha")),
-            ("Stärke", _t("Für eine Person günstiger als Dranzeit Solo, dazu Kasse, Warteliste, Online-Zahlung und Marktplatz.", "fresha")),
-            ("Grenze", _t("Digitale Warteschlange und Selbst-Check-in hat Fresha angekündigt. Ob sie in Deutschland verfügbar sind, konnten wir nicht bestätigen. Der Preis steigt mit jeder buchbaren Person.", "fresha-plan")),
+            ("Stärke", _t("Günstiger als Dranzeit, für eine Person wie bei vier, dazu Kasse, Warteliste, Online-Zahlung und Marktplatz.", "fresha")),
+            ("Grenze", _t("Digitale Warteschlange und Selbst-Check-in hat Fresha für Anfang 2026 angekündigt, einen Start konnten wir nicht belegen. Der Preis steigt mit jeder buchbaren Person.", "fresha-plan")),
         ],
     },
     "shore": {
@@ -310,7 +309,7 @@ DETAILS = {
         "titel": "Booksy: Kosten und Boost",
         "zeilen": [
             ("Kosten", _t("35 € im Monat, jede weitere Person 7 €, zuzüglich Steuern.", "booksy")),
-            ("Provision", _t("Auf der deutschen Seite ist keine genannt. Die optionale Boost-Funktion kostet laut britischer Seite 30 % des ersten Termins neu vermittelter Kunden, mindestens 5 £. Ob das in Deutschland so gilt, steht dort nicht.", "booksy", "booksy-boost")),
+            ("Provision", _t("Die deutsche Preisseite verneint Provisionen und Buchungsgebühren für neue Kunden. Die optionale Boost-Funktion kostet laut britischer Seite 30 % des ersten Termins neu vermittelter Kunden, mindestens 5 £. Ob es sie in Deutschland gibt, ist offen.", "booksy-preise", "booksy-boost")),
             ("Bindung", _t("Jederzeit kündbar, 7 Tage Testphase.", "booksy")),
             ("Stärke", _t("Klarer Preis, eigene Buchungs-App für Kunden, Warteliste für frei werdende Termine.", "booksy", "booksy-warteliste")),
             ("Grenze", "Die Warteliste füllt frei werdende Termine, eine Schlange vor Ort ersetzt sie nicht. Kasse und Online-Zahlung stehen nicht auf der deutschen Seite."),
@@ -323,7 +322,7 @@ DETAILS = {
             ("Provision", _t("Auf die erste Buchung neuer Kunden über den Marktplatz nimmt Treatwell laut FAQ 35 %, die Preisseite nennt den Satz „je nach Standort unterschiedlich“. Bei einem Haarschnitt für 35 € sind das 12,25 €. Erneute Marktplatz-Buchungen kosten 0 %, Online-Vorauszahlungen laut Preisseite 2 %, laut Treatwell-Hilfe 2,5 %.", "treatwell", "treatwell-hilfe")),
             ("Bindung", _t("Wahlweise monatlich kündbar oder günstiger im Jahresvertrag.", "treatwell")),
             ("Stärke", _t("Reichweite: Laut Treatwell suchen dort täglich eine halbe Million Menschen nach Terminen.", "treatwell-partner")),
-            ("Grenze", "Auf den Preis- und Partnerseiten steht nichts zu Laufkundschaft oder einer Warteschlange."),
+            ("Grenze", _t("Es gibt eine Warteliste über das Buchungs-Widget. Eine Warteschlange, in die sich Kunden selbst einreihen, ist nicht ausgewiesen.", "treatwell-warteliste")),
         ],
     },
     "planity": {
@@ -331,9 +330,9 @@ DETAILS = {
         "zeilen": [
             ("Kosten", _t("Planity veröffentlicht keine Preise. Die drei Tarife (Kalender, Kalender und Kasse, dazu Zahlungsterminal) stehen laut Pabau ohne Betrag auf der Tarifseite, den Preis erfährst du im Beratungsgespräch. Mitbewerber nannten 2026 rund 69 € für den Kalender und 99 € mit Kasse und TSE. Bestätigt hat Planity das nicht.", "planity-pabau", "planity-studiolution")),
             ("Provision", _t("Laut Planity keine, auch nicht auf Neukunden.", "planity-pabau")),
-            ("Bindung", "Zu Laufzeit und Kündigungsfrist haben wir keine öffentliche Angabe gefunden. Frag vor dem Abschluss danach."),
+            ("Bindung", _t("Die Friseurseite nennt monatlich kündbare Abos, das Hilfe-Center zusätzlich Jahres- und Zweijahresabos. Frag vor dem Abschluss danach.", "planity-friseur")),
             ("Stärke", _t("Kalender, Kasse und Terminal aus einer Hand, 100 SMS-Erinnerungen im Monat, eigene Salon-Seite auf planity.com.", "planity-pabau")),
-            ("Grenze", "Kein öffentlicher Preis, und zu Laufkundschaft oder Warteschlange haben wir nichts gefunden."),
+            ("Grenze", _t("Kein öffentlicher Preis. Es gibt eine Warteliste, eine Warteschlange für Kunden ist nicht ausgewiesen.", "planity-warteliste")),
             ("Erfahrungen", "Wir haben Planity nicht selbst im Salonalltag betrieben und geben deshalb keine eigenen Erfahrungen wieder. Bewertungen von Salons stehen zum Beispiel bei Capterra."),
         ],
     },
@@ -343,7 +342,7 @@ GRENZEN = [
     ("Du brauchst eine Kasse mit TSE aus einer Hand.", "Dranzeit hat keine Kasse. Nimm Salonkee, Shore, Planity oder Treatwell Advanced, oder behalte deine Kasse und nutze Dranzeit daneben."),
     ("Du willst Anzahlungen online einziehen.", "Geht bei Dranzeit nicht. Fresha, Salonkee und Treatwell können das."),
     ("Du suchst vor allem Neukunden über einen großen Marktplatz.", "Dranzeit zeigt deinen Laden auf der Karte und den Stadtseiten, das ist aber noch klein. Treatwell, Fresha und Booksy bringen mehr Reichweite, zum Teil gegen Provision."),
-    ("Bei dir läuft fast alles über feste Termine.", "Dann zählt das Kriterium Laufkundschaft nicht. Ohne diese 30 Punkte liegt im Raster Salonkee vorn und Dranzeit im Mittelfeld."),
+    ("Bei dir läuft fast alles über feste Termine.", "Dann zählt das Kriterium Laufkundschaft nicht. Ohne diese 30 Punkte liegt im Raster Fresha vorn und Dranzeit im Mittelfeld."),
 ]
 
 FAQ = [
@@ -698,6 +697,11 @@ def render_rechner() -> str:
     mir = werte["dranzeit"]["summe"]
     jahr = round((groesster - mir) * 12)
     teuerster = ANBIETER[sortiert[-1]]["name"]
+    guenstigster = werte[sortiert[0]]["summe"]
+    fazit = (
+        f"Das sind {eur(jahr)} im Jahr weniger als bei {seo._e(teuerster)}." if mir <= guenstigster
+        else f'Bei dieser Einstellung ist {seo._e(ANBIETER[sortiert[0]]["name"])} {eur(mir - guenstigster)} im Monat günstiger.'
+    )
     return (
         '<section class="rechner" id="rechner"><div class="sec">'
         '<p class="eye">Kostenrechner</p><h2>Was kostet dich die Plattform im Monat?</h2>'
@@ -711,12 +715,12 @@ def render_rechner() -> str:
         f'<label for="r-bon"><span class="r-kopf">Preis je Besuch <output id="r-bon-o" for="r-bon">{VORGABE["bon"]} €</output></span>'
         f'<input type="range" id="r-bon" min="15" max="120" step="5" value="{VORGABE["bon"]}"></label></div>'
         '<div class="fazit" aria-live="polite"><span>Dranzeit in deinem Fall</span>'
-        f'<b id="f-summe">{eur(mir)}</b><p id="f-text">Das sind {eur(jahr)} im Jahr weniger als bei {seo._e(teuerster)}.</p></div>'
+        f'<b id="f-summe">{eur(mir)}</b><p id="f-text">{fazit}</p></div>'
         f'<p class="szenario" id="r-szenario" style="margin-top:14px">{VORGABE["personen"]} Personen, {VORGABE["neukunden"]} Neukunden über den Marktplatz, {VORGABE["bon"]} € je Besuch.</p></div>'
         f'<div><ol class="balken" id="balken">{"".join(balken)}</ol>'
         '<p class="klein">Grundpreise bei monatlicher Zahlung, netto, soweit ausgewiesen. Ohne Kartengebühren, SMS, Hardware und Zusatzmodule. '
-        f'Fresha ist zum EZB-Kurs umgerechnet{_q("ezb")}, Planity beruht auf einer Drittquelle{_q("planity-studiolution")}. '
-        'Bei Salonkee und Shore haben wir keine Angabe zu Aufschlägen je Person gefunden. '
+        f'Planity beruht auf einer Drittquelle{_q("planity-studiolution")}. '
+        'Bei Salonkee haben wir keine Angabe zu Aufschlägen je Person gefunden. '
         'Fair gesagt: Provision bezahlt Reichweite. Ein Neukunde vom Marktplatz kann sich lohnen, wenn er wiederkommt, '
         'und wo kein Marktplatz ist, kommt er nicht von allein. Bei Booksy ist die optionale Boost-Provision nicht eingerechnet.</p></div></div></div></section>'
     )

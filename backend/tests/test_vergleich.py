@@ -32,9 +32,9 @@ def test_reihenfolge_wird_gerechnet():
 
 
 def test_aussagen_im_text_stimmen_mit_den_punkten():
-    # "Ohne diese 30 Punkte liegt im Raster Salonkee vorn und Dranzeit im Mittelfeld" (GRENZEN)
+    # "Ohne diese 30 Punkte liegt im Raster Fresha vorn und Dranzeit im Mittelfeld" (GRENZEN)
     ohne = sorted(ANBIETER, key=lambda s: v.gesamt(s) - v.punkte(s)["laufkundschaft"], reverse=True)
-    assert ohne[0] == "salonkee" and ohne[0] != "dranzeit"
+    assert ohne[0] == "fresha" and ohne[0] != "dranzeit"
     assert 2 <= ohne.index("dranzeit") <= 4
     # Bei den Extras verliert Dranzeit, das steht offen auf der Seite
     assert v.punkte("dranzeit")["extras"] == 0
@@ -52,9 +52,11 @@ def test_dranzeit_preise_wie_tarife():
 def test_kostenrechner():
     t = v.monatskosten(ANBIETER["treatwell"], 4, 8, 35)
     assert t == {"grund": 39, "provision": 98.0, "summe": 137.0}
-    f = v.monatskosten(ANBIETER["fresha"], 4, 1, 10)  # 20 % von 10 € liegen unter dem Mindestbetrag von 6 $
-    assert f["grund"] == round(4 * v._usd(14.95), 2) and f["provision"] == v._usd(6)
-    assert v.grundpreis(ANBIETER["fresha"], 1) == v._usd(19.95)
+    assert v.monatskosten(ANBIETER["fresha"], 4, 8, 35) == {"grund": 35.8, "provision": 0, "summe": 35.8}
+    assert v.grundpreis(ANBIETER["fresha"], 1) == 12.95
+    mindest = {"preis": {"fest": 10}, "provision": {"satz": 0.2, "min": 6}}
+    assert v.monatskosten(mindest, 1, 2, 15)["provision"] == 12
+    assert v.grundpreis(ANBIETER["shore"], 5) == 59.90 and v.grundpreis(ANBIETER["shore"], 6) == 79.90
     assert v.grundpreis(ANBIETER["booksy"], 3) == 49
     assert v.monatskosten(ANBIETER["dranzeit"], 4, 40, 120)["provision"] == 0
 
@@ -73,8 +75,8 @@ def test_alle_angaben_mit_quelle_und_vollstaendig():
         genutzt |= set(re.findall(r'href="#q-([a-z-]+)"', "".join(z for _, z in d["zeilen"])))
     assert set(v.DETAILS) == set(ANBIETER)
     assert genutzt <= set(v.QUELLE_NR)
-    # Jede fremde Quelle ist eine echte Adresse und wird auch benutzt (EZB steht zusätzlich im Rechner)
-    assert {s for s, _, _ in v.QUELLEN} == genutzt | {"ezb", "planity-studiolution"}
+    # Jede fremde Quelle ist eine echte Adresse und wird auch benutzt (studiolution steht zusätzlich im Rechner)
+    assert {s for s, _, _ in v.QUELLEN} == genutzt | {"planity-studiolution"}
 
 
 def test_seite_kennzeichnet_absender_und_keine_siegerwoerter():
@@ -106,9 +108,10 @@ def test_seo_grundlagen():
     assert len(faq["mainEntity"]) == len(v.FAQ)
     # Eigene Bewertungen als Sterne wären irreführend und von Google nicht erlaubt
     assert not re.search(r"aggregateRating|\"Review\"", json.dumps(bloecke))
-    # Der Rechner steht auch ohne JavaScript da, sortiert und mit Dranzeit vorn
+    # Der Rechner steht auch ohne JavaScript da und sortiert nach Preis, auch wenn Dranzeit dabei nicht vorn liegt
     balken = re.search(r'id="balken">(.*?)</ol>', page, flags=re.S).group(1)
-    assert re.findall(r'data-id="([a-z]+)"', balken)[0] == "dranzeit"
+    assert re.findall(r'data-id="([a-z]+)"', balken)[:2] == ["fresha", "dranzeit"]
+    assert "Bei dieser Einstellung ist Fresha 3,20 € im Monat günstiger." in page
     # Fremde Links geben keine Empfehlung weiter, keine fremden Skripte
     assert 'rel="nofollow noopener" target="_blank"' in page and not re.search(r'<script[^>]+src=', page)
 
