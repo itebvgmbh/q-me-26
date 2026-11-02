@@ -244,6 +244,29 @@ def test_gruenderplatz_wird_frei():
     assert "c2" not in store["customers"] and "a4" not in store["appointments"]
 
 
+def test_seite_im_verzeichnis_geht_mit_uebernommene_bleibt():
+    store = data()
+    store["verzeichnis"] = {
+        "laden-last": {"shopId": "last", "name": "Lasttest"},  # automatisch angelegt
+        "salon-x": {"shopId": "last", "name": "Salon X"},  # vom Salon übernommen
+        "laden-erer": {"shopId": "erer", "name": "erer"},  # anderer Laden
+    }
+    p = plan(store, _nr(store, shops=["last"]))
+    assert p["problems"] == []
+    assert "verzeichnis 1" in ka.format_plan(p, numbers(view(store)))
+    backup = ka.backup_data(p, "L…", "liste.json")
+    assert backup["dokumente"]["verzeichnis/laden-last"]["name"] == "Lasttest" and "verzeichnis/salon-x" not in backup["dokumente"]
+    run(store, p)
+    assert set(store["verzeichnis"]) == {"salon-x", "laden-erer"}
+    assert ka.verify(FakeDb(store), p, lambda uid: False) == []
+    # Bleibt sie stehen, meldet es die Nachprüfung
+    store["verzeichnis"]["laden-last"] = {"shopId": "last"}
+    assert any("Seite im Verzeichnis" in rest for rest in ka.verify(FakeDb(store), p, lambda uid: False))
+    # Ein Laden ohne eigene Seite: kein Eintrag im Plan
+    store = data()
+    assert "verzeichnis" not in plan(store, _nr(store, shops=["last"]))["shops"][0]["related"]
+
+
 def test_nachpruefung_meldet_reste():
     store = data()
     p = plan(store, _nr(store, uids=["lastk1"]))
