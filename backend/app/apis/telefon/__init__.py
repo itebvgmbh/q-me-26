@@ -58,6 +58,9 @@ router = APIRouter(dependencies=[Depends(_zugang)])
 TAGE_TERMIN = 14        # so viele Tage ab dem Wunsch sucht freie-zeiten (wie Nummer ziehen online)
 MAX_VORAUS_TAGE = 90    # Wünsche weiter in der Zukunft lehnt der Assistent ab
 MAX_ANZAHL = 5
+KANDIDATEN = 60         # so viele Plätze je Person werden gesucht, um daraus eine Auswahl über den Tag hinaus zu nennen
+ABSTAND_MINUTEN = 120   # Abstand der genannten Zeiten am selben Tag
+JE_TAG = 2              # so viele Zeiten nennt der Assistent höchstens von einem Tag, dann kommt der nächste
 NUMMER_KANDIDATEN = 8   # Plätze zur Auswahl beim Nummer ziehen, falls der erste beim Speichern weg ist (wie im Frontend)
 NUMMER_RUNDEN = 3
 AENDERN_MINUTEN = 30    # so lange nach dem Anlegen ändert der Assistent einen Termin noch – im selben Gespräch
@@ -252,6 +255,34 @@ def _je_uhrzeit(plaetze: List[Platz], anzahl: int) -> List[Platz]:
     return result[:anzahl]
 
 
+def _auswahl(plaetze: List[Platz], anzahl: int) -> List[Platz]:
+    """Was der Assistent nennt: die erste Zeit, eine spätere am selben Tag, dann den nächsten Tag. Drei Zeiten im Abstand
+    von einer Viertelstunde helfen am Telefon niemandem. Reicht das nicht für anzahl, die nächsten übrigen dazu."""
+    gewaehlt: List[Platz] = []
+    for p in plaetze:
+        if len(gewaehlt) == anzahl:
+            break
+        am_tag = [g for g in gewaehlt if g[1].date() == p[1].date()]
+        if not am_tag or (len(am_tag) < JE_TAG and p[1] - am_tag[-1][1] >= timedelta(minutes=ABSTAND_MINUTEN)):
+            gewaehlt.append(p)
+    gewaehlt += [p for p in plaetze if p not in gewaehlt][: anzahl - len(gewaehlt)]
+    return sorted(gewaehlt, key=lambda p: p[1])
+
+
+def _warum_nicht_am_tag(shop: dict, personen: List[dict], ab: Optional[datetime], plaetze: List[Platz], jetzt: datetime, wen: str) -> str:
+    """Wurde nach einem Tag gefragt und dort ist nichts: der Grund, damit der Assistent nicht raten muss. Sonst leer."""
+    if not ab or ab.date() < jetzt.date() or plaetze[0][1].date() == ab.date():
+        return ""
+    tag = ab.date()
+    vorn = t.am_tag(tag, jetzt.date())
+    if not t.laden_offen(shop, tag):
+        return f"{vorn} ist der Laden geschlossen. "
+    if not any(t.arbeitet_am(p, tag) for p in personen):
+        wer = f"{personen[0]['rufname']} nicht" if len(personen) == 1 else "niemand, der das anbietet"
+        return f"{vorn} arbeitet {wer}. "
+    return f"{vorn} ist{wen} nichts mehr frei. "
+
+
 def _noch_frei(db, shop_id: str, leistung: dict, person_id: str, start: datetime) -> Optional[Tuple[datetime, datetime]]:
     """Frisch gerechnet: Ist der Platz nach den Regeln noch frei? Dann (Beginn, Ende), sonst None – wie _slot_still_free"""
     inputs = load_timeslot_inputs(db, shop_id, person_id, [leistung["id"]], start.date(), start.date())
@@ -323,17 +354,11 @@ def _frueher_dran(shop_id: str, staff_id: str) -> None:
 
 # --- Endpunkte ----------------------------------------------------------------------------------------------------------
 
-@router.post("/telefon/laden")
-def laden(anfrage: Anruf) -> dict:
-    """Zu Beginn des Gesprächs: alles, was der Assistent über den Laden wissen muss"""
-    db = get_firestore_db()
-    try:
-        shop_id, shop = _laden(db, anfrage)
-    except _Nein as nein:
-        return nein.antwort()
+def laden_daten(db, shop_id: str, shop: dict) -> dict:
+    """Alles, was der Assistent über den Laden wissen muss. Der Eingang gibt es ihm gleich zum Gesprächsbeginn mit
+    (app/apis/telefon_eingang), das spart eine Runde mit dem Sprachmodell."""
     name = str(shop.get("name") or "").strip() or "der Laden"
     jetzt = _jetzt()
-    print(f"Telefon {shop_id}: Gespräch beginnt")
     return {
         "ok": True,
         "laden_id": shop_id,
@@ -352,6 +377,18 @@ def laden(anfrage: Anruf) -> dict:
     }
 
 
+@router.post("/telefon/laden")
+def laden(anfrage: Anruf) -> dict:
+    """Ohne Daten vom Eingang (Probe im Browser): alles, was der Assistent über den Laden wissen muss"""
+    db = get_firestore_db()
+    try:
+        shop_id, shop = _laden(db, anfrage)
+    except _Nein as nein:
+        return nein.antwort()
+    print(f"Telefon {shop_id}: Gespräch beginnt")
+    return laden_daten(db, shop_id, shop)
+
+
 @router.post("/telefon/freie-zeiten")
 def freie_zeiten(anfrage: ZeitenAnfrage) -> dict:
     db, jetzt = get_firestore_db(), _jetzt()
@@ -365,7 +402,7 @@ def freie_zeiten(anfrage: ZeitenAnfrage) -> dict:
         if ab and ab > jetzt + timedelta(days=MAX_VORAUS_TAGE):
             raise _Nein("zu_weit", f"So weit im Voraus geht es nicht, höchstens {MAX_VORAUS_TAGE} Tage.")
         anzahl = max(1, min(MAX_ANZAHL, anfrage.anzahl))
-        plaetze = _je_uhrzeit(_plaetze(db, shop_id, shop, leistung, personen, jetzt, ab, anzahl, TAGE_TERMIN, nummer=False), anzahl)
+        plaetze = _je_uhrzeit(_plaetze(db, shop_id, shop, leistung, personen, jetzt, ab, KANDIDATEN, TAGE_TERMIN, nummer=False), 10 * KANDIDATEN)
     except _Nein as nein:
         return nein.antwort()
     wen = f" bei {personen[0]['rufname']}" if len(personen) == 1 else ""
@@ -373,8 +410,10 @@ def freie_zeiten(anfrage: ZeitenAnfrage) -> dict:
         von = t.tag_text((ab or jetzt).date(), jetzt.date())
         return {"ok": True, "leistung": leistung["name"], "zeiten": [],
                 "ansage": f"In den {TAGE_TERMIN} Tagen ab {von} ist für {leistung['name']}{wen} nichts frei."}
+    warum = _warum_nicht_am_tag(shop, personen, ab, plaetze, jetzt, wen)
+    plaetze = _auswahl(plaetze, anzahl)
     return {"ok": True, "leistung": leistung["name"], "zeiten": [_platz(p, jetzt) for p in plaetze],
-            "ansage": f"Frei für {leistung['name']}: {_aufzaehlung(plaetze, jetzt)}."}
+            "ansage": f"{warum}Frei für {leistung['name']}: {_aufzaehlung(plaetze, jetzt)}."}
 
 
 @router.post("/telefon/buchen")

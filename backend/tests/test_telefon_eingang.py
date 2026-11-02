@@ -7,6 +7,7 @@ mit nachgebauter Datenbank. Ohne Firebase-Zugang und ohne pytest lauffähig:
 import base64
 import hashlib
 import hmac
+import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -67,9 +68,9 @@ class Db:
         eingang.get_firestore_db = lambda: self.db
         eingang._assistent = self._assistent
 
-    def _assistent(self, shop_id, name, begruessung, anrufer):
+    def _assistent(self, shop_id, name, begruessung, daten, anrufer):
         self.vapi.append((shop_id, name, anrufer))
-        self.begruessung = begruessung
+        self.begruessung, self.daten = begruessung, json.loads(daten)
         return "<Response><Connect/></Response>"
 
 
@@ -173,15 +174,23 @@ def test_begruessung_nennt_was_man_buchen_kann():
         "d": {"shopId": "anderer", "name": "Fremd"},
     }
     anruf(ForwardedFrom=SALON)
-    assert d.begruessung == "Hallo, hier ist der KI-Assistent von Salon Nora & Co. Ich kann Ihnen direkt einen Termin buchen, Bart oder Haarschnitt. Was darf es sein?"
+    assert d.begruessung == "Hallo, hier ist der KI-Assistent von Salon Nora & Co. Möchten Sie einen Termin für Bart oder Haarschnitt?"
+
+
+def test_daten_des_ladens_gehen_gleich_mit():
+    d = Db(aktiv(), {"street": "Hauptstr. 1", "postalCode": "10115", "city": "Berlin", "businessHours": "9:00-17:00"})
+    d.data["services"] = {"a": {"shopId": "salon", "name": "Haarschnitt", "duration": 30, "price": 23}}
+    anruf(ForwardedFrom=SALON)
+    assert "Hauptstr. 1" in d.daten["adresse"] and d.daten["oeffnungszeiten"] == ["täglich 9 bis 17 Uhr"]
+    assert d.daten["leistungen"][0]["name"] == "Haarschnitt" and d.daten["name"] == "Salon Nora & Co"
 
 
 def test_begruessung_je_nach_angebot():
     kopf = "Hallo, hier ist der KI-Assistent von Nora."
-    assert t.begruessung("Nora", ["Bart"]) == f"{kopf} Ich kann Ihnen direkt einen Termin für Bart buchen. Soll ich schauen, wann der nächste frei ist?"
-    assert t.begruessung("Nora", ["A", "B", "C"]).endswith("buchen, A, B oder C. Was darf es sein?")
-    assert t.begruessung("Nora", ["A", "B", "C", "D"]).endswith("buchen, zum Beispiel A, B oder C. Was darf es sein?")
-    assert t.begruessung("Nora") == f"{kopf} Ich kann Ihnen direkt einen Termin buchen. Was darf es sein?"
+    assert t.begruessung("Nora", ["Bart"]) == f"{kopf} Möchten Sie einen Termin für Bart?"
+    assert t.begruessung("Nora", ["A", "B", "C"]) == f"{kopf} Möchten Sie einen Termin für A, B oder C?"
+    assert t.begruessung("Nora", ["A", "B", "C", "D"]) == f"{kopf} Möchten Sie einen Termin, zum Beispiel für A, B oder C?"
+    assert t.begruessung("Nora") == f"{kopf} Möchten Sie einen Termin?"
     assert "Nummer für heute" in t.begruessung("Nora", ["A"], termine=False)
     assert "KI-Assistent" in t.begruessung("Nora", ["A"], termine=False)
 

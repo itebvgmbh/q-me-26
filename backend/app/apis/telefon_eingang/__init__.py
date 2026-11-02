@@ -14,6 +14,7 @@ geht als Variable laden_id mit (die Werkzeuge in app/apis/telefon schicken sie z
 Zugang: Twilio unterschreibt jede Anfrage (X-Twilio-Signature) mit QME_TWILIO_AUTH_TOKEN aus /etc/q-me.env.
 Dazu QME_VAPI_API_KEY, QME_VAPI_ASSISTANT_ID und QME_VAPI_PHONE_NUMBER_ID. Einrichtung: deploy/telefon-assistent.md.
 """
+import json
 import logging
 import os
 from typing import Optional
@@ -23,6 +24,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from app.apis.firebase_utils import get_firestore_db
+from app.apis.telefon import laden_daten
 from app.libs import telefon as t
 from app.libs import telefon_laeden as tl
 from app.libs.plans import has_feature, is_suspended
@@ -50,13 +52,13 @@ async def _von_twilio(request: Request, pfad: str, signatur: Optional[str]) -> d
     return felder
 
 
-def _assistent(shop_id: str, name: str, begruessung: str, anrufer: Optional[str]) -> str:
+def _assistent(shop_id: str, name: str, begruessung: str, daten: str, anrufer: Optional[str]) -> str:
     """TwiML von Vapi, das den Anruf zum Assistenten dieses Ladens verbindet"""
     body: dict = {
         "phoneNumberId": os.environ["QME_VAPI_PHONE_NUMBER_ID"],
         "assistantId": os.environ["QME_VAPI_ASSISTANT_ID"],
         "phoneCallProviderBypassEnabled": True,
-        "assistantOverrides": {"firstMessage": begruessung, "variableValues": {"laden_id": shop_id, "laden_name": name}},
+        "assistantOverrides": {"firstMessage": begruessung, "variableValues": {"laden_id": shop_id, "laden_name": name, "laden_daten": daten}},
     }
     if anrufer:
         body["customer"] = {"number": anrufer}
@@ -95,7 +97,8 @@ def _antwort(felder: dict) -> str:
     if t.entscheiden(daten, is_suspended(shop)) != t.ANNEHMEN:
         return t.twiml_ansage(t.ansage_text(name))
     namen = [s["name"] for s in tl.leistungen(db, shop_id) if s["name"]]
-    twiml = _assistent(shop_id, name, t.begruessung(name, namen, has_feature(shop, "termine")), t.e164(felder.get("From")))
+    begruessung = t.begruessung(name, namen, has_feature(shop, "termine"))
+    twiml = _assistent(shop_id, name, begruessung, json.dumps(laden_daten(db, shop_id, shop), ensure_ascii=False), t.e164(felder.get("From")))
     if felder.get("CallSid"):
         tl.anruf_merken(db, felder["CallSid"], shop_id)
     return twiml
