@@ -5,20 +5,19 @@ bucht, und was eine Minute wirklich kostet. Die Anforderung steht in
 [requirements/telefon-assistent.md](../requirements/telefon-assistent.md), die Schnittstelle im Backend in
 `backend/app/apis/telefon`.
 
-Angefangen wird mit **Vapi**. Dort ist die Berliner Nummer der ITEBV über **Vonage** schon eingebunden, eine neue
-Nummer ist also nicht nötig. Zum Vergleich kann danach **ElevenLabs Agents** dieselben Werkzeuge nutzen (Abschnitt 4).
+Angefangen wird mit **Vapi**. Die Anrufe kommen über eine Berliner Nummer von **Twilio** an, die in Vapi importiert
+ist. Zum Vergleich kann danach **ElevenLabs Agents** dieselben Werkzeuge nutzen (Abschnitt 4).
 
 ## Konten
 
 Konten und Schlüssel legst du selbst an und trägst sie direkt bei den Anbietern ein. In Dranzeit kommt nur der
 Zugangsschlüssel aus `deploy/README.md` („Telefon-Assistent“).
 
-| Anbieter | Wofür | Stand (26.10.2026) | Kosten (vor dem Kauf prüfen) |
+| Anbieter | Wofür | Stand (02.11.2026) | Kosten (vor dem Kauf prüfen) |
 |---|---|---|---|
 | [Vapi](https://vapi.ai/) | Gesprächsführung, ruft unsere Werkzeuge auf; Spracherkennung, Sprachmodell und Stimme wählst du dort je Assistent | Konto vorhanden, etwas Guthaben; Vertrag zur Auftragsverarbeitung noch abschließen | etwa 0,05 $ pro Minute plus Spracherkennung, Sprachmodell und Stimme; Vapi zeigt je Assistent eine Schätzung pro Minute |
-| [Vonage](https://www.vonage.de/) | Berliner Nummer (030), über die Anrufe ankommen | in Vapi eingebunden (Integrations → Vonage) | Nummer und eingehende Minuten laut Vonage-Tarif |
+| [Twilio](https://www.twilio.com/) | Berliner Nummer (030), über die Anrufe ankommen | Konto freigeschaltet, Regulatory Bundle genehmigt, Nummer gekauft und in Vapi importiert; Business-Kundenprofil noch Entwurf | Nummer und eingehende Minuten laut Twilio-Preisliste |
 | [ElevenLabs](https://elevenlabs.io/) (optional, Vergleich) | zweite Plattform mit denselben Werkzeugen | – | etwa 0,08 $ pro Minute plus Sprachmodell |
-| [Twilio](https://www.twilio.com/) (nur für ElevenLabs) | Nummer für ElevenLabs, das Vonage-Nummern nur über ein eigenes Verbindungsprogramm annimmt | Testkonto ohne Nummer; für eine Berliner Nummer „Upgrade“ und ein Regulatory Bundle mit Handelsregisterauszug | Nummer wenige Euro im Monat |
 
 ## 1. Dranzeit vorbereiten
 
@@ -28,7 +27,7 @@ Zugangsschlüssel aus `deploy/README.md` („Telefon-Assistent“).
    Für einen Laden mit leeren Leistungen oder ohne Team gibt der Assistent nichts Sinnvolles aus. Die
    Probetermine hinterher in „Mein Tag“ absagen.
 3. **Rufnummer zuordnen:** Im Betreiber-Bereich den Laden öffnen, Abschnitt „Telefon-Assistent“, und die Berliner
-   Vonage-Nummer eintragen. Die Schreibweise ist egal (`030 …` oder `+49 30 …`).
+   Twilio-Nummer eintragen. Die Schreibweise ist egal (`030 …` oder `+49 30 …`).
 4. **Laden-ID notieren:** Sie steht im Betreiber-Bereich in der Kopfzeile des Ladens („Laden … · ID“). Die
    Werkzeuge schicken sie mit, damit die Probe auch ohne Telefon im Browser klappt.
 
@@ -43,14 +42,15 @@ So sprichst du
 - Wiederhole nicht, was der Anrufer gerade gesagt hat oder was schon gesagt wurde. Keine Floskeln wie "Gerne helfe ich Ihnen dabei".
 - Sieze den Anrufer. Duzt er dich, duz zurück. Sprich in seiner Sprache.
 - Nenn Leute aus dem Team nur beim Vornamen.
-- Schreib Uhrzeiten so, wie man sie sagt: "14 Uhr 30", "15 Uhr", "9 Uhr 45". Nie mit Doppelpunkt oder Punkt.
+- Schreib Uhrzeiten immer so, wie man sie sagt: "14 Uhr 30", "15 Uhr", "9 Uhr 45". Nie mit Doppelpunkt oder Punkt, auch nicht "15:45 Uhr". Das gilt auch, wenn der Anrufer die Zeit nennt: Steht bei ihm "15:45", schreibst du "15 Uhr 45".
+- Schreib nur, was gesprochen wird: keine Klammern, keine Anmerkungen, keine Listen.
 
 Ablauf
 1. Rufe gleich bei deiner ersten Antwort laden_info auf. Es liefert Name des Ladens, Datum und Uhrzeit, Adresse, Öffnungszeiten, Leistungen mit Preisen und Dauer und das Team. Erfinde nichts, was dort nicht steht. Für Datum und Uhrzeit gilt nur, was laden_info sagt.
 2. Leistung: Ordne selbst zu, was der Anrufer sagt ("Haare schneiden", "kurz machen", "Bart"). Passt eine Leistung, nimm sie ohne Rückfrage. Passen mehrere (zum Beispiel Herren- und Kinderhaarschnitt), nenn nur diese. Alle Leistungen zählst du nur auf, wenn er fragt, was es gibt.
 3. Termin: Frag, wann es ihm passt. Nach einer Person fragst du nicht; nennt er jemanden, nimm ihn. Rufe freie_zeiten auf. Will er so bald wie möglich, nenn nur die früheste Zeit, sonst höchstens drei. Dann frag nach seinem Namen.
 4. Vor dem Buchen fasst du einmal kurz zusammen und fragst nach: "Also morgen 14 Uhr 45 bei Kim, auf den Namen Yilmaz. Passt das?" Rufe buchen erst nach seinem Ja auf. Eine gewählte Zeit oder ein genannter Name ist noch keine Zusage. Gib "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
-5. Nach dem Buchen nur kurz bestätigen und die Nummer nennen, ohne Zeit und Person zu wiederholen: "Erledigt, Ihre Nummer ist 12. Bis morgen!"
+5. Nach dem Buchen nur kurz bestätigen, die Nummer nennen und fragen, ob noch etwas ist, ohne Zeit und Person zu wiederholen: "Erledigt, Ihre Nummer ist 12. Sonst noch was?"
 6. Wartezeit oder Nummer für heute (ohne Termin vorbeikommen): Rufe wartezeit auf. Möchte er eine Nummer, frag nach seinem Namen, rufe nummer_ziehen auf und nenn Nummer und ungefähre Zeit.
 7. Nach buchen oder nummer_ziehen merkst du dir "termin_id". Buche nie ein zweites Mal, um etwas zu ändern.
    - Name falsch: termin_aendern mit termin_id und dem richtigen Namen.
@@ -58,7 +58,7 @@ Ablauf
    - Doch kein Termin: termin_aendern mit termin_id und absagen = true.
 8. Jede Werkzeug-Antwort hat "ok" und "ansage". Die ansage enthält die Fakten; sag davon nur, was der Anrufer noch nicht weiß. Sag erst "gebucht" oder "erledigt", wenn buchen mit ok = true geantwortet hat. Bei ok = false sag kurz, woran es liegt, und biete die Alternativen aus der Antwort an.
 9. Kannst du nicht helfen (Beschwerde, Sonderwunsch, er will einen Menschen sprechen): Sag, dass gerade niemand frei ist und er es später noch einmal versuchen oder online buchen kann.
-10. Ist alles erledigt oder verabschiedet er sich: kurzer Gruß, dann gleich end_call_tool aufrufen.
+10. Leg erst auf, wenn nichts mehr offen ist: Er verabschiedet sich oder sagt auf "Sonst noch was?" nein. Dann kurzer Gruß und gleich end_call_tool aufrufen. Hat er noch eine Frage, beantworte sie und warte seine Antwort ab. Ruf end_call_tool nie zusammen mit buchen auf.
 
 Beispiel
 Anrufer: Ich bräuchte mal wieder einen Haarschnitt.
@@ -68,7 +68,9 @@ Du: Morgen um 14 Uhr 45 bei Kim wäre frei. Auf welchen Namen?
 Anrufer: Yilmaz.
 Du: Also morgen 14 Uhr 45 bei Kim, auf Yilmaz. Passt das?
 Anrufer: Ja, danke.
-Du: Erledigt, Ihre Nummer ist 12. Bis morgen!
+Du: Erledigt, Ihre Nummer ist 12. Sonst noch was?
+Anrufer: Nein, danke.
+Du: Bis morgen!
 
 Grenzen
 - Lies nie IDs oder Werte wie "platz" oder "termin_id" vor. Erzähl nichts über Technik oder Systeme.
@@ -226,7 +228,9 @@ Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten we
 - **Uhrzeiten:** Vapi bereitet den Text vor der Stimme für englische Stimmen auf („Voice formatting“), macht aus
   „14:30“ „14.30“, und die Stimme liest Ziffern vor. In der Oberfläche lässt sich das nicht abschalten (nur über die
   Schnittstelle von Vapi: `voice.chunkPlan.formatPlan.enabled = false`). Deshalb schreiben unsere Werkzeuge und die
-  Systemanweisung Uhrzeiten ohne Doppelpunkt: „14 Uhr 30“.
+  Systemanweisung Uhrzeiten ohne Doppelpunkt: „14 Uhr 30“. Nennt der Anrufer die Zeit, kommt sie aus der
+  Spracherkennung als „15:45“ an, und das Modell übernahm das im Testanruf vom 02.11.2026. Die Stimme las dann „1545“.
+  Die Systemanweisung verbietet das seitdem ausdrücklich.
 - **Datenschutz (Advanced → Recording & Artifacts):** Audio Recording aus. Logging und Transcript bleiben für
   die Auswertung an.
 
@@ -241,9 +245,17 @@ Vapi schätzte die Kosten am 26.10.2026 auf etwa 0,11 $ pro Minute und die Antwo
 
 ### Nummer
 
-„Phone Numbers“ → Berliner Vonage-Nummer → „Inbound Settings“ → **Assistant**: `Dranzeit Probe`.
+1. **Kaufen:** In der Twilio-Konsole unter „Phone Numbers“ → „Buy a number“: Germany, nur Voice, Suche nach `30`
+   (nicht `4930`). Im Kaufdialog „Business“ wählen, dann das genehmigte Bundle und seine Adresse. Die Trefferliste
+   wechselt bei jeder Suche. Ist eine Nummer „not available“, frisch suchen und gleich kaufen.
+2. **Importieren:** In Vapi unter „Phone Numbers“ → „Create Phone Number“ → „Import Twilio“: Nummer, Account SID und
+   Auth Token eintragen, SMS aus. Vapi stellt die Voice-Adresse der Nummer bei Twilio dabei selbst auf
+   `api.vapi.ai/twilio/inbound_call`.
+3. **Zuweisen:** Bei der Nummer unter „Inbound Settings“ → **Assistant**: `Dranzeit Probe`, dann „Save“.
 
-Dort hängt bisher ein früherer Test-Assistent. Er wird damit abgelöst.
+**Gleichzeitige Anrufe:** Eine Nummer ist nie besetzt. Die Grenzen hängen an den Konten: Twilio erlaubt ohne
+genehmigtes Business-Kundenprofil (Trust Hub → Customer Profiles) 2 gleichzeitige Anrufe, mit Profil unbegrenzt. Vapi
+begrenzt je Konto, zusätzliche Leitungen lassen sich dort zubuchen. Sind alle Leitungen belegt, nimmt niemand mehr an.
 
 ### Probe
 
@@ -251,10 +263,12 @@ Dort hängt bisher ein früherer Test-Assistent. Er wird damit abgelöst.
    deshalb gilt die Laden-ID.
 2. **Am Telefon:** Von einem Handy die Berliner Nummer anrufen.
 3. **Mit Umleitung:** Am Handy „bei Nichtmelden“ auf die Berliner Nummer umleiten, mit `**61*<Nummer>**20#`. Dann
-   das Handy anrufen und nicht abnehmen. So läuft es später bei einem Salon.
+   das Handy anrufen und nicht abnehmen. So läuft es später bei einem Salon. Danach mit `##61#` wieder ausschalten.
 
 **Prüfen:**
 - Unter „Logs“ steht je Anruf, welche Werkzeuge aufgerufen wurden, mit Antworten und Kosten.
+- Ob die Nummer des Salons bei einer Umleitung mitkommt: Twilio-Konsole → Monitor → Logs → Calls → Anruf öffnen →
+  „Request Inspector“ → „Parameters“, Feld `ForwardedFrom`. Laut Twilio liefern das nicht alle Anbieter.
 - Gebuchte Termine stehen in „Mein Tag“, gezogene Nummern in der Schlange am Tresen.
 
 ## 4. Zum Vergleich: ElevenLabs Agents
@@ -316,3 +330,5 @@ Danach entscheiden wir über den Anbieter und die Preise (siehe „Offen“ in d
 - Zubuchen im Tarif, Abrechnung nach Minuten, Kostendeckel und Ansage ohne KI
 - Begrüßung mit dem richtigen Ladennamen bei mehreren Läden: Vapi und ElevenLabs können vor dem Gespräch eine
   Adresse aufrufen, die den Assistenten mit den Daten des Ladens liefert. Das bauen wir, sobald die Plattform feststeht.
+- Welcher Laden gemeint ist, wenn mehrere dieselbe Nummer nutzen: Das hängt am Umleitungstest (`ForwardedFrom`, siehe
+  „Prüfen“). Kommt die Salonnummer nicht verlässlich an, bleibt eine eigene Nummer oder Durchwahl je Laden.
