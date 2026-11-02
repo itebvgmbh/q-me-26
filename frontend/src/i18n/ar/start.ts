@@ -264,6 +264,13 @@ const texte: Texte = {
   "Mehr dazu": "اعرف المزيد",
   "(öffnet in neuem Tab)": "(يُفتح في علامة تبويب جديدة)",
   "Laden...": "جارٍ التحميل...",
+
+  // Telefon-Assistent auf Preise, Für Läden und Startseite
+  "Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage.": "إذا لم يرد أحد، يرد ذكاء اصطناعي على المكالمة. يذكر المواعيد المتاحة ويحجزها ويخبر بمدة الانتظار ويصدر الأرقام. عند الطلب.",
+  "Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.": "إذا لم يرد أحد في المحل، يرد ذكاء اصطناعي على المكالمة. يذكر المواعيد المتاحة ويحجزها ويخبر بمدة الانتظار ويصدر الأرقام ويجيب عن الأسئلة حول المحل.",
+  "Im Testbetrieb, Preis auf Anfrage: <mail/>": "قيد التجربة، السعر عند الطلب: <mail/>",
+  "So funktioniert der Telefon-Assistent": "كيف يعمل مساعد الهاتف",
+  "Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.": "وإذا لم يتمكن أحد من الرد على الهاتف، يرد مساعد الهاتف على المكالمة.",
 };
 
 export default texte;

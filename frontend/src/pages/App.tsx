@@ -100,7 +100,8 @@ export default function App() {
           </h2>
           <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
             <p className="text-lg leading-relaxed">
-              {t('Laufkundschaft reiht sich per QR-Code selbst ein. Termine und Schlange siehst du am Tresen in einer Ansicht.')}
+              {t('Laufkundschaft reiht sich per QR-Code selbst ein. Termine und Schlange siehst du am Tresen in einer Ansicht.')}{' '}
+              {t('Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.')}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" asChild>
