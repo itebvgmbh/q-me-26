@@ -335,6 +335,13 @@ const texte: Texte = {
   "Nicht dein Salon? Leer anfangen": "ليس صالونك؟ ابدأ من الصفر",
 
   // pages/TelefonAssistent.tsx
+  "Dort wählst du auch, ob sofort umgeleitet wird oder erst, wenn niemand rangeht.": "هناك تختار أيضًا هل يتم التحويل فورًا أم فقط عندما لا يرد أحد.",
+  "Soll jeder Anruf direkt zum Assistenten gehen, wähl dort „sofort“.": "إذا أردت أن تذهب كل مكالمة مباشرة إلى المساعد، فاختر هناك «فورًا».",
+  "Wann leitest du um?": "متى يتم التحويل؟",
+  "Erst wenn niemand rangeht": "فقط عندما لا يرد أحد",
+  "Sofort": "فورًا",
+  "Gib diesen Code ein und drück die Wähltaste:": "أدخل هذا الرمز واضغط زر الاتصال:",
+  "Alle Anrufe gehen sofort zum Assistenten. Dein Telefon klingelt dann nicht.": "تذهب جميع المكالمات مباشرة إلى المساعد. لن يرن هاتفك.",
   "Telefon-Assistent": "مساعد الهاتف",
   "Nimmt Anrufe an, wenn im Laden niemand rangeht": "يرد على المكالمات عندما لا يرد أحد في المحل",
   "Handy": "الجوال",

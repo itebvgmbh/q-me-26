@@ -335,6 +335,13 @@ const texte: Texte = {
   "Nicht dein Salon? Leer anfangen": "Sizin salonunuz değil mi? Boş başlayın",
 
   // pages/TelefonAssistent.tsx
+  "Dort wählst du auch, ob sofort umgeleitet wird oder erst, wenn niemand rangeht.": "Hemen mi yoksa yalnızca kimse açmadığında mı yönlendirileceğini de orada seçersin.",
+  "Soll jeder Anruf direkt zum Assistenten gehen, wähl dort „sofort“.": "Her arama doğrudan asistana gitsin istiyorsan orada “hemen” seçeneğini seç.",
+  "Wann leitest du um?": "Ne zaman yönlendirilsin?",
+  "Erst wenn niemand rangeht": "Yalnızca kimse açmazsa",
+  "Sofort": "Hemen",
+  "Gib diesen Code ein und drück die Wähltaste:": "Bu kodu gir ve arama tuşuna bas:",
+  "Alle Anrufe gehen sofort zum Assistenten. Dein Telefon klingelt dann nicht.": "Tüm aramalar doğrudan asistana gider. Telefonun çalmaz.",
   "Telefon-Assistent": "Telefon asistanı",
   "Nimmt Anrufe an, wenn im Laden niemand rangeht": "Dükkânda kimse açmazsa aramaları yanıtlar",
   "Handy": "Cep telefonu",

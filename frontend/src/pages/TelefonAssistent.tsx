@@ -40,34 +40,59 @@ const Code = ({ code, wann }: { code: string; wann: string }) => (
 
 /** Wie der Laden die Umleitung einrichtet. Die Codes unterscheiden sich zwischen Handy (##…) und Festnetz (#…) */
 const Anleitung = ({ weg, ziel }: { weg: Weg; ziel: string }) => {
+  const [sofort, setSofort] = useState(false);
   if (weg === 'fritzbox') {
     return (
       <>
         <p className="text-sm">{t('In der Fritzbox unter „Telefonie“, „Rufbehandlung“, „Rufumleitung“ eine neue Umleitung anlegen. Als Ziel trägst du die Nummer oben ein.')}</p>
+        <p className="text-sm">{t('Dort wählst du auch, ob sofort umgeleitet wird oder erst, wenn niemand rangeht.')}</p>
         <p className="text-sm text-muted-foreground">{t('Erkennt der Probeanruf danach nichts, richte die Umleitung direkt bei deinem Telefonanbieter ein.')}</p>
       </>
     );
   }
   if (weg === 'andere') {
-    return <p className="text-sm">{t('Such im Kundenportal deines Anbieters nach „Rufumleitung“ oder „Anrufweiterschaltung“. Richte sie für „bei Nichtmelden“ und „bei besetzt“ ein. Als Ziel trägst du die Nummer oben ein.')}</p>;
+    return (
+      <>
+        <p className="text-sm">{t('Such im Kundenportal deines Anbieters nach „Rufumleitung“ oder „Anrufweiterschaltung“. Richte sie für „bei Nichtmelden“ und „bei besetzt“ ein. Als Ziel trägst du die Nummer oben ein.')}</p>
+        <p className="text-sm">{t('Soll jeder Anruf direkt zum Assistenten gehen, wähl dort „sofort“.')}</p>
+      </>
+    );
   }
   const handy = weg === 'handy';
+  const aus = (code: string) => (
+    <code dir="ltr" className="font-mono">
+      {code}
+    </code>
+  );
   return (
     <>
-      <p className="text-sm">{t('Gib diese Codes nacheinander ein und drück jeweils die Wähltaste:')}</p>
-      <Code code={handy ? `**61*${ziel}**20#` : `*61*${ziel}#`} wann={t('wenn nach 20 Sekunden niemand rangeht')} />
-      <Code code={handy ? `**67*${ziel}#` : `*67*${ziel}#`} wann={t('wenn besetzt ist')} />
-      <p className="text-sm text-muted-foreground">
-        {t('Zum Ausschalten:')}{' '}
-        <code dir="ltr" className="font-mono">
-          {handy ? '##61#' : '#61#'}
-        </code>{' '}
-        {t('und')}{' '}
-        <code dir="ltr" className="font-mono">
-          {handy ? '##67#' : '#67#'}
-        </code>
-      </p>
-      {handy && <p className="text-sm text-muted-foreground">{t('Geht trotzdem die Mailbox ran, schalte sie bei deinem Anbieter aus.')}</p>}
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t('Wann leitest du um?')}>
+        <Button type="button" size="sm" variant={sofort ? 'outline' : 'default'} aria-pressed={!sofort} onClick={() => setSofort(false)}>
+          {t('Erst wenn niemand rangeht')}
+        </Button>
+        <Button type="button" size="sm" variant={sofort ? 'default' : 'outline'} aria-pressed={sofort} onClick={() => setSofort(true)}>
+          {t('Sofort')}
+        </Button>
+      </div>
+      {sofort ? (
+        <>
+          <p className="text-sm">{t('Gib diesen Code ein und drück die Wähltaste:')}</p>
+          <Code code={handy ? `**21*${ziel}#` : `*21*${ziel}#`} wann={t('Alle Anrufe gehen sofort zum Assistenten. Dein Telefon klingelt dann nicht.')} />
+          <p className="text-sm text-muted-foreground">
+            {t('Zum Ausschalten:')} {aus(handy ? '##21#' : '#21#')}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm">{t('Gib diese Codes nacheinander ein und drück jeweils die Wähltaste:')}</p>
+          <Code code={handy ? `**61*${ziel}**20#` : `*61*${ziel}#`} wann={t('wenn nach 20 Sekunden niemand rangeht')} />
+          <Code code={handy ? `**67*${ziel}#` : `*67*${ziel}#`} wann={t('wenn besetzt ist')} />
+          <p className="text-sm text-muted-foreground">
+            {t('Zum Ausschalten:')} {aus(handy ? '##61#' : '#61#')} {t('und')} {aus(handy ? '##67#' : '#67#')}
+          </p>
+          {handy && <p className="text-sm text-muted-foreground">{t('Geht trotzdem die Mailbox ran, schalte sie bei deinem Anbieter aus.')}</p>}
+        </>
+      )}
     </>
   );
 };
