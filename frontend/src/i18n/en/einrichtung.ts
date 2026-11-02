@@ -335,6 +335,13 @@ const texte: Texte = {
   "Nicht dein Salon? Leer anfangen": "Not your salon? Start from scratch",
 
   // pages/TelefonAssistent.tsx
+  "Dort wählst du auch, ob sofort umgeleitet wird oder erst, wenn niemand rangeht.": "That's also where you choose whether to forward immediately or only when no one answers.",
+  "Soll jeder Anruf direkt zum Assistenten gehen, wähl dort „sofort“.": "If every call should go straight to the assistant, choose “immediately” there.",
+  "Wann leitest du um?": "When should calls be forwarded?",
+  "Erst wenn niemand rangeht": "Only when no one answers",
+  "Sofort": "Immediately",
+  "Gib diesen Code ein und drück die Wähltaste:": "Enter this code and press the call button:",
+  "Alle Anrufe gehen sofort zum Assistenten. Dein Telefon klingelt dann nicht.": "All calls go straight to the assistant. Your phone won't ring.",
   "Telefon-Assistent": "Phone assistant",
   "Nimmt Anrufe an, wenn im Laden niemand rangeht": "Answers calls when no one in the shop picks up",
   "Handy": "Mobile",
