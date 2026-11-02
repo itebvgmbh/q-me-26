@@ -21,7 +21,7 @@ Er spricht Deutsch und sagt im ersten Satz, dass er eine KI ist. Termine und Num
 
 1. Öffne **„Laden“ → „Telefon-Assistent“**. Du siehst das erst, wenn dein Laden freigeschaltet ist.
 2. Trag die Nummer ein, die deine Kunden anrufen, und tipp auf **„Einschalten“**. Der Assistent nimmt nur Anrufe an, die von dieser Nummer umgeleitet werden.
-3. Richte die Umleitung auf die angezeigte Nummer ein. Wähl dazu aus, wie du im Laden telefonierst: **„Handy“**, **„Festnetz Telekom“**, **„Fritzbox“** oder **„Anderer Anbieter“**.
+3. Richte die Umleitung auf die angezeigte Nummer ein. Wähl dazu aus, wie du im Laden telefonierst: **„Handy“**, **„Festnetz Telekom“**, **„Fritzbox“** oder **„Anderer Anbieter“**. Bei Handy und Festnetz Telekom wählst du außerdem **„Erst wenn niemand rangeht“** oder **„Sofort“**. Bei „Sofort“ klingelt dein Telefon nicht mehr, jeder Anruf geht direkt zum Assistenten.
 4. Ruf deinen Laden von einem anderen Telefon an und geh nicht ran. Sobald der Assistent abnimmt, steht auf der Seite **„Aktiv“**.
 
 > **Tipp:** Kommt beim Probeanruf nichts an, schicken manche Anbieter die Nummer deines Ladens nicht mit. Schreib uns, dann bekommst du eine eigene Nummer zum Umleiten.
