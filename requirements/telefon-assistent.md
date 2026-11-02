@@ -95,14 +95,16 @@ Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Eins
 
 ## Hinweise für Kunden
 
-Die Kunden wählen weiter die Nummer des Ladens. Der Hinweis steht nur dort, wo jemand diese Nummer sucht. Wer online bucht, soll nicht zum Telefon wechseln, denn online kostet den Laden nichts.
+Die Kunden wählen weiter die Nummer des Ladens. „Per Telefon buchen“ ist neben „Nummer ziehen“ und „Termin buchen“ der dritte Weg, aber nicht der Hauptknopf: Online kostet den Laden nichts, jede Telefonminute schon.
 
-- **Einrichtung:** Sobald der Assistent abnimmt, zeigt `/telefon-assistent` fertige Texte für Google-Eintrag, Webseite und Tresen. Die Stellen außerhalb von Dranzeit pflegt nur der Laden.
+- **Einrichtung:** Sobald der Assistent abnimmt, zeigt `/telefon-assistent` fertige Texte für Google-Eintrag, Webseite und Tresen. Die Stellen außerhalb von Dranzeit pflegt nur der Laden. Steht in den Ladendaten nicht die umgeleitete Nummer, sagt die Seite das.
+- **Ladenseite, Ladenliste und Salonseite:** Knopf „Per Telefon buchen“. Unter der Nummer auf Laden- und Salonseite eine Zeile, die den KI-Assistenten nennt.
+- **Buchen und Nummer ziehen:** „Lieber telefonisch?“ mit der Nummer, oben neben dem Wechsel zwischen Nummer und Termin. Das gilt auch für den Weg über den QR-Code.
 - **QR-Plakat:** Eine Zeile mit der Nummer, abwählbar. Gedruckt bleibt sie hängen, auch wenn der Assistent später aus ist.
-- **Ladenseite und Salonseite:** Eine Zeile unter der Nummer. Die Seite fragt `/routes/telefon-hinweis/{Laden-ID}` und bekommt nur Ja oder Nein.
-- **Bedingungen für den Hinweis:** Freigegeben, eingeschaltet, Probeanruf bestanden, Minuten übrig, nicht gesperrt, Tarif mit Terminen. Auf Laden- und Salonseite muss außerdem die dort genannte Nummer die umgeleitete sein.
-- **Nicht versprechen:** Es gibt keine Rückrufbitte, keine SMS und nur Deutsch. In anderen Sprachen sagt der Hinweis deshalb „auf Deutsch“. „Rund um die Uhr“ steht nirgends.
-- **Bewusst ohne Hinweis:** Nummernseite, Erinnerungen und Push (der Assistent kann bestehende Termine nicht verschieben oder absagen), Buchung (gleiche freie Zeiten), Anrufbeantworter (er muss aus, sonst nimmt er vor der Umleitung ab).
+- **Woher die Seiten es wissen:** `/routes/telefon-hinweis` nennt nur die IDs der Läden, bei denen alle Bedingungen erfüllt sind.
+- **Bedingungen:** Freigegeben, eingeschaltet, Probeanruf bestanden, Minuten übrig, nicht gesperrt, Tarif mit Terminen. Außer auf dem Plakat muss die Nummer in den Ladendaten die umgeleitete sein.
+- **Nicht versprechen:** Es gibt keine Rückrufbitte, keine SMS und nur Deutsch. In anderen Sprachen steht deshalb „auf Deutsch“ dabei. „Rund um die Uhr“ steht nirgends.
+- **Bewusst ohne Hinweis:** Nummernseite, Erinnerungen und Push (der Assistent kann bestehende Termine nicht verschieben oder absagen), Anrufbeantworter (er muss aus, sonst nimmt er vor der Umleitung ab), Kasten für die Webseite des Ladens (dort steht die Nummer schon, Text im Kasten „Jetzt weitersagen“).
 
 ## Datenschutz und Recht
 

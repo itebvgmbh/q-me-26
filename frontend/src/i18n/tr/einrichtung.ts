@@ -363,6 +363,8 @@ const texte: Texte = {
   "Kopieren": "Kopyala",
   "Nummer kopiert.": "Numara kopyalandı.",
   "Text kopiert.": "Metin kopyalandı.",
+  "Auf deiner Ladenseite steht nicht {nummer}. Trag sie dort ein, dann können Kunden von dort aus per Telefon buchen.": "Salon sayfanda {nummer} yazmıyor. Oraya girersen müşteriler oradan telefonla randevu alabilir.",
+  "Ladendaten ändern": "Salon bilgilerini değiştir",
   "Jetzt weitersagen": "Şimdi duyur",
   "Deine Kunden wählen weiter deine normale Nummer. Sag ihnen, dass jetzt auch dann jemand abnimmt, wenn du beim Kunden bist.": "Müşterilerin normal numaranı aramaya devam eder. Sen müşteriyle ilgilenirken de artık telefonun açıldığını onlara söyle.",
   "Google-Eintrag": "Google kaydı",

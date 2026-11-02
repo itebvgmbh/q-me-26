@@ -128,6 +128,8 @@ const texte: Texte = {
   "Vielleicht ist der Link alt. Such den Laden einfach neu.": "Bağlantı eski olabilir. Salonu yeniden arayın.",
   "Noch keine Leistungen eingetragen.": "Henüz hizmet eklenmemiş.",
   "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.": "Kimse açmazsa bir yapay zekâ asistanı Almanca yanıtlar ve sana randevu alır.",
+  "Per Telefon buchen": "Telefonla randevu al (Almanca)",
+  "Lieber telefonisch?": "Telefonla mı tercih edersin (Almanca)?",
   "Öffnungszeiten": "Çalışma saatleri",
   "Nicht angegeben.": "Belirtilmemiş.",
 

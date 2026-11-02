@@ -90,6 +90,11 @@ def nimmt_an(db, shop_id: str) -> bool:
     return _laeuft(daten, shop, eigene) and bool(nummer) and (bool(eigene) or nummer == daten.get("anschluss"))
 
 
+def nehmen_an(db) -> list:
+    """Alle Läden, bei denen man über die Nummer auf der Ladenseite per Telefon buchen kann (Ladenliste, Buchung)"""
+    return [snap.id for snap in db.collection(t.LAEDEN).where("aktiv", "==", True).stream() if nimmt_an(db, snap.id)]
+
+
 def stand(db, shop_id: str, shop: dict) -> dict:
     """Was der Inhaber und der Betreiber zu sehen bekommen"""
     daten = eintrag(db, shop_id)

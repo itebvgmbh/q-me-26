@@ -128,6 +128,8 @@ const texte: Texte = {
   "Vielleicht ist der Link alt. Such den Laden einfach neu.": "Maybe the link is old. Just search for the shop again.",
   "Noch keine Leistungen eingetragen.": "No services listed yet.",
   "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.": "If no one picks up, an AI assistant answers in German and books you an appointment.",
+  "Per Telefon buchen": "Book by phone (in German)",
+  "Lieber telefonisch?": "Prefer to call (in German)?",
   "Öffnungszeiten": "Opening hours",
   "Nicht angegeben.": "Not specified.",
 

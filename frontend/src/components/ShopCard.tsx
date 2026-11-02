@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Shop, Service } from '../utils/firestore/types';
 import { hasFeature } from '../utils/plans';
+import { telLink, useTelefonAnnahme } from '../utils/telefon-hinweis';
 import { t, intlSprache } from '@/i18n';
 
 export interface ShopCardProps {
@@ -21,10 +22,12 @@ const formatAddress = (shop: Shop) =>
     ? [shop.street, [shop.postalCode, shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
     : shop.address || '';
 
-/** Shop-Karte mit den zwei Wegen: einreihen oder festen Termin buchen (nur, wenn der Tarif Online-Termine hat) */
+/** Shop-Karte mit den Wegen: einreihen, festen Termin buchen (nur, wenn der Tarif Online-Termine hat), per Telefon buchen (nur, wenn der Assistent abnimmt) */
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm }) => {
   const address = formatAddress(shop);
   const dark = tone === 'dark';
+  const telefonAnnahme = useTelefonAnnahme(shop.id);
+  const outlineDark = dark && 'border-white/40 text-background hover:bg-background hover:text-foreground';
 
   return (
     <article
@@ -63,17 +66,24 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
         </ul>
       )}
 
-      <div className="mt-auto flex gap-2">
+      <div className="mt-auto flex flex-wrap gap-2">
         <Button variant={dark ? 'signal' : 'default'} className="flex-1" asChild>
           <Link to={`/public-join-queue?shopId=${shop.id}`}>{t('Nummer ziehen')}</Link>
         </Button>
         {hasFeature(shop, 'termine') && (
-          <Button
-            variant="outline"
-            className={cn('flex-1', dark && 'border-white/40 text-background hover:bg-background hover:text-foreground')}
-            asChild
-          >
+          <Button variant="outline" className={cn('flex-1', outlineDark)} asChild>
             <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+          </Button>
+        )}
+        {telefonAnnahme && shop.phone && (
+          <Button variant="outline" className={cn('h-auto min-h-10 basis-full flex-wrap whitespace-normal py-2', outlineDark)} asChild>
+            <a href={telLink(shop.phone)}>
+              <Phone className="me-2 h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('Per Telefon buchen')}
+              <span dir="ltr" className="ms-2 font-mono font-normal">
+                {shop.phone}
+              </span>
+            </a>
           </Button>
         )}
       </div>

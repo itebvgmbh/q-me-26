@@ -142,6 +142,8 @@ const texte: Texte = {
   "Vielleicht ist der Link alt. Such den Laden einfach neu.": "ربما الرابط قديم. ابحث عن المحل من جديد.",
   "Noch keine Leistungen eingetragen.": "لم تُضف أي خدمات بعد.",
   "Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.": "إذا لم يرد أحد، يجيب مساعد ذكاء اصطناعي باللغة الألمانية ويحجز لك موعدًا.",
+  "Per Telefon buchen": "احجز عبر الهاتف (بالألمانية)",
+  "Lieber telefonisch?": "تفضل الهاتف (بالألمانية)؟",
   "Öffnungszeiten": "ساعات العمل",
   "Nicht angegeben.": "غير محدد.",
 

@@ -9,6 +9,7 @@ import { bookWithoutAccount, isTaken, ticketPath } from '../utils/ticket-key';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import type { CalendarTimeSlot } from '../utils/types';
 import { hasFeature } from '../utils/plans';
+import { telLink, useTelefonAnnahme } from '../utils/telefon-hinweis';
 
 // Import all hooks from index
 import { 
@@ -244,6 +245,7 @@ const PublicJoinQueue = () => {
   const termineAllowed = hasFeature(shopData, 'termine');
   const termineMoeglich = !shopData || termineAllowed;
   const terminZeigen = wann === 'wunsch' && termineMoeglich;
+  const telefonAnnahme = useTelefonAnnahme(selectedShop);
 
   const processBooking = async () => {
     if (wann === 'wunsch' && termineAllowed) return bookWunschzeit();
@@ -448,6 +450,15 @@ const PublicJoinQueue = () => {
                 >
                   {terminZeigen ? t('Nummer ziehen') : t('Termin buchen')}
                 </button>
+              </>
+            )}
+            {telefonAnnahme && shopData?.phone && (
+              <>
+                {' '}
+                {t('Lieber telefonisch?')}{' '}
+                <a href={telLink(shopData.phone)} dir="ltr" className="font-semibold text-foreground underline underline-offset-4 hover:no-underline">
+                  {shopData.phone}
+                </a>
               </>
             )}
           </p>

@@ -363,6 +363,8 @@ const texte: Texte = {
   "Kopieren": "Copy",
   "Nummer kopiert.": "Number copied.",
   "Text kopiert.": "Text copied.",
+  "Auf deiner Ladenseite steht nicht {nummer}. Trag sie dort ein, dann können Kunden von dort aus per Telefon buchen.": "Your shop page doesn't show {nummer}. Enter it there so customers can book by phone from that page.",
+  "Ladendaten ändern": "Edit shop details",
   "Jetzt weitersagen": "Spread the word",
   "Deine Kunden wählen weiter deine normale Nummer. Sag ihnen, dass jetzt auch dann jemand abnimmt, wenn du beim Kunden bist.": "Your customers keep calling your usual number. Let them know that someone now answers even when you're with a customer.",
   "Google-Eintrag": "Google listing",

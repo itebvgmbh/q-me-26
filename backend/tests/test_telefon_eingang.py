@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 import app.apis.telefon as tel  # noqa: E402
 import app.apis.telefon_eingang as eingang  # noqa: E402
 import app.apis.telefon_hinweis as hinweis  # noqa: E402
+from app import seo  # noqa: E402
 from app.libs import telefon as t  # noqa: E402
 from app.libs import telefon_laeden as tl  # noqa: E402
 
@@ -387,34 +388,40 @@ def test_weitersagen_haengt_nicht_an_der_nummer_in_den_ladendaten():
     assert tl.stand(d.db, "salon", d.data["shops"]["salon"])["weitersagen"] is True
 
 
-def hinweis_app():
+def hinweis_app(db):
+    seo._cache.clear()
+    hinweis.get_firestore_db = db
     app_hinweis = FastAPI()
     app_hinweis.include_router(hinweis.router, prefix="/routes")
     return TestClient(app_hinweis)
 
 
-def test_schnittstelle_sagt_nur_ja_oder_nein():
+def test_schnittstelle_nennt_nur_die_laeden_die_abnehmen():
     d = Db(aktiv(sekunden=600), MIT_TERMINEN)
-    hinweis.get_firestore_db = lambda: d.db
-    antwort = hinweis_app().get("/routes/telefon-hinweis/salon")
-    assert antwort.status_code == 200 and antwort.json() == {"annahme": True}
+    d.data["shops"].update({
+        "ausgeschaltet": {"name": "A", "phone": "030 11111111", **MIT_TERMINEN},
+        "andere-nummer": {"name": "B", "phone": "030 22222222", **MIT_TERMINEN},
+    })
+    d.data[t.LAEDEN].update({
+        "ausgeschaltet": aktiv(aktiv=False, anschluss="+493011111111"),
+        "andere-nummer": aktiv(anschluss="+493033333333"),
+    })
+    antwort = hinweis_app(lambda: d.db).get("/routes/telefon-hinweis")
+    assert antwort.status_code == 200 and antwort.json() == {"laeden": ["salon"]}
     assert "max-age" in antwort.headers["cache-control"]
 
 
-def test_schnittstelle_bei_unbekanntem_laden_und_unsinn():
+def test_schnittstelle_ohne_laeden():
     d = Db(shop=MIT_TERMINEN)
-    hinweis.get_firestore_db = lambda: d.db
-    assert hinweis_app().get("/routes/telefon-hinweis/salon").json() == {"annahme": False}
-    assert hinweis_app().get("/routes/telefon-hinweis/a%20b").json() == {"annahme": False}
+    assert hinweis_app(lambda: d.db).get("/routes/telefon-hinweis").json() == {"laeden": []}
 
 
 def test_schnittstelle_schweigt_bei_einer_stoerung():
     def kaputt():
         raise RuntimeError("Datenbank weg")
 
-    hinweis.get_firestore_db = kaputt
-    antwort = hinweis_app().get("/routes/telefon-hinweis/salon")
-    assert antwort.status_code == 200 and antwort.json() == {"annahme": False}
+    antwort = hinweis_app(kaputt).get("/routes/telefon-hinweis")
+    assert antwort.status_code == 200 and antwort.json() == {"laeden": []}
 
 
 def test_schnittstelle_braucht_keine_anmeldung():
