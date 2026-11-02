@@ -39,6 +39,7 @@ QUELLEN = [
     ("dranzeit-fragen", "Dranzeit: Häufige Fragen von Läden", "/hilfe/fragen-fuer-laeden"),
     ("treatwell", "Treatwell: Preise für Partner", "https://www.treatwell.de/partners/preise/"),
     ("treatwell-partner", "Treatwell: Partner-Seite (Reichweite)", "https://www.treatwell.de/partners/"),
+    ("treatwell-hilfe", "Treatwell-Hilfe: Provisionsmodell, Stand 14.10.2026", "https://propartnercare.treatwell.com/s/article/Das-Provisionsmodell-von-Treatwell-erkl%C3%A4rt?language=de"),
     ("planity-pabau", "Pabau: Planity Kosten, Stand 13.10.2026 (Pabau ist selbst Anbieter)", "https://pabau.com/de/blog/planity-kosten/"),
     ("planity-studiolution", "studiolution: Vergleich mit Planity, Stand März 2026 (studiolution ist selbst Anbieter)", "https://www.studiolution.com/vergleich/planity/"),
     ("planity-basic", "BASIC thinking: Planity, 02.03.2026", "https://www.basicthinking.de/blog/2026/03/02/planity-die-all-in-one-software-fuer-kosmetikstudios/"),
@@ -253,7 +254,7 @@ TABELLE = [
             "shore": _ja("Cloud-TSE +9 €", "shore"), "salonkee": _ja("ab Smart-Paket", "salonkee"),
         }),
         ("Online-Zahlung, Anzahlung", {
-            "dranzeit": _nein("gibt es nicht"), "treatwell": _ja("2 % Gebühr", "treatwell"), "planity": _ja("", "planity-basic"),
+            "dranzeit": _nein("gibt es nicht"), "treatwell": _ja("2 bis 2,5 % Gebühr", "treatwell", "treatwell-hilfe"), "planity": _ja("", "planity-basic"),
             "fresha": _ja("2,79 % + 0,20 $", "fresha"), "booksy": _na("booksy"), "shore": _ja("PayPal", "shore"), "salonkee": _ja("Payments-Modul", "salonkee"),
         }),
         ("Marktplatz für Neukunden", {
@@ -319,7 +320,7 @@ DETAILS = {
         "titel": "Treatwell: Kosten und Provision",
         "zeilen": [
             ("Kosten", _t("Starter 39 € im Monat (Kalender und Marktplatz), Advanced 49 € plus 7,50 € TSE-Gebühr (mit Kasse und unbegrenzten Teammitgliedern), jeweils zuzüglich Mehrwertsteuer.", "treatwell")),
-            ("Provision", _t("Auf die erste Buchung neuer Kunden über den Marktplatz nimmt Treatwell laut FAQ 35 %, die Preisseite nennt den Satz „je nach Standort unterschiedlich“. Bei einem Haarschnitt für 35 € sind das 12,25 €. Erneute Marktplatz-Buchungen kosten 0 %, Online-Vorauszahlungen 2 %.", "treatwell")),
+            ("Provision", _t("Auf die erste Buchung neuer Kunden über den Marktplatz nimmt Treatwell laut FAQ 35 %, die Preisseite nennt den Satz „je nach Standort unterschiedlich“. Bei einem Haarschnitt für 35 € sind das 12,25 €. Erneute Marktplatz-Buchungen kosten 0 %, Online-Vorauszahlungen laut Preisseite 2 %, laut Treatwell-Hilfe 2,5 %.", "treatwell", "treatwell-hilfe")),
             ("Bindung", _t("Wahlweise monatlich kündbar oder günstiger im Jahresvertrag.", "treatwell")),
             ("Stärke", _t("Reichweite: Laut Treatwell suchen dort täglich eine halbe Million Menschen nach Terminen.", "treatwell-partner")),
             ("Grenze", "Auf den Preis- und Partnerseiten steht nichts zu Laufkundschaft oder einer Warteschlange."),
