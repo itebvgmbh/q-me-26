@@ -1,33 +1,29 @@
 """
-Telefon-Assistent, öffentlich: Darf die Ladenseite neben der Nummer sagen, dass der Assistent abnimmt?
+Telefon-Assistent, öffentlich: Bei welchen Läden kann man per Telefon buchen?
 
-    GET /telefon-hinweis/{shop_id}   {"annahme": true} oder {"annahme": false}
+    GET /telefon-hinweis   {"laeden": ["Laden-ID", …]}
 
-Nur Ja oder Nein: Freigabe, Minuten und Nummern bleiben beim Backend (firestore.rules). Die Regel steht in
-app/libs/telefon_laeden.py. Im Zweifel Nein, ein fehlender Hinweis schadet weniger als ein falscher.
+Nur die IDs: Freigabe, Minuten und Nummern bleiben beim Backend (firestore.rules). Die Regel steht in
+app/libs/telefon_laeden.py. Im Zweifel keiner, eine fehlende Option schadet weniger als eine falsche.
 """
 import logging
 
 from fastapi import APIRouter, Response
 
+from app import seo
 from app.apis.firebase_utils import get_firestore_db
-from app.libs import telefon as t
 from app.libs import telefon_laeden as tl
 
 log = logging.getLogger(__name__)
 
 router = APIRouter()
 
-CACHE_SEKUNDEN = 60
 
-
-@router.get("/telefon-hinweis/{shop_id}")
-def hinweis(shop_id: str, response: Response) -> dict:
-    response.headers["Cache-Control"] = f"public, max-age={CACHE_SEKUNDEN}"
-    if not t.ID_RE.fullmatch(shop_id):
-        return {"annahme": False}
+@router.get("/telefon-hinweis")
+def hinweis(response: Response) -> dict:
+    response.headers["Cache-Control"] = f"public, max-age={seo.CACHE_SECONDS}"
     try:
-        return {"annahme": tl.nimmt_an(get_firestore_db(), shop_id)}
+        return {"laeden": seo._cached("telefon-hinweis", lambda: tl.nehmen_an(get_firestore_db()))}
     except Exception:
-        log.exception("Telefon-Hinweis: Laden %s nicht lesbar", shop_id)
-        return {"annahme": False}
+        log.exception("Telefon-Hinweis: Läden nicht lesbar")
+        return {"laeden": []}

@@ -363,6 +363,8 @@ const texte: Texte = {
   "Kopieren": "نسخ",
   "Nummer kopiert.": "تم نسخ الرقم.",
   "Text kopiert.": "تم نسخ النص.",
+  "Auf deiner Ladenseite steht nicht {nummer}. Trag sie dort ein, dann können Kunden von dort aus per Telefon buchen.": "لا يظهر الرقم {nummer} في صفحة محلك. أدخله هناك ليتمكن العملاء من الحجز عبر الهاتف من تلك الصفحة.",
+  "Ladendaten ändern": "تعديل بيانات المحل",
   "Jetzt weitersagen": "أخبر عملاءك الآن",
   "Deine Kunden wählen weiter deine normale Nummer. Sag ihnen, dass jetzt auch dann jemand abnimmt, wenn du beim Kunden bist.": "يواصل عملاؤك الاتصال برقمك المعتاد. أخبرهم أن هناك من يرد الآن حتى عندما تكون مشغولًا مع عميل.",
   "Google-Eintrag": "ملفك على Google",

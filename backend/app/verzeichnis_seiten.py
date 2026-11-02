@@ -352,11 +352,12 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
         live = ""
         if waiting is not None:
             live = "Gerade wartet niemand." if waiting == 0 else "1 Person wartet gerade." if waiting == 1 else f"{waiting} Personen warten gerade."
+        anrufen = f"<a class=\"btn\" href=\"{_e(tel_link(s['phone']))}\">Per Telefon buchen</a>" if telefon_hinweis and s.get("phone") else ""
         aktion = (
             "<section class=\"card\" aria-label=\"Nummer ziehen\"><p><strong>Hier ziehst du online eine Nummer</strong> und wartest, "
             f"wo du willst. {_e(live)}</p><div class=\"btns\">"
             f"<a class=\"btn main\" href=\"/public-join-queue?shopId={_e(s['shopId'])}\">Nummer ziehen</a>"
-            f"<a class=\"btn\" href=\"/book-appointment?shopId={_e(s['shopId'])}&amp;fromMarketplace=true\">Termin buchen</a></div></section>"
+            f"<a class=\"btn\" href=\"/book-appointment?shopId={_e(s['shopId'])}&amp;fromMarketplace=true\">Termin buchen</a>{anrufen}</div></section>"
         )
     else:
         zahl = s.get("wuensche") or 0

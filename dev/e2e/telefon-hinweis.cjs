@@ -1,8 +1,8 @@
-// Telefon-Assistent weitersagen: Kasten auf /telefon-assistent, Zeile auf dem QR-Plakat, Hinweis auf der Ladenseite, Preis auf /preise.
-// Anmeldung, Inhaber und Backend sind nachgebildet: kein Testkonto nötig, es ändert sich nichts.
+// Telefon-Assistent: „Per Telefon buchen“ auf Ladenseite, in der Ladenliste und beim Buchen, Kasten auf /telefon-assistent, Zeile auf dem QR-Plakat, Preis auf /preise.
+// Anmeldung, Inhaber und Backend sind nachgebildet, Ladenliste und Buchung lesen den Laden aus QME_SHOP_ID nur: kein Testkonto nötig, es ändert sich nichts.
 // Braucht: Entwicklungsserver (npm run dev), weil Vite die Seiten als einzelne Module ausliefert. Regel im Backend: backend/tests/test_telefon_eingang.py.
 const path = require('path');
-const { BASE, OUT, launch, newPage, shot, collectErrors, mockAuth, signInFake, report, run } = require('./lib.cjs');
+const { BASE, OUT, SHOP_ID, launch, newPage, shot, collectErrors, mockAuth, signInFake, report, run } = require('./lib.cjs');
 
 const LADEN = { id: 'laden-test', name: 'Studio Kamm', phone: '030 555 555', owner: 'x', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin' };
 const AKTIV = {
@@ -12,6 +12,10 @@ const AKTIV = {
 const GOOGLE = 'Geht bei uns gerade niemand ans Telefon, nimmt unser KI-Assistent deinen Anruf an.';
 const HINWEIS = 'Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.';
 const ZEILE = 'Geht keiner ran, nimmt unser KI-Assistent ab und bucht deinen Termin.';
+const KNOPF = 'Per Telefon buchen';
+
+const laeden = (ids) => (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ laeden: ids }) });
+const kippt = (page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 
 /** Läden und Ladendaten stehen in Firestore: nur diese Seiten bekommen sie nachgebildet */
 const inhaberSeite = (page, datei) =>
@@ -55,8 +59,8 @@ run(async () => {
   // --- Ladenseite: öffentlich, ohne Anmeldung ---
   const kunde = await newPage(browser);
   const kundeFehler = collectErrors(kunde);
-  let hinweis = (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ annahme: true }) });
-  await kunde.route(`**/routes/telefon-hinweis/${LADEN.id}`, (route) => hinweis(route));
+  let hinweis = laeden([LADEN.id, SHOP_ID]);
+  await kunde.route('**/routes/telefon-hinweis', (route) => hinweis(route));
   await kunde.route('**/routes/verzeichnis/laden/**', (route) => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
   await kunde.route('**/src/pages/ShopDetails.tsx*', async (route) => {
     const res = await route.fetch();
@@ -73,18 +77,44 @@ run(async () => {
   };
   await ladenseite();
   check('Ladenseite: Hinweis unter der Nummer, wenn der Assistent abnimmt', await kunde.getByText(HINWEIS).isVisible());
+  const knopf = kunde.getByRole('link', { name: KNOPF });
+  check('Ladenseite: Knopf ruft die Nummer des Ladens an', (await knopf.getAttribute('href')) === 'tel:030555555');
+  check('Ladenseite: passt aufs Handy', (await kippt(kunde)) <= 0);
   await shot(kunde, 'telefon-ladenseite');
   await ladenseite('&sprache=tr');
-  check('Ladenseite auf Türkisch: sagt, dass er Deutsch spricht', await kunde.getByText('Almanca').isVisible());
+  check('Ladenseite auf Türkisch: sagt, dass er Deutsch spricht', await kunde.getByText('Almanca').first().isVisible());
   await ladenseite('&sprache=ar');
-  check('Ladenseite auf Arabisch: sagt, dass er Deutsch spricht', await kunde.getByText('باللغة الألمانية').isVisible());
+  check('Ladenseite auf Arabisch: sagt, dass er Deutsch spricht', await kunde.getByText('بالألمانية').or(kunde.getByText('باللغة الألمانية')).first().isVisible());
+  check('Ladenseite auf Arabisch: passt aufs Handy', (await kippt(kunde)) <= 0);
   await shot(kunde, 'telefon-ladenseite-ar');
-  hinweis = (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ annahme: false }) });
+  hinweis = laeden(['ein-anderer-laden']);
   await ladenseite('&sprache=de');
   check('Ladenseite: kein Hinweis, wenn der Assistent nicht abnimmt', !(await kunde.getByText(HINWEIS).isVisible()));
+  check('Ladenseite: kein Knopf, wenn der Assistent nicht abnimmt', !(await knopf.isVisible()));
   hinweis = (route) => route.abort();
   await ladenseite();
   check('Ladenseite: kein Hinweis, wenn das Backend nicht antwortet', !(await kunde.getByText(HINWEIS).isVisible()));
+
+  // --- Buchen und Ladenliste: echter Laden, nur gelesen ---
+  hinweis = laeden([SHOP_ID]);
+  await kunde.goto(`${BASE}/public-join-queue?shopId=${SHOP_ID}&sprache=de`, { waitUntil: 'domcontentloaded' });
+  const frage = kunde.getByText('Lieber telefonisch?');
+  await frage.waitFor({ timeout: 60000 });
+  const nummerImAblauf = kunde.locator('a[href^="tel:"]');
+  check('Nummer ziehen: Nummer zum Anrufen steht oben', (await nummerImAblauf.count()) === 1, await nummerImAblauf.first().getAttribute('href'));
+  check('Nummer ziehen: passt aufs Handy', (await kippt(kunde)) <= 0);
+  await shot(kunde, 'telefon-nummer-ziehen');
+  await kunde.goto(`${BASE}/book-appointment?shopId=${SHOP_ID}&sprache=de`, { waitUntil: 'domcontentloaded' });
+  await frage.waitFor({ timeout: 60000 });
+  check('Termin buchen: Nummer zum Anrufen steht oben', await frage.isVisible());
+  await kunde.goto(`${BASE}/shop-map?sprache=de`, { waitUntil: 'domcontentloaded' });
+  const karte = kunde.locator('article', { has: kunde.locator(`a[href="/shop-details?shopId=${SHOP_ID}"]`) });
+  await karte.getByRole('link', { name: new RegExp(KNOPF) }).waitFor({ timeout: 60000 });
+  check('Ladenliste: Knopf steht auf der Karte des Ladens', await karte.getByRole('link', { name: new RegExp(KNOPF) }).isVisible());
+  check('Ladenliste: nur auf der Karte dieses Ladens', (await kunde.getByRole('link', { name: new RegExp(KNOPF) }).count()) === 1);
+  check('Ladenliste: passt aufs Handy', (await kippt(kunde)) <= 0);
+  await karte.scrollIntoViewIfNeeded();
+  await shot(kunde, 'telefon-ladenliste');
 
   // --- Preise ---
   await kunde.goto(`${BASE}/preise`, { waitUntil: 'domcontentloaded' });
@@ -117,6 +147,7 @@ run(async () => {
   check('Kasten: Google-Text steht da', await page.getByText(GOOGLE).isVisible());
   check('Kasten: Nummer so geschrieben wie in den Ladendaten', await page.getByText(`Ruf uns an: ${LADEN.phone}.`).isVisible());
   check('Kasten: warnt vor der Nummer des Assistenten', await page.getByText('nie die Nummer des Assistenten').isVisible());
+  check('Kasten: kein Hinweis auf andere Nummer, wenn sie stimmt', !(await page.getByText('Auf deiner Ladenseite steht nicht').isVisible()));
   const ersterKnopf = page.locator('h3', { hasText: 'Google-Eintrag' }).locator('..').getByRole('button', { name: 'Kopieren' });
   await ersterKnopf.click();
   const kopiert = await page.evaluate(() => navigator.clipboard.readText());
@@ -138,6 +169,8 @@ run(async () => {
   stand = { ...AKTIV, anschluss: '+49170000000', weitersagen: true };
   await einrichtung();
   check('Kasten: nennt die umgeleitete Nummer, wenn in den Ladendaten eine andere steht', await page.getByText('Ruf uns an: 0170000000.').isVisible());
+  check('Kasten: sagt, dass die Ladenseite eine andere Nummer zeigt', await page.getByText('Auf deiner Ladenseite steht nicht 0170000000.').isVisible());
+  check('Kasten: führt zu den Ladendaten', (await page.getByRole('link', { name: 'Ladendaten ändern' }).getAttribute('href')) === '/shop-profile');
 
   // --- Plakat ---
   const plakat = async (zusatz = '') => {

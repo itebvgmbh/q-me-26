@@ -100,7 +100,18 @@ const Anleitung = ({ weg, ziel }: { weg: Weg; ziel: string }) => {
 };
 
 /** Google, Webseite und Tür pflegt nur der Laden selbst: Hier bekommt er die Texte dafür */
-const Weitersagen = ({ nummer, shopId, kopieren }: { nummer: string; shopId: string; kopieren: (text: string, meldung: string) => void }) => {
+const Weitersagen = ({
+  nummer,
+  shopId,
+  andereNummer,
+  kopieren,
+}: {
+  nummer: string;
+  shopId: string;
+  /** In den Ladendaten steht nicht die umgeleitete Nummer: Dann zeigt die Ladenseite „Per Telefon buchen“ nicht */
+  andereNummer: boolean;
+  kopieren: (text: string, meldung: string) => void;
+}) => {
   const texte = [
     {
       titel: t('Google-Eintrag'),
@@ -119,6 +130,14 @@ const Weitersagen = ({ nummer, shopId, kopieren }: { nummer: string; shopId: str
   return (
     <Schritt nummer={4} titel={t('Jetzt weitersagen')}>
       <p className="text-sm">{t('Deine Kunden wählen weiter deine normale Nummer. Sag ihnen, dass jetzt auch dann jemand abnimmt, wenn du beim Kunden bist.')}</p>
+      {andereNummer && (
+        <div className="flex flex-col items-start gap-2 rounded-2xl bg-muted p-4">
+          <p className="text-sm font-semibold">{t('Auf deiner Ladenseite steht nicht {nummer}. Trag sie dort ein, dann können Kunden von dort aus per Telefon buchen.', { nummer })}</p>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/shop-profile">{t('Ladendaten ändern')}</Link>
+          </Button>
+        </div>
+      )}
       {texte.map((eintrag) => (
         <div key={eintrag.titel} className="flex flex-col items-start gap-2 rounded-2xl border border-border p-4">
           <h3 className="font-semibold">{eintrag.titel}</h3>
@@ -318,7 +337,14 @@ export default function TelefonAssistent() {
             )}
           </Schritt>
 
-          {kundenNummer && <Weitersagen nummer={kundenNummer} shopId={shopId} kopieren={kopieren} />}
+          {kundenNummer && (
+            <Weitersagen
+              nummer={kundenNummer}
+              shopId={shopId}
+              andereNummer={!stand.eigeneNummer && stand.vorschlag !== stand.anschluss}
+              kopieren={kopieren}
+            />
+          )}
         </>
       )}
 

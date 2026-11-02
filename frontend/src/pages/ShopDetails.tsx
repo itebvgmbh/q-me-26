@@ -9,7 +9,7 @@ import { ConnectionProblem } from '../components/ConnectionProblem';
 import { DAY_SHORT, formatDayHours } from '../utils/opening-hours';
 import { canonicalUrl, setzeKopf, STANDARD_KOPF } from '../utils/seiten-kopf';
 import { loadLadenSeite } from '../utils/verzeichnis';
-import { ladeTelefonHinweis } from '../utils/telefon-hinweis';
+import { telLink, useTelefonAnnahme } from '../utils/telefon-hinweis';
 import { hasFeature } from '../utils/plans';
 import { t, intlSprache } from '@/i18n';
 
@@ -23,13 +23,12 @@ const ShopDetails = () => {
   const { shop, services, staff, loading, loadError } = useShopDetails(shopId);
   // undefined = wird noch geladen
   const [ladenSeite, setLadenSeite] = useState<string | null | undefined>(undefined);
-  const [telefonHinweis, setTelefonHinweis] = useState(false);
+  const telefonAnnahme = useTelefonAnnahme(shopId);
 
   useEffect(() => {
     if (!shopId) return;
     let aktiv = true;
     loadLadenSeite(shopId).then((pfad) => aktiv && setLadenSeite(pfad));
-    ladeTelefonHinweis(shopId).then((ja) => aktiv && setTelefonHinweis(ja));
     return () => {
       aktiv = false;
     };
@@ -113,11 +112,11 @@ const ShopDetails = () => {
             <>
               <p className="flex items-center gap-2">
                 <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <a href={`tel:${shop.phone.replace(/\s/g, '')}`} dir="ltr" className="underline-offset-4 hover:underline">
+                <a href={telLink(shop.phone)} dir="ltr" className="underline-offset-4 hover:underline">
                   {shop.phone}
                 </a>
               </p>
-              {telefonHinweis && <p className="ps-6">{t('Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.')}</p>}
+              {telefonAnnahme && <p className="ps-6">{t('Geht keiner ran, nimmt ein KI-Assistent ab und bucht dir einen Termin.')}</p>}
             </>
           )}
         </div>
@@ -129,6 +128,14 @@ const ShopDetails = () => {
           {termine && (
             <Button variant="outline" size="lg" asChild>
               <Link to={`/book-appointment?shopId=${shop.id}&fromMarketplace=true`}>{t('Termin buchen')}</Link>
+            </Button>
+          )}
+          {telefonAnnahme && shop.phone && (
+            <Button variant="outline" size="lg" asChild>
+              <a href={telLink(shop.phone)}>
+                <Phone className="me-2 h-4 w-4" aria-hidden="true" />
+                {t('Per Telefon buchen')}
+              </a>
             </Button>
           )}
         </div>

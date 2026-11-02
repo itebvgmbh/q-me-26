@@ -30,7 +30,7 @@ Er spricht Deutsch und sagt im ersten Satz, dass er eine KI ist. Termine und Num
 
 ## Deinen Kunden Bescheid sagen
 
-Sobald **„Aktiv“** auf der Seite steht, findest du dort fertige Texte für deinen Google-Eintrag, deine Webseite und den Tresen. Auf dem [QR-Plakat](/hilfe/plakat) kannst du eine Zeile mit deiner Nummer dazunehmen. Auf deiner Ladenseite steht der Hinweis von selbst unter der Nummer, wenn das die Nummer ist, die du umleitest.
+Sobald **„Aktiv“** auf der Seite steht, findest du dort fertige Texte für deinen Google-Eintrag, deine Webseite und den Tresen. Auf dem [QR-Plakat](/hilfe/plakat) kannst du eine Zeile mit deiner Nummer dazunehmen. Deine Kunden sehen außerdem von selbst **„Per Telefon buchen“** auf deiner Ladenseite, in der Ladenliste und beim Buchen. Dafür muss in deinen Ladendaten die Nummer stehen, die du umleitest.
 
 Trag in Google nur die Nummer deines Ladens ein, nie die Nummer des Assistenten.
 
