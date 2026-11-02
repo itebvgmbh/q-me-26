@@ -241,15 +241,51 @@ def test_freie_zeiten_egal_wer_jede_uhrzeit_einmal():
     setup()
     r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="herrenschnitt"))
     assert r["ok"], r
-    assert [(z["start"][11:], z["person"]) for z in r["zeiten"]] == [("10:15", "Kim"), ("10:30", "Kim"), ("10:45", "Kim")], r["zeiten"]
-    assert r["ansage"] == "Frei für Herrenschnitt: heute um 10 Uhr 15 bei Kim; heute um 10 Uhr 30 bei Kim; heute um 10 Uhr 45 bei Kim."
+    assert [(z["start"][11:], z["person"]) for z in r["zeiten"]] == [("10:15", "Kim"), ("12:15", "Kim"), ("09:00", "Kim")], r["zeiten"]
+    assert r["ansage"] == "Frei für Herrenschnitt: heute um 10 Uhr 15 bei Kim; heute um 12 Uhr 15 bei Kim; morgen um 9 Uhr bei Kim."
+
+
+def test_auswahl_erste_zeit_spaeter_am_tag_naechster_tag():
+    def plaetze(*zeiten):
+        return [({"id": "kim"}, at(z, d).replace(tzinfo=None), at(z, d).replace(tzinfo=None)) for d, z in zeiten]
+    morgen = TAG + timedelta(days=1)
+    dicht = plaetze((TAG, "10:00"), (TAG, "10:15"), (TAG, "12:00"), (TAG, "14:30"), (morgen, "09:00"), (morgen, "09:15"))
+    assert tel._auswahl(dicht, 3) == [dicht[0], dicht[2], dicht[4]]
+    assert tel._auswahl(dicht, 1) == [dicht[0]]
+    knapp = plaetze((TAG, "10:00"), (TAG, "10:15"), (TAG, "10:30"))
+    assert tel._auswahl(knapp, 3) == knapp, "reicht es nicht, kommen die übrigen dazu"
+    assert tel._auswahl(knapp[:1], 3) == knapp[:1]
+
+
+def test_freie_zeiten_sagt_warum_ein_tag_nicht_geht():
+    _, store = setup()
+    samstag = TAG + timedelta(days=3)
+    tag = t.tag_text(samstag, TAG)
+    for person in store["staff"].values():
+        person["workingHours"] = [h for h in arbeitet() if h["dayOfWeek"] in range(1, 6)]
+    r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", person="Robin", ab=str(samstag)))
+    assert r["ansage"].startswith(f"Am {tag} arbeitet Robin nicht. Frei für"), r["ansage"]
+    assert r["zeiten"][0]["start"].startswith(str(samstag + timedelta(days=2))), "der Montag danach"
+    r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", ab=str(samstag)))
+    assert r["ansage"].startswith(f"Am {tag} arbeitet niemand, der das anbietet. Frei für"), r["ansage"]
+    for eintrag in store["shops"]["laden"]["businessHoursByDay"]:
+        if eintrag["dayOfWeek"] == 6:
+            eintrag["isOpen"] = False
+    r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", ab=str(samstag)))
+    assert r["ansage"].startswith(f"Am {tag} ist der Laden geschlossen. Frei für"), r["ansage"]
+
+
+def test_freie_zeiten_am_gewuenschten_tag_ohne_begruendung():
+    setup()
+    r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", ab=f"{TAG}T14:00"))
+    assert r["ansage"].startswith("Frei für"), r["ansage"]
 
 
 def test_freie_zeiten_bei_einer_person_ab_wunschzeit():
     _, store = setup()
     store["appointments"]["a"] = {"shopId": "laden", "staffId": "robin", "status": "scheduled", "startTime": at("15:00"), "endTime": at("16:00")}
     r = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", person="robin", ab=f"{TAG}T14:30", anzahl=2))
-    assert [z["start"][11:] for z in r["zeiten"]] == ["14:30", "16:00"], r["zeiten"]
+    assert [z["start"][11:] for z in r["zeiten"]] == ["14:30", "16:30"], r["zeiten"]
     assert r["zeiten"][0]["platz"] == f"robin@{TAG}T14:30"
     nein = tel.freie_zeiten(tel.ZeitenAnfrage(**anruf(), leistung="schnitt", person="Alex"))
     assert nein["grund"] == "person_unbekannt" and nein["personen"] == ["Kim", "Robin"]

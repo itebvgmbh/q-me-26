@@ -75,12 +75,14 @@ def begruessung(name: str, leistungen: Sequence[str] = (), termine: bool = True)
     if not termine:
         return f"{kopf} Ich kann Ihnen eine Nummer für heute ziehen und die Wartezeit nennen. Was darf es sein?"
     if not leistungen:
-        return f"{kopf} Ich kann Ihnen direkt einen Termin buchen. Was darf es sein?"
+        return f"{kopf} Möchten Sie einen Termin?"
     if len(leistungen) == 1:
-        return f"{kopf} Ich kann Ihnen direkt einen Termin für {leistungen[0]} buchen. Soll ich schauen, wann der nächste frei ist?"
-    beispiel = "zum Beispiel " if len(leistungen) > MAX_GENANNT else ""
+        return f"{kopf} Möchten Sie einen Termin für {leistungen[0]}?"
     genannt = list(leistungen[:MAX_GENANNT])
-    return f"{kopf} Ich kann Ihnen direkt einen Termin buchen, {beispiel}{', '.join(genannt[:-1])} oder {genannt[-1]}. Was darf es sein?"
+    auswahl = f"{', '.join(genannt[:-1])} oder {genannt[-1]}"
+    if len(leistungen) > MAX_GENANNT:
+        return f"{kopf} Möchten Sie einen Termin, zum Beispiel für {auswahl}?"
+    return f"{kopf} Möchten Sie einen Termin für {auswahl}?"
 
 
 def ansage_text(name: str) -> str:
@@ -106,6 +108,29 @@ def tag_text(day: date, heute: date) -> str:
     if delta == 2:
         return "übermorgen"
     return f"{WOCHENTAGE[day.weekday()]}, {day.day}. {MONATE[day.month - 1]}"
+
+
+def am_tag(day: date, heute: date) -> str:
+    """Satzanfang zu einem Tag: 'Heute', 'Morgen', 'Am Samstag, 7. November'"""
+    text = tag_text(day, heute)
+    return f"Am {text}" if "," in text else text.capitalize()
+
+
+def laden_offen(shop: dict, day: date) -> bool:
+    """Hat der Laden an diesem Tag offen? Ohne Angabe je Wochentag: ja"""
+    by_day = shop.get("businessHoursByDay") or []
+    dow = FIRESTORE_TAGE[day.weekday()]
+    entry = next((d for d in by_day if str(d.get("dayOfWeek")) == str(dow)), None) if isinstance(by_day, list) else None
+    return bool(entry.get("isOpen")) if entry else True
+
+
+def arbeitet_am(person: dict, day: date) -> bool:
+    """Steht der Tag in den Arbeitszeiten der Person? Ohne Eintrag gelten die Standardzeiten, dann: ja"""
+    stunden = person.get("workingHours")
+    if not stunden:
+        return True
+    dow = FIRESTORE_TAGE[day.weekday()]
+    return any(h.get("dayOfWeek") == dow and h.get("isWorking", True) for h in stunden)
 
 
 def uhr(stunde: int, minute: int) -> str:
