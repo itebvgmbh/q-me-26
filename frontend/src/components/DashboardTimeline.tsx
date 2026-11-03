@@ -1,5 +1,6 @@
 import React from 'react';
-import { Staff, Appointment, Service, RecurringBreak } from '../utils/firestore';
+import { Staff, Appointment, Service } from '../utils/firestore';
+import type { RecurringBreak } from '../utils/firestore/recurring-breaks';
 import { TimelineView } from './TimelineView';
 
 interface DashboardTimelineProps {

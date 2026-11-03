@@ -28,8 +28,9 @@ SHOP_COLLECTIONS = (
     "team_push_subscriptions",
 )
 VERZEICHNIS = "verzeichnis"  # wie app/libs/verzeichnis.py
-# Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py)
-SHOP_SUBCOLLECTIONS = ("members", "staff_contacts")
+# Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py),
+# Stripe-IDs und beim Sperren gesperrte Konten (app/libs/shop_privat.py)
+SHOP_SUBCOLLECTIONS = ("members", "staff_contacts", "privat")
 TEST_SCRIPTS = (
     (re.compile(r"^q-me-test-\d+@example\.com$"), "FIXTURE"),  # dev/fixtures.py
     (re.compile(r"^q-me-last-\d+(-k\d+)?@example\.com$"), "LASTTEST"),  # dev/e2e/lasttest.cjs
@@ -150,8 +151,10 @@ def overview(fs, accounts: list, admin_emails: set = frozenset(), admin_uids: se
     month_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_end = (month_start + timedelta(days=32)).replace(day=1)
     shop_rows = {}
+    from app.libs.shop_privat import stripe_ids
+
     for sid, s in shops.items():
-        billing = s.get("billing") or {}
+        billing = {**(s.get("billing") or {}), **stripe_ids(fs, sid, s)}
         grant = s.get("grant") or {}
         suspended = s.get("suspended") or {}
         shop_rows[sid] = {
@@ -253,8 +256,11 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
         if sid == ITEBV_SHOP:
             problems.append(f"„{shop.get('name')}“ ist der Laden der ITEBV GmbH, gegen den seiten.cjs und durchlauf-*.cjs laufen – den löscht dieses Skript nicht.")
         if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING:
+            from app.libs.shop_privat import stripe_ids
+
+            ids = stripe_ids(fs, sid, shop)
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
-                            f"(Kunde {shop['billing'].get('customerId') or '?'}, Abo {shop['billing'].get('subscriptionId') or '?'}, „sofort“).")
+                            f"(Kunde {ids.get('customerId') or '?'}, Abo {ids.get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
         seite = fs.collection(VERZEICHNIS).document(f"laden-{sid}").get()
         if seite.exists:

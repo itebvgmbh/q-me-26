@@ -152,7 +152,7 @@ export interface LogEntry {
 
 export interface ShopDetail {
   id: string;
-  shop: Record<string, unknown> & { name?: string; street?: string; postalCode?: string; city?: string; website?: string };
+  shop: Record<string, unknown> & { name?: string; street?: string; postalCode?: string; city?: string; website?: string; unlisted?: boolean };
   effectivePlan: PlanId;
   trialEnd: string;
   staff: { id: string; name: string; email: string; role: string; userId: string; active: boolean }[];
@@ -193,6 +193,9 @@ export const grantPlan = (id: string, plan: PlanId, until: string, reason: strin
 export const endGrant = (id: string, reason = '') => send(shopPath(id, 'freischaltung-beenden'), { reason });
 export const syncStripe = (id: string) => send<{ changed: boolean; message?: string }>(shopPath(id, 'stripe-abgleich'), {});
 export const unlinkStripe = (id: string, reason: string) => send(shopPath(id, 'stripe-loesen'), { reason });
+/** In Ladenliste, Karte und Stadtseiten zeigen (listed) oder nicht; per Link bleibt der Laden buchbar */
+export const setListed = (id: string, listed: boolean, reason = '') =>
+  send<{ changed: boolean; unlisted: boolean }>(shopPath(id, 'ladenliste'), { listed, reason });
 export const suspendShop = (id: string, reason: string) =>
   send<{ changed: boolean; accounts?: number; skipped?: string[] }>(shopPath(id, 'sperren'), { reason });
 export const unsuspendShop = (id: string, reason = '') => send<{ changed: boolean; accounts?: number; kept?: number }>(shopPath(id, 'entsperren'), { reason });

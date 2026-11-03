@@ -23,6 +23,8 @@ export interface AppEvent {
 interface EventState {
   events: AppEvent[];
   subscribe: (callback: (event: AppEvent) => void) => () => void;
+  subscribeToType: (type: AppEventType, callback: (event: AppEvent) => void) => () => void;
+  subscribeToMany: (types: AppEventType[], callback: (event: AppEvent) => void) => () => void;
   publish: (event: AppEvent) => void;
   clear: () => void;
 }

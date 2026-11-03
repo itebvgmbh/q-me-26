@@ -18,13 +18,14 @@ weniger als 2 Stunden sowie Plätze in weniger als 60 Minuten waren ausgeschloss
 Tag führten so nie zu einem Angebot.
 """
 import os
+import re
 import threading
 import time as time_module
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from firebase_admin import firestore
 from pydantic import BaseModel
 
@@ -34,6 +35,7 @@ from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.utils import convert_timestamp_to_datetime
 from app.libs import notify_worker
 from app.libs.plans import has_feature
+from app.libs.throttle import throttle
 
 from fastapi import Depends
 from app.auth.access import require_admin
@@ -339,13 +341,30 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     )
 
 
+_waiting: set = set()  # (Laden, Person) mit einer angestoßenen Prüfung, die noch auf _check_lock wartet
+_waiting_lock = threading.Lock()
+
+
 def trigger_check_in_background(shop_id: Optional[str] = None, staff_id: Optional[str] = None) -> None:
-    """Prüfung anstoßen, ohne auf sie zu warten (nach Absage oder Annahme)."""
+    """Prüfung anstoßen, ohne auf sie zu warten (nach Absage oder Annahme). Wartet für denselben Laden und dieselbe
+    Person schon eine, reicht die: Sie liest beim Start ohnehin den neuesten Stand."""
+    key = (shop_id or "", staff_id or "")
+    with _waiting_lock:
+        if key in _waiting:
+            return
+        _waiting.add(key)
+
     def work():
         try:
-            run_earlier_slot_check(shop_id, staff_id)
+            with _check_lock:
+                with _waiting_lock:
+                    _waiting.discard(key)
+                _run_check(shop_id, staff_id, None)
         except Exception as e:
             print(f"Background earlier slot check failed: {e}")
+        finally:
+            with _waiting_lock:
+                _waiting.discard(key)
 
     threading.Thread(target=work, daemon=True).start()
 
@@ -361,13 +380,19 @@ class SlotFreedRequest(BaseModel):
     staff_id: Optional[str] = None
 
 
+ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
 @router.post("/slot-freed")
-async def slot_freed(body: SlotFreedRequest) -> Dict[str, str]:
+async def slot_freed(body: SlotFreedRequest, request: Request) -> Dict[str, str]:
     """
     Ein Platz ist frei geworden (Absage, Verschiebung, früher fertig) oder jemand will früher dran sein:
     sofort prüfen statt bis zu 5 Minuten auf den nächsten Takt zu warten. Weckt auch den
     Benachrichtigungsdienst – hat der Laden abgesagt oder verschoben, bekommt der Kunde gleich Bescheid.
     """
+    throttle(request, "slot-freed")
+    if not ID_RE.fullmatch(body.shop_id or "") or (body.staff_id and not ID_RE.fullmatch(body.staff_id)):
+        raise HTTPException(status_code=400, detail="Unbekannter Laden.")
     trigger_check_in_background(body.shop_id, body.staff_id)
     notify_worker.wake()
     return {"status": "queued"}

@@ -4,6 +4,7 @@ import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/f
 import { Shop } from '../firestore';
 import { firestore as db } from '../firestore-client';
 import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { inLadenliste } from '../marketplace';
 import { t } from '@/i18n';
 
 /**
@@ -54,7 +55,9 @@ export const useShopData = (shopIdFromQR: string | null) => {
           setArrivedFromQR(false);
         }
         const snapshot = await getDocsFromServer(collection(db, 'shops'));
-        if (active) setShops(snapshot.docs.filter((d) => !d.data().suspended).map((d) => ({ id: d.id, ...d.data() }) as Shop));
+        // Ausgeblendete Läden nur, wenn sie über den Link gewählt sind (inLadenliste, utils/marketplace.ts)
+        const shown = snapshot.docs.filter((d) => inLadenliste(d.data()) || (d.id === shopIdFromQR && !d.data().suspended));
+        if (active) setShops(shown.map((d) => ({ id: d.id, ...d.data() }) as Shop));
       } catch (error) {
         console.error('Error loading shops:', error);
         if (!active) return;

@@ -189,7 +189,7 @@ export default function Tarif() {
         </dl>
       </section>
 
-      {billing?.customerId && (
+      {(billing?.status || billing?.customerId) && (
         <InvoiceList shopId={shop.id} refreshKey={`${billing.status ?? ''}-${billing.currentPeriodEnd?.seconds ?? ''}`} />
       )}
 

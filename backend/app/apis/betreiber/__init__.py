@@ -7,8 +7,9 @@ Was am Laden gespeichert wird (sieht auch der Laden, Firestore ist ohne Anmeldun
     trialEndsAt                  Testphase verlängern oder beenden
     founder, founderSince        Gründerplatz (Zähler meta/gruender wie /billing/claim-founder)
     grant {plan, until, at}      Tarif ohne Stripe freigeschaltet (Regel in app/libs/plans.py)
-    suspended {at, accounts}     gesperrt: nicht buchbar, nicht auffindbar; accounts = Konten, die dabei gesperrt wurden
-    billing                      Stand des Abos aus Stripe neu holen oder die Verknüpfung lösen
+    suspended {at}               gesperrt: nicht buchbar, nicht auffindbar; die dabei gesperrten Konten in privat/sperre
+    unlisted                     nicht in Ladenliste, Karte und Stadtseiten (Test- und Vorführläden); per Link buchbar
+    billing                      Stand des Abos aus Stripe neu holen oder die Verknüpfung lösen (IDs in privat/stripe)
 Gründe, vorher/nachher und Sicherungen stehen im Protokoll auf dem Server (app/libs/protokoll.py).
 Konten und Läden löschen wie deploy/konten-aufraeumen.py (app/libs/konten.py): Probelauf, Sicherung, Löschen, Nachprüfung.
 """
@@ -28,6 +29,7 @@ from app.auth import AuthorizedUser
 from app.auth.access import admin_lists, is_admin, is_admin_account, require_admin
 from app.libs import konten, protokoll
 from app.libs.konten import BERLIN, ITEBV_SHOP, utc
+from app.libs.shop_privat import clear_locked_accounts, clear_stripe_ids, locked_accounts, save_locked_accounts, save_stripe_ids, stripe_ids
 from app.libs.plans import ACTIVE_BILLING, FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, PLANS, effective_plan, trial_end
 from app.libs.staff_contacts import contacts_of_shop
 from app.libs import telefon_laeden
@@ -259,7 +261,8 @@ def laden(shop_id: str) -> dict:
         except auth.UserNotFoundError:
             owner = None
     keep = ("name", "street", "postalCode", "city", "phone", "email", "website", "industry", "ownerName", "owner",
-            "createdAt", "updatedAt", "trialEndsAt", "founder", "founderSince", "billing", "grant", "suspended", "onboarding")
+            "createdAt", "updatedAt", "trialEndsAt", "founder", "founderSince", "billing", "grant", "suspended", "unlisted",
+            "onboarding")
     return _plain({
         "id": shop_id,
         "shop": {k: shop.get(k) for k in keep if k in shop},
@@ -375,6 +378,26 @@ def freischaltung_beenden(shop_id: str, body: ReasonRequest, user: AuthorizedUse
     return {"grant": None}
 
 
+class ListedRequest(BaseModel):
+    listed: bool
+    reason: str = ""
+
+
+@admin.post("/betreiber/laden/{shop_id}/ladenliste")
+def ladenliste(shop_id: str, body: ListedRequest, user: AuthorizedUser) -> dict:
+    """In Ladenliste, Karte und Stadtseiten zeigen oder nicht (Test- und Vorführläden). Über Link und QR-Code bleibt
+    der Laden buchbar."""
+    ref, shop = _shop(shop_id)
+    unlisted = not body.listed
+    if bool(shop.get("unlisted")) == unlisted:
+        return {"changed": False, "unlisted": unlisted}
+    ref.update({"unlisted": unlisted, "updatedAt": _now()})
+    protokoll.write(user, "In der Ladenliste" if body.listed else "Aus der Ladenliste genommen",
+                    {"shopId": shop_id, "name": shop.get("name")}, body.reason.strip(),
+                    {"unlisted": bool(shop.get("unlisted"))}, {"unlisted": unlisted})
+    return {"changed": True, "unlisted": unlisted}
+
+
 def _stripe_call(fn):
     """Stripe-Fehler für den Betreiber im Wortlaut melden"""
     from app.libs.stripe_billing import stripe_configured
@@ -394,14 +417,15 @@ def stripe_abgleich(shop_id: str, user: AuthorizedUser) -> dict:
 
     ref, shop = _shop(shop_id)
     billing = shop.get("billing") or {}
-    if not billing.get("subscriptionId") and not billing.get("customerId"):
+    ids = stripe_ids(get_firestore_db(), shop_id, shop)
+    if not ids.get("subscriptionId") and not ids.get("customerId"):
         raise HTTPException(status_code=409, detail="Dieser Laden hatte nie ein Abo bei Stripe.")
 
     def fetch():
         c = client()
-        if billing.get("subscriptionId"):
-            return c.v1.subscriptions.retrieve(billing["subscriptionId"]).to_dict()
-        subs = c.v1.subscriptions.list(params={"customer": billing["customerId"], "status": "all", "limit": 1})
+        if ids.get("subscriptionId"):
+            return c.v1.subscriptions.retrieve(ids["subscriptionId"]).to_dict()
+        subs = c.v1.subscriptions.list(params={"customer": ids["customerId"], "status": "all", "limit": 1})
         return subs.data[0].to_dict() if subs.data else None
 
     subscription = _stripe_call(fetch)
@@ -409,7 +433,8 @@ def stripe_abgleich(shop_id: str, user: AuthorizedUser) -> dict:
         return {"changed": False, "message": "Bei Stripe gibt es zu diesem Kunden kein Abo."}
     update = shop_update_from_subscription(subscription)
     ref.update(update)
-    protokoll.write(user, "Stripe-Abgleich", {"shopId": shop_id, "name": shop.get("name")}, before={"billing": billing},
+    save_stripe_ids(get_firestore_db(), shop_id, subscription.get("customer"), subscription.get("id"))
+    protokoll.write(user, "Stripe-Abgleich", {"shopId": shop_id, "name": shop.get("name")}, before={"billing": {**billing, **ids}},
                     after={k.removeprefix("billing."): v for k, v in update.items()})
     return _plain({"changed": True, "billing": update})
 
@@ -419,10 +444,12 @@ def stripe_loesen(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
     """Verknüpfung mit Stripe entfernen (z. B. Test-Kunden beim Wechsel in den Live-Modus). Bei Stripe ändert sich nichts."""
     ref, shop = _shop(shop_id)
     reason = _reason(body.reason)
-    billing = shop.get("billing") or {}
+    ids = stripe_ids(get_firestore_db(), shop_id, shop)
+    billing = {**(shop.get("billing") or {}), **ids}
     if not billing:
         return {"changed": False}
     ref.update({"billing": None, "plan": "gratis", "updatedAt": _now()})
+    clear_stripe_ids(get_firestore_db(), shop_id)
     protokoll.write(user, "Stripe gelöst", {"shopId": shop_id, "name": shop.get("name")}, reason,
                     {"billing": billing})
     return {"changed": True}
@@ -520,8 +547,9 @@ def laden_sperren(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
             auth.update_user(uid, disabled=True, app=app)
             auth.revoke_refresh_tokens(uid, app=app)
             disabled.append(uid)
-    suspended = {"at": _now(), "accounts": disabled}
-    ref.update({"suspended": suspended, "updatedAt": _now()})
+    # Welche Konten mit gesperrt wurden, steht nicht am (öffentlich lesbaren) Laden (app/libs/shop_privat.py)
+    save_locked_accounts(get_firestore_db(), shop_id, disabled)
+    ref.update({"suspended": {"at": _now()}, "updatedAt": _now()})
     protokoll.write(user, "Laden gesperrt", {"shopId": shop_id, "name": shop.get("name")}, reason,
                     after={"kontenGesperrt": disabled, "betreiberNichtGesperrt": skipped})
     return {"changed": True, "accounts": len(disabled), "skipped": skipped}
@@ -537,12 +565,15 @@ def laden_entsperren(shop_id: str, body: ReasonRequest, user: AuthorizedUser) ->
         return {"changed": False}
     auth, app = _auth(), get_firebase_app()
     blocked = protokoll.blocked_accounts()
+    fs = get_firestore_db()
     other = set()
-    for snap in get_firestore_db().collection("shops").stream():
-        if snap.id != shop_id:
-            other.update(((snap.to_dict() or {}).get("suspended") or {}).get("accounts") or [])
+    for snap in fs.collection("shops").stream():
+        data = snap.to_dict() or {}
+        if snap.id != shop_id and data.get("suspended"):
+            other.update(locked_accounts(fs, snap.id, data))
+    accounts = locked_accounts(fs, shop_id, shop)
     enabled, kept = [], []
-    for uid in suspended.get("accounts") or []:
+    for uid in accounts:
         if uid in blocked or uid in other:
             kept.append(uid)
             continue
@@ -552,8 +583,10 @@ def laden_entsperren(shop_id: str, body: ReasonRequest, user: AuthorizedUser) ->
         except auth.UserNotFoundError:
             pass
     ref.update({"suspended": None, "updatedAt": _now()})
+    clear_locked_accounts(fs, shop_id)
     protokoll.write(user, "Laden entsperrt", {"shopId": shop_id, "name": shop.get("name")}, body.reason.strip(),
-                    {"suspended": suspended}, {"kontenEntsperrt": enabled, "bleibenGesperrt": kept})
+                    {"suspended": {**suspended, "accounts": accounts} if isinstance(suspended, dict) else suspended},
+                    {"kontenEntsperrt": enabled, "bleibenGesperrt": kept})
     return {"changed": True, "accounts": len(enabled), "kept": len(kept)}
 
 

@@ -11,6 +11,7 @@ import stripe
 from fastapi import APIRouter, HTTPException, Request
 
 from app.apis.firebase_utils import get_firestore_db
+from app.libs.shop_privat import save_stripe_ids
 from app.libs.stripe_billing import client, shop_update_from_subscription
 
 router = APIRouter()
@@ -60,9 +61,12 @@ def _apply(subscription) -> None:
     if not shop_id:
         print(f"Stripe: Abo {subscription.get('id')} ohne shopId – übersprungen")
         return
-    ref = get_firestore_db().collection("shops").document(shop_id)
+    db = get_firestore_db()
+    ref = db.collection("shops").document(shop_id)
     if not ref.get().exists:
         print(f"Stripe: Laden {shop_id} zum Abo {subscription.get('id')} gibt es nicht")
         return
     ref.update(shop_update_from_subscription(subscription))
+    # Kunde und Abo nur dort, wo Browser nicht hinkommen (app/libs/shop_privat.py)
+    save_stripe_ids(db, shop_id, subscription.get("customer"), subscription.get("id"))
     print(f"Stripe: Laden {shop_id}, Abo {subscription.get('status')}")

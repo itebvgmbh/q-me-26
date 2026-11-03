@@ -63,7 +63,7 @@ def load_shops() -> list[dict]:
             data = doc.to_dict() or {}
             if data.get("industry") not in INDUSTRIES or not (data.get("city") or "").strip() or not data.get("name"):
                 continue
-            if data.get("suspended"):  # vom Betreiber gesperrt
+            if data.get("suspended") or data.get("unlisted"):  # vom Betreiber gesperrt oder aus der Ladenliste genommen
                 continue
             data["id"] = doc.id
             shops.append(data)

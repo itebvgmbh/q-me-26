@@ -21,7 +21,7 @@ export interface ServiceFormProps {
     setupTime?: number;
     price: number;
     category: string;
-  }) => Promise<void>;
+  }) => Promise<unknown>;
   /** Called when the form is cancelled */
   onCancel: () => void;
   /** Submit button text */

@@ -14,10 +14,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from app.apis.billing import _require_stripe, _shop, stripe_errors
+from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
 from app.i18n import merke
 from app.libs.invoices import FINAL, NotSupported, build_xrechnung, summary
+from app.libs.shop_privat import stripe_ids
 from app.libs.stripe_billing import client
 
 router = APIRouter()
@@ -28,7 +30,8 @@ EXPAND = ["total_taxes.tax_rate_details.tax_rate"]  # Steuersatz in Prozent für
 
 
 def _customer_id(shop_id: str) -> str | None:
-    return (_shop(shop_id).get("billing") or {}).get("customerId")
+    """Stripe-Kunde des Ladens (steht nicht am öffentlichen Laden, app/libs/shop_privat.py)"""
+    return stripe_ids(get_firestore_db(), shop_id, _shop(shop_id)).get("customerId")
 
 
 def _stripe_host(url: str) -> bool:
@@ -99,7 +102,12 @@ def list_invoices(shop_id: str, user: AuthorizedUser) -> dict:
     if not customer_id:
         return {"invoices": []}
     _require_stripe()
-    page = client().v1.invoices.list(params={"customer": customer_id, "limit": 100, "expand": [f"data.{e}" for e in EXPAND]})
+    try:
+        page = client().v1.invoices.list(params={"customer": customer_id, "limit": 100, "expand": [f"data.{e}" for e in EXPAND]})
+    except stripe.InvalidRequestError as e:
+        if getattr(e, "code", None) == "resource_missing":  # Kunde aus dem anderen Stripe-Modus: keine Rechnungen hier
+            return {"invoices": []}
+        raise
     rows = []
     for inv in page.auto_paging_iter():
         inv = inv.to_dict()

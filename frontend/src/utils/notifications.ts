@@ -1,7 +1,5 @@
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
-import brain from 'brain';
-import type { UpdateUserIdRequest } from '../brain/data-contracts';
 import { firestore } from './firestore-client';
 import type { EarlierSlotNotificationType } from './types';
 import { tn } from '@/i18n';
@@ -15,51 +13,6 @@ import { tn } from '@/i18n';
 export const loadUserNotifications = async (userId: string): Promise<EarlierSlotNotificationType[]> => {
   console.log('Loading notifications for user ID:', userId);
   try {
-    // First, check if there are any unknown_user notifications that might belong to this user
-    try {
-      const unknownResponse = await brain.get_unknown_user_notifications();
-      if (unknownResponse.ok) {
-        const unknownData = await unknownResponse.json();
-        console.log('Found unknown user notifications:', unknownData.length);
-        
-        // For each unknown notification, check if the appointment belongs to the current user
-        for (const notification of unknownData) {
-          // Get the appointment ID from the notification
-          const appointmentId = notification.appointmentId;
-          if (!appointmentId) continue;
-          
-          // Check if this appointment belongs to the current user using Firestore query
-          const appointmentRef = doc(firestore, 'appointments', appointmentId);
-          // Fremde Termine darf der Browser nicht lesen (firestore.rules): die gehören dann auch nicht zu diesem Konto
-          const appointmentDoc = await getDoc(appointmentRef).catch(() => null);
-
-          if (appointmentDoc?.exists()) {
-            const appointmentData = appointmentDoc.data();
-            if (appointmentData.customerId === userId) {
-              // This appointment belongs to the current user, update the notification
-              console.log('Found unknown notification that belongs to this user:', notification.id);
-              
-              // Create the request payload for the API
-              const payload: UpdateUserIdRequest = {
-                appointment_id: appointmentId,
-                new_user_id: userId
-              };
-              
-              const updateResponse = await brain.update_notification_user_id(payload);
-              if (updateResponse.ok) {
-                console.log('Updated notification with correct user ID');
-              } else {
-                console.error('Error updating notification:', await updateResponse.text());
-              }
-            }
-          }
-        }
-      }
-    } catch (unknownErr) {
-      console.error('Error checking unknown user notifications:', unknownErr);
-      // Continue with normal flow, this is just an additional check
-    }
-    
     // Query notifications from Firestore
     const notificationsRef = collection(firestore, 'earlier_slot_notifications');
     const q = query(

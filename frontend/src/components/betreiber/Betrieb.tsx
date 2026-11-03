@@ -64,7 +64,7 @@ export function Betrieb({ data }: { data: Overview }) {
           <dt>Termine in gelöschten Läden</dt>
           <dd className="tabular-nums font-semibold">{o.appointmentsInMissingShops}</dd>
         </dl>
-        <p className="text-xs text-muted-foreground">Stand {fmtDateTime(data.now)}. Code-Analyse: <Link to="/code-health" className="underline underline-offset-2">Code-Health</Link></p>
+        <p className="text-xs text-muted-foreground">Stand {fmtDateTime(data.now)}.</p>
       </section>
     </div>
   );

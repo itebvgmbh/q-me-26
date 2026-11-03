@@ -23,7 +23,6 @@ const Preise = lazyPage(() => import("./pages/Preise.tsx"));
 const Tarif = lazyPage(() => import("./pages/Tarif.tsx"));
 const TelefonAssistent = lazyPage(() => import("./pages/TelefonAssistent.tsx"));
 const Uebernehmen = lazyPage(() => import("./pages/Uebernehmen.tsx"));
-const CodeHealth = lazyPage(() => import("./pages/CodeHealth.tsx"));
 const CustomerProfile = lazyPage(() => import("./pages/CustomerProfile.tsx"));
 const Datenschutz = lazyPage(() => import("./pages/Datenschutz.tsx"));
 const EmailBestaetigen = lazyPage(() => import("./pages/EmailBestaetigen.tsx"));
@@ -62,8 +61,6 @@ export const userRoutes: RouteObject[] = [
 	// Termin buchen ist derselbe Ablauf wie Nummer ziehen, im letzten Schritt mit der Wunschzeit vorgewählt
 	{ path: "/book-appointment", element: <PublicJoinQueue />},
 	{ path: "/bookappointment", element: <PublicJoinQueue />},
-	{ path: "/code-health", element: <UserGuard><CodeHealth /></UserGuard>},
-	{ path: "/codehealth", element: <UserGuard><CodeHealth /></UserGuard>},
 	{ path: "/customer-dashboard", element: <RedirectKeepQuery to="/my-bookings" />},
 	{ path: "/customerdashboard", element: <RedirectKeepQuery to="/my-bookings" />},
 	{ path: "/customer-profile", element: <UserGuard><CustomerProfile /></UserGuard>},

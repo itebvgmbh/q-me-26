@@ -85,6 +85,12 @@ def _loop() -> None:
                 moved = migrate(db)
                 if moved:
                     print(f"Kontaktdaten des Teams umgezogen: {moved} Personen")
+                # Stripe-IDs, die ein älterer Stand noch an den Laden geschrieben hat (app/libs/shop_privat.py)
+                from app.libs import shop_privat
+
+                moved = shop_privat.migrate(db)
+                if moved:
+                    print(f"Stripe-IDs und Sperr-Konten nach privat umgezogen: {moved} Läden")
         except Exception as e:  # nie den Dienst deswegen anhalten
             print(f"Benachrichtigungen: Fehler im Durchlauf: {e}")
         # Start-Mails an Läden (app/libs/onboarding_mail.py), seltener als die Nachrichten an Kunden

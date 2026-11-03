@@ -69,6 +69,7 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 	}}
 
 	header {{
+		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server

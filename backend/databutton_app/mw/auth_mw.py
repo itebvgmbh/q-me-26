@@ -24,6 +24,8 @@ class User(BaseModel):
     name: str | None = None
     picture: str | None = None
     email: str | None = None
+    # Hat Firebase die E-Mail-Adresse bestätigt? (Anspruch email_verified im Token)
+    email_verified: bool | None = None
 
 
 def get_auth_config(request: HTTPConnection) -> AuthConfig:

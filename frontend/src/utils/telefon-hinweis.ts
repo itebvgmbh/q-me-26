@@ -6,8 +6,8 @@ let laeden: Promise<Set<string>> | null = null;
 const ladeLaeden = () => {
   if (!laeden) {
     laeden = fetch('/routes/telefon-hinweis')
-      .then((res) => (res.ok ? (res.json() as Promise<{ laeden?: string[] }>) : {}))
-      .then((daten) => new Set(daten.laeden ?? []))
+      .then((res) => (res.ok ? (res.json() as Promise<{ laeden?: string[] }>) : { laeden: [] }))
+      .then((daten) => new Set<string>(daten.laeden ?? []))
       .catch(() => new Set<string>());
   }
   return laeden;
