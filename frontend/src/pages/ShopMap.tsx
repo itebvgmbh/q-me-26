@@ -18,6 +18,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { INDUSTRIES } from '../utils/industries';
 import { loadKartenSalons, type KartenSalon } from '../utils/verzeichnis';
+import { useWartende } from '../utils/laden-live';
 import { t, tn } from '@/i18n';
 
 // Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
@@ -36,20 +37,19 @@ const verzeichnisIcon = L.icon({
   className: 'grayscale opacity-75',
 });
 
-// Komponente zur Zentrierung der Karte auf den Benutzerstandort
-interface LocateMeProps {
-  position: [number, number] | null;
-}
-
-const LocateMe: React.FC<LocateMeProps> = ({ position }) => {
+/**
+ * Kartenausschnitt: um den eigenen Standort oder die gesuchte Adresse, sonst so, dass alle Läden und Salons zu sehen
+ * sind. Die Mitte von MapContainer gilt nur beim ersten Zeichnen – darum hier, sonst bliebe die Karte bei ganz Deutschland.
+ */
+const KarteAusschnitt: React.FC<{ mitte: [number, number] | null; punkte: [number, number][] }> = ({ mitte, punkte }) => {
   const map = useMap();
-  
+  const punkteKey = punkte.map((p) => p.join(',')).join(';');
   useEffect(() => {
-    if (position) {
-      map.setView(position, 13);
-    }
-  }, [map, position]);
-  
+    if (mitte) map.setView(mitte, 13);
+    else if (punkte.length === 1) map.setView(punkte[0], 14);
+    else if (punkte.length > 1) map.fitBounds(L.latLngBounds(punkte), { padding: [40, 40], maxZoom: 14 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, mitte?.[0], mitte?.[1], punkteKey]);
   return null;
 };
 
@@ -86,6 +86,11 @@ const ShopMap = () => {
     .map((s) => ({ ...s, distance: reference ? calculateDistance(reference[0], reference[1], s.latitude, s.longitude) : undefined }))
     .filter((s) => s.distance === undefined || s.distance <= maxDistance)
     .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0) || a.name.localeCompare(b.name));
+  const wartende = useWartende(shops.slice(0, 40).map((shop) => shop.id));
+  const kartenPunkte: [number, number][] = [
+    ...shops.filter((shop) => shop.coordinates).map((shop): [number, number] => [shop.coordinates!.latitude, shop.coordinates!.longitude]),
+    ...visibleSalons.map((s): [number, number] => [s.latitude, s.longitude]),
+  ];
 
   // Benutzerstandort ermitteln
   const getUserLocation = () => {
@@ -300,7 +305,7 @@ const ShopMap = () => {
           ) : (
             <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
               {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} />
+                <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} wartende={wartende[shop.id]} />
               ))}
               {visibleSalons.length > 0 && (
                 <>
@@ -326,9 +331,9 @@ const ShopMap = () => {
           )}
         </div>
         
-        {/* Rechte Spalte: Karte */}
-        <div className="lg:col-span-2">
-          <div className="h-[60vh] overflow-hidden rounded-3xl border border-border lg:h-[calc(100vh-260px)]">
+        {/* Rechte Spalte: Karte – am Handy über der Liste und niedriger, sonst steht sie erst unter allen Läden */}
+        <div className="order-first lg:order-none lg:col-span-2">
+          <div className="h-[42vh] overflow-hidden rounded-3xl border border-border lg:h-[calc(100vh-260px)]">
             <MapContainer 
               center={mapCenter} 
               zoom={userPosition ? 13 : 6} 
@@ -406,7 +411,7 @@ const ShopMap = () => {
                 </Marker>
               ))}
 
-              <LocateMe position={userPosition} />
+              <KarteAusschnitt mitte={reference} punkte={kartenPunkte} />
             </MapContainer>
           </div>
         </div>

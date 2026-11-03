@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import { ShopCard } from './ShopCard';
 import { getAllShopsForMarketplace, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
 import { Shop, Service } from '../utils/firestore/types';
+import { useWartende } from '../utils/laden-live';
 import { t } from '@/i18n';
 
 /**
@@ -20,6 +21,7 @@ export const MarketplaceSection: React.FC = () => {
   const [searchInput, setSearchInput] = useState("");
   const [searchFilters, setSearchFilters] = useState<ShopSearchFilters>({});
   const navigate = useNavigate();
+  const wartende = useWartende(shops.slice(0, 6).map((shop) => shop.id));
 
   // Load shops and their services based on search filters
   useEffect(() => {
@@ -116,7 +118,7 @@ export const MarketplaceSection: React.FC = () => {
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {shops.slice(0, 6).map((shop) => (
-              <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} tone="dark" />
+              <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} tone="dark" wartende={wartende[shop.id]} />
             ))}
           </div>
           {shops.length > 6 && (

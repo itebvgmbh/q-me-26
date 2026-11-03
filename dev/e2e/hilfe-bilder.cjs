@@ -5,7 +5,7 @@
 // Ergebnis: frontend/public/img/hilfe/*.jpg – danach committen und in den Artikeln einbinden.
 const fs = require('fs');
 const path = require('path');
-const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { BASE, bisWann, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const OUT = path.join(__dirname, '..', '..', 'frontend', 'public', 'img', 'hilfe');
 const NAMES = ['Lea', 'Jonas', 'Mia'];
@@ -82,12 +82,11 @@ run(async () => {
 
     await step('Kunde: Leistung wählen und Nummer ziehen', async () => {
       await customer.goto(`${BASE}/public-join-queue?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
-      const service = customer.locator('section button[aria-pressed]').first();
-      await service.waitFor({ timeout: 60000 });
+      // Im Testladen gibt es nur eine Leistung und eine Person: Die wählt die App selbst, das Bild zeigt dann „Wann?“
+      await customer.locator('#schritt-titel').waitFor({ timeout: 60000 });
       await customer.waitForTimeout(500);
       await photo(customer, 'kunde-leistung');
-      await service.click();
-      await customer.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+      await bisWann(customer);
       await customer.waitForFunction(() => /\d{2}:\d{2}/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 60000 });
       await customer.locator('#queue-name').fill(NAMES[0]);
       await photo(customer, 'kunde-bestaetigen');

@@ -259,6 +259,26 @@ const texte: Texte = {
   "zuletzt am {datum}": "last time on {datum}",
   "Egal wer": "Anyone",
   "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "Nothing is free in the next three weeks. Try another service.",
+  // Vorab-Prüfung: Ruhetage, Ladenkarten live, Nummernseite (Kalender, nach Absage), Platz ändern
+  "An diesem Tag ist niemand da.": "Nobody is working on this day.",
+  "{tag}, geschlossen": "{tag}, closed",
+  "Heute geschlossen": "Closed today",
+  "Heute ab {zeit} Uhr geöffnet": "Open today from {zeit}",
+  "Für heute geschlossen": "Closed for today",
+  "Pause bis {zeit} Uhr": "On a break until {zeit}",
+  "Geöffnet bis {zeit} Uhr": "Open until {zeit}",
+  "Gerade wartet niemand": "Nobody waiting right now",
+  "Gerade warten {n} Personen": { one: "1 person waiting right now", other: "{n} people waiting right now" },
+  "Jetzt:": "Now:",
+  "{leistung} bei {laden}": "{leistung} at {laden}",
+  "Bei {name}": "With {name}",
+  "Nummer {nummer}": "Number {nummer}",
+  "Dein Termin ist verschoben.": "Your appointment has been moved.",
+  "Nochmal Nummer ziehen": "Take a number again",
+  "Neue Nummer ziehen": "Take a new number",
+  "Neuen Termin buchen": "Book a new appointment",
+  "In meinen Kalender": "Add to my calendar",
+  "Google Kalender": "Google Calendar",
 };
 
 export default texte;

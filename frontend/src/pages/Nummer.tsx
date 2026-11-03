@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { Bell, BellRing, Check, Mail } from 'lucide-react';
+import { Bell, BellRing, CalendarPlus, Check, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { cancelTicket, keyFromHash, rememberTicketKey, storedTicketKey } from '.
 import { hasFeature } from '../utils/plans';
 import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
 import { caFenster } from '../utils/ca-zeit';
+import { googleKalenderLink, kalenderDateiLaden, type KalenderTermin } from '../utils/kalender-eintrag';
 import {
   enableAppPush,
   enablePush,
@@ -69,6 +70,8 @@ export default function Nummer() {
   const [now, setNow] = useState(() => Date.now());
   // „Platz ändern“, auch direkt aus „Meine Termine“ (?aendern=1)
   const [moving, setMoving] = useState(() => params.get('aendern') === '1');
+  // Gerade über „Platz ändern“ verschoben: Überschrift sagt das statt „gebucht“
+  const [movedHere, setMovedHere] = useState(false);
 
   // Schlüssel aus dem Link in diesem Browser merken: Startseite, „Konto anlegen“ und Absagen finden ihn dann auch so
   useEffect(() => {
@@ -194,6 +197,35 @@ export default function Nummer() {
   // Platz ändern, wo der Tarif Online-Termine hat – die neue Zeit ist ein fester Termin (backend/app/apis/nummer)
   const canMove = appt.status === 'scheduled' && canCancel && !!shopData && hasFeature(shopData, 'termine') && !!appt.serviceId;
 
+  // Fester Termin in der Zukunft: in den eigenen Kalender (ohne Schlüssel im Link)
+  const kalenderTermin: KalenderTermin | null =
+    !isQueue && appt.status === 'scheduled' && end && start.getTime() > now
+      ? {
+          id: appt.id,
+          start,
+          end,
+          titel: names.shop ? t('{leistung} bei {laden}', { leistung: names.service || t('Termin'), laden: names.shop }) : t('Termin'),
+          ort: shopData
+            ? [shopData.street, [shopData.postalCode, shopData.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || shopData.address
+            : undefined,
+          link: `${window.location.origin}/nummer/${appt.id}`,
+          beschreibung: [names.staff && t('Bei {name}', { name: names.staff }), appt.referenceCode && t('Nummer {nummer}', { nummer: appt.referenceCode })]
+            .filter(Boolean)
+            .join(' · '),
+        }
+      : null;
+
+  // Abgesagt oder fertig: gleich wieder buchen, Laden und Leistung (beim Termin auch die Person) vorbelegt
+  const neuNummer = `/public-join-queue?${new URLSearchParams({ shopId: appt.shopId, ...(appt.serviceId ? { serviceId: appt.serviceId } : {}) })}`;
+  const neuTermin =
+    shopData && hasFeature(shopData, 'termine')
+      ? `/book-appointment?${new URLSearchParams({
+          shopId: appt.shopId,
+          ...(appt.serviceId ? { serviceId: appt.serviceId } : {}),
+          ...(appt.staffId ? { staffId: appt.staffId } : {}),
+        })}`
+      : null;
+
   const cancel = async () => {
     try {
       // Über das Backend, ohne Konto mit dem Schlüssel; es meldet die Absage dem Team (app/apis/nummer)
@@ -208,7 +240,9 @@ export default function Nummer() {
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-1">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">
-          {justJoined && appt.status === 'scheduled'
+          {movedHere && appt.status === 'scheduled'
+            ? t('Dein Termin ist verschoben.')
+            : justJoined && appt.status === 'scheduled'
             ? isQueue
               ? t('Du bist eingereiht.')
               : t('Dein Termin ist gebucht.')
@@ -279,6 +313,48 @@ export default function Nummer() {
       {appt.status === 'cancelled' && (
         <p className="text-lg font-semibold">{isQueue ? t('Diese Nummer ist abgesagt.') : t('Dieser Termin ist abgesagt.')}</p>
       )}
+      {(appt.status === 'cancelled' || appt.status === 'completed') && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {isQueue || !neuTermin ? (
+            <>
+              <Button size="lg" variant="signal" className="sm:flex-1" asChild>
+                <Link to={neuNummer}>{appt.status === 'completed' ? t('Nochmal Nummer ziehen') : t('Neue Nummer ziehen')}</Link>
+              </Button>
+              {neuTermin && (
+                <Button size="lg" variant="outline" className="sm:flex-1" asChild>
+                  <Link to={neuTermin}>{t('Termin buchen')}</Link>
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button size="lg" variant="signal" className="sm:flex-1" asChild>
+                <Link to={neuTermin}>{appt.status === 'completed' ? t('Nochmal buchen') : t('Neuen Termin buchen')}</Link>
+              </Button>
+              <Button size="lg" variant="outline" className="sm:flex-1" asChild>
+                <Link to={neuNummer}>{t('Nummer ziehen')}</Link>
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {kalenderTermin && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button variant="outline" onClick={() => kalenderDateiLaden(kalenderTermin)}>
+            <CalendarPlus className="me-2 h-4 w-4" aria-hidden="true" />
+            {t('In meinen Kalender')}
+          </Button>
+          <a
+            href={googleKalenderLink(kalenderTermin)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold underline underline-offset-2"
+          >
+            {t('Google Kalender')}
+          </a>
+        </div>
+      )}
 
       {appt.status === 'scheduled' && shopData && hasFeature(shopData, 'benachrichtigung') && (
         <NotifyCard appt={appt} ticketKey={ticketKey} userEmail={user?.email ?? ''} />
@@ -343,6 +419,8 @@ export default function Nummer() {
           staffId={appt.staffId}
           ticketKey={ticketKey}
           signedIn={Boolean(user)}
+          currentStart={start}
+          onMoved={() => setMovedHere(true)}
         />
       )}
       {appt.status === 'scheduled' && !canCancel && (

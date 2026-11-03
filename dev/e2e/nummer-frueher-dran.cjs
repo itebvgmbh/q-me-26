@@ -5,7 +5,7 @@
 //     einschalten. Vorher ging das nur unter „Meine Termine“; auf der Nummernseite fehlte der Schalter.
 // Braucht: Entwicklungsserver mit Backend ab diesem Stand (QME_BACKEND) und Testdaten (python dev/fixtures.py anlegen).
 // Legt ein Kundenkonto kunde-…@example.com an und löscht es am Ende wieder; die Nummer räumt fixtures.py loeschen weg.
-const { BASE, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
+const { BASE, bisWann, launch, newPage, collectErrors, fixture, report, run } = require('./lib.cjs');
 
 const ok = (p) => p.then(() => true, () => false);
 
@@ -22,11 +22,10 @@ const removeAccount = (page) =>
     await user.delete().catch(() => {});
   }).catch(() => {});
 
-/** Nummer ziehen per QR-Link bis zur Bestätigung: Leistung → „Egal wer“ */
+/** Nummer ziehen per QR-Link bis zur Bestätigung: Leistung → „Egal wer“ (bei nur einer wählt die App selbst) */
 const toConfirmation = async (page, shopId) => {
   await page.goto(`${BASE}/public-join-queue?shopId=${shopId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-  await page.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+  await bisWann(page);
   await page.waitForFunction(() => /\d{2}:\d{2}|kein Platz/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 60000 });
 };
 
@@ -45,8 +44,7 @@ const teilA = async (browser, fx, rows) => {
     await page.getByRole('button', { name: 'Konto anlegen' }).click();
     const back = await ok(page.waitForURL((url) => url.pathname === '/public-join-queue' && url.searchParams.get('shopId') === fx.shopId, { timeout: 30000 }));
     rows.push({ name: 'A: nach „Konto anlegen“ zurück beim Nummer ziehen', pass: back, detail: page.url().replace(BASE, '') });
-    await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-    await page.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+    await bisWann(page);
     rows.push({ name: 'A: mit Konto Häkchen „Früher dran“', pass: await ok(page.getByText('Früher dran, wenn etwas frei wird').waitFor({ timeout: 30000 })) && (await page.getByRole('checkbox').count()) === 1 });
     rows.push({ name: 'A: keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
   } finally {

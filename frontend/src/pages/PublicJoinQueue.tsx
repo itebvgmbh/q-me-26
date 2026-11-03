@@ -191,6 +191,24 @@ const PublicJoinQueue = () => {
     if (currentStep === 4) refreshIfOlderThan(60 * 1000);
   }, [currentStep, refreshIfOlderThan]);
 
+  // Nur eine Leistung oder nur eine Person: nichts wählen lassen, was es nicht zu wählen gibt. Je Laden bzw. Leistung
+  // nur einmal – wer mit „Zurück“ zu dem Schritt geht, sieht ihn wie gewohnt und wird nicht gleich wieder weitergeschickt.
+  // Vor dem Zeichnen (LayoutEffect), sonst blitzt der übersprungene Schritt kurz auf
+  const autoChosen = useRef({ service: '', staff: '' });
+  React.useLayoutEffect(() => {
+    if (currentStep !== 2 || servicesLoading || services.length !== 1 || autoChosen.current.service === selectedShop) return;
+    autoChosen.current.service = selectedShop;
+    setSelectedService(services[0].id);
+    setCurrentStep(3);
+  }, [currentStep, servicesLoading, services, selectedShop, setSelectedService, setCurrentStep]);
+  React.useLayoutEffect(() => {
+    const key = `${selectedShop}/${selectedService}`;
+    if (currentStep !== 3 || staffLoading || serviceStaff.length !== 1 || autoChosen.current.staff === key) return;
+    autoChosen.current.staff = key;
+    selectSpecificStaff(serviceStaff[0].id);
+    setCurrentStep(4);
+  }, [currentStep, staffLoading, serviceStaff, selectedShop, selectedService, selectSpecificStaff, setCurrentStep]);
+
   // Wunschzeiten: bei der gewählten Person, bei „Egal wer“ bei allen, die die Leistung anbieten
   const calendarStaffIds = useMemo(() => serviceStaff.filter((s) => s.isActive !== false).map((s) => s.id), [serviceStaff]);
 

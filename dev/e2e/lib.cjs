@@ -143,6 +143,44 @@ const removeTempShop = (page, shop) =>
     await firebaseAuth.currentUser.delete();
   }, shop);
 
+/**
+ * Buchungsablauf (Nummer ziehen / Termin buchen) bis zum Schritt „Wann?“: Leistung und Person nur anklicken, wo es etwas
+ * zu wählen gibt – bei nur einer Leistung oder Person wählt die App selbst (pages/PublicJoinQueue.tsx).
+ * leistung/person: Name (RegExp) des Knopfs, sonst der erste bzw. „Egal wer“. Gibt die Schritte zurück, die zu sehen waren.
+ */
+const bisWann = async (page, { leistung, person = /Egal wer/ } = {}) => {
+  const schritt = () =>
+    page
+      .waitForFunction(
+        () => {
+          const t = document.querySelector('#schritt-titel')?.textContent || '';
+          return t === 'Wann passt es dir?' ? 'wann' : t === 'Bei wem?' ? 'person' : t === 'Was soll gemacht werden?' ? 'leistung' : null;
+        },
+        null,
+        { timeout: 60000 },
+      )
+      .then((h) => h.jsonValue());
+  const gesehen = [];
+  for (let i = 0; i < 4; i++) {
+    const jetzt = await schritt();
+    if (jetzt === 'wann') return [...gesehen, jetzt];
+    // Erst handeln, wenn der Schritt stehen bleibt (gleich nach dem Laden springt die App bei nur einer Wahl weiter)
+    await page.waitForTimeout(300);
+    if ((await schritt()) !== jetzt) continue;
+    gesehen.push(jetzt);
+    // Kurz warten, bis die Wahl geladen ist (Zeiten je Person), dann wählen und auf den nächsten Schritt warten
+    const knopf =
+      jetzt === 'leistung'
+        ? leistung
+          ? page.getByRole('button', { name: leistung }).first()
+          : page.locator('section button[aria-pressed]').first()
+        : page.getByRole('button', { name: person }).first();
+    await knopf.click({ timeout: 60000 });
+    await page.waitForFunction((alt) => (document.querySelector('#schritt-titel')?.textContent || '') !== alt, jetzt === 'leistung' ? 'Was soll gemacht werden?' : 'Bei wem?', { timeout: 30000 });
+  }
+  throw new Error(`„Wann?“ nicht erreicht: ${gesehen.join(' → ')}`);
+};
+
 /** Ergebnisliste ausgeben; Rückgabe true, wenn alles passt */
 const report = (rows) => {
   let ok = true;
@@ -208,4 +246,4 @@ const signInFake = async (page) => {
   }, { email: EMAIL });
 };
 
-module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, signIn, mockAuth, signInFake, tempShop, removeTempShop, report, run };
+module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, signIn, mockAuth, signInFake, tempShop, removeTempShop, bisWann, report, run };

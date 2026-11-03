@@ -288,6 +288,33 @@ const texte: Texte = {
   "zuletzt am {datum}": "آخر مرة: {datum}",
   "Egal wer": "أي شخص",
   "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "لا يوجد وقت متاح في الأسابيع الثلاثة القادمة. جرّب خدمة أخرى.",
+  // Vorab-Prüfung: Ruhetage, Ladenkarten live, Nummernseite (Kalender, nach Absage), Platz ändern
+  "An diesem Tag ist niemand da.": "لا يعمل أحد في هذا اليوم.",
+  "{tag}, geschlossen": "{tag}، مغلق",
+  "Heute geschlossen": "مغلق اليوم",
+  "Heute ab {zeit} Uhr geöffnet": "مفتوح اليوم ابتداءً من {zeit}",
+  "Für heute geschlossen": "مغلق لبقية اليوم",
+  "Pause bis {zeit} Uhr": "استراحة حتى {zeit}",
+  "Geöffnet bis {zeit} Uhr": "مفتوح حتى {zeit}",
+  "Gerade wartet niemand": "لا أحد ينتظر الآن",
+  "Gerade warten {n} Personen": {
+    zero: "لا أحد ينتظر الآن",
+    one: "شخص واحد ينتظر الآن",
+    two: "شخصان ينتظران الآن",
+    few: "{n} أشخاص ينتظرون الآن",
+    many: "{n} شخصًا ينتظرون الآن",
+    other: "{n} شخص ينتظرون الآن",
+  },
+  "Jetzt:": "الآن:",
+  "{leistung} bei {laden}": "{leistung} في {laden}",
+  "Bei {name}": "عند {name}",
+  "Nummer {nummer}": "الرقم {nummer}",
+  "Dein Termin ist verschoben.": "تم تغيير موعدك.",
+  "Nochmal Nummer ziehen": "خذ رقمًا مرة أخرى",
+  "Neue Nummer ziehen": "خذ رقمًا جديدًا",
+  "Neuen Termin buchen": "احجز موعدًا جديدًا",
+  "In meinen Kalender": "أضف إلى تقويمي",
+  "Google Kalender": "تقويم Google",
 };
 
 export default texte;
