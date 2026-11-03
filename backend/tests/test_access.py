@@ -32,8 +32,8 @@ def with_env(**values):
     return wrap
 
 
-def user(sub, email=None):
-    return SimpleNamespace(sub=sub, email=email)
+def user(sub, email=None, verified=True):
+    return SimpleNamespace(sub=sub, email=email, email_verified=verified)
 
 
 @with_env(QME_ADMIN_EMAILS='', QME_ADMIN_UIDS='')
@@ -53,6 +53,13 @@ def test_betreiber_per_email_ohne_gross_klein():
     assert not is_admin(user('z', 'kunde@example.com'))
     assert not is_admin(user('z', None))
     require_admin(user('x', 'chef@example.com'))  # kein Fehler
+
+
+@with_env(QME_ADMIN_EMAILS='chef@example.com', QME_ADMIN_UIDS='')
+def test_betreiber_per_email_nur_bestaetigt():
+    assert not is_admin(user('x', 'chef@example.com', verified=False))
+    assert not is_admin(user('x', 'chef@example.com', verified=None))
+    assert is_admin(user('x', 'chef@example.com', verified=True))
 
 
 @with_env(QME_ADMIN_EMAILS='', QME_ADMIN_UIDS='uid123')
