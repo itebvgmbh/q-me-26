@@ -1,8 +1,8 @@
 """Wer darf was: Betreiber der App (du) und Inhaber ihrer eigenen Läden.
 
 Betreiber stehen in /etc/q-me.env, nicht in der Datenbank – sonst könnte sich jeder selbst dazu machen:
-    QME_ADMIN_EMAILS=a@example.com,b@example.com   (E-Mail des Firebase-Kontos)
-    QME_ADMIN_UIDS=abc123                          (alternativ die Firebase-UID)
+    QME_ADMIN_EMAILS=a@example.com,b@example.com   (E-Mail des Firebase-Kontos; zählt nur, wenn sie bestätigt ist)
+    QME_ADMIN_UIDS=abc123                          (die Firebase-UID; geht immer)
 Ohne Eintrag gibt es keinen Betreiber: Dann kann niemand den Hintergrunddienst steuern (er startet trotzdem
 von selbst) und niemand den Verlauf aller Läden sehen.
 """
@@ -31,9 +31,14 @@ def is_admin_account(uid: str, email: str = "") -> bool:
 
 
 def is_admin(user) -> bool:
+    """Angemeldetes Konto ist Betreiber: per UID, oder per E-Mail, wenn Firebase sie als bestätigt meldet"""
     if user is None:
         return False
-    return is_admin_account(user.sub or "", getattr(user, "email", None) or "")
+    emails, uids = admin_lists()
+    if (user.sub or "").lower() in uids:
+        return True
+    email = (getattr(user, "email", None) or "").strip().lower()
+    return bool(email) and email in emails and getattr(user, "email_verified", None) is True
 
 
 def require_admin(user: AuthorizedUser) -> None:
