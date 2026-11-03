@@ -90,6 +90,7 @@ def shop_update_from_subscription(subscription) -> dict:
         subscription = subscription.to_dict()
     fields = billing_fields(subscription)
     active = fields["status"] in ("active", "trialing", "past_due") and fields["plan"]
-    update = {f"billing.{k}": v for k, v in fields.items()}
+    # Stripe-Kunde und -Abo stehen nicht am (öffentlich lesbaren) Laden, sondern in privat (app/libs/shop_privat.py)
+    update = {f"billing.{k}": v for k, v in fields.items() if k not in ("customerId", "subscriptionId")}
     update["plan"] = fields["plan"] if active else "gratis"
     return update

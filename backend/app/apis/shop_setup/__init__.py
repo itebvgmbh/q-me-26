@@ -74,6 +74,13 @@ LIMITS = {  # Aufrufe je Konto und Stunde
     "details": 40,
     "website": 12,
 }
+# Und für alle Konten zusammen am Tag: Mehr richten an einem Tag nicht neu ein; darüber hinaus füllt man von Hand aus
+DAY_LIMITS = {
+    "search": 5000,
+    "details": 600,
+    "website": 150,
+}
+_day_calls: dict = defaultdict(deque)
 
 
 def _require_owner(user: AuthorizedUser) -> None:
@@ -97,7 +104,14 @@ def _rate_limit(user: AuthorizedUser, kind: str) -> None:
             calls.popleft()
         if len(calls) >= LIMITS[kind]:
             raise HTTPException(status_code=429, detail="Zu viele Anfragen. Bitte in einer Stunde noch einmal.")
+        day = _day_calls[kind]
+        while day and now - day[0] > 86400:
+            day.popleft()
+        if len(day) >= DAY_LIMITS[kind]:
+            print(f"Laden einrichten: Tagesgrenze für {kind} erreicht ({DAY_LIMITS[kind]})")
+            raise HTTPException(status_code=429, detail="Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.")
         calls.append(now)
+        day.append(now)
 
 
 # --- Öffnungszeiten von Google in unser Format ----------------------------------------------------

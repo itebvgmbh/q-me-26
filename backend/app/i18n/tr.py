@@ -182,7 +182,6 @@ TEXTE: dict = {
     "Für diesen Termin geht „Früher dran“ nicht mehr: Er hat schon angefangen oder ist abgesagt.":
         "Bu randevu için “Erken sıra” artık mümkün değil: Randevu başladı veya iptal edildi.",
     "Dieser Laden bietet „Früher dran“ gerade nicht an.": "Bu salon şu anda “Erken sıra” sunmuyor.",
-    "Nur die eigenen Benachrichtigungen.": "Yalnızca kendi bildirimleriniz.",
     "Zu viele Anfragen. Versuch es gleich noch einmal.": "Çok fazla istek. Lütfen birazdan tekrar deneyin.",
     # Fehlermeldungen: Kunden-Link, Datenschutz, Zugriff
     "Diesen Link gibt es nicht. Bitte den Laden um einen neuen.": "Bu bağlantı mevcut değil. Lütfen salondan yeni bir bağlantı isteyin.",
@@ -263,4 +262,7 @@ TEXTE: dict = {
     "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "Telefon asistanı bu salon için henüz açılmadı.",
     "Das ist keine Rufnummer (z. B. 030 1234567).": "Bu bir telefon numarası değil (örn. 030 1234567).",
     "Trag zuerst die Nummer deines Ladens ein.": "Önce salonunuzun numarasını girin.",
+    "Unbekannter Laden.": "Bilinmeyen salon.",
+    "Die freien Zeiten konnten nicht berechnet werden.": "Boş saatler hesaplanamadı.",
+    "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "Bu bugün mümkün değil. Lütfen bilgileri elle girin.",
 }

@@ -163,6 +163,12 @@ def create_app() -> FastAPI:
                     print(f"Kontaktdaten des Teams umgezogen: {migrate(get_firestore_db())} Personen")
                 except Exception as e:
                     print(f"Kontaktdaten des Teams nicht umgezogen: {e}")
+                try:
+                    from app.libs import shop_privat
+
+                    print(f"Stripe-IDs und Sperr-Konten nach privat umgezogen: {shop_privat.migrate(get_firestore_db())} Läden")
+                except Exception as e:
+                    print(f"Stripe-IDs und Sperr-Konten nicht umgezogen: {e}")
 
             threading.Thread(target=sync_team, daemon=True).start()
 

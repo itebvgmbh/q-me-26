@@ -23,12 +23,12 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.auth import AuthorizedUser
 from app.i18n import aus_anfrage, merke, t
+from app.libs.links import public_origin
 from app.libs.mail import branded_html, esc, mail_configured, send_mail
 from app.libs.onboarding_mail import is_test_address
 
 router = APIRouter()
 
-ALLOWED_ORIGINS = ("https://dranzeit.de", "https://www.dranzeit.de", "https://q-me.spielmacherei.de", "http://localhost:5173")
 MIN_GAP_SECONDS = 60
 PER_DAY = 5
 
@@ -37,11 +37,8 @@ _lock = threading.Lock()
 
 
 def _origin(request: Request) -> str:
-    """Link auf die Adresse, von der die Person kam – nur bekannte Adressen."""
-    origin = (request.headers.get("origin") or "").rstrip("/")
-    if origin in ALLOWED_ORIGINS:
-        return origin
-    return (os.environ.get("PUBLIC_URL", "").strip() or "https://dranzeit.de").rstrip("/")
+    """Link auf die Adresse, von der die Person kam – nur bekannte Adressen (app/libs/links.py)."""
+    return public_origin(request)
 
 
 def _account(uid: str):

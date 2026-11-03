@@ -12,6 +12,7 @@ import {
   loadShop,
   setFounder,
   setPhoneAccess,
+  setListed,
   setPhoneLine,
   setTrial,
   suspendShop,
@@ -412,6 +413,29 @@ export function LadenDetail({
             {detail.owner.disabled ? ' · Anmeldung gesperrt' : ''}
           </p>
         )}
+      </Section>
+
+      <Section title="Ladenliste">
+        <p className="text-sm text-muted-foreground">
+          {detail?.shop.unlisted
+            ? 'Ausgeblendet: nicht in Ladenliste, Karte und Stadtseiten. Über Link und QR-Code bleibt der Laden buchbar.'
+            : 'Erscheint in Ladenliste, Karte und auf den Stadtseiten. Test- und Vorführläden hier ausblenden.'}
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-fit"
+          disabled={!detail || busy !== ''}
+          onClick={() =>
+            run(
+              'liste',
+              () => setListed(shop.id, Boolean(detail?.shop.unlisted)),
+              detail?.shop.unlisted ? 'Wieder in der Ladenliste.' : 'Aus der Ladenliste genommen.',
+            )
+          }
+        >
+          {detail?.shop.unlisted ? 'Wieder in der Ladenliste zeigen' : 'Aus der Ladenliste nehmen'}
+        </Button>
       </Section>
 
       <Section title="Sperren" tone="danger">

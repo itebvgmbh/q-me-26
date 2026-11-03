@@ -230,21 +230,7 @@ def test_beträge_müssen_aufgehen():
 # ---------------------------------------------------------------- Endpunkte (Stripe und Firestore nachgebildet)
 
 
-class FakeSnap:
-    def __init__(self, data):
-        self.exists, self._data = data is not None, data
-
-    def to_dict(self):
-        return self._data
-
-
-class FakeDb:
-    def __init__(self, shops):
-        self.shops = shops
-
-    def collection(self, _name):
-        shops = self.shops
-        return type("Coll", (), {"document": lambda _s, doc_id: type("Ref", (), {"get": lambda _r: FakeSnap(shops.get(doc_id))})()})()
+from test_privacy import FakeDb  # noqa: E402  (Firestore zum Nachbilden, mit Unter-Sammlungen wie privat/stripe)
 
 
 class FakeStripeObject(dict):
@@ -279,7 +265,7 @@ def client_with(shops, invoices, user_uid="owner1", pdf=b"%PDF-1.7 Stripe-Rechnu
     fake = FakeInvoices(invoices)
     stripe_client = type("C", (), {"v1": type("V1", (), {"invoices": fake})()})()
     os.environ["STRIPE_SECRET_KEY"] = "sk_test_attrappe"
-    db = FakeDb(shops)
+    db = FakeDb({"shops": shops})
     billing.get_firestore_db = lambda: db
     import app.auth.access as access
     import app.apis.firebase_utils as fu
@@ -287,6 +273,7 @@ def client_with(shops, invoices, user_uid="owner1", pdf=b"%PDF-1.7 Stripe-Rechnu
     fu.get_firestore_db = lambda: db
     access.is_admin = lambda _u: False
     api.client = lambda: stripe_client
+    api.get_firestore_db = lambda: db
     api.fetch_pdf = lambda url: pdf
     app = FastAPI()
     app.include_router(api.router, prefix="/routes")

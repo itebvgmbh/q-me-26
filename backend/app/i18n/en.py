@@ -185,7 +185,6 @@ TEXTE: dict = {
     "Für diesen Termin geht „Früher dran“ nicht mehr: Er hat schon angefangen oder ist abgesagt.":
         "“Earlier slot” is no longer possible for this appointment: it has already started or been cancelled.",
     "Dieser Laden bietet „Früher dran“ gerade nicht an.": "This shop doesn't offer “Earlier slot” at the moment.",
-    "Nur die eigenen Benachrichtigungen.": "Only your own notifications.",
     "Zu viele Anfragen. Versuch es gleich noch einmal.": "Too many requests. Please try again in a moment.",
     # Fehlermeldungen: Kunden-Link, Datenschutz, Zugriff
     "Diesen Link gibt es nicht. Bitte den Laden um einen neuen.": "This link doesn't exist. Please ask the shop for a new one.",
@@ -265,4 +264,7 @@ TEXTE: dict = {
     "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "The phone assistant hasn't been enabled for this shop yet.",
     "Das ist keine Rufnummer (z. B. 030 1234567).": "That isn't a phone number (e.g. 030 1234567).",
     "Trag zuerst die Nummer deines Ladens ein.": "Enter your shop's number first.",
+    "Unbekannter Laden.": "Unknown shop.",
+    "Die freien Zeiten konnten nicht berechnet werden.": "The free times could not be calculated.",
+    "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "That's not possible today. Please enter the details by hand.",
 }

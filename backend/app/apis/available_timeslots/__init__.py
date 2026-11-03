@@ -9,7 +9,9 @@ Vorher las jede Berechnung alle Termine der Person seit Anbeginn und filterte er
 Jahr rund 4 500 Lesevorgänge und über eine Sekunde je Berechnung. Jetzt nur noch die Termine des Zeitraums
 (Index staffId + startTime bzw. shopId + startTime, wie loadStaffRange im Frontend).
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+import re
+
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 from datetime import date, datetime, time, timedelta
@@ -31,6 +33,7 @@ from app.apis.cache import (
 )
 from app.apis.calculators import calculate_available_timeslots
 from app.apis.utils import convert_timestamp_to_datetime
+from app.libs.throttle import throttle
 
 router = APIRouter()
 
@@ -284,7 +287,23 @@ def timeslots_for_day(inputs: TimeslotInputs, service_id: str, day: datetime) ->
 # Schnittstelle (Buchungsseite, accept_slot, Zwischenspeicher leeren)
 # ---------------------------------------------------------------------------------------------
 
+ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+MAX_DAYS_AHEAD = 400  # weiter voraus bucht niemand; so landen auch keine fernen Tage im Zwischenspeicher
+
+
 @router.post("/available-timeslots", tags=["open"])
+def available_timeslots_route(body: AvailableTimeslotsRequest, background_tasks: BackgroundTasks, http: Request) -> AvailableTimeslotsResponse:
+    """Freie Zeiten, auch ohne Anmeldung. Die Bremse ist großzügig: Der Kalender fragt je Tag und Person, und im Laden
+    teilen sich viele ein WLAN und damit eine Adresse."""
+    throttle(http, "zeiten", max_hits=600)
+    ids_ok = ID_RE.fullmatch(body.shop_id or "") and ID_RE.fullmatch(body.service_id or "") and (not body.staff_id or ID_RE.fullmatch(body.staff_id))
+    if not ids_ok:
+        raise HTTPException(status_code=400, detail="Unbekannter Laden.")
+    if abs((body.date.date() - date.today()).days) > MAX_DAYS_AHEAD:
+        return AvailableTimeslotsResponse(timeslots=[])
+    return get_available_timeslots(body, background_tasks)
+
+
 def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks: BackgroundTasks) -> AvailableTimeslotsResponse:
     """
     Freie Zeiten an einem Tag: Öffnungs- und Arbeitszeiten, Termine, Pausen, Dauer der Leistung.
@@ -326,8 +345,8 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
     try:
         day = request.date.date()
         inputs = load_timeslot_inputs(get_firestore_db(), request.shop_id, request.staff_id, [request.service_id], day, day)
-        if (inputs.shop or {}).get("suspended"):
-            print(f"Freie Zeiten {label}: Laden gesperrt")
+        if not inputs.shop or inputs.shop.get("suspended"):
+            print(f"Freie Zeiten {label}: Laden {'gesperrt' if inputs.shop else 'gibt es nicht'}")
             return AvailableTimeslotsResponse(timeslots=[])
         available_slots = timeslots_for_day(inputs, request.service_id, request.date)
         execution_time = time_module.time() - perf_start_time
@@ -366,4 +385,4 @@ def get_available_timeslots(request: AvailableTimeslotsRequest, background_tasks
     except Exception as e:
         execution_time = time_module.time() - perf_start_time
         print(f"Error calculating available timeslots after {execution_time:.2f} seconds: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error calculating available timeslots: {str(e)}") from e
+        raise HTTPException(status_code=500, detail="Die freien Zeiten konnten nicht berechnet werden.") from e

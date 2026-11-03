@@ -12,7 +12,13 @@ import secrets
 
 from fastapi import Request
 
-ALLOWED_ORIGINS = ("https://dranzeit.de", "https://www.dranzeit.de", "https://q-me.spielmacherei.de", "http://localhost:5173")
+# Adressen der App, auf die Links zeigen dürfen; zum Entwickeln weitere über QME_DEV_ORIGINS (z. B. http://localhost:5173)
+ALLOWED_ORIGINS = ("https://dranzeit.de", "https://www.dranzeit.de", "https://q-me.spielmacherei.de")
+
+
+def allowed_origins() -> tuple:
+    extra = tuple(o.strip().rstrip("/") for o in os.environ.get("QME_DEV_ORIGINS", "").split(",") if o.strip())
+    return ALLOWED_ORIGINS + extra
 
 
 def new_token() -> str:
@@ -34,6 +40,6 @@ def token_matches(stored_hash: str | None, token: str | None) -> bool:
 def public_origin(request: Request) -> str:
     """Link auf die Adresse, von der der Laden kam – nur bekannte Adressen."""
     origin = (request.headers.get("origin") or "").rstrip("/")
-    if origin in ALLOWED_ORIGINS:
+    if origin in allowed_origins():
         return origin
     return (os.environ.get("PUBLIC_URL", "").strip() or "https://dranzeit.de").rstrip("/")

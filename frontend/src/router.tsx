@@ -1,5 +1,5 @@
 import { type ReactNode, Suspense, useEffect } from "react";
-import { createBrowserRouter, Outlet, useRouteError } from "react-router-dom";
+import { createBrowserRouter, Outlet, useLocation, useNavigationType, useRouteError } from "react-router-dom";
 import { userRoutes } from "./user-routes";
 import { lazyPage } from "./utils/lazy-page";
 // Nicht nachgeladen: Die Fehlerseite muss auch kommen, wenn das Nachladen der Fehler ist
@@ -27,6 +27,18 @@ const NotFoundPage = lazyPage(() => import("./pages/NotFoundPage"));
 // Vollbild für den Fernseher im Laden: ohne Navigation und Fußzeile
 const Bildschirm = lazyPage(() => import("./pages/Bildschirm"));
 
+// Neue Seite beginnt oben – sonst bleibt die Scrollposition der vorigen stehen (nach „Nummer ziehen“ landete man unten).
+// Nur bei neuen Seiten (PUSH): „Zurück“ (POP) und Umschalten innerhalb einer Seite (REPLACE, z. B. Nummer ↔ Termin) nicht.
+const NachObenBeiSeitenwechsel = () => {
+  const { pathname } = useLocation();
+  const art = useNavigationType();
+  useEffect(() => {
+    if (art === "PUSH") window.scrollTo(0, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+  return null;
+};
+
 // Statt der englischen Standardseite von React Router („Unexpected Application Error!“)
 const RouteError = () => {
   const error = useRouteError();
@@ -40,6 +52,7 @@ export const router = createBrowserRouter(
       element: (
         <AppProvider>
           <SeitenKopf />
+          <NachObenBeiSeitenwechsel />
           <div className="flex min-h-screen flex-col">
             <Navigation />
             <main id="inhalt" className="flex-1">

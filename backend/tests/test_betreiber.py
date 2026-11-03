@@ -135,7 +135,7 @@ def setup(uid="chef", email="chef@dranzeit.de", store=None, users=None):
     konten.auth_accounts = lambda app: [konten.account_row(auth.get_user(u)) for u in list(auth.users)]
     app = FastAPI()
     app.include_router(api.router, prefix="/routes")
-    app.dependency_overrides[get_authorized_user] = lambda: SimpleNamespace(sub=uid, email=email)
+    app.dependency_overrides[get_authorized_user] = lambda: SimpleNamespace(sub=uid, email=email, email_verified=True)
     return TestClient(app), store, auth
 
 
@@ -271,7 +271,9 @@ def test_laden_sperren_sperrt_inhaber_und_team_aber_nie_den_betreiber():
     assert r.json()["accounts"] == 2
     assert auth.users["inhaber"]["disabled"] and auth.users["mitarbeiter"]["disabled"]
     assert set(auth.revoked) == {"inhaber", "mitarbeiter"}
-    assert store["shops"]["laden"]["suspended"]["accounts"] == ["inhaber", "mitarbeiter"]
+    # Welche Konten mit gesperrt wurden, steht nicht am öffentlich lesbaren Laden, sondern in privat/sperre
+    assert "accounts" not in store["shops"]["laden"]["suspended"]
+    assert store["shops/laden/privat"]["sperre"]["accounts"] == ["inhaber", "mitarbeiter"]
     assert not has_feature(store["shops"]["laden"], "termine")
     # Laden des Betreibers: dessen Konto bleibt offen
     r = client.post(f"/routes/betreiber/laden/{ITEBV}/sperren", json={"reason": "Probe"})
@@ -285,7 +287,7 @@ def test_entsperren_laesst_einzeln_gesperrte_konten_zu():
     r = client.post("/routes/betreiber/laden/laden/entsperren", json={})
     assert r.json() == {"changed": True, "accounts": 1, "kept": 1}
     assert not auth.users["inhaber"]["disabled"] and auth.users["mitarbeiter"]["disabled"]
-    assert store["shops"]["laden"]["suspended"] is None
+    assert store["shops"]["laden"]["suspended"] is None and "sperre" not in store["shops/laden/privat"]
     client.post("/routes/betreiber/konto/mitarbeiter/entsperren", json={})
     assert not auth.users["mitarbeiter"]["disabled"]
     assert "mitarbeiter" not in protokoll.blocked_accounts()

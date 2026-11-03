@@ -42,30 +42,15 @@ def test_aktives_abo_setzt_tarif():
     update = shop_update_from_subscription(sub())
     assert update["plan"] == "laden"
     assert update["billing.status"] == "active" and update["billing.interval"] == "monat"
-    assert update["billing.customerId"] == "cus_1"
+    # Stripe-Kunde und -Abo nicht am öffentlich lesbaren Laden (app/libs/shop_privat.py)
+    assert "billing.customerId" not in update and "billing.subscriptionId" not in update
 
 
 def test_gekuendigtes_abo_setzt_gratis():
     assert shop_update_from_subscription(sub(status="canceled"))["plan"] == "gratis"
 
 
-class FakeRef:
-    def __init__(self, store, doc_id):
-        self.store, self.doc_id = store, doc_id
-
-    def get(self):
-        return type("Snap", (), {"exists": self.doc_id in self.store})()
-
-    def update(self, data):
-        self.store[self.doc_id].update(data)
-
-
-class FakeDb:
-    def __init__(self, shops):
-        self.shops = shops
-
-    def collection(self, _name):
-        return type("Coll", (), {"document": lambda _s, doc_id: FakeRef(self.shops, doc_id)})()
+from test_privacy import FakeDb  # noqa: E402  (Firestore zum Nachbilden, mit Unter-Sammlungen)
 
 
 def signed(event: dict) -> tuple[bytes, str]:
@@ -77,7 +62,9 @@ def signed(event: dict) -> tuple[bytes, str]:
 
 def app_with(shops):
     os.environ["STRIPE_WEBHOOK_SECRET"] = SECRET
-    wh.get_firestore_db = lambda: FakeDb(shops)
+    global store
+    store = {"shops": shops}
+    wh.get_firestore_db = lambda: FakeDb(store)
     app = FastAPI()
     app.include_router(wh.router, prefix="/routes")
     return TestClient(app)
@@ -90,6 +77,9 @@ def test_webhook_aktualisiert_laden():
     r = c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header})
     assert r.status_code == 200, r.text
     assert shops["laden1"]["plan"] == "laden" and shops["laden1"]["billing.status"] == "trialing"
+    assert "billing.customerId" not in shops["laden1"]
+    assert store["shops/laden1/privat"]["stripe"]["customerId"] == "cus_1"
+    assert store["shops/laden1/privat"]["stripe"]["subscriptionId"] == "sub_1"
 
 
 def test_webhook_ohne_gueltige_signatur_abgelehnt():

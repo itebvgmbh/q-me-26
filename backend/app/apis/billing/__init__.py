@@ -17,22 +17,20 @@ from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
 from app.i18n import merke
+from app.libs.links import public_origin
 from app.libs.plans import FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, trial_end
+from app.libs.shop_privat import clear_stripe_ids, save_stripe_ids, stripe_ids
 from app.libs.stripe_billing import INTERVALS, client, lookup_key, price_id, stripe_configured
 
 router = APIRouter()
 
 FOUNDERS_DOC = ("meta", "gruender")
-ALLOWED_ORIGINS = ("https://dranzeit.de", "https://www.dranzeit.de", "https://q-me.spielmacherei.de", "http://localhost:5173")
 ACTIVE = ("active", "trialing", "past_due")
 
 
 def _origin(request: Request) -> str:
-    """Zurück zur Seite, von der der Inhaber kam – nur bekannte Adressen."""
-    origin = (request.headers.get("origin") or "").rstrip("/")
-    if origin in ALLOWED_ORIGINS:
-        return origin
-    return (os.environ.get("PUBLIC_URL", "").strip() or "https://dranzeit.de").rstrip("/")
+    """Zurück zur Seite, von der der Inhaber kam – nur bekannte Adressen (app/libs/links.py)."""
+    return public_origin(request)
 
 
 def _shop(shop_id: str) -> dict:
@@ -65,6 +63,24 @@ def stripe_errors(fn):
     return wrapper
 
 
+def known_customer(c, db, shop_id: str, shop: dict) -> str | None:
+    """Stripe-Kunde des Ladens, wenn es ihn im aktuellen Stripe-Modus gibt. Nach dem Wechsel vom Test- in den Live-Modus
+    kennt Stripe die Test-Kunden nicht: dann Verknüpfung und Abo-Stand vergessen, beim Abschließen entsteht ein neuer."""
+    customer_id = stripe_ids(db, shop_id, shop).get("customerId")
+    if not customer_id:
+        return None
+    try:
+        if not getattr(c.v1.customers.retrieve(customer_id), "deleted", False):
+            return customer_id
+    except stripe.InvalidRequestError as e:
+        if getattr(e, "code", None) != "resource_missing":
+            raise
+    print(f"Stripe: Kunde {customer_id} von Laden {shop_id} gibt es hier nicht (anderer Modus?) – Verknüpfung gelöst")
+    clear_stripe_ids(db, shop_id)
+    db.collection("shops").document(shop_id).update({"billing": None, "plan": "gratis"})
+    return None
+
+
 def _require_stripe() -> None:
     if not stripe_configured():
         raise HTTPException(status_code=503, detail="Die Bezahlung ist noch nicht eingerichtet. Schreib uns, wir schalten dich frei.")
@@ -88,11 +104,12 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
     billing = shop.get("billing") or {}
     base = _origin(request)
     c = client()
+    db = get_firestore_db()
+    customer_id = known_customer(c, db, body.shop_id, shop)
 
-    if billing.get("status") in ACTIVE and billing.get("customerId"):
-        return {"url": _portal_url(c, billing["customerId"], base)}
+    if billing.get("status") in ACTIVE and customer_id:
+        return {"url": _portal_url(c, customer_id, base)}
 
-    customer_id = billing.get("customerId")
     if not customer_id:
         customer = c.v1.customers.create(
             params={
@@ -103,7 +120,7 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
             }
         )
         customer_id = customer.id
-        get_firestore_db().collection("shops").document(body.shop_id).update({"billing.customerId": customer_id})
+        save_stripe_ids(db, body.shop_id, customer_id=customer_id)
 
     founder = bool(shop.get("founder"))
     subscription_data: dict = {"metadata": {"shopId": body.shop_id}}
@@ -151,10 +168,11 @@ def portal(body: ShopRequest, user: AuthorizedUser, request: Request) -> dict:
     """Kundenportal: Tarif wechseln, Zahlungsart ändern, Rechnungen, kündigen."""
     require_shop_of_owner(user, body.shop_id)
     _require_stripe()
-    customer_id = (_shop(body.shop_id).get("billing") or {}).get("customerId")
+    c = client()
+    customer_id = known_customer(c, get_firestore_db(), body.shop_id, _shop(body.shop_id))
     if not customer_id:
         raise HTTPException(status_code=409, detail="Für diesen Laden gibt es noch kein Abo.")
-    return {"url": _portal_url(client(), customer_id, _origin(request))}
+    return {"url": _portal_url(c, customer_id, _origin(request))}
 
 
 def founders_left() -> int:

@@ -4,14 +4,17 @@ import { firebaseApp } from 'app';
 import { Shop, Service } from './firestore/types';
 import { offeredServices } from './firestore/services';
 
+/** In öffentlichen Listen (Startseite, Läden finden, Ladenwahl): nicht gesperrt und nicht vom Betreiber ausgeblendet */
+export const inLadenliste = (shop: { suspended?: unknown; unlisted?: unknown }) => !shop.suspended && !shop.unlisted;
+
 // Holen Sie alle aktiven Shops für den Marktplatz
 /** Alle Shops vom Server; wirft bei fehlender Verbindung (statt still eine leere Liste zu liefern) */
 export const fetchMarketplaceShops = async (): Promise<Shop[]> => {
   const db = getFirestore(firebaseApp);
   const querySnapshot = await getDocsFromServer(collection(db, 'shops'));
-  // Vom Betreiber gesperrte Läden tauchen nirgends auf
+  // Gesperrte und ausgeblendete Läden tauchen in keiner Liste auf (per Link bleibt ein ausgeblendeter buchbar)
   return querySnapshot.docs
-    .filter((d) => !d.data().suspended)
+    .filter((d) => inLadenliste(d.data()))
     .map(doc => ({
       id: doc.id,
       ...doc.data()

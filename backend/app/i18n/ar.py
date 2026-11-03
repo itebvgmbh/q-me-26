@@ -198,7 +198,6 @@ TEXTE: dict = {
     "Für diesen Termin geht „Früher dran“ nicht mehr: Er hat schon angefangen oder ist abgesagt.":
         "«دور أبكر» لم يعد ممكنًا لهذا الموعد: لقد بدأ بالفعل أو أُلغي.",
     "Dieser Laden bietet „Früher dran“ gerade nicht an.": "هذا المحل لا يقدم «دور أبكر» حاليًا.",
-    "Nur die eigenen Benachrichtigungen.": "إشعاراتك الخاصة فقط.",
     "Zu viele Anfragen. Versuch es gleich noch einmal.": "طلبات كثيرة جدًا. حاول مرة أخرى بعد قليل.",
     # Fehlermeldungen: Kunden-Link, Datenschutz, Zugriff
     "Diesen Link gibt es nicht. Bitte den Laden um einen neuen.": "هذا الرابط غير موجود. اطلب من المحل رابطًا جديدًا.",
@@ -295,4 +294,7 @@ TEXTE: dict = {
     "Der Telefon-Assistent ist für diesen Laden noch nicht freigeschaltet.": "لم يتم تفعيل مساعد الهاتف لهذا المحل بعد.",
     "Das ist keine Rufnummer (z. B. 030 1234567).": "هذا ليس رقم هاتف (مثال: 030 1234567).",
     "Trag zuerst die Nummer deines Ladens ein.": "أدخل رقم محلك أولًا.",
+    "Unbekannter Laden.": "محل غير معروف.",
+    "Die freien Zeiten konnten nicht berechnet werden.": "تعذّر حساب الأوقات المتاحة.",
+    "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "هذا غير ممكن اليوم حاليًا. يُرجى إدخال البيانات يدويًا.",
 }
