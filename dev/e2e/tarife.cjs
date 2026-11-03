@@ -5,7 +5,7 @@
 //    Testphase schon beim Anlegen vorbei ist (lib.cjs tempShop). Die Testphase ändern darf nur das Backend
 //    (firestore.rules), also auch kein Test mehr am Testladen.
 // Braucht: Entwicklungsserver und Testdaten (python dev/fixtures.py anlegen). Löscht den Wegwerf-Laden samt Konto.
-const { BASE, launch, newPage, shot, collectErrors, fixture, tempShop, removeTempShop, report, run } = require('./lib.cjs');
+const { BASE, bisWann, launch, newPage, shot, collectErrors, fixture, tempShop, removeTempShop, report, run } = require('./lib.cjs');
 
 const signIn = async (page, fx) => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -69,14 +69,12 @@ run(async () => {
 
     // Termin buchen führt durch denselben Ablauf; erst im Schritt „Wann?“ steht, dass es nur die Nummer gibt
     await gratis.goto(`${BASE}/book-appointment?shopId=${g.shopId}&fromMarketplace=true`, { waitUntil: 'domcontentloaded' });
-    await gratis.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-    await gratis.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+    await bisWann(gratis);
     await gratis.getByText(/nimmt online keine festen Termine an/).waitFor({ timeout: 30000 });
     rows.push({ name: 'Gratis: keine Online-Termine, Hinweis auf Nummer ziehen', pass: true });
 
     await gratis.goto(`${BASE}/public-join-queue?shopId=${g.shopId}`, { waitUntil: 'domcontentloaded' });
-    await gratis.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-    await gratis.getByRole('button', { name: /Egal wer/ }).click({ timeout: 30000 });
+    await bisWann(gratis);
     await gratis.waitForFunction(() => /\d{2}:\d{2}|kein Platz/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 60000 });
     rows.push({ name: 'Gratis: kein "Früher dran" beim Nummer ziehen', pass: !(await text(gratis)).includes('Früher dran, wenn etwas frei wird') });
 

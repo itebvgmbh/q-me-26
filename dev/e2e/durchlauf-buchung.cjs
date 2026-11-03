@@ -1,7 +1,7 @@
 // Termin buchen als Gast bis kurz vor dem Buchen (bucht nicht). Läuft gegen QME_SHOP_ID (Standard: ITEBV GmbH).
 // Termin buchen ist derselbe Ablauf wie Nummer ziehen; im Schritt „Wann?“ ist die Wunschzeit vorgewählt.
 // Gäste finden „Termin buchen“ im Menü und oben auf „Nummer ziehen“; Umschalten tauscht Adresse und Überschrift.
-const { BASE, SHOP_ID, launch, newPage, collectErrors, shot, report, run } = require('./lib.cjs');
+const { BASE, SHOP_ID, bisWann, launch, newPage, collectErrors, shot, report, run } = require('./lib.cjs');
 
 run(async () => {
   const browser = await launch();
@@ -16,10 +16,8 @@ run(async () => {
   await page.locator('h1 + p').getByRole('button', { name: 'Termin buchen' }).click();
   await page.waitForURL(/\/book-appointment\?shopId=/, { timeout: 10000 }).catch(() => {});
   const umgeschaltet = `${vorher} → ${await h1.innerText()} (${new URL(page.url()).pathname})`;
-  // Leistung, dann „Egal wer“ (bei nur einer Person steht dort ihr Name)
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 30000 });
-  await page.getByRole('heading', { name: 'Wann passt es dir?' }).waitFor({ timeout: 30000 });
+  // Leistung, dann „Egal wer“ – wo es nur eine gibt, wählt die App selbst
+  await bisWann(page);
   await page.waitForTimeout(3000);
   const slots = page.locator('[aria-live] button[aria-label$="Uhr"]:not([disabled])');
   const jump = page.getByRole('button', { name: 'Nächsten freien Tag suchen' });

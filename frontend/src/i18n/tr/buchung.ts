@@ -259,6 +259,26 @@ const texte: Texte = {
   "zuletzt am {datum}": "son ziyaret: {datum}",
   "Egal wer": "Fark etmez",
   "In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.": "Önümüzdeki üç hafta boyunca boş yer yok. Başka bir hizmeti deneyin.",
+  // Vorab-Prüfung: Ruhetage, Ladenkarten live, Nummernseite (Kalender, nach Absage), Platz ändern
+  "An diesem Tag ist niemand da.": "Bu gün kimse çalışmıyor.",
+  "{tag}, geschlossen": "{tag}, kapalı",
+  "Heute geschlossen": "Bugün kapalı",
+  "Heute ab {zeit} Uhr geöffnet": "Bugün {zeit} itibarıyla açık",
+  "Für heute geschlossen": "Bugünlük kapandı",
+  "Pause bis {zeit} Uhr": "{zeit} saatine kadar mola",
+  "Geöffnet bis {zeit} Uhr": "{zeit} saatine kadar açık",
+  "Gerade wartet niemand": "Şu an bekleyen yok",
+  "Gerade warten {n} Personen": { one: "Şu an 1 kişi bekliyor", other: "Şu an {n} kişi bekliyor" },
+  "Jetzt:": "Şu an:",
+  "{leistung} bei {laden}": "{laden} – {leistung}",
+  "Bei {name}": "{name} ile",
+  "Nummer {nummer}": "Numara {nummer}",
+  "Dein Termin ist verschoben.": "Randevunuz değiştirildi.",
+  "Nochmal Nummer ziehen": "Tekrar numara al",
+  "Neue Nummer ziehen": "Yeni numara al",
+  "Neuen Termin buchen": "Yeni randevu al",
+  "In meinen Kalender": "Takvimime ekle",
+  "Google Kalender": "Google Takvim",
 };
 
 export default texte;

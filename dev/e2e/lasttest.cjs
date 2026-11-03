@@ -34,7 +34,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { berlin, launch, newPage, report, run, OUT } = require('./lib.cjs');
+const { berlin, bisWann, launch, newPage, report, run, OUT } = require('./lib.cjs');
 
 const KEY = 'AIzaSyCpgbiFJD9_s3RidrNVGUoVEvgcE8cE4DE'; // öffentlicher Web-Schlüssel, steht auch in der App
 const PROJECT = 'qmedata-7c79e';
@@ -538,8 +538,7 @@ async function lauf(only) {
       try {
         await page.clock.setFixedTime(at(rushDay, 6 * 60 + 50));
         await page.goto(`${LIVE}/public-join-queue?shopId=${state.shopId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        await page.getByRole('button', { name: /Schnitt/ }).first().click({ timeout: 60000 });
-        await page.getByRole('button', { name: /^Dora/ }).click({ timeout: 60000 });
+        await bisWann(page, { leistung: /Schnitt/, person: /^Dora/ });
         await page.locator('#queue-name').fill(`Ansturm ${i + 1}`, { timeout: 60000 });
         await page.waitForFunction(() => /\d{2}:\d{2}/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 60000 });
         const shown = (await page.locator('[aria-live="polite"]').first().innerText()).match(/\d{2}:\d{2}/)?.[0];

@@ -3,13 +3,12 @@
 //  2. mit Konto (Wegwerf-Konto, Rolle Kunde): Nummer ziehen → zurückgeben, Termin zur Wunschzeit buchen → absagen
 // Danach ist alles abgesagt und das Wegwerf-Konto gelöscht. Braucht den Entwicklungsserver (Konto anlegen über /src/…)
 // und das Backend ab diesem Stand (QME_BACKEND).
-const { BASE, launch, newPage, collectErrors, fixture, shot, report, run } = require('./lib.cjs');
+const { BASE, bisWann, launch, newPage, collectErrors, fixture, shot, report, run } = require('./lib.cjs');
 
 /** Nummer ziehen über /public-join-queue: Leistung, erste Person, (ohne Konto) Name, „Nummer ziehen“ */
 const pullNumber = async (page, shopId, name) => {
   await page.goto(`${BASE}/public-join-queue?shopId=${shopId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 30000 });
+  await bisWann(page); // Leistung und „Egal wer“, wo es etwas zu wählen gibt
   await page.getByText(/Nächster Platz|\d{2}:\d{2}/).first().waitFor({ timeout: 30000 });
   if (name) await page.locator('#queue-name').fill(name);
   await page.getByRole('button', { name: 'Nummer ziehen' }).click();
@@ -62,8 +61,7 @@ run(async () => {
     await step('Mit Konto: zurückgeben', () => cancelHere(page, true));
     await step('Mit Konto: Termin zur Wunschzeit buchen', async () => {
       await page.goto(`${BASE}/book-appointment?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
-      await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-      await page.locator('section button[aria-pressed]').first().click({ timeout: 30000 });
+      await bisWann(page); // Leistung und „Egal wer“, wo es etwas zu wählen gibt
       await page.getByRole('heading', { name: 'Wann passt es dir?' }).waitFor({ timeout: 30000 });
       await page.waitForTimeout(3000);
       const slots = page.locator('[aria-live] button[aria-label$="Uhr"]:not([disabled])');

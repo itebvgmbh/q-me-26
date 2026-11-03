@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Shop, Service } from '../utils/firestore/types';
 import { hasFeature } from '../utils/plans';
 import { telLink, useTelefonAnnahme } from '../utils/telefon-hinweis';
+import { oeffnungJetzt, wartendeText } from '../utils/laden-live';
 import { t, intlSprache } from '@/i18n';
 
 export interface ShopCardProps {
@@ -15,6 +16,8 @@ export interface ShopCardProps {
   tone?: 'light' | 'dark';
   /** Entfernung zum Nutzer (Shop-Karte) */
   distanceKm?: number;
+  /** Wie viele gerade warten (useWartende); fehlt die Zahl, steht nur die Öffnungszeit da */
+  wartende?: number;
 }
 
 const formatAddress = (shop: Shop) =>
@@ -23,10 +26,12 @@ const formatAddress = (shop: Shop) =>
     : shop.address || '';
 
 /** Shop-Karte mit den Wegen: einreihen, festen Termin buchen (nur, wenn der Tarif Online-Termine hat), per Telefon buchen (nur, wenn der Assistent abnimmt) */
-export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm }) => {
+export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 'light', distanceKm, wartende }) => {
   const address = formatAddress(shop);
   const dark = tone === 'dark';
   const telefonAnnahme = useTelefonAnnahme(shop.id);
+  // Offen oder zu, und wer gerade wartet – wie im Einbau-Kasten nur, solange offen ist
+  const oeffnung = oeffnungJetzt(shop);
   const outlineDark = dark && 'border-white/40 text-background hover:bg-background hover:text-foreground';
 
   return (
@@ -48,6 +53,20 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, services = [], tone = 
             <span>
               {address}
               {distanceKm !== undefined && <span className="font-mono"> · {distanceKm.toLocaleString(intlSprache(), { maximumFractionDigits: 1 })} km</span>}
+            </span>
+          </p>
+        )}
+        {oeffnung && (
+          <p className={cn('flex items-center gap-1.5 text-sm', dark ? 'text-white/70' : 'text-muted-foreground')}>
+            <span
+              className={cn('mx-[3px] h-2 w-2 shrink-0 rounded-full', oeffnung.offen ? 'bg-emerald-500' : dark ? 'bg-white/30' : 'bg-muted-foreground/40')}
+              aria-hidden="true"
+            />
+            <span>
+              {oeffnung.text}
+              {oeffnung.offen && wartende !== undefined && (
+                <span className={cn('font-semibold', dark ? 'text-background' : 'text-foreground')}> · {wartendeText(wartende)}</span>
+              )}
             </span>
           </p>
         )}

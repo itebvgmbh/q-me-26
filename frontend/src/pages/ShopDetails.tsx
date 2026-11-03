@@ -151,11 +151,13 @@ const ShopDetails = () => {
           ) : (
             <ul className="flex flex-col divide-y divide-border rounded-3xl border border-border bg-card px-5">
               {services.map((service) => (
-                <li key={service.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
-                  <div className="min-w-0 flex-1">
+                <li key={service.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 py-4">
+                  {/* Mindestbreite: am Handy rutschen die Knöpfe unter die Leistung, statt den Text Wort für Wort umzubrechen */}
+                  <div className="min-w-[13rem] flex-1">
                     <p className="font-display text-lg font-bold">{service.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-mono">{t('{minuten} Min', { minuten: service.duration })}</span> · <span className="font-mono">{euro(service.price)}</span>
+                      <span className="whitespace-nowrap font-mono">{t('{minuten} Min', { minuten: service.duration })}</span> ·{' '}
+                      <span className="whitespace-nowrap font-mono">{euro(service.price)}</span>
                       {service.description && ` · ${service.description}`}
                     </p>
                   </div>

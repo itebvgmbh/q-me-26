@@ -311,11 +311,15 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
     );
   }
 
+  // Erste Schritte nur am Tresen – im Kalender wäre es dieselbe Liste ein zweites Mal. Wartet heute jemand oder ist
+  // jemand dran, gehört die Schlange nach oben und die Liste darunter.
+  const startklar = heute && <Startklar key={shop.id} shop={shop} staff={staff} appointments={appointments} onEditShop={() => setShowEditShop(true)} />;
+  const kundenDa = heute && appointments.some((a) => a.status === 'scheduled' || a.status === 'in-progress');
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <PlanBanner shop={shop} />
-      {/* Erste Schritte nur am Tresen – im Kalender wäre es dieselbe Liste ein zweites Mal */}
-      {heute && <Startklar key={shop.id} shop={shop} staff={staff} appointments={appointments} onEditShop={() => setShowEditShop(true)} />}
+      {!kundenDa && startklar}
 
       {/* Kopf: Bereich, Laden, (Kalender: Tag und Ansicht), Aktionen */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -498,6 +502,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
           )}
         </>
       )}
+
+      {kundenDa && startklar}
 
       {/* Auf dem eigenen Handy: Bescheid bekommen, wenn ein Kunde bucht oder absagt (utils/team-push.ts) */}
       {heute && gespeichertesGeraet()?.rolle === 'handy' && <TeamPushSchalter />}

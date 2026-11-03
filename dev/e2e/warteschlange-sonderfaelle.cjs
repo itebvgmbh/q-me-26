@@ -1,5 +1,5 @@
 // Nummer ziehen – Sonderfälle in der Oberfläche (Testladen, verstellte Uhr):
-//  1. Personen-Schritt zeigt den nächsten Platz je Person
+//  1. Nur eine Leistung und eine Person (Testladen): gleich bei „Wann?“ mit dem nächsten Platz
 //  2. Platz wird kurz vor dem Bestätigen weggeschnappt → Nummer bekommt gleich den nächsten Platz,
 //     die Nummernseite sagt „verschoben“ (kein zweites Bestätigen)
 //  3. Seite stand offen, Platz liegt inzwischen in der Vergangenheit → Hinweis und neuer Platz
@@ -7,7 +7,7 @@
 // Montag der Testwoche (ein späterer Tag) rechnet es ab dessen Beginn – deshalb passt 2. Dass ein voller Tag nicht von
 // selbst auf morgen umbucht, prüft backend/tests/test_nummer_ziehen.py (test_tag_voll).
 // Braucht: Entwicklungsserver und Testdaten.
-const { BASE, berlin, launch, newPage, collectErrors, fixture, report, run, shot, signIn } = require('./lib.cjs');
+const { BASE, berlin, bisWann, launch, newPage, collectErrors, fixture, report, run, shot, signIn } = require('./lib.cjs');
 
 run(async () => {
   const fx = fixture();
@@ -25,18 +25,17 @@ run(async () => {
     const errors = collectErrors(page);
     await page.clock.setFixedTime(berlin(clock));
     await page.goto(`${BASE}/public-join-queue?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: /Schnitt/ }).first().click({ timeout: 60000 });
-    await page.getByText(/Nächster Platz/).first().waitFor({ timeout: 30000 });
-    return { page, errors };
+    const schritte = await bisWann(page);
+    await page.waitForFunction(() => /\d{2}:\d{2}/.test(document.querySelector('[aria-live="polite"]')?.textContent || ''), null, { timeout: 30000 });
+    return { page, errors, schritte };
   };
   const waitFor = (page, time) => page.waitForFunction((t) => (document.querySelector('[aria-live="polite"]')?.textContent || '').includes(t), time, { timeout: 30000 });
 
   // 1 + 2: weggeschnappt
   {
-    const { page, errors } = await open(`${mo}T08:40:00`);
-    const staffStep = (await page.locator('section').first().innerText()).replace(/\n+/g, ' | ');
-    rows.push({ name: 'Personen-Schritt zeigt Zeiten', pass: /Robin \| Nächster Platz 09:00/.test(staffStep), detail: staffStep.slice(0, 120) });
-    await page.getByRole('button', { name: /^Robin/ }).click();
+    const { page, errors, schritte } = await open(`${mo}T08:40:00`);
+    const first = await box(page);
+    rows.push({ name: 'Eine Leistung/Person: gleich „Wann?“', pass: schritte.join() === 'wann' && /09:00/.test(first), detail: `${schritte.join(' → ')} · ${first.slice(0, 80)}` });
     await page.locator('#queue-name').fill('Test Sonderfall');
     const before = await box(page);
     const blockerId = await owner.evaluate(async (fx) => {
@@ -74,7 +73,6 @@ run(async () => {
   // 3: vorbei
   {
     const { page, errors } = await open(`${mo}T08:50:00`);
-    await page.getByRole('button', { name: /Egal wer/ }).click();
     await page.locator('#queue-name').fill('Test Sonderfall');
     const before = await box(page);
     await page.clock.setFixedTime(berlin(`${mo}T09:05:00`));

@@ -24,6 +24,9 @@ interface Props {
   /** Nummer ohne Konto: ihr Schlüssel (utils/ticket-key.ts) */
   ticketKey: string | null;
   signedIn: boolean;
+  /** jetzige Zeit: steht oben, und der Kalender fängt an diesem Tag an */
+  currentStart?: Date;
+  onMoved?: () => void;
 }
 
 const zeitText = (d: Date) => format(d, t('EEE d. MMM, HH:mm'), { locale: datumsLocale() });
@@ -33,7 +36,7 @@ const zeitText = (d: Date) => format(d, t('EEE d. MMM, HH:mm'), { locale: datums
  * der jetzige Platz bleibt, bis der neue sicher ist (backend/app/apis/nummer, /nummer/verschieben). Danach ist es
  * ein fester Termin; die Nummernseite zeigt die neue Zeit von selbst (öffentliche Kurzfassung, live).
  */
-export function PlatzAendern({ open, onOpenChange, appointmentId, shopId, serviceId, staffId, ticketKey, signedIn }: Props) {
+export function PlatzAendern({ open, onOpenChange, appointmentId, shopId, serviceId, staffId, ticketKey, signedIn, currentStart, onMoved }: Props) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [person, setPerson] = useState(staffId || EGAL);
   const [slot, setSlot] = useState<CalendarTimeSlot | null>(null);
@@ -85,6 +88,7 @@ export function PlatzAendern({ open, onOpenChange, appointmentId, shopId, servic
       });
       useTimeSlotStore.getState().invalidateCache(shopId, slot.start);
       toast.success(t('Dein Platz ist jetzt {zeit}.', { zeit: zeitText(slot.start) }));
+      onMoved?.();
       onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('Das hat nicht geklappt. Versuch es noch einmal.'));
@@ -105,6 +109,12 @@ export function PlatzAendern({ open, onOpenChange, appointmentId, shopId, servic
             <SheetTitle className="font-display text-2xl">{t('Platz ändern')}</SheetTitle>
             <SheetDescription>{t('Such dir eine andere Zeit aus. Dein jetziger Platz bleibt, bis der neue sicher ist.')}</SheetDescription>
           </SheetHeader>
+
+          {currentStart && (
+            <p className="rounded-2xl border border-border bg-card px-4 py-3 text-sm">
+              {t('Jetzt:')} <strong className="font-mono">{zeitText(currentStart)}</strong>
+            </p>
+          )}
 
           {eligible.length > 1 && (
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('Bei wem?')}>
@@ -133,6 +143,7 @@ export function PlatzAendern({ open, onOpenChange, appointmentId, shopId, servic
             staffIds={anyStaff ? eligible.map((s) => s.id) : undefined}
             selectedSlot={slot}
             onTimeSlotSelect={setSlot}
+            initialDate={currentStart}
             forceRefresh
           />
 

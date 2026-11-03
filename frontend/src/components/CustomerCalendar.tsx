@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
+import { doc, getDoc } from 'firebase/firestore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarTimeSlot, TimeSlot } from '../utils/types';
 import useTimeSlotStore from '../utils/timeSlotStore';
+import { firestore } from '../utils/firestore-client';
+import { buildDayContext, loadShopData, type StaffRangeData } from '../utils/booking-rules';
 import { t, tn, datumsLocale } from '@/i18n';
 
 interface Props {
@@ -16,6 +19,8 @@ interface Props {
   selectedSlot?: CalendarTimeSlot | null;
   onTimeSlotSelect: (timeSlot: CalendarTimeSlot) => void;
   forceRefresh?: boolean;
+  /** Tag, mit dem der Kalender anfängt (z. B. der jetzige Termin bei „Platz ändern“); früher als heute zählt heute */
+  initialDate?: Date;
 }
 
 type Slot = TimeSlot & { staffOptions?: string[] };
@@ -40,9 +45,13 @@ const mergeSlots = (staffIds: string[], perStaff: TimeSlot[][]): Slot[] => {
 };
 
 /** Wochenleiste + freie Uhrzeiten eines Tages */
-export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selectedSlot, onTimeSlotSelect, forceRefresh = false }: Props) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date>(startOfToday());
+export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selectedSlot, onTimeSlotSelect, forceRefresh = false, initialDate }: Props) => {
+  const firstDay = () => {
+    const day = initialDate ? new Date(new Date(initialDate).setHours(0, 0, 0, 0)) : startOfToday();
+    return day < startOfToday() ? startOfToday() : day;
+  };
+  const [currentDate, setCurrentDate] = useState(firstDay);
+  const [selectedDate, setSelectedDate] = useState<Date>(firstDay);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +74,63 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
     },
     [anyStaffIds, getTimeSlots, shopId, serviceId, staffId],
   );
+
+  // Ruhetage des Ladens und freie Tage der Personen nach denselben Regeln wie die Buchung (booking-rules.ts):
+  // in der Wochenleiste gleich erkennbar, und beim Tag steht der Grund statt „nichts mehr frei“
+  const [dayRules, setDayRules] = useState<StaffRangeData[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    setDayRules(null);
+    const ids: (string | null)[] = staffId ? [staffId] : anyStaffIds.length > 0 ? anyStaffIds : [null];
+    Promise.all([loadShopData(shopId), ...ids.map((id) => (id ? getDoc(doc(firestore, 'staff', id)) : null))])
+      .then(([shop, ...people]) => {
+        if (!active) return;
+        setDayRules(
+          ids.map((id, i) => {
+            const snap = people[i];
+            return { shop, staffId: id, staff: snap?.exists() ? snap.data() : null, recurringBreaks: [], breaks: [], appointments: [] };
+          }),
+        );
+      })
+      .catch(() => {}); // ohne Regeln wie bisher: der Tag zeigt dann nur „nichts mehr frei“
+    return () => {
+      active = false;
+    };
+  }, [shopId, staffId, anyStaffIds]);
+
+  /** Warum an diesem Tag gar nichts geht (Ruhetag, Person frei); null = offen oder noch nicht bekannt */
+  const closedReason = useCallback(
+    (day: Date): string | null => {
+      if (!dayRules) return null;
+      const reasons = dayRules.map((data) => buildDayContext(data, day).closedReason);
+      if (reasons.some((r) => r === null)) return null;
+      return new Set(reasons).size === 1 ? reasons[0] : t('An diesem Tag ist niemand da.');
+    },
+    [dayRules],
+  );
+
+  /** Erster Tag ab from (nicht vor heute), an dem der Laden auf hat – höchstens zwei Wochen voraus */
+  const firstOpenDay = useCallback(
+    (from: Date) => {
+      const start = from < startOfToday() ? startOfToday() : from;
+      for (let i = 0; i < 14; i++) {
+        const day = addDays(start, i);
+        if (!closedReason(day)) return day;
+      }
+      return start;
+    },
+    [closedReason],
+  );
+
+  // Ist heute Ruhetag, gleich den nächsten offenen Tag zeigen – aber nur, solange niemand selbst gewählt hat
+  const pickedByUser = useRef(false);
+  useEffect(() => {
+    if (!dayRules || pickedByUser.current || !closedReason(selectedDate)) return;
+    const day = firstOpenDay(selectedDate);
+    setCurrentDate(day);
+    setSelectedDate(day);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayRules]);
 
   useEffect(() => {
     if (!shopId || !serviceId) return;
@@ -96,7 +162,9 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
     const next = addDays(currentDate, forward ? 7 : -7);
     setCurrentDate(next);
     const nextStart = startOfWeek(next, { weekStartsOn: 1 });
-    setSelectedDate(nextStart < startOfToday() ? startOfToday() : nextStart);
+    const day = firstOpenDay(nextStart);
+    // Hat der Laden die ganze Woche zu, bleibt der erste Tag der Woche gewählt (mit Grund)
+    setSelectedDate(day < addDays(nextStart, 7) ? day : nextStart < startOfToday() ? startOfToday() : nextStart);
   };
 
   const freeCount = availableSlots.filter((s) => s.isAvailable).length;
@@ -110,6 +178,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
     try {
       for (let i = 1; i <= 21; i++) {
         const day = addDays(selectedDate, i);
+        if (closedReason(day)) continue;
         const slots = await slotsFor(day, false);
         if (slots.some((slot) => slot.isAvailable && slot.start > new Date())) {
           setCurrentDate(day);
@@ -141,23 +210,35 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
         {weekDays.map((day) => {
           const isPast = day < startOfToday();
           const selected = isSameDay(day, selectedDate);
+          const closed = !isPast && !!closedReason(day);
+          const label = format(day, t('EEEE, d. MMMM'), { locale: datumsLocale() });
           return (
             <button
               key={day.toISOString()}
               type="button"
               disabled={isPast}
               aria-pressed={selected}
-              aria-label={format(day, t('EEEE, d. MMMM'), { locale: datumsLocale() })}
-              onClick={() => setSelectedDate(day)}
+              aria-label={closed ? t('{tag}, geschlossen', { tag: label }) : label}
+              onClick={() => {
+                pickedByUser.current = true;
+                setSelectedDate(day);
+              }}
               className={cn(
                 'flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl border text-sm transition-colors',
                 selected ? 'border-foreground bg-foreground text-signal' : 'border-border bg-card hover:border-foreground',
                 isPast && 'cursor-not-allowed border-transparent bg-transparent text-muted-foreground/50 hover:border-transparent',
+                closed && !selected && 'border-dashed bg-transparent text-muted-foreground/60',
               )}
             >
               <span className="text-xs font-medium uppercase">{format(day, 'EEEEEE', { locale: datumsLocale() })}</span>
-              <span className="font-mono text-lg font-bold">{format(day, 'd')}</span>
-              {isToday(day) && !selected && <span className="h-1 w-1 rounded-full bg-foreground" aria-hidden="true" />}
+              <span className={cn('font-mono text-lg font-bold', closed && !selected && 'line-through')}>{format(day, 'd')}</span>
+              {closed ? (
+                <span className="text-[10px] leading-none" aria-hidden="true">
+                  {t('zu')}
+                </span>
+              ) : (
+                isToday(day) && !selected && <span className="h-1 w-1 rounded-full bg-foreground" aria-hidden="true" />
+              )}
             </button>
           );
         })}
@@ -183,7 +264,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
                 ? anyStaffIds.length > 0
                   ? t('In den nächsten drei Wochen ist nichts frei. Probier eine andere Leistung.')
                   : t('In den nächsten drei Wochen ist nichts frei. Probier eine andere Person.')
-                : t('An diesem Tag ist nichts mehr frei.')}
+                : (closedReason(selectedDate) ?? t('An diesem Tag ist nichts mehr frei.'))}
             </p>
             {!nothingAhead && (
               <Button variant="outline" size="sm" onClick={findNextFreeDay} disabled={searching}>

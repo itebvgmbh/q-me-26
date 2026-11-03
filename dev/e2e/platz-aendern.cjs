@@ -1,7 +1,7 @@
 // Termin ohne Konto im Testladen buchen, „Platz ändern“ auf eine andere Zeit, dann absagen (räumt so selbst auf).
 // Schreibt echt über das Backend (/nummer/termin, /nummer/verschieben) – nur im Testladen aus dev/fixtures.py.
 // Läuft auch gegen dranzeit.de (QME_URL), weil es nur die Oberfläche bedient.
-const { BASE, launch, newPage, collectErrors, fixture, shot, report, run } = require('./lib.cjs');
+const { BASE, bisWann, launch, newPage, collectErrors, fixture, shot, report, run } = require('./lib.cjs');
 
 /** Freie Zeiten im Kalender; ohne freie am gezeigten Tag die nächsten Tage durchgehen */
 const freeSlots = async (page, scope) => {
@@ -32,8 +32,7 @@ run(async () => {
 
   // 1. Termin ohne Konto
   await page.goto(`${BASE}/book-appointment?shopId=${fx.shopId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 60000 });
-  await page.locator('section button[aria-pressed]').first().click({ timeout: 30000 });
+  await bisWann(page); // Leistung und „Egal wer“, wo es etwas zu wählen gibt
   await page.getByRole('heading', { name: 'Wann passt es dir?' }).waitFor({ timeout: 30000 });
   const slots = await freeSlots(page, page);
   check('Freie Zeiten zum Buchen', (await slots.count()) > 0, `${await slots.count()}`);
