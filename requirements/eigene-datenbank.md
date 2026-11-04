@@ -19,6 +19,10 @@
     Nachricht an den Kunden. Die Regelprüfung (Öffnungs- und Arbeitszeiten, Pausen) läuft noch im Browser
     (`utils/booking-rules.ts`, liest Firestore) und kommt mit dem Bereich Online-Buchung ins Backend. Tests:
     `backend/tests/test_team_termine.py`, `dev/e2e/team-termine.cjs`.
+  - Stufe 2, Bereich 3 live seit 04.11.2026: Mein Tag liest die Termine der Person über `/routes/team/termine`
+    (`utils/hooks/useAppointments.ts`) und lädt nach dem Anlegen gleich nach. Personendaten, Leistungen und Pausen
+    liest Mein Tag noch aus Firestore; die kommen mit den Bereichen „Team und Leistungen“ und „Pausen“. Test:
+    `dev/e2e/mein-tag.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend

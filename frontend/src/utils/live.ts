@@ -179,9 +179,13 @@ export function useLive<T extends { kanaele?: string[] }>(
       setFehlversuche(0);
     } catch (e) {
       if (nr !== lauf.current) return;
+      const status = (e as { status?: number } | null)?.status;
       if (e instanceof LiveFehlt) {
         setDaten(null);
         setFehlt(true);
+        setFehlversuche(0);
+      } else if (status === 401 || status === 403) {
+        // Keine Berechtigung (z. B. aus dem Team genommen): nicht alle paar Sekunden neu fragen, der Takt reicht
         setFehlversuche(0);
       } else {
         setFehlversuche((n) => n + 1);
@@ -250,5 +254,6 @@ export function useLive<T extends { kanaele?: string[] }>(
     };
   }, [kanaele, laden]);
 
-  return { daten, fehlt, stoerung: fehlversuche > 0, neuLaden: () => void laden() };
+  const neuLaden = useCallback(() => void laden(), [laden]);
+  return { daten, fehlt, stoerung: fehlversuche > 0, neuLaden };
 }
