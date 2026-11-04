@@ -1,12 +1,17 @@
 """
 Vertrag der Speicher-Schicht (app/store, requirements/eigene-datenbank.md): So verhält sich der Teil von Firestore, den
-das Backend benutzt. Die Tests laufen auf GitHub gegen den Firestore-Emulator (Workflow „Datenbank“). In Stufe 3 muss
-die Umsetzung auf PostgreSQL genau dieselben Tests bestehen. Weicht sie ab, ändert sich das Verhalten der App.
+das Backend benutzt. Die Tests laufen auf GitHub gegen den Firestore-Emulator und gegen PostgreSQL (app/store/postgres.py,
+Workflow „Datenbank“). Beide müssen genau dieselben Tests bestehen. Weicht eine ab, ändert sich das Verhalten der App.
 
-Ohne Emulator wird alles übersprungen. Mit Emulator (Java und firebase-tools aus dev/regeln):
+Ohne Emulator und ohne Datenbank wird alles übersprungen. Mit Emulator (Java und firebase-tools aus dev/regeln):
 
     cd dev/regeln && npx firebase emulators:exec --only firestore --project demo-dranzeit \
         "../../backend/.venv/bin/python ../../backend/tests/test_speicher_vertrag.py"
+
+Mit PostgreSQL (eine Wegwerf-Datenbank, nie die echte):
+
+    cd backend && QME_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/q_me_test \
+        .venv/bin/python tests/test_speicher_vertrag.py
 
 Jeder Lauf schreibt in eigene Sammlungen (vertrag_<zufall>_…), im Emulator also ohne Rückstände für andere Tests.
 """
@@ -29,11 +34,26 @@ BERLIN = ZoneInfo("Europe/Berlin")
 
 
 def client():
-    """Client für den Vertrag: Firestore-Emulator, in Stufe 3 zusätzlich PostgreSQL."""
+    """Client für den Vertrag: Firestore-Emulator (FIRESTORE_EMULATOR_HOST) oder PostgreSQL (QME_TEST_DATABASE_URL,
+    eine Wegwerf-Datenbank: das Schema wird auf die neueste Fassung gebracht)."""
     if os.environ.get("FIRESTORE_EMULATOR_HOST"):
         from google.cloud import firestore
 
         return firestore.Client(project=os.environ.get("GCLOUD_PROJECT", "demo-dranzeit"))
+    url = os.environ.get("QME_TEST_DATABASE_URL", "").strip()
+    if url:
+        from alembic import command
+        from alembic.config import Config
+
+        from app.libs import datenbank
+        from app.store.postgres import Client
+
+        os.environ["QME_DATABASE_URL"] = url
+        datenbank._engine = None
+        cfg = Config(os.path.join(BACKEND, "alembic.ini"))
+        cfg.set_main_option("script_location", os.path.join(BACKEND, "migrations"))
+        command.upgrade(cfg, "head")
+        return Client(datenbank.engine())
     return None
 
 
@@ -378,9 +398,9 @@ if __name__ == "__main__":
     db = client()
     vertraege = [v for k, v in dict(globals()).items() if k.startswith("vertrag_")]
     if db is None:
-        print(f"{len(vertraege)} Verträge übersprungen (ohne FIRESTORE_EMULATOR_HOST)")
+        print(f"{len(vertraege)} Verträge übersprungen (ohne FIRESTORE_EMULATOR_HOST oder QME_TEST_DATABASE_URL)")
         sys.exit(0)
     for v in vertraege:
         v(db)
         print("ok ", v.__name__)
-    print(f"{len(vertraege)} Verträge bestanden ({LAUF})")
+    print(f"{len(vertraege)} Verträge bestanden ({LAUF}, {type(db).__module__})")

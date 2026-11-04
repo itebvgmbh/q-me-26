@@ -292,4 +292,6 @@ TEXTE: dict = {
     "Das Bild ist zu groß (höchstens 5 MB).": "Görsel çok büyük (en fazla 5 MB).",
     "Bitte ein Bild als PNG, JPEG oder WebP.": "Lütfen PNG, JPEG veya WebP görsel kullan.",
     "Diese Datei gibt es nicht.": "Bu dosya mevcut değil.",
+    # Briefdienst (app/apis/briefdienst)
+    "Unbekannt.": "Bilinmiyor.",
 }

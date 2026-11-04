@@ -45,7 +45,15 @@
     (`…/person/<id>/belegt`); „Monat voll“ im Gratis-Tarif über `/routes/live/laden/<id>/monat`. Damit lädt der
     Browser Firestore und Firebase Storage gar nicht mehr (Bundle ohne Firestore, `utils/connection.ts` ohne
     Long-Polling). Tests: `backend/tests/test_laeden.py`, `dev/e2e/konto-laeden.cjs`, `dev/e2e/verbindung.cjs`.
-    Offen in Stufe 2: Firestore-Regeln auf „kein Zugriff aus dem Browser“ (Stefan spielt sie ein).
+    Live seit 04.11.2026 (PR #125).
+  - Stufe 2 abgeschlossen: Firestore-Regeln Fassung 2026-11-04 „für den Browser alles zu“, Speicher-Regeln nur noch
+    Ansehen älterer Bilder (PR #126). Einspielen von Hand durch Stefan (`deploy/README.md`, Abschnitt
+    „Firestore-Regeln“); prüfen mit `dev/e2e/regeln-live.cjs`.
+  - Stufe 3 vorbereitet (04.11.2026): Speicher-Schicht auf PostgreSQL (`backend/app/store/postgres.py`, Tabelle
+    `dokumente` aus Fassung 0002), besteht dieselben Verträge wie Firestore; Live-Abfragen über `LISTEN/NOTIFY`.
+    Umzug mit `deploy/datenumzug.sh` (Probelauf, Umzug mit kurzer Pause des Dienstes, Zurück), Test
+    `backend/tests/test_datenumzug.py`. Geändert gegenüber dem Plan: statt Wartungsmodus hält der Umzug den Dienst für
+    ein paar Minuten an – so schreibt auch keine Hintergrundaufgabe dazwischen. Offen: Stefan startet Probelauf und Umzug.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend
@@ -306,7 +314,7 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
 | Nächtliche Sicherung (cron) und Probe-Wiederherstellung | Claude per ssh | 0 |
 | PostgreSQL auf Stefans Rechner (für Tests) | Stefan, fertiger Befehl | 1 |
 | Firestore-Regeln „kein Zugriff aus dem Browser“ einspielen | Stefan, wie bisher | 2 |
-| Datenumzug im Wartungsfenster (liest Produktionsdaten) | Stefan, fertiger Block | 3 |
+| Datenumzug, Dienst dabei ein paar Minuten aus (liest Produktionsdaten): `deploy/datenumzug.sh probe`, dann `umzug` | Stefan, fertiger Block | 3 |
 | Firebase-Hash-Parameter (Geheimnis) | Stefan, Block mit `Read-Host -AsSecureString` | 4 |
 | Umzug der Dateien aus Firebase Storage | Stefan, fertiger Block | 5 |
 | APNs-Schlüssel (Geheimnis), neue Fassung der iPhone-App | Stefan | 5 |

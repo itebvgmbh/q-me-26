@@ -324,4 +324,6 @@ TEXTE: dict = {
     "Das Bild ist zu groß (höchstens 5 MB).": "الصورة كبيرة جدًا (5 ميغابايت كحد أقصى).",
     "Bitte ein Bild als PNG, JPEG oder WebP.": "يرجى استخدام صورة بصيغة PNG أو JPEG أو WebP.",
     "Diese Datei gibt es nicht.": "هذا الملف غير موجود.",
+    # Briefdienst (app/apis/briefdienst)
+    "Unbekannt.": "غير معروف.",
 }

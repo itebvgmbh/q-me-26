@@ -294,4 +294,6 @@ TEXTE: dict = {
     "Das Bild ist zu groß (höchstens 5 MB).": "The image is too large (5 MB at most).",
     "Bitte ein Bild als PNG, JPEG oder WebP.": "Please use a PNG, JPEG or WebP image.",
     "Diese Datei gibt es nicht.": "This file doesn't exist.",
+    # Briefdienst (app/apis/briefdienst)
+    "Unbekannt.": "Unknown.",
 }

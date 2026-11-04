@@ -10,12 +10,14 @@ on:
     paths:
       - backend/**
       - deploy/datenbank.sh
+      - deploy/datenumzug.*
       - deploy/update.sh
       - .github/workflows/datenbank.yml
   pull_request:
     paths:
       - backend/**
       - deploy/datenbank.sh
+      - deploy/datenumzug.*
       - deploy/update.sh
       - .github/workflows/datenbank.yml
   workflow_dispatch:
@@ -52,12 +54,21 @@ jobs:
         working-directory: deploy
         run: |
           bash -n datenbank.sh
+          bash -n datenumzug.sh
           bash -n update.sh
-          shellcheck -S warning datenbank.sh
+          shellcheck -S warning datenbank.sh datenumzug.sh
       - name: Anbindung und Schema
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
         run: .venv/bin/python tests/test_datenbank.py
+      - name: Vertrag gegen PostgreSQL (app/store/postgres.py)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_speicher_vertrag.py
+      - name: Umzug Firestore → PostgreSQL (deploy/datenumzug.py)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_datenumzug.py
       - name: Kein Zugriff an der Speicher-Schicht vorbei
         run: .venv/bin/python tests/test_speicher_gebuendelt.py
       - name: Live-Daten für Nummer und Bildschirm (app/apis/live)

@@ -157,6 +157,39 @@ leer.
   laufen auf GitHub gegen eine Wegwerf-Datenbank (Workflow „Datenbank“). Ohne `QME_TEST_DATABASE_URL` laufen lokal nur
   die Tests der Adresse.
 
+### Umzug von Firestore nach PostgreSQL (Stufe 3)
+
+Das Backend kann seine Daten in Firestore oder in PostgreSQL halten, mit demselben Verhalten
+(`backend/app/store/postgres.py`, Tabelle `dokumente`; geprüft von `backend/tests/test_speicher_vertrag.py` gegen
+beide). Welche gilt, steht in `/etc/q-me.env` als `QME_SPEICHER=postgres`; fehlt die Zeile, gilt Firestore. Ein
+`git pull` oder Ausrollen schaltet nicht um, und es zieht keine Daten um.
+
+Umziehen geht mit `deploy/datenumzug.sh`. Das Skript liest alle Produktionsdaten aus Firestore, deshalb startet es
+Stefan. Jeder Schritt ist ein einzelner Befehl:
+
+1. **Probelauf, jederzeit, ohne Unterbrechung.** Er zieht alles in eine Wegwerf-Datenbank `q_me_probe`, vergleicht
+   Anzahlen und eine Stichprobe und löscht die Probe wieder. Am Ende muss „Probelauf … stimmt“ stehen.
+
+```powershell
+ssh -o BatchMode=yes -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 'bash /opt/q-me/deploy/datenumzug.sh probe'; if ($LASTEXITCODE -eq 0) { Write-Host 'Probelauf stimmt.' -ForegroundColor Green } else { Write-Host "Probelauf fehlgeschlagen (Code $LASTEXITCODE) - Ausgabe oben an Claude geben. Verbindung pruefen: Abschnitt Verbindung pruefen." -ForegroundColor Red }
+```
+
+2. **Umzug, nachts.** Der Dienst ist dabei ein paar Minuten aus. Das Skript sichert die Datenbank, hält den Dienst an,
+   zieht um, vergleicht und schaltet auf PostgreSQL. Stimmt der Vergleich nicht oder startet das Backend nicht, läuft
+   es unverändert mit Firestore weiter.
+
+```powershell
+ssh -o BatchMode=yes -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 'bash /opt/q-me/deploy/datenumzug.sh umzug'; if ($LASTEXITCODE -eq 0) { Write-Host 'Umzug fertig, Dranzeit laeuft auf PostgreSQL.' -ForegroundColor Green } else { Write-Host "Umzug nicht fertig (Code $LASTEXITCODE), Dranzeit laeuft weiter mit Firestore. Ausgabe oben an Claude geben." -ForegroundColor Red }
+```
+
+3. **Prüfen:** Claude lässt `verbindung.cjs`, `live.cjs` und `seiten.cjs` gegen dranzeit.de laufen. Danach am
+   Tresen einen Termin anlegen und aufrufen, im privaten Fenster eine Nummer ziehen und wieder absagen.
+
+**Zurück:** `bash /opt/q-me/deploy/datenumzug.sh zurueck` schaltet wieder auf Firestore. Das passt nur direkt nach dem
+Umzug: Was danach in PostgreSQL geschrieben wurde, fehlt in Firestore. Ab dann nur noch vorwärts korrigieren.
+Firestore bleibt als Archiv stehen und wird nicht mehr beschrieben. Welcher Speicher gerade gilt:
+`bash /opt/q-me/deploy/datenumzug.sh stand`.
+
 ## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
