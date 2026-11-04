@@ -294,31 +294,19 @@ Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des
 Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
 Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
 
-Fassung 2026-10-29 (Kopfzeile `// Fassung:` in `firestore.rules`):
-- Lesen bleibt offen, wo Buchen und Nummer ziehen ohne Anmeldung es brauchen (Läden, Personen ohne Kontaktdaten,
-  Leistungen, Pausen, Kurzfassung der Termine, Belegung, Tagesnummern).
-- Termine selbst (Name, Handynummer, E-Mail, Konto) lesen nur Inhaber, Team und das eigene Konto; E-Mail und Telefon
-  der Personen im Team (`shops/{id}/staff_contacts`) nur der Inhaber.
-- Schreiben nur, wer zum Laden gehört: Inhaber oder Person im Team. Kunden (ohne Anmeldung oder mit Kunden-Konto)
-  schreiben weder Termine noch Belegung, Tagesnummern oder Kurzfassung: Nummer ziehen, buchen, Platz ändern, absagen
-  und eine Nummer ins Konto übernehmen gehen über das Backend (`backend/app/apis/nummer`), ohne Konto mit dem
-  Schlüssel aus dem Link der Nummernseite.
-- Kundenliste nur für Inhaber und Team, Profile nur für das eigene Konto, Angebote „Früher dran“ nur für das eigene.
-- Tarif-Felder am Laden nur das Backend; `meta`, `push_subscriptions`, `team_push_subscriptions`, `staff-invitations`,
-  `verzeichnis` sind zu. Die Merker für Nachrichten ans Team (`teamNotice` …) am Termin setzt nur das Backend.
+Fassung 2026-11-04 (Kopfzeile `// Fassung:` in `firestore.rules`): **Für den Browser ist alles zu.** Seit Stufe 2 von
+`requirements/eigene-datenbank.md` liest und schreibt die App nur noch über das Backend (`/routes/live`,
+`/routes/team`, `/routes/konto`, `/routes/nummer` …). Das Backend arbeitet mit dem Admin SDK und ist von den Regeln
+nicht betroffen; wer was darf, prüft es selbst. Die Regeln sind damit nur noch das Schloss davor: Wer den öffentlichen
+Web-Schlüssel aus der App nimmt, kommt an keine Daten.
 
-**Team** erkennen die Regeln an einem Vermerk `shops/{shopId}/members/{uid}`. Ihn setzt das Backend beim Annehmen
-einer Einladung und gleicht ihn bei jedem Start mit den Personen ab (`backend/app/libs/team.py`, im Log „Team-Vermerke
-abgeglichen“). Deshalb gilt: **erst ausrollen, dann einspielen** – sonst sehen Personen im Team die Kundenliste
-nicht. Ein `git pull` bringt die Vermerke nicht mit; sie entstehen beim ersten Start des Dienstes. Ebenso beim ersten
-Start mit Fassung 2026-10-23.2: die Kurzfassungen der Termine (Log „Kurzfassungen der Termine angelegt“) und der
-Umzug von E-Mail und Telefon der Personen zu den Kontaktdaten des Ladens (Log „Kontaktdaten des Teams umgezogen“).
-Fehlen sie, sieht die Nummernseite ältere Nummern nicht. Browserfenster, die seit vor dem Ausrollen offen sind (etwa
-der Tresen), nach dem Einspielen einmal neu laden.
+**Erst ausrollen, dann einspielen.** Erst der Stand mit PR #125 liest alles über das Backend; mit den neuen Regeln und
+einem älteren Stand im Browser blieben Seiten leer. Ob der Stand live ist, zeigt `node dev/e2e/regeln-live.cjs`
+(„Laden über das Backend“ OK). Browserfenster, die seit vor dem Ausrollen offen sind (etwa der Tresen), nach dem
+Einspielen einmal neu laden. An Daten bringt ein `git pull` hierfür nichts Neues mit.
 
-Für Fassung 2026-10-29 genauso: **erst ausrollen, dann einspielen.** Erst der neue Stand zieht Nummern und bucht über
-das Backend; mit den neuen Regeln und dem alten Stand im Browser kämen Kunden nicht mehr in die Schlange. Eine Seite
-zum Nummer-Ziehen, die seit vor dem Ausrollen offen ist, lädt beim nächsten Aufruf den neuen Stand.
+Die letzte Fassung mit Zugriff aus dem Browser (2026-10-29) steht in der Git-Geschichte von `firestore.rules`; die
+eingespielte Fassung sichert der Block unten ohnehin nach `Downloads`.
 
 ### Einspielen
 
@@ -336,13 +324,11 @@ zum Nummer-Ziehen, die seit vor dem Ausrollen offen ist, lädt beim nächsten Au
 
 ### Prüfen
 
-- Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern; im privaten Fenster (ohne Anmeldung)
-  eine Nummer ziehen und auf der Nummernseite wieder absagen.
-- Im privaten Fenster: Nummer ziehen, Seite schließen, über den Link wieder öffnen und zurückgeben; am Tresen
-  stehen Name und Handynummer, auf dem Wartezimmer-Bildschirm nur Nummern.
-- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL), dazu `regeln.cjs`,
-  `fruehester-platz.cjs`, `schlange-tresen.cjs`, `gleichzeitig.cjs`, `seiten.cjs`, `tarife.cjs`, `laden-gesperrt.cjs`,
-  `leistungen-kunden.cjs` (Kundenliste), `team-einladen.cjs` (Team), `durchlauf-warteschlange.cjs`.
+- Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern, ein Logo hochladen; am Tresen einen
+  Termin anlegen und aufrufen; im privaten Fenster (ohne Anmeldung) eine Nummer ziehen und auf der Nummernseite
+  wieder absagen. Alles muss gehen wie vorher.
+- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL bei den Lese-Prüfungen),
+  dazu `verbindung.cjs`, `live.cjs` und `seiten.cjs` gegen dranzeit.de.
 - Der Block oben ist mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/regeln-einspielen.test.ps1`.
 
 ### Zurücknehmen
@@ -362,18 +348,18 @@ werden lassen, dann wie oben einspielen.
 
 ## Speicher-Regeln
 
-Logos der Läden und Fotos der Personen liegen im Firebase-Speicher (Storage). Wer dort hochladen darf, steht in
-`storage.rules` (Hauptordner des Repos). Wie bei den Firestore-Regeln gilt: **nur von Hand in der Firebase-Konsole**
-einspielen, ein `git pull` oder Ausrollen ändert daran nichts. Geprüft im Emulator (`dev/regeln/speicher.test.mjs`,
-läuft auf GitHub mit den Firestore-Regeln).
+Ältere Logos der Läden und Fotos der Personen liegen im Firebase-Speicher (Storage); neue lädt die App seit Stufe 2
+zum eigenen Server hoch (`/var/lib/q-me/dateien`, nächtlich mit der Datenbank gesichert). Was im Speicher erlaubt
+ist, steht in `storage.rules` (Hauptordner des Repos). Wie bei den Firestore-Regeln gilt: **nur von Hand in der
+Firebase-Konsole** einspielen, ein `git pull` oder Ausrollen ändert daran nichts. Geprüft im Emulator
+(`dev/regeln/speicher.test.mjs`, läuft auf GitHub mit den Firestore-Regeln).
 
-Fassung 2026-10-29 (Kopfzeile `// Fassung:` in `storage.rules`):
-- Hochladen, Ersetzen und Löschen nur der Inhaber des Ladens, nur in `shop-logos/<Laden>/` und
-  `staff-profile-images/<Laden>/`, nur Bilder bis 2 MB.
-- Ansehen geht ohne Anmeldung (Buchungsseite, Wartezimmer-Bildschirm), Auflisten nicht. Alles andere ist zu.
+Fassung 2026-11-04 (Kopfzeile `// Fassung:` in `storage.rules`):
+- Ältere Bilder ansehen geht weiter ohne Anmeldung (Buchungsseite, Wartezimmer-Bildschirm), bis sie in Stufe 5
+  umgezogen sind.
+- Hochladen, Ersetzen, Löschen und Auflisten sind zu, auch für den Inhaber. Die Regeln fragen Firestore nicht mehr.
 
-Die Regeln fragen in Firestore nach, wem der Laden gehört. Beim ersten Veröffentlichen fragt die Konsole deshalb, ob
-der Speicher Firestore lesen darf – **zustimmen**, sonst klappt kein Hochladen mehr.
+Auch hier: **erst ausrollen, dann einspielen** (wie oben bei den Firestore-Regeln).
 
 ### Einspielen (Speicher)
 
@@ -386,11 +372,11 @@ der Speicher Firestore lesen darf – **zustimmen**, sonst klappt kein Hochladen
 & { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service firebase\.storage') { Write-Host 'In der Zwischenablage stehen keine Speicher-Regeln. Im Regel-Editor unter Storage erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/storage.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service firebase\.storage' -or $neu -notmatch '// Fassung: (\S+)') { Write-Host 'Die geladene Datei sieht nicht wie die Speicher-Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $fassung = $Matches[1]; if ($alt -match '// Fassung: (\S+)' -and $Matches[1] -eq $fassung) { Write-Host "Die Fassung $fassung ist schon eingespielt. Nichts zu tun." -ForegroundColor Green; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('speicher-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; $datei = Join-Path $downloads 'speicher-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Fassung $fassung, Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
 ```
 
-4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen** und der Frage nach dem Zugriff auf Firestore
-   zustimmen. Meldet der Editor einen Fehler, nicht veröffentlichen (die alten Regeln gelten dann weiter).
+4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen**. Meldet der Editor einen Fehler, nicht
+   veröffentlichen (die alten Regeln gelten dann weiter).
 
-Prüfen: auf dranzeit.de als Inhaber unter „Laden“ → „Mein Laden“ ein Logo hochladen. Claude:
-`node dev/e2e/bilder-hochladen.cjs` (Logo und Foto im Testladen hochladen, ansehen, wieder löschen). Der Block oben ist
+Prüfen: auf dranzeit.de als Inhaber unter „Laden“ → „Mein Laden“ ein Logo hochladen (geht zum eigenen Server und muss
+weiter klappen); ein älteres Logo wird weiter angezeigt. Der Block oben ist
 mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/speicher-regeln-einspielen.test.ps1`.
 
 Zurücknehmen: im Regel-Editor den Verlauf öffnen (Uhr-Symbol links) und die vorige Fassung veröffentlichen – oder
