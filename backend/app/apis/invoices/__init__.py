@@ -19,7 +19,7 @@ from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
 from app.i18n import merke
 from app.libs.invoices import FINAL, NotSupported, build_xrechnung, summary
-from app.libs.shop_privat import stripe_ids
+from app.libs.shop_privat import stripe_link
 from app.libs.stripe_billing import client
 
 router = APIRouter()
@@ -29,9 +29,11 @@ MAX_PDF_BYTES = 15 * 1024 * 1024
 EXPAND = ["total_taxes.tax_rate_details.tax_rate"]  # Steuersatz in Prozent für die E-Rechnung
 
 
-def _customer_id(shop_id: str) -> str | None:
-    """Stripe-Kunde des Ladens (steht nicht am öffentlichen Laden, app/libs/shop_privat.py)"""
-    return stripe_ids(get_firestore_db(), shop_id, _shop(shop_id)).get("customerId")
+def _customer(shop_id: str) -> tuple[str, str | None]:
+    """(Stripe-Modus, Kunde) des Ladens – steht nicht am öffentlichen Laden (app/libs/shop_privat.py); im Testmodus
+    der Kunde aus der Sandbox"""
+    mode, ids = stripe_link(get_firestore_db(), shop_id, _shop(shop_id))
+    return mode, ids.get("customerId")
 
 
 def _stripe_host(url: str) -> bool:
@@ -66,11 +68,11 @@ def _invoice_of_shop(user, shop_id: str, invoice_id: str) -> dict:
     require_shop_of_owner(user, shop_id)
     if not re.fullmatch(r"in_[A-Za-z0-9]+", invoice_id or ""):
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden.")
-    customer_id = _customer_id(shop_id)
+    mode, customer_id = _customer(shop_id)
     if not customer_id:
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden.")
-    _require_stripe()
-    c = client()
+    _require_stripe(mode)
+    c = client(mode)
     try:
         inv = c.v1.invoices.retrieve(invoice_id, params={"expand": EXPAND}).to_dict()
     except stripe.InvalidRequestError:
@@ -98,12 +100,12 @@ def _download(content: bytes, media_type: str, filename: str) -> Response:
 def list_invoices(shop_id: str, user: AuthorizedUser) -> dict:
     """Ausgestellte Rechnungen des Ladens, neueste zuerst (ohne Entwürfe)."""
     require_shop_of_owner(user, shop_id)
-    customer_id = _customer_id(shop_id)
+    mode, customer_id = _customer(shop_id)
     if not customer_id:
         return {"invoices": []}
-    _require_stripe()
+    _require_stripe(mode)
     try:
-        page = client().v1.invoices.list(params={"customer": customer_id, "limit": 100, "expand": [f"data.{e}" for e in EXPAND]})
+        page = client(mode).v1.invoices.list(params={"customer": customer_id, "limit": 100, "expand": [f"data.{e}" for e in EXPAND]})
     except stripe.InvalidRequestError as e:
         if getattr(e, "code", None) == "resource_missing":  # Kunde aus dem anderen Stripe-Modus: keine Rechnungen hier
             return {"invoices": []}

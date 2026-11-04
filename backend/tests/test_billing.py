@@ -20,6 +20,7 @@ import app.apis.stripe_webhook as wh  # noqa: E402
 from app.libs.stripe_billing import lookup_key, parse_lookup_key, shop_update_from_subscription  # noqa: E402
 
 SECRET = "whsec_test_geheim"
+SANDBOX_SECRET = "whsec_sandbox_geheim"
 
 
 def sub(status="active", key="dranzeit_laden_monat", shop="laden1", cancel=False):
@@ -53,17 +54,18 @@ def test_gekuendigtes_abo_setzt_gratis():
 from test_privacy import FakeDb  # noqa: E402  (Firestore zum Nachbilden, mit Unter-Sammlungen)
 
 
-def signed(event: dict) -> tuple[bytes, str]:
+def signed(event: dict, secret: str = SECRET) -> tuple[bytes, str]:
     payload = json.dumps(event).encode()
     ts = int(time.time())
-    sig = stripe.WebhookSignature._compute_signature(f"{ts}.{payload.decode()}", SECRET)
+    sig = stripe.WebhookSignature._compute_signature(f"{ts}.{payload.decode()}", secret)
     return payload, f"t={ts},v1={sig}"
 
 
-def app_with(shops):
+def app_with(shops, extra=None):
     os.environ["STRIPE_WEBHOOK_SECRET"] = SECRET
+    os.environ["STRIPE_TEST_WEBHOOK_SECRET"] = SANDBOX_SECRET
     global store
-    store = {"shops": shops}
+    store = {"shops": shops, **(extra or {})}
     wh.get_firestore_db = lambda: FakeDb(store)
     app = FastAPI()
     app.include_router(wh.router, prefix="/routes")
@@ -97,6 +99,51 @@ def test_webhook_fremder_laden_wird_uebersprungen():
     payload, header = signed({"id": "evt_3", "object": "event", "type": "customer.subscription.created", "data": {"object": sub(shop="gibtsnicht")}})
     assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
     assert shops == {}
+
+
+def _event(subscription):
+    return {"id": "evt_s", "object": "event", "type": "customer.subscription.updated", "data": {"object": subscription}}
+
+
+def test_sandbox_ereignis_zaehlt_nur_fuer_laeden_im_testmodus():
+    shops = {"laden1": {}, "echt": {}}
+    c = app_with(shops, {"shops/laden1/privat": {"stripe_test": {"aktiv": True}}})
+    payload, header = signed(_event(sub(status="trialing")), SANDBOX_SECRET)
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
+    assert shops["laden1"]["billing.status"] == "trialing"
+    assert store["shops/laden1/privat"]["stripe_test"]["customerId"] == "cus_1"
+    assert "stripe" not in store["shops/laden1/privat"]  # echte IDs bleiben, wie sie sind
+
+    # Sandbox-Abo für einen Laden, der echt bucht (z. B. ein altes aus der Zeit vor dem Live-Start): nichts passiert
+    payload, header = signed(_event(sub(status="trialing", shop="echt")), SANDBOX_SECRET)
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
+    assert shops["echt"] == {}
+
+
+def test_echtes_ereignis_aendert_laden_im_testmodus_nicht():
+    shops = {"laden1": {}}
+    c = app_with(shops, {"shops/laden1/privat": {"stripe_test": {"aktiv": True}}})
+    payload, header = signed(_event(sub(status="active")))
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
+    assert shops["laden1"] == {}
+
+
+def test_sandbox_abo_eines_frueheren_tests_wird_uebersprungen():
+    shops = {"laden1": {}}
+    c = app_with(shops, {"shops/laden1/privat": {"stripe_test": {"aktiv": True, "customerId": "cus_neu"}}})
+    payload, header = signed(_event(sub(status="active")), SANDBOX_SECRET)  # Kunde cus_1 statt cus_neu
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
+    assert shops["laden1"] == {}
+
+
+def test_ohne_sandbox_geheimnis_nur_echte_signatur():
+    shops = {"laden1": {}}
+    c = app_with(shops)
+    os.environ.pop("STRIPE_TEST_WEBHOOK_SECRET")
+    payload, header = signed(_event(sub()), SANDBOX_SECRET)
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 400
+    payload, header = signed(_event(sub()))
+    assert c.post("/routes/stripe/webhook", content=payload, headers={"stripe-signature": header}).status_code == 200
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ import {
   setPhoneAccess,
   setListed,
   setPhoneLine,
+  setStripeMode,
   setTrial,
   suspendShop,
   syncStripe,
@@ -104,6 +105,9 @@ export function LadenDetail({
 
   const hasStripe = Boolean(shop.customerId || shop.subscriptionId);
   const aboActive = ['active', 'trialing', 'past_due'].includes(shop.billing);
+  const sandbox = shop.stripeMode === 'test';
+  // Link ins Dashboard vom Backend (richtiges Konto und Modus); solange es lädt, der allgemeine für echte Kunden
+  const stripeUrl = detail ? detail.stripeUrl : shop.customerId && system.stripe && !sandbox ? stripeLink(system.stripe, shop.customerId) : '';
   const address = detail ? [detail.shop.street, [detail.shop.postalCode, detail.shop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '';
   const ownerCanGo = owner && owner.shops.length === 1 && owner.kind !== 'intern';
 
@@ -116,6 +120,7 @@ export function LadenDetail({
         <h2 className="font-display text-3xl font-extrabold tracking-[-0.02em]">{shop.name}</h2>
         <div className="flex flex-wrap gap-1.5">
           {shop.suspended && <span className="rounded-full bg-destructive px-2.5 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
+          {sandbox && <span className="rounded-full bg-signal px-2.5 py-0.5 text-xs font-bold text-signal-foreground">Stripe-Sandbox</span>}
           {shop.markers.map((m) => (
             <span key={m} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
               {m}
@@ -128,10 +133,10 @@ export function LadenDetail({
               Öffentliche Seite <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </Button>
-          {shop.customerId && system.stripe && (
+          {stripeUrl && (
             <Button asChild size="sm" variant="ghost">
-              <a href={stripeLink(system.stripe, shop.customerId)} target="_blank" rel="noreferrer">
-                Bei Stripe <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <a href={stripeUrl} target="_blank" rel="noreferrer">
+                {sandbox ? 'In der Sandbox' : 'Bei Stripe'} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
             </Button>
           )}
@@ -158,6 +163,57 @@ export function LadenDetail({
       </Section>
 
       <Section title="Abo bei Stripe">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/60 p-3 text-sm">
+          <p className="min-w-[14rem] flex-1">
+            {sandbox ? (
+              <>
+                <strong>Testmodus:</strong> Der Laden bucht in der Stripe-Sandbox. Testkarte 4242 4242 4242 4242, nichts wird abgebucht,
+                zählt nicht zum Umsatz. Der Inhaber sieht unter „Mein Tarif“ einen Hinweis.
+              </>
+            ) : (
+              <>
+                <strong>Echte Zahlungen.</strong> Zum Durchspielen von Abschluss, Kundenportal, Rechnungen und Kündigung auf die Sandbox
+                umstellen.
+              </>
+            )}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy !== '' || (!sandbox && (!system.stripeSandbox || aboActive))}
+            onClick={() =>
+              setAction(
+                sandbox
+                  ? {
+                      title: 'Zurück auf echte Zahlungen?',
+                      text: 'Ein Abo aus der Sandbox wird dort beendet und hier vergessen. Hatte der Laden vorher ein echtes Abo, kommt dessen Stand von Stripe zurück, sonst gilt wieder Testphase oder Gratis.',
+                      confirm: 'Zurück auf echte Zahlungen',
+                      reason: 'pflicht',
+                      run: (reason) => setStripeMode(shop.id, false, reason),
+                      done: 'Der Laden bucht wieder echt.',
+                    }
+                  : {
+                      title: 'Auf die Stripe-Sandbox umstellen?',
+                      text: 'Abo abschließen, Kundenportal und Rechnungen laufen dann über die Sandbox: Testkarte 4242 4242 4242 4242, nichts wird abgebucht. Der Laden fängt ohne Abo an, es gilt seine Testphase oder Gratis. Zurückstellen geht jederzeit.',
+                      confirm: 'Auf Sandbox umstellen',
+                      reason: 'pflicht',
+                      run: (reason) => setStripeMode(shop.id, true, reason),
+                      done: 'Der Laden bucht jetzt in der Sandbox.',
+                    },
+              )
+            }
+          >
+            {sandbox ? 'Zurück auf echte Zahlungen …' : 'Auf Sandbox umstellen …'}
+          </Button>
+          {!sandbox && !system.stripeSandbox && (
+            <p className="w-full text-xs text-muted-foreground">
+              Der Sandbox-Schlüssel fehlt auf dem Server (STRIPE_TEST_SECRET_KEY, deploy/README.md „Testmodus je Laden“).
+            </p>
+          )}
+          {!sandbox && system.stripeSandbox && aboActive && (
+            <p className="w-full text-xs text-muted-foreground">Nur ohne laufendes Abo – erst kündigen oder die Verknüpfung lösen.</p>
+          )}
+        </div>
         {hasStripe ? (
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <Fact label="Status">{BILLING_LABEL[shop.billing] || shop.billing || '–'}</Fact>
@@ -169,7 +225,7 @@ export function LadenDetail({
             <Fact label="Stripe-Kunde">{shop.customerId || '–'}</Fact>
           </dl>
         ) : (
-          <p className="text-sm text-muted-foreground">Noch nie ein Abo abgeschlossen.</p>
+          <p className="text-sm text-muted-foreground">{sandbox ? 'In der Sandbox noch kein Abo abgeschlossen.' : 'Noch nie ein Abo abgeschlossen.'}</p>
         )}
         {hasStripe && (
           <div className="flex flex-wrap gap-2">
@@ -192,9 +248,11 @@ export function LadenDetail({
               onClick={() =>
                 setAction({
                   title: 'Verknüpfung mit Stripe lösen?',
-                  text: aboActive
-                    ? 'Achtung: Das Abo läuft laut letztem Stand noch. Bei Stripe ändert sich nichts – kündige dort, sonst wird weiter abgebucht. Der Laden fällt hier auf Testphase oder Gratis zurück.'
-                    : 'Der Laden vergisst Stripe-Kunde und Abo (z. B. Test-Kunden vor dem Live-Start). Bei Stripe ändert sich nichts.',
+                  text: sandbox
+                    ? 'Der Laden vergisst Kunde und Abo aus der Sandbox und bleibt im Testmodus – zum Beispiel, um den Abschluss noch einmal von vorn zu testen.'
+                    : aboActive
+                      ? 'Achtung: Das Abo läuft laut letztem Stand noch. Bei Stripe ändert sich nichts – kündige dort, sonst wird weiter abgebucht. Der Laden fällt hier auf Testphase oder Gratis zurück.'
+                      : 'Der Laden vergisst Stripe-Kunde und Abo (z. B. Test-Kunden vor dem Live-Start). Bei Stripe ändert sich nichts.',
                   confirm: 'Verknüpfung lösen',
                   destructive: true,
                   reason: 'pflicht',

@@ -56,6 +56,8 @@ export interface AdminShop {
   currentPeriodEnd: string | null;
   customerId: string;
   subscriptionId: string;
+  /** test: der Laden bucht in der Stripe-Sandbox (Schalter im Betreiber-Bereich); Kunde und Abo sind dann von dort */
+  stripeMode: StripeMode;
   effectivePlan: PlanId;
   source: PlanSource;
   trialEnd: string;
@@ -120,10 +122,15 @@ export interface Stats {
   appointments30: number;
 }
 
+export type StripeMode = 'live' | 'test';
+
 export interface SystemStatus {
   stripe: '' | 'test' | 'live';
   stripeWebhook: boolean;
   stripePortal: boolean;
+  /** Sandbox-Schlüssel für den Testmodus je Laden (STRIPE_TEST_SECRET_KEY) und ihr Webhook */
+  stripeSandbox: boolean;
+  stripeSandboxWebhook: boolean;
   resend: boolean;
   mailFrom: string;
   publicUrl: string;
@@ -155,6 +162,9 @@ export interface ShopDetail {
   shop: Record<string, unknown> & { name?: string; street?: string; postalCode?: string; city?: string; website?: string; unlisted?: boolean };
   effectivePlan: PlanId;
   trialEnd: string;
+  stripeMode: StripeMode;
+  /** Kunde im Stripe-Dashboard, im richtigen Konto und Modus; leer ohne Kunde */
+  stripeUrl: string;
   staff: { id: string; name: string; email: string; role: string; userId: string; active: boolean }[];
   owner: { uid: string; email: string; emailVerified: boolean; disabled: boolean; lastSignIn: string | null } | null;
   /** Eigene Rufnummer des Telefon-Assistenten (höchstens eine) */
@@ -193,6 +203,9 @@ export const grantPlan = (id: string, plan: PlanId, until: string, reason: strin
 export const endGrant = (id: string, reason = '') => send(shopPath(id, 'freischaltung-beenden'), { reason });
 export const syncStripe = (id: string) => send<{ changed: boolean; message?: string }>(shopPath(id, 'stripe-abgleich'), {});
 export const unlinkStripe = (id: string, reason: string) => send(shopPath(id, 'stripe-loesen'), { reason });
+/** Testmodus: Laden bucht in der Stripe-Sandbox (test) oder wieder echt */
+export const setStripeMode = (id: string, test: boolean, reason: string) =>
+  send<{ changed: boolean; mode: StripeMode }>(shopPath(id, 'stripe-modus'), { test, reason });
 /** In Ladenliste, Karte und Stadtseiten zeigen (listed) oder nicht; per Link bleibt der Laden buchbar */
 export const setListed = (id: string, listed: boolean, reason = '') =>
   send<{ changed: boolean; unlisted: boolean }>(shopPath(id, 'ladenliste'), { listed, reason });

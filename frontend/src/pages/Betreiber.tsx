@@ -406,6 +406,7 @@ function ShopTable({ shops, owners, onOpen }: { shops: AdminShop[]; owners: Map<
                 <span className="font-semibold">{s.name}</span>
                 {s.suspended && <span className="ms-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">gesperrt</span>}
                 {s.founder && <span className="ms-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-signal-foreground">Gründer</span>}
+                {s.stripeMode === 'test' && <span className="ms-2 rounded-full border border-signal px-2 py-0.5 text-xs font-bold">Stripe-Sandbox</span>}
                 <KindBadge kind={s.kind} markers={s.markers} />
                 <span className="block text-xs text-muted-foreground">{s.city || '–'}</span>
               </td>

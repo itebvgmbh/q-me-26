@@ -113,6 +113,8 @@ const texte: Texte = {
   "Testphase": "Trial",
   "Gründer": "Founder",
   "Wird geöffnet …": "Opening …",
+  "Testmodus:": "Test mode:",
+  "Hier wird nichts abgebucht. Zum Bezahlen die Testkarte 4242 4242 4242 4242 nehmen, mit einem beliebigen Ablaufdatum in der Zukunft und einer beliebigen Prüfnummer.": "Nothing is charged here. To pay, use the test card 4242 4242 4242 4242 with any future expiry date and any security code.",
   "Abo verwalten, Zahlungsart, kündigen": "Manage subscription, payment method, cancel",
   "Kunden diesen Monat": "Customers this month",
   "Personen im Team": "Team members",

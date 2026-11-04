@@ -265,6 +265,98 @@ def test_stripe_loesen_braucht_grund_und_merkt_den_alten_stand():
     assert protokoll_zeilen()[-1]["before"]["billing"]["customerId"] == "cus_1"
 
 
+class FakeSubscriptions:
+    def __init__(self):
+        self.cancelled = []
+
+    def cancel(self, sub_id):
+        self.cancelled.append(sub_id)
+
+    def retrieve(self, sub_id):
+        return SimpleNamespace(to_dict=lambda: {
+            "id": sub_id, "status": "canceled", "customer": "cus_1", "cancel_at_period_end": False, "metadata": {"shopId": "neu"},
+            "items": {"data": [{"price": {"lookup_key": "dranzeit_solo_monat"}, "current_period_end": 1798761600}]}})
+
+
+def _sandbox(subs):
+    """Sandbox-Schlüssel gesetzt, Stripe nachgebildet. Gibt eine Funktion zum Aufräumen zurück."""
+    from app.libs import stripe_billing
+
+    old = stripe_billing.client
+    os.environ["STRIPE_TEST_SECRET_KEY"] = "sk_test_sandbox123"
+    os.environ["STRIPE_SECRET_KEY"] = "sk_live_echt123"
+    stripe_billing.client = lambda mode="live": SimpleNamespace(v1=SimpleNamespace(subscriptions=subs), mode=mode)
+
+    def undo():
+        stripe_billing.client = old
+        os.environ.pop("STRIPE_TEST_SECRET_KEY", None)
+        os.environ.pop("STRIPE_SECRET_KEY", None)
+
+    return undo
+
+
+def test_testmodus_ohne_sandbox_schluessel_oder_mit_laufendem_abo_abgelehnt():
+    client, store, _ = setup()
+    os.environ.pop("STRIPE_TEST_SECRET_KEY", None)
+    assert client.post("/routes/betreiber/laden/neu/stripe-modus", json={"test": True, "reason": "Abo testen"}).status_code == 503
+    undo = _sandbox(FakeSubscriptions())
+    try:
+        assert client.post("/routes/betreiber/laden/neu/stripe-modus", json={"test": True, "reason": ""}).status_code == 400
+        r = client.post("/routes/betreiber/laden/laden/stripe-modus", json={"test": True, "reason": "Abo testen"})
+        assert r.status_code == 409 and "laufendes Abo" in r.json()["detail"]
+        assert "shops/laden/privat" not in store or "stripe_test" not in store["shops/laden/privat"]
+    finally:
+        undo()
+
+
+def test_testmodus_an_und_aus():
+    client, store, _ = setup()
+    subs = FakeSubscriptions()
+    undo = _sandbox(subs)
+    try:
+        store["shops"]["neu"]["billing"] = {"status": "canceled", "plan": "solo"}
+        store["shops/neu/privat"] = {"stripe": {"customerId": "cus_1", "subscriptionId": "sub_echt"}}
+        r = client.post("/routes/betreiber/laden/neu/stripe-modus", json={"test": True, "reason": "Abo von vorn testen"})
+        assert r.json() == {"changed": True, "mode": "test"}
+        assert store["shops"]["neu"]["billing"] is None and store["shops"]["neu"]["plan"] == "gratis"
+        assert store["shops/neu/privat"]["stripe_test"]["aktiv"] is True
+        assert protokoll_zeilen()[-1]["action"] == "Stripe-Testmodus an"
+
+        data = client.get("/routes/betreiber/uebersicht").json()
+        assert {s["id"]: s for s in data["shops"]}["neu"]["stripeMode"] == "test"
+        assert data["system"]["stripeSandbox"] is True
+        detail = client.get("/routes/betreiber/laden/neu").json()
+        assert detail["stripeMode"] == "test" and detail["stripeUrl"] == ""  # in der Sandbox noch kein Kunde
+
+        # Im Test ein Abo abgeschlossen (schreibt sonst der Webhook)
+        store["shops/neu/privat"]["stripe_test"].update({"customerId": "cus_sb", "subscriptionId": "sub_sb"})
+        store["shops"]["neu"]["billing"] = {"status": "trialing", "plan": "laden"}
+        stats = client.get("/routes/betreiber/uebersicht").json()["stats"]
+        assert stats["paying"] == 1 and stats["mrr"] == 39.0  # nur der echte Laden, nicht das Sandbox-Abo
+
+        r = client.post("/routes/betreiber/laden/neu/stripe-modus", json={"test": False, "reason": "Test fertig"})
+        assert r.json() == {"changed": True, "mode": "live"}
+        assert subs.cancelled == ["sub_sb"]  # Sandbox-Abo beendet
+        assert "stripe_test" not in store["shops/neu/privat"]
+        # Stand des echten Abos von Stripe zurück, als ganzes Feld billing
+        assert store["shops"]["neu"]["billing"]["status"] == "canceled" and store["shops"]["neu"]["plan"] == "gratis"
+        assert store["shops/neu/privat"]["stripe"]["subscriptionId"] == "sub_echt"
+        assert protokoll_zeilen()[-1]["after"]["beendet"] == "sub_sb"
+        assert client.post("/routes/betreiber/laden/neu/stripe-modus", json={"test": False, "reason": "noch mal"}).json()["changed"] is False
+    finally:
+        undo()
+
+
+def test_sandbox_abo_haelt_loeschen_nicht_auf():
+    client, store, _ = setup()
+    store["shops"]["neu"]["billing"] = {"status": "trialing", "plan": "laden"}
+    probe = client.post("/routes/betreiber/loeschen/probe", json={"shopIds": ["neu"]}).json()
+    assert any("laufendes Abo" in p for p in probe["problems"])
+    store["shops/neu/privat"] = {"stripe_test": {"aktiv": True, "customerId": "cus_sb"}}
+    probe = client.post("/routes/betreiber/loeschen/probe", json={"shopIds": ["neu"]}).json()
+    assert not any("laufendes Abo" in p for p in probe["problems"])
+
+
 def test_laden_sperren_sperrt_inhaber_und_team_aber_nie_den_betreiber():
     client, store, auth = setup()
     r = client.post("/routes/betreiber/laden/laden/sperren", json={"reason": "Zahlung offen seit Monaten"})

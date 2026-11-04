@@ -107,6 +107,8 @@ const texte: Texte = {
   "Testphase": "Deneme süresi",
   "Gründer": "Kurucu",
   "Wird geöffnet …": "Açılıyor …",
+  "Testmodus:": "Test modu:",
+  "Hier wird nichts abgebucht. Zum Bezahlen die Testkarte 4242 4242 4242 4242 nehmen, mit einem beliebigen Ablaufdatum in der Zukunft und einer beliebigen Prüfnummer.": "Burada hiçbir ücret çekilmez. Ödemek için 4242 4242 4242 4242 test kartını, ileri tarihli herhangi bir son kullanma tarihi ve herhangi bir güvenlik koduyla kullan.",
   "Abo verwalten, Zahlungsart, kündigen": "Aboneliği yönet, ödeme yöntemi, iptal",
   "Kunden diesen Monat": "Bu ayki müşteriler",
   "Personen im Team": "Ekipteki kişiler",
