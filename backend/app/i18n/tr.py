@@ -265,4 +265,7 @@ TEXTE: dict = {
     "Unbekannter Laden.": "Bilinmeyen salon.",
     "Die freien Zeiten konnten nicht berechnet werden.": "Boş saatler hesaplanamadı.",
     "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "Bu bugün mümkün değil. Lütfen bilgileri elle girin.",
+    # Live-Daten (app/apis/live)
+    "Kein gültiger Kanal": "Geçerli kanal yok",
+    "Tag als JJJJ-MM-TT": "Gün YYYY-AA-GG biçiminde olmalı",
 }

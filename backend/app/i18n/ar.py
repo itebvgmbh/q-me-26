@@ -297,4 +297,7 @@ TEXTE: dict = {
     "Unbekannter Laden.": "محل غير معروف.",
     "Die freien Zeiten konnten nicht berechnet werden.": "تعذّر حساب الأوقات المتاحة.",
     "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "هذا غير ممكن اليوم حاليًا. يُرجى إدخال البيانات يدويًا.",
+    # Live-Daten (app/apis/live)
+    "Kein gültiger Kanal": "لا توجد قناة صالحة",
+    "Tag als JJJJ-MM-TT": "اليوم بصيغة YYYY-MM-DD",
 }
