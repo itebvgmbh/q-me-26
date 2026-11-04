@@ -29,7 +29,7 @@ router = APIRouter()
 
 ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 TAG = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-KANAL = re.compile(r"^(termin:[A-Za-z0-9_-]{1,64}|tag:[A-Za-z0-9_-]{1,64}_\d{4}-\d{2}-\d{2})$")
+KANAL = re.compile(r"^(termin:[A-Za-z0-9_-]{1,64}|tag:[A-Za-z0-9_-]{1,64}_\d{4}-\d{2}-\d{2}|laden:[A-Za-z0-9_-]{1,64})$")
 MAX_KANAELE = 4
 # Nach so vielen Sekunden schließt das Backend die Verbindung; der Browser baut sie von selbst neu auf
 VERBINDUNG_SEKUNDEN = 600

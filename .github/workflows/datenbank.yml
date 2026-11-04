@@ -62,6 +62,8 @@ jobs:
         run: .venv/bin/python tests/test_speicher_gebuendelt.py
       - name: Live-Daten für Nummer und Bildschirm (app/apis/live)
         run: .venv/bin/python tests/test_live.py
+      - name: Termine des Teams (app/apis/team_termine)
+        run: .venv/bin/python tests/test_team_termine.py
 
   # Vertrag der Speicher-Schicht (backend/tests/test_speicher_vertrag.py) gegen den Firestore-Emulator: hält fest, wie
   # sich der genutzte Teil von Firestore verhält. In Stufe 3 muss PostgreSQL dieselben Verträge bestehen.
