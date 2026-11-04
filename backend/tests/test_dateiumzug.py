@@ -86,6 +86,20 @@ def test_holt_einmal_ersetzt_ueberall_und_ist_wiederholbar():
         assert db.geschrieben == ["laden2"]
 
 
+def test_alter_pfad_ohne_laden_nimmt_den_laden_des_dokuments():
+    alt = "https://firebasestorage.googleapis.com/v0/b/qmedata-7c79e.firebasestorage.app/o/undefined%2F1743456930137_logo.png?alt=media&token=x"
+    with tempfile.TemporaryDirectory() as ordner:
+        os.environ["QME_DATEIEN_DIR"] = ordner
+        os.environ["PUBLIC_URL"] = "https://dranzeit.de"
+        db = Db({"shops": {"laden9": {"logoUrl": alt}}, "staff": {"kim": {"shopId": "laden9", "profileImageUrl": alt.replace("logo", "kim")}},
+                 "verzeichnis": {"v1": {"bild": alt.replace("logo", "v")}}})
+        ergebnis = umzug.umziehen(db, ["shops", "staff", "verzeichnis"], holen=lambda a: PNG)
+        assert ergebnis["geholt"] == 2 and len(ergebnis["fehler"]) == 1, ergebnis
+        assert db.baum["shops"]["laden9"]["logoUrl"].startswith("https://dranzeit.de/routes/live/dateien/laden9/")
+        assert db.baum["staff"]["kim"]["profileImageUrl"].startswith("https://dranzeit.de/routes/live/dateien/laden9/")
+        assert db.baum["verzeichnis"]["v1"]["bild"].startswith("https://firebasestorage")  # kein Laden: bleibt
+
+
 def test_kein_bild_wird_nicht_uebernommen():
     with tempfile.TemporaryDirectory() as ordner:
         os.environ["QME_DATEIEN_DIR"] = ordner

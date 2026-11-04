@@ -23,7 +23,9 @@ ORDNER = ("shop-logos", "staff-profile-images")
 
 
 def laden_aus(adresse: str) -> str | None:
-    """Laden-ID aus dem Pfad im Speicher (shop-logos/<Laden>/<Datei>, staff-profile-images/<Laden>/<Datei>)"""
+    """Laden-ID aus dem Pfad im Speicher (shop-logos/<Laden>/<Datei>, staff-profile-images/<Laden>/<Datei>). Ältere
+    Uploads liegen teils unter anderen Pfaden (etwa undefined/<Datei>); dann zählt der Laden des Dokuments
+    (laden_im_dokument)."""
     treffer = FIREBASE.match(adresse)
     if not treffer:
         return None
@@ -31,6 +33,12 @@ def laden_aus(adresse: str) -> str | None:
     if len(teile) < 3 or teile[0] not in ORDNER or not re.match(r"^[A-Za-z0-9_-]{1,64}$", teile[1]):
         return None
     return teile[1]
+
+
+def laden_im_dokument(sammlung: str, doc_id: str, daten: dict) -> str | None:
+    """Zu welchem Laden gehört das Dokument: der Laden selbst oder sein Feld shopId"""
+    laden = doc_id if sammlung == "shops" else daten.get("shopId")
+    return laden if isinstance(laden, str) and re.match(r"^[A-Za-z0-9_-]{1,64}$", laden) else None
 
 
 def adressen(wert, gefunden: set) -> None:
@@ -77,14 +85,19 @@ def umziehen(db, sammlungen: list[str], probe: bool = False, holen=herunterladen
             if gefunden:
                 fundstellen.append((sammlung, snap.id, daten, gefunden))
     alle = sorted({a for *_, g in fundstellen for a in g})
+    # Laden je Adresse: aus dem Pfad, sonst aus dem (ersten) Dokument, in dem sie steht
+    kontext = {}
+    for sammlung, doc_id, daten, gefunden in fundstellen:
+        for a in gefunden:
+            kontext.setdefault(a, laden_im_dokument(sammlung, doc_id, daten))
     ergebnis = {"dokumente": len(fundstellen), "adressen": len(alle), "geholt": 0, "fehler": []}
     if probe:
         return ergebnis
     neu = {}
     for adresse in alle:
-        laden = laden_aus(adresse)
+        laden = laden_aus(adresse) or kontext.get(adresse)
         if laden is None:
-            ergebnis["fehler"].append(f"{adresse[:80]}…: unbekannter Ordner")
+            ergebnis["fehler"].append(f"{adresse[:80]}…: kein Laden zu erkennen")
             continue
         try:
             name = laeden.bild_speichern(laden, holen(adresse))
