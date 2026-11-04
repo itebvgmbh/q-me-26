@@ -84,7 +84,9 @@ class Query:
         for doc_id, data in sorted(self.db.daten.get(self.coll, {}).items()):
             ok = True
             for feld, op, wert in self.filters:
-                if feld not in data or type(data[feld]) is not type(wert) and not (isinstance(data[feld], datetime) and isinstance(wert, datetime)):
+                # Wie Firestore: fehlende Felder passen nie, Vergleiche nur innerhalb desselben Typs (bei „in“: je Wert)
+                gleich_typ = isinstance(data.get(feld), datetime) and isinstance(wert, datetime) or type(data.get(feld)) is type(wert)
+                if feld not in data or (op != "in" and not gleich_typ):
                     ok = False
                     break
                 ok = ok and OPS[op](data[feld], wert)

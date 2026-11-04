@@ -289,4 +289,9 @@ TEXTE: dict = {
     "Ungültige Zeitangabe für die Pause.": "Invalid time for the break.",
     "Das Ende der Pause muss nach dem Beginn liegen.": "The break must end after it starts.",
     "Diese Pause gibt es nicht mehr.": "This break no longer exists.",
+    # Läden, Bilder, Konto (app/apis/team_laden, app/apis/konto)
+    "Dieses Angebot gibt es nicht mehr.": "This offer no longer exists.",
+    "Das Bild ist zu groß (höchstens 5 MB).": "The image is too large (5 MB at most).",
+    "Bitte ein Bild als PNG, JPEG oder WebP.": "Please use a PNG, JPEG or WebP image.",
+    "Diese Datei gibt es nicht.": "This file doesn't exist.",
 }

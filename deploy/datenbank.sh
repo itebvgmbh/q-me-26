@@ -14,6 +14,7 @@ APP_DIR=${APP_DIR:-/opt/q-me}
 ENV_FILE=${ENV_FILE:-/etc/q-me.env}
 BACKUP_DIR=${BACKUP_DIR:-/var/backups/q-me}
 CRON_FILE=${CRON_FILE:-/etc/cron.d/q-me-datenbank}
+DATEIEN_DIR=${DATEIEN_DIR:-/var/lib/q-me/dateien}
 DB=q_me
 ROLE=q-me
 KEEP_DAYS=14
@@ -77,6 +78,14 @@ sichern() {
 	mv "$datei.teil" "$datei"
 	find "$BACKUP_DIR" -name "$DB-*.dump" -mtime +"$KEEP_DAYS" -delete
 	echo "$(date -u +%FT%TZ) Sicherung $datei ($(du -h "$datei" | cut -f1))"
+	# Logos und Fotos (app/libs/laeden.py) gleich mit
+	if [ -d "$DATEIEN_DIR" ]; then
+		local bilder
+		bilder="$BACKUP_DIR/dateien-$(date -u +%Y-%m-%dT%H%M).tar.gz"
+		tar -czf "$bilder.teil" -C "$DATEIEN_DIR" . && chmod 600 "$bilder.teil" && mv "$bilder.teil" "$bilder"
+		find "$BACKUP_DIR" -name "dateien-*.tar.gz" -mtime +"$KEEP_DAYS" -delete
+		echo "$(date -u +%FT%TZ) Bilder $bilder ($(du -h "$bilder" | cut -f1))"
+	fi
 }
 
 # Tabellen mit Zeilenzahl, eine Zeile je Tabelle

@@ -29,6 +29,8 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/q-me/backend/.local_data
+# /var/lib/q-me: Logos und Fotos (app/libs/laeden.py, dateien/); systemd legt den Ordner für q-me an und gibt ihn frei
+StateDirectory=q-me
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
