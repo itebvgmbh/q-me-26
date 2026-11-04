@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
 import { format, isSameDay } from 'date-fns';
-import { collection, getFirestore, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { firebaseApp } from 'app';
+import { teamTerminePfad, useLive } from '../../utils/live';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -384,27 +384,15 @@ const remembered = () => {
   }
 };
 
-/** Termine einer Woche (ab Montag) live mitlesen; ohne shopId nichts */
+const KEINE_TERMINE: Appointment[] = [];
+
+/** Termine einer Woche (ab Montag) live vom Backend (utils/live.ts, backend/app/apis/team_termine); ohne shopId nichts */
 const useWeekAppointments = (shopId: string | null, monday: Date) => {
-  const [list, setList] = useState<Appointment[]>([]);
-  const key = format(monday, 'yyyy-MM-dd');
-  useEffect(() => {
-    if (!shopId) return;
-    const db = getFirestore(firebaseApp);
-    const q = query(
-      collection(db, 'appointments'),
-      where('shopId', '==', shopId),
-      where('startTime', '>=', Timestamp.fromDate(monday)),
-      where('startTime', '<', Timestamp.fromDate(atMinute(monday, 7 * 24 * 60))),
-    );
-    return onSnapshot(
-      q,
-      (snapshot) => setList(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment)),
-      (error) => console.error('Error in week appointments listener:', error),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopId, key]);
-  return list;
+  const woche = useLive<{ termine: Appointment[]; kanaele: string[] }>(
+    shopId ? teamTerminePfad(shopId, monday, atMinute(monday, 7 * 24 * 60)) : null,
+    { anmelden: true },
+  );
+  return shopId ? (woche.daten?.termine ?? KEINE_TERMINE) : KEINE_TERMINE;
 };
 
 interface Props {

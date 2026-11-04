@@ -77,6 +77,7 @@ node dev/e2e/ladezeit.cjs handy             # Ladezeit im langsamen Handynetz
 node dev/bundle-groesse.cjs                 # JavaScript je Seite (roh, gzip) und größte Bausteine; baut dafür selbst (ohne Browser)
 node dev/e2e/verbindung.cjs                 # Verbindungsart: iPhone/Safari gleich einfach (Long-Polling); Nummernseite kommt vom Backend, auch wenn Firestore hängt (nur lesend)
 node dev/e2e/live.cjs                       # Nummer und Bildschirm über /routes/live mit Ereignissen: echt nur lesend, Aufruf ohne Neuladen nachgestellt (ohne Testkonto)
+node dev/e2e/team-termine.cjs               # Termine des Teams über /routes/team/termine: was der Browser schickt und zurückbekommt (Anmeldung und Backend nachgestellt, ohne Testkonto)
 node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die einfache Verbindungsart nehmen (ohne Browser)
 node --experimental-strip-types dev/i18n-pruefen.mjs --offen   # Übersetzungen: fehlt etwas, passen Platzhalter, Text noch ohne t()? (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"

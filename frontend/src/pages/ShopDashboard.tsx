@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { addDays, format, isToday, startOfDay, endOfDay } from 'date-fns';
+import { addDays, format, isToday, startOfDay } from 'date-fns';
 import { ChevronDown, ChevronLeft, ChevronRight, Maximize, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCurrentUser, firebaseApp } from 'app';
-import { collection, query, where, onSnapshot, Timestamp, getFirestore } from 'firebase/firestore';
+import { useCurrentUser } from 'app';
+import { teamTerminePfad, useLive } from '../utils/live';
 
 import { AppointmentsList } from '../components/AppointmentsList';
 import { EditShopForm } from '../components/EditShopForm';
@@ -199,25 +199,17 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userLoading, navigate]);
 
-  // Termine des gewählten Tages live mitlesen
+  // Termine des gewählten Tages live vom Backend (utils/live.ts, backend/app/apis/team_termine); eigene Änderungen
+  // erscheinen sofort (onAppointmentUpdate unten), die nächste Antwort des Backends gilt dann
   const shopId = shop?.id;
   const dayKey = format(selectedDate, 'yyyy-MM-dd');
+  const tagesTermine = useLive<{ termine: Appointment[]; kanaele: string[] }>(
+    shopId ? teamTerminePfad(shopId, startOfDay(selectedDate), startOfDay(addDays(selectedDate, 1))) : null,
+    { anmelden: true },
+  );
   useEffect(() => {
-    if (!shopId) return;
-    const db = getFirestore(firebaseApp);
-    const q = query(
-      collection(db, 'appointments'),
-      where('shopId', '==', shopId),
-      where('startTime', '>=', Timestamp.fromDate(startOfDay(selectedDate))),
-      where('startTime', '<', Timestamp.fromDate(endOfDay(selectedDate))),
-    );
-    return onSnapshot(
-      q,
-      (snapshot) => setAppointments(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment)),
-      (error) => console.error('Error in appointments listener:', error),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopId, dayKey]);
+    if (tagesTermine.daten) setAppointments(tagesTermine.daten.termine);
+  }, [tagesTermine.daten]);
 
   const live = isToday(selectedDate);
   const stats = useMemo(() => {

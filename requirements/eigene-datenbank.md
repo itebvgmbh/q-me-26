@@ -13,6 +13,12 @@
     offen“ holen ihre Daten über `/routes/live` (`backend/app/apis/live`, `backend/app/libs/live.py`) und hören per
     Server-Sent Events auf Änderungen (`frontend/src/utils/live.ts`). Sie fragen Firestore nicht mehr. Tests:
     `backend/tests/test_live.py`, `dev/e2e/live.cjs`, `dev/e2e/verbindung.cjs`.
+  - Stufe 2, Bereich 2 live seit 04.11.2026: Tresen und Kalender (Tag und Woche) lesen die Termine über
+    `/routes/team/termine` und hören auf den Kanal `laden:<Laden>`. Termine anlegen und ändern – auch aus Mein Tag –
+    schreibt das Backend (`backend/app/libs/team_termine.py`): Belegung, Tagesnummer, Kurzfassung, Zeitpunkte und die
+    Nachricht an den Kunden. Die Regelprüfung (Öffnungs- und Arbeitszeiten, Pausen) läuft noch im Browser
+    (`utils/booking-rules.ts`, liest Firestore) und kommt mit dem Bereich Online-Buchung ins Backend. Tests:
+    `backend/tests/test_team_termine.py`, `dev/e2e/team-termine.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend

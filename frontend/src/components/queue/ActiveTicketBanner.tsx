@@ -25,7 +25,7 @@ export const ActiveTicketBanner = () => {
       for (const candidate of candidates) {
         try {
           // Dieselbe Abfrage wie die Nummernseite (backend/app/apis/live); gibt es die Nummer nicht mehr: 404
-          const { termin } = await liveLesen<{ termin: PublicAppointment }>(`nummer/${encodeURIComponent(candidate.id)}`);
+          const { termin } = await liveLesen<{ termin: PublicAppointment }>(`live/nummer/${encodeURIComponent(candidate.id)}`);
           if (termin.status === 'scheduled' || termin.status === 'in-progress') {
             if (alive) setTicket({ id: candidate.id, code: termin.referenceCode || undefined });
             return;
