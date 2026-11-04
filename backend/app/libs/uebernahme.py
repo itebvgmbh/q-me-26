@@ -14,7 +14,8 @@ bestätigt den Vorschlag. Name und Adresse des Ladens beweisen dabei nichts, sie
 Code: 10 Zeichen ohne Verwechsler (kein 0/O, 1/I/L), angezeigt als ABCDE-FGHJK, rund 50 Bit. Gespeichert als PBKDF2-Hash
 mit festem Salz: nachschlagbar, aber wer die Hashes liest, muss trotzdem lange raten. Das Backend begrenzt Versuche je IP.
 
-Felder am Eintrag: uebernahme {codeHash, erstelltAm, gueltigBis, eingeloestAm, shopId}, mailCode {codeHash, am, gueltigBis}
+Felder am Eintrag: uebernahme {codeHash, erstelltAm, gueltigBis, eingeloestAm, shopId, per (brief|mail), welle, vorher},
+mailCode {codeHash, am, gueltigBis}
 """
 
 import hashlib
@@ -65,15 +66,23 @@ def code_hash(code: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", normalisieren(code).encode(), SALZ, RUNDEN).hex()
 
 
-def code_erzeugen(entry: dict, st=None, now: Optional[datetime] = None) -> dict:
-    """Neuer Code für einen Salon ohne Dranzeit; ein früherer gilt dann nicht mehr. Gibt {code, gueltigBis} zurück."""
+def code_erzeugen(entry: dict, st=None, now: Optional[datetime] = None, welle: str = "") -> dict:
+    """Neuer Code für einen Salon ohne Dranzeit; ein früherer gilt dann nicht mehr. Gibt {code, gueltigBis} zurück.
+
+    Für eine Briefwelle (app/libs/briefaktion.py) merkt sich der Eintrag die Welle und den bisherigen Code (vorher): Wird
+    die Welle verworfen, gilt der wieder.
+    """
     st = st or vz.store()
     if entry.get("shopId"):
         raise Fehler(409, merke("Diese Seite gehört schon zu einem Dranzeit-Laden."))
     now = now or vz.now()
     code = neuer_code()
     gueltig = now + timedelta(days=GUELTIG_TAGE)
-    st.aendere(entry["id"], {"uebernahme": {"codeHash": code_hash(code), "erstelltAm": now, "gueltigBis": gueltig}})
+    info = {"codeHash": code_hash(code), "erstelltAm": now, "gueltigBis": gueltig}
+    if welle:
+        alt = {k: v for k, v in (entry.get("uebernahme") or {}).items() if k != "vorher"}
+        info.update(welle=welle, vorher=alt or None)
+    st.aendere(entry["id"], {"uebernahme": info})
     return {"code": anzeigen(code), "gueltigBis": gueltig}
 
 
@@ -136,6 +145,7 @@ def einloesen(code: str, shop_id: str, st=None, now: Optional[datetime] = None) 
     st = st or vz.store()
     entry = pruefen(code, st, now)
     now = now or vz.now()
+    per = "mail" if (entry.get("mailCode") or {}).get("codeHash") == code_hash(code) else "brief"  # für die Auswertung der Briefwellen
     vz.verknuepfen(entry, shop_id, st.alle(), st)
-    st.aendere(entry["id"], {"uebernahme": {**(entry.get("uebernahme") or {}), "eingeloestAm": now, "shopId": shop_id}})
+    st.aendere(entry["id"], {"uebernahme": {**(entry.get("uebernahme") or {}), "eingeloestAm": now, "shopId": shop_id, "per": per}})
     return entry

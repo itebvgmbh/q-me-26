@@ -57,6 +57,10 @@ export interface Eintrag {
   vorschlag: { shopId: string; name: string; grund: string; am: string } | null;
   /** Übernahme-Code für den Brief (nur ob und wann; der Code selbst steht nirgends) */
   uebernahme: { erstelltAm: string | null; gueltigBis: string | null; eingeloestAm: string | null } | null;
+  /** Briefe an den Salon (Reiter Briefe): Sperre „Keine Post mehr“, letzter Brief kam zurück, bisherige Briefe */
+  postSperre: { am: string; grund: string } | null;
+  unzustellbar: boolean;
+  post: { welle: string; art: 'brief' | 'erinnerung'; am: string; status: 'erzeugt' | 'verschickt'; verschicktAm?: string }[];
   fehlt: string[];
   angelegtAm: string | null;
   geaendertAm: string | null;
@@ -120,6 +124,11 @@ export const rejectTakeover = (id: string, shopId: string) => send<{ ok: boolean
 /** Neuer Übernahme-Code: wird nur jetzt gezeigt; ein früherer gilt nicht mehr (backend/app/libs/uebernahme.py) */
 export const createClaimCode = (id: string) => send<{ code: string; link: string; gueltigBis: string }>(entryPath(id, 'code'), {});
 /** Brief an den Salon als PDF. Braucht den Code im Klartext, darum nur direkt nach dem Erzeugen. */
+export const KEINE_POST_GRUENDE = ['E-Mail', 'Brief', 'Anruf', 'vor Ort'] as const;
+export const setKeinePost = (id: string, grund: string) => send<{ ok: boolean }>(entryPath(id, 'keine-post'), { grund });
+export const liftKeinePost = (id: string) => send<{ ok: boolean }>(entryPath(id, 'keine-post/aufheben'), {});
+export const setUnzustellbar = (id: string, unzustellbar: boolean) => send<{ ok: boolean }>(entryPath(id, 'unzustellbar'), { unzustellbar });
+
 export const downloadClaimLetter = async (id: string, code: string) => {
   const res = await request(entryPath(id, 'brief'), { code });
   const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1];

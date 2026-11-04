@@ -26,6 +26,7 @@ import app.verzeichnis_seiten as seiten  # noqa: E402
 from app.apis import verzeichnis as public_api  # noqa: E402
 from app.apis.betreiber import verzeichnis as admin_api  # noqa: E402
 from app.libs import brief  # noqa: E402
+from app.libs import briefaktion  # noqa: E402
 from app.libs import entfernen as ent  # noqa: E402
 from app.libs import protokoll  # noqa: E402
 from app.libs import uebernahme as ue  # noqa: E402
@@ -66,6 +67,7 @@ def frisch(entries=(), shops=()):
     """Speicher und Läden für einen Test; Zwischenspeicher leeren"""
     store = vz.MemoryStore(entries)
     vz.set_store(store)
+    briefaktion.set_stores(vz.MemoryStore(), vz.MemoryStore(), vz.MemoryStore())  # Wellen, Sperrliste, Einstellungen
     seo._cache.clear()
     seo.load_shops = lambda: list(shops)
     seo.waiting_now = lambda shop_id, now=None: 2

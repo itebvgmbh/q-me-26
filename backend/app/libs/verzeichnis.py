@@ -18,6 +18,7 @@ Felder eines Eintrags:
     beschreibung, schwerpunkte [..], ohneTermin (ja|nein|""), status (entwurf|online|offline|entfernt)
     slug, stadtSlug, altePfade [..], shopId, googlePlaceId, quelle {website, seiten, gelesenAm}
     wuensche (Zahl), vorschlag {shopId, name, grund, am}, abgelehnt [shopIds], uebernahme, mailCode (app/libs/uebernahme.py)
+    postSperre, unzustellbar, post (Briefe an den Salon, app/libs/briefaktion.py)
     angelegtAm, geaendertAm, veroeffentlichtAm
 """
 
@@ -269,10 +270,15 @@ def verknuepfen(entry: dict, shop_id: str, entries: list, st=None) -> dict:
 
 
 class FirestoreStore:
+    """Eine Sammlung; ohne Angabe `verzeichnis` (andere z. B. für die Briefe, app/libs/briefaktion.py)"""
+
+    def __init__(self, collection: str = COLLECTION):
+        self.collection = collection
+
     def _col(self):
         from app.apis.firebase_utils import get_firestore_db
 
-        return get_firestore_db().collection(COLLECTION)
+        return get_firestore_db().collection(self.collection)
 
     def alle(self) -> list:
         return [{**(d.to_dict() or {}), "id": d.id} for d in self._col().stream()]

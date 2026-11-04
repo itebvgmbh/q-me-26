@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
 from app.libs import brief
+from app.libs import briefaktion as ba
 from app.libs import protokoll
 from app.libs import uebernahme as ue
 from app.libs import verzeichnis as vz
@@ -61,6 +62,9 @@ def zeile(e: dict, shops_by_id: dict) -> dict:
         "shopName": (shop or {}).get("name", ""),
         "shopFehlt": bool(e.get("shopId")) and not shop,
         "wuensche": int(e.get("wuensche") or 0),
+        "postSperre": {k: (e.get("postSperre") or {}).get(k) for k in ("am", "grund")} if e.get("postSperre") else None,
+        "unzustellbar": ba.ist_unzustellbar(e),
+        "post": e.get("post") or [],
     })
     return row
 
@@ -396,7 +400,7 @@ def uebernahme_brief(entry_id: str, body: BriefRequest, user: AuthorizedUser) ->
             raise HTTPException(status_code=409, detail="Dieser Code gehört zu einem anderen Salon.")
     except ue.Fehler as e:
         raise HTTPException(status_code=e.status, detail=e.text) from e
-    grund = brief.hindernis(entry)
+    grund = ba.hindernis(entry, ba.sperrliste(), vz.now())
     if grund:
         raise HTTPException(status_code=409, detail=grund)
     inhalt = brief.pdf(entry, body.code, ue._aware(entry["uebernahme"]["gueltigBis"]), seo.public_url(), _gruenderplaetze())
@@ -419,4 +423,45 @@ def uebernahme_ablehnen(entry_id: str, body: ShopRequest, user: AuthorizedUser) 
     vz.store().aendere(entry_id, changes)
     protokoll.write(user, "Verzeichnis: Übernahme abgelehnt", {"verzeichnisId": entry_id, "shopId": body.shopId, "name": entry.get("name")})
     _vergessen()
+    return {"ok": True}
+
+
+# --- Post an den Salon: keine Post mehr, unzustellbar (app/libs/briefaktion.py) -------------------------------------
+
+
+class KeinePostRequest(BaseModel):
+    grund: str
+
+
+@router.post("/betreiber/verzeichnis/{entry_id}/keine-post")
+def keine_post(entry_id: str, body: KeinePostRequest, user: AuthorizedUser) -> dict:
+    """Der Salon will keine Post (per Mail, Brief, Anruf oder vor Ort gesagt): gesperrt, auch für später neu importierte Einträge"""
+    entry = _eintrag(entry_id)
+    if body.grund not in ba.BETREIBER_GRUENDE:
+        raise HTTPException(status_code=400, detail=f"Grund ist {', '.join(ba.BETREIBER_GRUENDE)}.")
+    ba.sperren(entry, body.grund)
+    protokoll.write(user, "Verzeichnis: keine Post", {"verzeichnisId": entry_id, "name": entry.get("name")}, after={"grund": body.grund})
+    return {"ok": True}
+
+
+@router.post("/betreiber/verzeichnis/{entry_id}/keine-post/aufheben")
+def keine_post_aufheben(entry_id: str, user: AuthorizedUser) -> dict:
+    entry = _eintrag(entry_id)
+    ba.aufheben(entry)
+    protokoll.write(user, "Verzeichnis: keine Post aufgehoben", {"verzeichnisId": entry_id, "name": entry.get("name")},
+                    before={"postSperre": entry.get("postSperre")})
+    return {"ok": True}
+
+
+class UnzustellbarRequest(BaseModel):
+    unzustellbar: bool
+
+
+@router.post("/betreiber/verzeichnis/{entry_id}/unzustellbar")
+def unzustellbar(entry_id: str, body: UnzustellbarRequest, user: AuthorizedUser) -> dict:
+    """Brief kam zurück (in Stufe A sieht der Betreiber das im Portal von PIN): kein weiterer Brief, bis die Anschrift geändert ist"""
+    entry = _eintrag(entry_id)
+    ba.unzustellbar(entry, body.unzustellbar)
+    protokoll.write(user, "Verzeichnis: unzustellbar" if body.unzustellbar else "Verzeichnis: wieder zustellbar",
+                    {"verzeichnisId": entry_id, "name": entry.get("name")})
     return {"ok": True}

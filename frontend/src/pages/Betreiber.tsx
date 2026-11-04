@@ -11,9 +11,10 @@ import { KontoDetail } from '../components/betreiber/KontoDetail';
 import { Betrieb } from '../components/betreiber/Betrieb';
 import { Protokoll } from '../components/betreiber/Protokoll';
 import { Verzeichnis } from '../components/betreiber/Verzeichnis';
+import { Briefe } from '../components/betreiber/Briefe';
 import { BILLING_LABEL, ROLE_LABEL, daysUntil, euro, fmtDate, fmtDateTime, planLine } from '../components/betreiber/format';
 
-type Tab = 'uebersicht' | 'laeden' | 'konten' | 'verzeichnis' | 'betrieb' | 'protokoll';
+type Tab = 'uebersicht' | 'laeden' | 'konten' | 'verzeichnis' | 'briefe' | 'betrieb' | 'protokoll';
 type Selected = { kind: 'shop'; id: string } | { kind: 'account'; uid: string } | null;
 
 const SHOP_FILTERS: { id: string; label: string; test: (s: AdminShop, now: number) => boolean }[] = [
@@ -188,6 +189,7 @@ export default function Betreiber() {
     { id: 'laeden', label: `Läden ${hideTests ? st.shops : data.shops.length}` },
     { id: 'konten', label: `Konten ${hideTests ? st.accounts : data.accounts.length}` },
     { id: 'verzeichnis', label: 'Verzeichnis' },
+    { id: 'briefe', label: 'Briefe' },
     { id: 'betrieb', label: 'Betrieb' },
     { id: 'protokoll', label: 'Protokoll' },
   ];
@@ -346,6 +348,8 @@ export default function Betreiber() {
       )}
 
       {tab === 'verzeichnis' && <Verzeichnis />}
+
+      {tab === 'briefe' && <Briefe />}
 
       {tab === 'betrieb' && <Betrieb data={data} />}
 

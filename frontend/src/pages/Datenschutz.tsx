@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="01.11.2026">
+    <LegalPage title="Datenschutz" updated="04.11.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -66,7 +66,10 @@ export default function Datenschutz() {
             wenn sie sie übernehmen möchten: Mit dem Link richten sie ihren Laden ein und verbinden ihn mit der Seite. Adresse
             und Grund stehen im Protokoll auf unserem Server. An die Geschäftsadresse des Salons können wir
             einen Brief schicken, der auf die Seite hinweist und anbietet, sie zu übernehmen (ebenfalls Art. 6 Abs. 1 lit. f
-            DSGVO); auch dem lässt sich jederzeit widersprechen, dann schreiben wir nicht mehr. Der Knopf „Das wünsch ich mir“ zählt nur mit;
+            DSGVO). Gedruckt und verschickt wird er von der PIN AG. Auch dem lässt sich jederzeit widersprechen, dann schreiben
+            wir nicht mehr: mit „Keine Post mehr“ unten auf der Seite des Salons, per E-Mail oder per Brief an uns. Damit das
+            auch gilt, wenn ein Eintrag gelöscht und der Salon später neu aufgenommen wird, behalten wir eine Prüfsumme der
+            Anschrift, aber weder Namen noch Anschrift. Der Knopf „Das wünsch ich mir“ zählt nur mit;
             damit niemand mehrfach zählt, halten wir bis zum Ende des Tages eine Prüfsumme der IP-Adresse im
             Arbeitsspeicher, nicht die Adresse selbst.
           </li>
@@ -107,6 +110,10 @@ export default function Datenschutz() {
             auf Anfrage.
           </li>
           <li>Server-Protokolle löschen wir nach spätestens 14 Tagen.</li>
+          <li>
+            Die Prüfsumme der Anschrift eines Salons, der keine Post von uns möchte, behalten wir ohne Frist, weil nur so der
+            Widerspruch dauerhaft gilt.
+          </li>
           <li>Rechnungsdaten der Läden bewahren wir so lange auf, wie das Steuer- und Handelsrecht es verlangt.</li>
         </ul>
       </section>
@@ -128,6 +135,10 @@ export default function Datenschutz() {
           <li>
             <strong>Stripe</strong> (Stripe Payments Europe Ltd., Dublin): Abrechnung der Abos der Läden. Kunden der
             Läden zahlen über Dranzeit nichts.
+          </li>
+          <li>
+            <strong>PIN AG</strong> (Berlin): Druck und Versand der Briefe an Salons aus dem Verzeichnis. Sie erhält dafür
+            den Brief mit Anschrift und Übernahme-Code und löscht ihn spätestens nach 28 Tagen.
           </li>
           <li>
             <strong>Push-Dienste der Browser-Hersteller</strong> (zum Beispiel Google, Apple, Mozilla): Zustellung der

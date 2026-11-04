@@ -6,6 +6,7 @@
     POST /routes/verzeichnis/{id}/entfernen          Formular auf der Seite: Link an die Salon-Adresse, sonst prüft der Betreiber
     GET  /routes/verzeichnis/{id}/entfernen/bestaetigen  Link aus der Mail: zeigt nur den Knopf
     POST /routes/verzeichnis/{id}/entfernen/bestaetigen  Der Knopf: Erst hier geht der Eintrag offline (app/libs/entfernen.py)
+    POST /routes/verzeichnis/{id}/keine-post         „Keine Post mehr“: sperrt Briefe sofort, ohne Nachweis (app/libs/briefaktion.py)
     GET  /routes/verzeichnis/{id}/vorschau           Angaben der Seite für den Einrichtungsassistenten („Ist das dein Salon?“)
     POST /routes/verzeichnis/uebernahme/pruefen      Übernahme-Code aus dem Brief: zu welcher Seite gehört er?
     POST /routes/verzeichnis/uebernahme/einloesen    Code einlösen (angemeldet, eigener Laden): Seite wird die des Ladens
@@ -34,6 +35,7 @@ from pydantic import BaseModel
 
 from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
+from app.libs import briefaktion as ba
 from app.libs import entfernen as ent
 from app.libs import protokoll
 from app.libs import uebernahme as ue
@@ -58,6 +60,7 @@ LIMITS = {  # (Anzahl, Sekunden) je IP bzw. Konto
     "nachweis": (5, 86400),
     "nachweis-gleich": (1, 3600),
     "nachweis-link": (1, 3600),  # Mails mit Link je Eintrag
+    "keine-post": (5, 86400),  # „Keine Post mehr“ auf der Salonseite, ohne Nachweis
 }
 _arbeit = ThreadPoolExecutor(max_workers=4, thread_name_prefix="verzeichnis")  # begrenzt; ein Neustart wartet, bis sie fertig sind
 _wuensche: dict = {"tag": None, "schon": set()}  # je Person und Tag zählt ein Wunsch einmal; um Mitternacht vergessen
@@ -277,6 +280,27 @@ def _entfernen_bestaetigt(entry_id: str, token: str) -> HTMLResponse:
 async def entfernen_bestaetigt(entry_id: str, request: Request) -> HTMLResponse:
     form = _formular(await request.body())
     return await run_in_threadpool(_entfernen_bestaetigt, entry_id, _feld(form, "t", 100))
+
+
+def _keine_post(entry_id: str, who: str) -> HTMLResponse:
+    """Ohne Nachweis: Missbrauch kostet nur einen Brief, und ein Widerspruch soll einfach sein. Noch einmal geklickt zählt nicht."""
+    from app import verzeichnis_seiten as seiten
+
+    entry = _online_eintrag(entry_id)
+    if ba.gesperrt(entry, ba.sperrliste()):
+        return HTMLResponse(seiten.render_keine_post(entry))
+    if not _frei("keine-post", who):
+        return HTMLResponse(seiten.render_anfrage("zu_viele", entry), status_code=429)
+    ba.sperren(entry, "Salonseite")
+    protokoll.write(_Bot(), "Verzeichnis: keine Post", {"verzeichnisId": entry_id, "name": entry.get("name")},
+                    after={"grund": "Salonseite", "pfad": vz.pfad(entry)})
+    _im_hintergrund(_melden, ba.keine_post_melden, entry)
+    return HTMLResponse(seiten.render_keine_post(entry))
+
+
+@router.post("/verzeichnis/{entry_id}/keine-post")
+async def keine_post(entry_id: str, request: Request) -> HTMLResponse:
+    return await run_in_threadpool(_keine_post, entry_id, _ip(request))
 
 
 # --- Übernahme: der Salon macht seine Seite zum Dranzeit-Laden (app/libs/uebernahme.py) -------------------------------

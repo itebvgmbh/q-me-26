@@ -58,6 +58,7 @@ button.btn{cursor:pointer;background:transparent;font:inherit;font-weight:700}bu
 .orte a{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:inherit;text-decoration:none;background:var(--card)}
 .shop h2 a{color:inherit;text-decoration:none}
 details{margin-top:12px}summary{cursor:pointer}
+.linkknopf{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
 .form{display:grid;gap:10px;margin-top:12px;max-width:520px}
 .form label{display:grid;gap:4px;font-size:14px}.form label.check{display:flex;gap:8px;align-items:flex-start}
 .knoepfe{display:flex;flex-wrap:wrap;gap:8px}
@@ -443,6 +444,9 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
             "<label>Was ist falsch oder warum soll der Eintrag weg?<textarea name=\"grund\" rows=\"3\" maxlength=\"1000\"></textarea></label>"
             "<div class=\"knoepfe\"><button class=\"btn\" type=\"submit\" name=\"aktion\" value=\"entfernen\">Eintrag entfernen</button>"
             "<button class=\"btn\" type=\"submit\" name=\"aktion\" value=\"korrigieren\">Nur Angaben korrigieren</button></div></form></details>"
+            f"<form id=\"keine-post\" method=\"post\" action=\"/routes/verzeichnis/{_e(s['id'])}/keine-post\">"
+            "<p class=\"klein\">Du gehörst zum Salon und möchtest keine Briefe von Dranzeit? "
+            "<button class=\"linkknopf\" type=\"submit\">Keine Post mehr</button></p></form>"
         )
     else:
         fuss = (f"<p class=\"klein\">{_e(s['name'])} nutzt Dranzeit. Lage und Ortsteil: © OpenStreetMap-Mitwirkende. "
@@ -557,6 +561,12 @@ def _hinweis(titel: str, text: str, unten: str = "") -> str:
 
 def render_entfernt(name: str) -> str:
     return _hinweis("Erledigt", f"Der Eintrag „{_e(name)}“ ist offline.")
+
+
+def render_keine_post(entry: dict) -> str:
+    zurueck = f"<p><a class=\"btn\" href=\"{_e(vz.pfad(entry))}\">Zurück zur Seite</a></p>"
+    return _hinweis("Erledigt", f"Wir schicken „{_e(entry.get('name', ''))}“ keine Post mehr. Die Seite bleibt online; "
+                    "offline nehmen kannst du sie unten auf der Seite unter „Eintrag entfernen“.", zurueck)
 
 
 def render_anfrage(art: str, entry: dict, email: str = "") -> str:
