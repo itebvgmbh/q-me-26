@@ -124,6 +124,13 @@ def create_app() -> FastAPI:
         app.state.auth_config = AuthConfig(**auth_config)
 
     @app.on_event("startup")
+    def datenbank_melden() -> None:
+        # PostgreSQL (app/libs/datenbank.py): bis Stufe 3 nur der Befund im Log, die Daten liegen noch in Firestore
+        from app.libs.datenbank import zustand
+
+        print(f"Datenbank: {zustand()}")
+
+    @app.on_event("startup")
     def autostart_scheduler() -> None:
         # "Früher dran" braucht den Hintergrunddienst; vorher musste ihn jemand nach
         # jedem Neustart von Hand starten. Ohne Dienstkonto-Schlüssel bleibt er aus.

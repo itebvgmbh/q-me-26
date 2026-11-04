@@ -35,6 +35,10 @@ cd "$APP_DIR/backend"
 uv pip install --quiet --python .venv/bin/python -r requirements.txt
 install -d -o q-me -g q-me .local_data
 
+echo "==> Datenbank"
+# Rolle, Datenbank, QME_DATABASE_URL und nächtliche Sicherung; ändert nichts, wenn alles schon da ist
+bash "$APP_DIR/deploy/datenbank.sh" einrichten
+
 echo "==> Schlüssel für Benachrichtigungen"
 # Einmalig auf dem Server erzeugt; der geheime Teil verlässt den Server nie (app/libs/webpush.py)
 if ! grep -q '^VAPID_PRIVATE_KEY=' "$ENV_FILE"; then
@@ -73,6 +77,10 @@ if [ -d "$WEB_ROOT" ]; then
 fi
 mv "$WEB_ROOT.new" "$WEB_ROOT"
 rm -rf "$WEB_ROOT.old"
+
+echo "==> Schema der Datenbank"
+# Schema-Änderungen (backend/migrations) vor dem Neustart einspielen; schlägt das fehl, läuft der alte Stand weiter
+bash "$APP_DIR/deploy/datenbank.sh" migrieren
 
 echo "==> Dienst neu starten"
 # Geänderte Dienstdatei (z. B. Zeitzone) mitnehmen – sonst gälte nur die bei der Einrichtung kopierte

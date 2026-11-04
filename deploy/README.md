@@ -126,6 +126,37 @@ Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeich
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
+## Datenbank (PostgreSQL)
+
+Seit 04.11.2026 hat Dranzeit eine eigene Datenbank auf diesem Server. Plan und Stufen stehen in
+`requirements/eigene-datenbank.md`. Bis Stufe 3 liegen alle Daten weiter in Firestore, die Datenbank ist bis dahin
+leer.
+
+- **Datenbank und Anmeldung:** Datenbank `q_me` im gemeinsamen PostgreSQL 16 des Servers, Rolle `q-me`. Angemeldet
+  wird über den lokalen Socket ohne Passwort (peer), es gibt also kein Datenbank-Geheimnis. Die Adresse steht in
+  `/etc/q-me.env` als `QME_DATABASE_URL=postgresql:///q_me?host=/var/run/postgresql`.
+- **Einrichten:** `update.sh` ruft bei jedem Ausrollen `deploy/datenbank.sh einrichten` auf. Das legt Rolle,
+  Datenbank, die Erweiterung `btree_gist`, den Eintrag in `/etc/q-me.env` und die nächtliche Sicherung an, falls etwas
+  davon fehlt. Ist schon alles da, ändert es nichts.
+- **Schema:** Änderungen gibt es nur als Alembic-Fassung in `backend/migrations/versions/`. `update.sh` spielt sie vor
+  dem Neustart ein (`datenbank.sh migrieren`, läuft als Benutzer `q-me`). Schlägt das fehl, startet das Backend nicht
+  neu, und der alte Stand läuft weiter. Neue Fassung: `cd backend; .venv/bin/python -m alembic revision -m "…"`.
+- **Log beim Start:** Das Backend schreibt `Datenbank: erreichbar, Schema-Fassung …` oder den Grund, warum es keine
+  Verbindung gibt (`journalctl -u q-me | grep Datenbank:`).
+- **Sicherung:** Jede Nacht um 21:30 Uhr UTC (`/etc/cron.d/q-me-datenbank`) entsteht eine Sicherung unter
+  `/var/backups/q-me/q_me-<Zeit>.dump`. Sie bleibt 14 Tage, Protokoll in `/var/log/q-me-datenbank.log`. Die Uhrzeit
+  liegt vor dem Sicherungsfenster von Hetzner (22–02 Uhr UTC), sodass die Datei in derselben Nacht im Abbild des
+  Servers landet. Die Hetzner-Sicherung hält 7 Tage.
+- **Wiederherstellung proben:** `bash /opt/q-me/deploy/datenbank.sh probe`. Das zieht eine frische Sicherung, spielt
+  sie in die Wegwerf-Datenbank `q_me_probe` ein, vergleicht Tabellen und Zeilenzahlen mit `q_me` und löscht die Probe
+  wieder. Mindestens nach jeder neuen Stufe einmal laufen lassen.
+- **Im Ernstfall zurückspielen** (überschreibt den heutigen Stand, vorher Backend anhalten):
+  `systemctl stop q-me`, dann `runuser -u postgres -- pg_restore --clean --if-exists -d q_me < /var/backups/q-me/<Datei>`,
+  dann `systemctl start q-me`.
+- **Tests:** `backend/tests/test_datenbank.py` (Schema vor und zurück, Sperre gegen überlappende Termine). Die Tests
+  laufen auf GitHub gegen eine Wegwerf-Datenbank (Workflow „Datenbank“). Ohne `QME_TEST_DATABASE_URL` laufen lokal nur
+  die Tests der Adresse.
+
 ## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
