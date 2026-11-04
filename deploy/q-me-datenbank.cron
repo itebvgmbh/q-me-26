@@ -1,0 +1,4 @@
+# Nächtliche Sicherung der Dranzeit-Datenbank (deploy/datenbank.sh). Läuft vor dem Sicherungsfenster von Hetzner
+# (22–02 Uhr UTC, Server läuft auf UTC), damit die Datei in derselben Nacht im Abbild des Servers landet.
+# deploy/datenbank.sh einrichten kopiert diese Datei nach /etc/cron.d/q-me-datenbank.
+30 21 * * * root bash /opt/q-me/deploy/datenbank.sh sichern >>/var/log/q-me-datenbank.log 2>&1

@@ -4,6 +4,8 @@
 - **Stand:** 04.11.2026
 - **Status:** Entwurf zur Abstimmung mit Stefan. Entschieden am 04.11.2026: PostgreSQL auf dem vorhandenen Server
   `spielmacherei`, kein eigener Server; eigene Anmeldung statt Firebase Authentication. Offen: siehe „Offen“.
+- **Fortschritt:** Stufe 0 live seit 04.11.2026: Datenbank `q_me`, Alembic, nächtliche Sicherung, Workflow
+  „Datenbank“. Anleitung in `deploy/README.md`, Abschnitt „Datenbank (PostgreSQL)“.
 
 ## Worum es geht
 
@@ -133,8 +135,9 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
   - Die Hetzner-Sicherung des Servers (täglich, 7 Tage) nimmt diese Dateien mit.
   - Einmal zur Probe wiederherstellen und das in `deploy/README.md` beschreiben.
 - **Tests:**
-  - PostgreSQL in GitHub Actions (Service-Container) für die Backend-Tests.
-  - Lokal auf Stefans Rechner PostgreSQL 16 installieren. Dafür gibt es einen fertigen Befehl.
+  - PostgreSQL in GitHub Actions (Service-Container) für die Backend-Tests (`.github/workflows/datenbank.yml`).
+  - PostgreSQL 16 auf Stefans Rechner erst, wenn Stufe 1 es für schnelle Tests braucht. Dafür gibt es dann einen
+    fertigen Befehl. Bis dahin laufen die Datenbank-Tests auf GitHub.
 
 ### Stufe 1 – Datenzugriff im Backend bündeln (2–3 Tage)
 
@@ -251,7 +254,7 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
 |---|---|---|
 | Datenbank, Rolle, Erweiterung anlegen; `QME_DATABASE_URL` setzen | Claude per ssh | 0 |
 | Nächtliche Sicherung (cron) und Probe-Wiederherstellung | Claude per ssh | 0 |
-| PostgreSQL auf Stefans Rechner (für Tests) | Stefan, fertiger Befehl | 0 |
+| PostgreSQL auf Stefans Rechner (für Tests) | Stefan, fertiger Befehl | 1 |
 | Firestore-Regeln „kein Zugriff aus dem Browser“ einspielen | Stefan, wie bisher | 2 |
 | Datenumzug im Wartungsfenster (liest Produktionsdaten) | Stefan, fertiger Block | 3 |
 | Firebase-Hash-Parameter (Geheimnis) | Stefan, Block mit `Read-Host -AsSecureString` | 4 |

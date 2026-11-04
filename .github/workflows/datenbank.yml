@@ -1,0 +1,58 @@
+# Prüft die Anbindung an PostgreSQL und die Schema-Fassungen (backend/tests/test_datenbank.py) gegen eine
+# Wegwerf-Datenbank, dazu die Syntax von deploy/datenbank.sh. Läuft, sobald sich Backend oder Datenbank-Skripte ändern;
+# von Hand: Actions → Datenbank → Run workflow. Anleitung: requirements/eigene-datenbank.md (Stufe 0).
+name: Datenbank
+
+on:
+  push:
+    paths:
+      - backend/**
+      - deploy/datenbank.sh
+      - deploy/update.sh
+      - .github/workflows/datenbank.yml
+  pull_request:
+    paths:
+      - backend/**
+      - deploy/datenbank.sh
+      - deploy/update.sh
+      - .github/workflows/datenbank.yml
+  workflow_dispatch:
+
+jobs:
+  datenbank:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Dieselbe Hauptversion wie auf dem Server
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: q_me_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Python und Abhängigkeiten wie auf dem Server
+        run: |
+          uv venv --python 3.13 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Skripte fürs Ausrollen
+        working-directory: deploy
+        run: |
+          bash -n datenbank.sh
+          bash -n update.sh
+          shellcheck -S warning datenbank.sh
+      - name: Anbindung und Schema
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_datenbank.py

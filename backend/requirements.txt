@@ -30,3 +30,8 @@ drafthorse==2025.2.0
 segno
 # Brief an die Salons als PDF, Schriften eingebettet (app/libs/brief.py)
 reportlab
+# Eigene Datenbank (PostgreSQL) statt Firestore (requirements/eigene-datenbank.md, app/libs/datenbank.py);
+# Schema-Änderungen über Alembic (migrations/, deploy/datenbank.sh migrieren)
+sqlalchemy>=2.0.36
+psycopg[binary]>=3.2
+alembic>=1.14
