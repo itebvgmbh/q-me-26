@@ -9,6 +9,10 @@
     `deploy/README.md`, Abschnitt „Datenbank (PostgreSQL)“.
   - Stufe 1 live seit 04.11.2026: Speicher-Schicht `backend/app/store`, Wächter-Test und Vertrag gegen den
     Firestore-Emulator.
+  - Stufe 2, Bereich 1 live seit 04.11.2026: Nummernseite, Wartezimmer-Bildschirm und das Hinweisband „Nummer noch
+    offen“ holen ihre Daten über `/routes/live` (`backend/app/apis/live`, `backend/app/libs/live.py`) und hören per
+    Server-Sent Events auf Änderungen (`frontend/src/utils/live.ts`). Sie fragen Firestore nicht mehr. Tests:
+    `backend/tests/test_live.py`, `dev/e2e/live.cjs`, `dev/e2e/verbindung.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend

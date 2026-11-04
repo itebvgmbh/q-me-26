@@ -1,36 +1,48 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { APP_BASE_PATH } from 'app';
 import { BrandMark } from '../components/brand/Logo';
 import { HILFE_MAIL } from '../components/HilfeLink';
 import { ShopLogo } from '../components/brand/ShopLogo';
-import { firestore } from '../utils/firestore-client';
 import { hasFeature } from '../utils/plans';
 import { useKeepScreenOn } from '../utils/native-app';
 import { expectedStart, projectLane, waitingInOrder } from '../utils/queue-lane';
-import type { Shop, Staff } from '../utils/firestore';
-import { publicFromDoc, shopDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
+import type { Shop } from '../utils/firestore';
+import type { PublicAppointment } from '../utils/firestore/public-appointments';
+import { useLive } from '../utils/live';
 import { t, tn } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
+/** Was das Backend für den Bildschirm liefert (backend/app/apis/live: GET /live/bildschirm/{shopId}?tag=…) */
+interface BildschirmLive {
+  laden: Shop;
+  /** Aktive Personen des Ladens, nur mit Namen */
+  personen: { id: string; name: string }[];
+  termine: PublicAppointment[];
+  tag: string;
+  kanaele: string[];
+}
+
 /**
  * Wartezimmer-Bildschirm für einen Fernseher im Laden: wer ist dran, wer kommt als Nächstes,
- * QR-Code zum Nummer-Ziehen. Öffentlich (der Fernseher meldet sich nicht an), zeigt nur Nummern – und liest auch nur
- * die öffentlichen Kurzfassungen der Termine (utils/firestore/public-appointments.ts).
+ * QR-Code zum Nummer-Ziehen. Öffentlich (der Fernseher meldet sich nicht an), zeigt nur Nummern. Die Daten kommen vom
+ * Backend: nur die öffentlichen Kurzfassungen der Termine und die Namen der Personen (utils/live.ts). Laden und Team
+ * lädt er jede Minute neu, Termine sofort bei jeder Änderung.
  * Gehört zum Tarif Laden (utils/plans.ts).
  */
 export default function Bildschirm() {
   const { shopId = '' } = useParams();
-  const [shop, setShop] = useState<Shop | null | undefined>(undefined);
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [appts, setAppts] = useState<PublicAppointment[]>([]);
   const [now, setNow] = useState(() => new Date());
   const today = dayKey(now);
+  // Um Mitternacht kommt mit dem neuen Tag ein neuer Abruf, bis dahin bleibt der alte stehen
+  const live = useLive<BildschirmLive>(shopId ? `bildschirm/${encodeURIComponent(shopId)}?tag=${today}` : null);
+  const shop: Shop | null | undefined = live.fehlt ? null : live.daten ? live.daten.laden : undefined;
+  const staff = live.daten?.personen;
+  const appts = live.daten?.termine;
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 15_000);
@@ -40,27 +52,9 @@ export default function Bildschirm() {
   // Bildschirm bleibt an: in der App immer, im Browser, wo er es erlaubt
   useKeepScreenOn();
 
-  useEffect(() => {
-    if (!shopId) return;
-    const offShop = onSnapshot(doc(firestore, 'shops', shopId), (snap) => setShop(snap.exists() ? ({ id: snap.id, ...snap.data() } as Shop) : null));
-    const offStaff = onSnapshot(query(collection(firestore, 'staff'), where('shopId', '==', shopId)), (snap) =>
-      setStaff(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Staff).filter((s) => s.isActive !== false)),
-    );
-    return () => {
-      offShop();
-      offStaff();
-    };
-  }, [shopId]);
-
-  // Heutige Termine, live; um Mitternacht neu
-  useEffect(() => {
-    if (!shopId) return;
-    const q = shopDayQuery(firestore, shopId, new Date(`${today}T12:00:00`));
-    return onSnapshot(q, (snap) => setAppts(snap.docs.map(publicFromDoc)));
-  }, [shopId, today]);
-
   const lanes = useMemo(() => {
     const nowMs = now.getTime();
+    if (!staff || !appts) return [];
     return staff
       .map((person) => {
         // Wer wartet, bleibt stehen, bis er aufgerufen oder abgesagt wird (utils/queue-lane.ts)
