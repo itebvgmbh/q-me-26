@@ -319,4 +319,9 @@ TEXTE: dict = {
     "Ungültige Zeitangabe für die Pause.": "وقت غير صالح للاستراحة.",
     "Das Ende der Pause muss nach dem Beginn liegen.": "يجب أن تنتهي الاستراحة بعد بدايتها.",
     "Diese Pause gibt es nicht mehr.": "هذه الاستراحة لم تعد موجودة.",
+    # Läden, Bilder, Konto (app/apis/team_laden, app/apis/konto)
+    "Dieses Angebot gibt es nicht mehr.": "هذا العرض لم يعد موجودًا.",
+    "Das Bild ist zu groß (höchstens 5 MB).": "الصورة كبيرة جدًا (5 ميغابايت كحد أقصى).",
+    "Bitte ein Bild als PNG, JPEG oder WebP.": "يرجى استخدام صورة بصيغة PNG أو JPEG أو WebP.",
+    "Diese Datei gibt es nicht.": "هذا الملف غير موجود.",
 }
