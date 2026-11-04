@@ -1,7 +1,6 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, limit } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { auth, firebaseApp } from 'app';
+import { auth } from 'app';
 import { Customer } from './types';
+import { backendSenden, liveLesen } from '../live';
 import { t } from '@/i18n';
 
 /**
@@ -80,20 +79,16 @@ export const getUniqueCustomers = (customers: Customer[]): Customer[] => {
   return result;
 };
 
+/**
+ * Kundenliste über das Backend (requirements/eigene-datenbank.md, Stufe 2; backend/app/libs/laeden.py): lesen und
+ * anlegen Inhaber und Team. Neue Einträge sind nie mit einem Konto verbunden; das macht der Kunden-Link.
+ */
+const kundenDesLadens = async (shopId: string): Promise<Customer[]> =>
+  (await liveLesen<{ kunden: Customer[] }>(`team/laeden/${encodeURIComponent(shopId)}/kunden`, true)).kunden;
+
 export const getCustomersByShopId = async (shopId: string): Promise<Customer[]> => {
-  console.log('Getting customers for shop:', shopId);
   try {
-    const db = getFirestore(firebaseApp);
-    const customersRef = collection(db, 'customers');
-    const q = query(customersRef, where('shopId', '==', shopId));
-    const querySnapshot = await getDocs(q);
-    const customers = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Customer[];
-    console.log('Found customers:', customers);
-    // Return deduplicated customers
-    return getUniqueCustomers(customers);
+    return getUniqueCustomers(await kundenDesLadens(shopId));
   } catch (error) {
     console.error('Error getting customers:', error);
     return [];
@@ -101,89 +96,21 @@ export const getCustomersByShopId = async (shopId: string): Promise<Customer[]> 
 };
 
 /** Alle Einträge eines Ladens, auch doppelte – für die Kundenliste, aus der man löschen kann */
-export const getCustomerEntries = async (shopId: string): Promise<Customer[]> => {
-  const db = getFirestore(firebaseApp);
-  const snapshot = await getDocs(query(collection(db, 'customers'), where('shopId', '==', shopId)));
-  return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as Customer).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
-};
+export const getCustomerEntries = async (shopId: string): Promise<Customer[]> =>
+  (await kundenDesLadens(shopId)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
 
-/**
- * Sucht nach einem Kunden anhand von Email und ShopId
- * @param email Email des Kunden
- * @param shopId ID des Shops
- * @returns Customer Objekt oder null, wenn nicht gefunden
- */
+/** Kunde mit dieser E-Mail in diesem Laden, sonst null */
 export const findCustomerByEmailAndShop = async (email: string, shopId: string): Promise<Customer | null> => {
-  if (!email || !shopId) {
-    console.log('Cannot find customer without email and shopId');
-    return null;
-  }
-  
+  if (!email || !shopId) return null;
   try {
-    const db = getFirestore(firebaseApp);
-    const customersRef = collection(db, 'customers');
-    const q = query(
-      customersRef, 
-      where('email', '==', email),
-      where('shopId', '==', shopId),
-      limit(1)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      console.log(`No customer found with email ${email} for shop ${shopId}`);
-      return null;
-    }
-    
-    const customerDoc = querySnapshot.docs[0];
-    console.log(`Found existing customer with ID: ${customerDoc.id}`);
-    return {
-      id: customerDoc.id,
-      ...customerDoc.data()
-    } as Customer;
+    return (await kundenDesLadens(shopId)).find((c) => c.email === email) ?? null;
   } catch (error) {
     console.error('Error finding customer:', error);
     return null;
   }
 };
 
-/**
- * Erstellt einen neuen Kunden oder gibt den existierenden Kunden zurück,
- * wenn bereits ein Kunde mit dieser Email für den Shop existiert
- * @param data Kundendaten
- * @returns Erstellter oder existierender Kunde
- */
-export const createCustomer = async (data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationTokenHash' | 'activationExpires' | 'isActive'>): Promise<Customer> => {
-  console.log('Creating customer with data:', data);
-  try {
-    // Prüfe zuerst, ob bereits ein Kunde mit dieser Email für diesen Shop existiert
-    if (data.email) {
-      const existingCustomer = await findCustomerByEmailAndShop(data.email, data.shopId);
-      if (existingCustomer) {
-        console.log('Customer already exists, returning existing customer:', existingCustomer);
-        return existingCustomer;
-      }
-    }
-    
-    // Wenn kein Kunde gefunden wurde, erstelle einen neuen
-    const db = getFirestore(firebaseApp);
-    const customerRef = doc(collection(db, 'customers'));
-
-    const now = Timestamp.now();
-    const customerData = {
-      id: customerRef.id,
-      ...data,
-      isActive: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    await setDoc(customerRef, customerData);
-    console.log('Customer created successfully:', customerData);
-    return customerData;
-  } catch (error) {
-    console.error('Error creating customer:', error);
-    throw error;
-  }
-};
+/** Neuer Kunde; gibt es die E-Mail im Laden schon, kommt der vorhandene Eintrag zurück (prüft das Backend) */
+export const createCustomer = async (
+  data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'activationTokenHash' | 'activationExpires' | 'isActive'>,
+): Promise<Customer> => (await backendSenden<{ kunde: Customer }>('team/kunden', { kunde: data })).kunde;

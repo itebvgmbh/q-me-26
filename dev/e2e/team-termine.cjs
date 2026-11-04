@@ -17,7 +17,7 @@ run(async () => {
   const errors = collectErrors(page);
   await mockAuth(page);
 
-  // Regelprüfung: erlaubt alles, merkt sich die Aufrufe (die echte liest aus Firestore)
+  // Regelprüfung: erlaubt alles, merkt sich die Aufrufe (die echte liest Laden, Person, Pausen und Termine)
   await page.route('**/src/utils/booking-rules.ts*', (route) =>
     route.fulfill({
       status: 200,
@@ -58,11 +58,10 @@ run(async () => {
 
   await signInFake(page);
   const ergebnis = await page.evaluate(async () => {
-    // Firestore-Timestamp wie in den Komponenten (Vite liefert das Paket unter einem eigenen Pfad aus)
-    const quelle = await (await fetch('/src/utils/firestore/appointments.ts')).text();
-    const { Timestamp } = await import(quelle.match(/from "([^"]*firebase[_/]firestore[^"]*)"/)[1]);
+    // Zeitpunkt wie in den Komponenten (seit Stufe 2 statt Firestores Timestamp, utils/live.ts)
     const dl = await import('/src/utils/firestore/appointments.ts');
     const live = await import('/src/utils/live.ts');
+    const Timestamp = live.Zeitpunkt;
     const r = {};
     const neu = await dl.createAppointment({
       shopId: 'laden-test', staffId: 'kim', serviceId: 'schnitt', status: 'scheduled', type: 'queue', customerName: 'Kara',

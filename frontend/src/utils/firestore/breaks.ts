@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Zeitpunkt as Timestamp } from '../live';
 import { backendSenden, liveLesen } from '../live';
 import type { RecurringBreak } from './recurring-breaks';
 

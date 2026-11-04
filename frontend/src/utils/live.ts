@@ -31,6 +31,14 @@ export class Zeitpunkt {
     return new Zeitpunkt(Date.parse(iso));
   }
 
+  static fromDate(d: Date) {
+    return new Zeitpunkt(d.getTime());
+  }
+
+  static now() {
+    return new Zeitpunkt(Date.now());
+  }
+
   toDate() {
     return new Date(this.ms);
   }

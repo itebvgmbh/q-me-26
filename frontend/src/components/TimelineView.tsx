@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { DndContext, DragEndEvent, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 import { Staff, Appointment, updateAppointment, Service } from '../utils/firestore';
 import { RecurringBreak } from '../utils/firestore/recurring-breaks';
-import { Timestamp } from 'firebase/firestore';
+import { Zeitpunkt as Timestamp } from '../utils/live';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addDays, addMinutes, startOfDay } from 'date-fns';

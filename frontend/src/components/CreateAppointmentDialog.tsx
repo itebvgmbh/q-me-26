@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Service, Staff, Customer, createAppointment, getCustomersByShopId, createCustomer, getUniqueCustomers, appointmentCustomerId, offeredServices } from '../utils/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { Zeitpunkt as Timestamp } from '../utils/live';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import useTimeSlotStore from '../utils/timeSlotStore';

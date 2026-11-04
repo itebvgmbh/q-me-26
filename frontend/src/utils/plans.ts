@@ -1,6 +1,6 @@
 // Tarife von Dranzeit. Gleiche Regeln im Backend: backend/app/libs/plans.py – Änderungen immer an beiden Stellen.
 // Preise netto in Euro. Grundlage: Preisstrategie (Gratis, Solo 19 €, Laden 39 €, Team 59 €; Jahr = 10 Monate).
-import { Timestamp } from 'firebase/firestore';
+import type { Zeitpunkt as Timestamp } from './live';
 import { safelyConvertToDate } from './datetime';
 import { intlSprache, merke } from '@/i18n';
 
@@ -132,9 +132,3 @@ export const gross = (net: number) => Math.round(net * (1 + VAT_RATE) * 100) / 1
 
 export const euro = (amount: number) =>
   new Intl.NumberFormat(intlSprache(), { style: 'currency', currency: 'EUR', minimumFractionDigits: amount % 1 === 0 ? 0 : 2 }).format(amount);
-
-/** Felder für einen neu angelegten Laden: 30 Tage alles testen */
-export const newShopPlanFields = (now: Date = new Date()) => ({
-  plan: 'gratis' as PlanId,
-  trialEndsAt: Timestamp.fromDate(addDays(now, TRIAL_DAYS)),
-});

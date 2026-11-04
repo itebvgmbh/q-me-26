@@ -36,6 +36,16 @@
     Inhaber über `/routes/team/pausen…` und `/routes/team/feste-pausen…` (`backend/app/libs/pausen.py`). Neu: Danach
     rechnet das Backend die freien Zeiten neu (feste Pausen: alle Tage). Tests: `backend/tests/test_pausen.py`,
     `dev/e2e/pausen.cjs`.
+  - Stufe 2, Bereiche 6–9 (04.11.2026): Einrichtung und Laden, Kunden, Profil, Tarif. Läden über `/routes/live/laeden`,
+    `/routes/live/laden/<id>` (öffentlich, ohne Inhaber, Startklar-Merker und Onboarding-Mails) und
+    `/routes/team/laeden…` (anlegen nur Gratis mit Testphase, ändern nur der Inhaber, ohne Tarif-Felder). Logos und
+    Fotos liegen auf dem Server (`/var/lib/q-me/dateien`, nächtlich gesichert) statt in Firebase Storage. Kunden über
+    `/routes/team/laeden/<id>/kunden` und `/routes/team/kunden`; Profil, eigene Termine und Angebote „Früher dran“ über
+    `/routes/konto/…`. Die Regelprüfung beim Buchen liest Laden, Person und belegte Zeiten über `/routes/live/…`
+    (`…/person/<id>/belegt`); „Monat voll“ im Gratis-Tarif über `/routes/live/laden/<id>/monat`. Damit lädt der
+    Browser Firestore und Firebase Storage gar nicht mehr (Bundle ohne Firestore, `utils/connection.ts` ohne
+    Long-Polling). Tests: `backend/tests/test_laeden.py`, `dev/e2e/konto-laeden.cjs`, `dev/e2e/verbindung.cjs`.
+    Offen in Stufe 2: Firestore-Regeln auf „kein Zugriff aus dem Browser“ (Stefan spielt sie ein).
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend
@@ -204,7 +214,9 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
   7. Kunden
   8. Profil
   9. Tarif und Betreiber
-- **Logos und Fotos** gehen als Upload ans Backend. Das Backend legt sie vorerst weiter in Firebase Storage ab.
+- **Logos und Fotos** gehen als Upload ans Backend. Das Backend legt sie gleich auf dem Server ab
+  (`/var/lib/q-me/dateien`, geändert am 04.11.2026 – der Umweg über Firebase Storage hätte nichts gespart); ältere
+  Bilder behalten ihre Adresse in Firebase Storage bis Stufe 5.
 - **Am Ende:**
   - Die Firestore-Regeln werden auf „kein Zugriff aus dem Browser“ gestellt. Stefan spielt sie ein.
   - Die Anmeldung läuft in dieser Stufe noch über Firebase.

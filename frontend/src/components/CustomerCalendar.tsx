@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, addDays, startOfWeek, isToday, isSameDay } from 'date-fns';
-import { doc, getDoc } from 'firebase/firestore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarTimeSlot, TimeSlot } from '../utils/types';
 import useTimeSlotStore from '../utils/timeSlotStore';
-import { firestore } from '../utils/firestore-client';
-import { buildDayContext, loadShopData, type StaffRangeData } from '../utils/booking-rules';
+import { buildDayContext, loadShopData, loadStaffData, type StaffRangeData } from '../utils/booking-rules';
 import { t, tn, datumsLocale } from '@/i18n';
 
 interface Props {
@@ -82,15 +80,10 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
     let active = true;
     setDayRules(null);
     const ids: (string | null)[] = staffId ? [staffId] : anyStaffIds.length > 0 ? anyStaffIds : [null];
-    Promise.all([loadShopData(shopId), ...ids.map((id) => (id ? getDoc(doc(firestore, 'staff', id)) : null))])
+    Promise.all([loadShopData(shopId), ...ids.map((id) => (id ? loadStaffData(id) : null))])
       .then(([shop, ...people]) => {
         if (!active) return;
-        setDayRules(
-          ids.map((id, i) => {
-            const snap = people[i];
-            return { shop, staffId: id, staff: snap?.exists() ? snap.data() : null, recurringBreaks: [], breaks: [], appointments: [] };
-          }),
-        );
+        setDayRules(ids.map((id, i) => ({ shop, staffId: id, staff: people[i] ?? null, recurringBreaks: [], breaks: [], appointments: [] })));
       })
       .catch(() => {}); // ohne Regeln wie bisher: der Tag zeigt dann nur „nichts mehr frei“
     return () => {

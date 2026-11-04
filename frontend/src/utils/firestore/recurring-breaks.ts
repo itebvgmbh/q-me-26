@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Zeitpunkt as Timestamp } from '../live';
 import { backendSenden } from '../live';
 import { getStaffBreaks } from './breaks';
 

@@ -100,6 +100,20 @@ def test_person_und_belegte_zeiten_oeffentlich():
     assert c.get("/routes/live/person/kim/belegt?von=2026-11-09T23:00:00Z&bis=2027-03-01T00:00:00Z").status_code == 400
 
 
+def test_monatsgrenze_oeffentlich_nur_ja_oder_nein():
+    d = daten()
+    d["shops"]["gratis"] = {"name": "Klein", "owner": "x", "trialEndsAt": JETZT - timedelta(days=1)}
+    c = client(d, "niemand")
+    assert c.get("/routes/live/laden/gratis/monat").json() == {"voll": False}
+    assert c.get("/routes/live/laden/laden1/monat").json() == {"voll": False}  # Abo: keine Grenze
+    for i in range(100):
+        d["appointments"][f"g{i}"] = {"shopId": "gratis", "status": "cancelled" if i == 0 else "scheduled", "startTime": JETZT}
+    assert c.get("/routes/live/laden/gratis/monat").json() == {"voll": False}  # abgesagte zählen nicht
+    d["appointments"]["g0"]["status"] = "completed"
+    assert c.get("/routes/live/laden/gratis/monat").json() == {"voll": True}
+    assert c.get("/routes/live/laden/gibtsnicht/monat").status_code == 404
+
+
 # --- Läden für den Inhaber -----------------------------------------------------------------------------------------
 
 

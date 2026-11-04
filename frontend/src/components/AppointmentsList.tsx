@@ -9,7 +9,7 @@ import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, addMinutes } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
+import { Zeitpunkt as Timestamp } from '../utils/live';
 import { Appointment, Service, Staff, Customer, updateAppointment, getUniqueCustomers, appointmentCustomerId, isOffered } from '../utils/firestore';
 import { customerLabel } from './counter/CounterLane';
 import { datumsLocale, merke, t } from '@/i18n';

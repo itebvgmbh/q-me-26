@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { PlusCircle, Clock, Trash2, Edit, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Timestamp } from 'firebase/firestore';
+import type { Zeitpunkt as Timestamp } from '../utils/live';
 import { Switch } from '@/components/ui/switch';
 import { merke, t } from '@/i18n';
 

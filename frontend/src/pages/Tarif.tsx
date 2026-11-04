@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InvoiceList } from '../components/pricing/InvoiceList';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { HilfeLink } from '../components/HilfeLink';
-import { firestore } from '../utils/firestore-client';
+import { useLive } from '../utils/live';
 import { getShopsByOwnerId, getStaffByShopId, type Shop } from '../utils/firestore';
 import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { safelyConvertToDate } from '../utils/datetime';
@@ -27,7 +26,6 @@ export default function Tarif() {
   const [params] = useSearchParams();
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [shopId, setShopId] = useState<string>('');
-  const [shop, setShop] = useState<Shop | null>(null);
   const [interval, setInterval] = useState<Interval>('monat');
   const [busy, setBusy] = useState<string>('');
   const [customers, setCustomers] = useState<number | null>(null);
@@ -59,11 +57,13 @@ export default function Tarif() {
     };
   }, [shopId]);
 
-  // Live: nach der Bezahlung schreibt der Stripe-Webhook den neuen Stand an den Laden
-  useEffect(() => {
-    if (!shopId) return;
-    return onSnapshot(doc(firestore, 'shops', shopId), (snap) => snap.exists() && setShop({ id: snap.id, ...snap.data() } as Shop));
-  }, [shopId]);
+  // Nach der Bezahlung schreibt der Stripe-Webhook den neuen Stand an den Laden: dann alle paar Sekunden nachsehen,
+  // sonst jede Minute und beim Zurückkommen auf die Seite (utils/live.ts)
+  const { daten: ladenDaten } = useLive<{ laden: Shop; kanaele?: string[] }>(shopId ? `team/laeden/${encodeURIComponent(shopId)}` : null, {
+    anmelden: true,
+    neuLadenMs: params.get('erfolg') === '1' ? 4_000 : 60_000,
+  });
+  const shop: Shop | null = ladenDaten?.laden.id === shopId ? ladenDaten.laden : null;
 
   useEffect(() => {
     if (!shopId) return;

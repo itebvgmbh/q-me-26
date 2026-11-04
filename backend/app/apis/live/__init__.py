@@ -243,6 +243,29 @@ def ein_laden(shop_id: str, response: Response) -> dict:
     return live.json_wert({"laden": ld.laden_oeffentlich(shop_id, daten)})
 
 
+@router.get("/live/laden/{shop_id}/monat")
+def laden_monat(shop_id: str, response: Response) -> dict:
+    """Gratis-Tarif: Ist die Grenze an Kunden in diesem Monat erreicht? Dann gibt es online keine Nummern mehr
+    (Nummer ziehen zeigt den Hinweis gleich; das Backend lehnt sonst beim Ziehen ab, app/libs/online_platz.py).
+    Nur ja oder nein, keine Zahl."""
+    from datetime import datetime
+
+    from app.libs import laeden as ld
+    from app.libs.online_platz import MonatVoll, monatsgrenze
+    from app.libs.schedule import BERLIN
+
+    _keine_ablage(response)
+    db = store.db()
+    daten = ld.laden_roh(db, shop_id) if ID.match(shop_id) else None
+    if daten is None:
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht.")
+    try:
+        monatsgrenze(db, shop_id, daten, datetime.now(BERLIN))
+    except MonatVoll:
+        return {"voll": True}
+    return {"voll": False}
+
+
 @router.get("/live/person/{staff_id}")
 def eine_person(staff_id: str, response: Response) -> dict:
     from app.libs import team_laden as tl

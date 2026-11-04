@@ -5,8 +5,7 @@ import { toast } from 'sonner';
 import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import type { EarlierSlotNotificationType } from '../utils/types';
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore } from '../utils/firestore-client';
+import { eigenerTermin } from '../utils/konto';
 import { safelyConvertToDate } from '../utils/datetime';
 import useTimeSlotStore from '../utils/timeSlotStore';
 import { loadAppointmentsWithDetails } from '../utils/bookings';
@@ -108,8 +107,7 @@ const MyBookings = () => {
     setAppointmentToCancel(null);
     if (!id) return;
     try {
-      const snap = await getDoc(doc(firestore, 'appointments', id));
-      const data = snap.exists() ? snap.data() : null;
+      const data = await eigenerTermin(id);
       // Über das Backend: gibt den Platz frei und meldet es dem Team (app/apis/nummer)
       await cancelTicket(id, null);
       toast.success(t('Termin abgesagt.'));

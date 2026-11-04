@@ -1,26 +1,32 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from './firebase-client';
+import { auth } from 'app';
+import { t } from '@/i18n';
 
 /**
- * Lädt ein Bild hoch und gibt die Download-URL zurück
- * @param file Das hochzuladende Bild (File-Objekt)
- * @param path Der Pfad im Firebase Storage (ohne führenden oder abschließenden /)
- * @returns Die URL zum hochgeladenen Bild
+ * Logo oder Foto hochladen (requirements/eigene-datenbank.md, Stufe 2). Die Bilder liegen auf unserem Server
+ * (backend/app/libs/laeden.py, POST /routes/team/laeden/{id}/bild), nicht mehr in Firebase Storage; ältere Bilder
+ * behalten ihre Adresse. Nur der Inhaber, nur PNG, JPEG oder WebP bis 5 MB.
+ * @param path "shop-logos/{shopId}" oder "staff-profile-images/{shopId}" (wie bisher)
+ * @returns Die Adresse, die in logoUrl bzw. profileImageUrl gehört
  */
 export const uploadImage = async (file: File, path: string): Promise<string> => {
-  // Eindeutigen Dateinamen erstellen
-  const timestamp = new Date().getTime();
-  const fileName = `${timestamp}_${file.name}`;
-
-  // Vollständigen Pfad erstellen
-  const fullPath = `${path}/${fileName}`;
-
-  // Referenz zum Storage erstellen
-  const storageRef = ref(storage, fullPath);
-
-  // Bild hochladen
-  const snapshot = await uploadBytes(storageRef, file);
-
-  // URL zum hochgeladenen Bild abrufen und zurückgeben
-  return await getDownloadURL(snapshot.ref);
+  const [ordner, shopId] = path.split('/');
+  if (!shopId) throw new Error(t('Das hat nicht geklappt.'));
+  const form = new FormData();
+  form.append('datei', file);
+  form.append('art', ordner === 'shop-logos' ? 'logo' : 'person');
+  const res = await fetch(`/routes/team/laeden/${encodeURIComponent(shopId)}/bild`, {
+    method: 'POST',
+    headers: { Authorization: await auth.getAuthHeaderValue() },
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = (await res.json())?.detail;
+    } catch {
+      /* keine JSON-Antwort */
+    }
+    throw new Error(typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status }));
+  }
+  return (await res.json()).url as string;
 };

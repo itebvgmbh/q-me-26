@@ -1,5 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore } from '../firestore-client';
+import { eigenesAngebot } from '../konto';
 import { AppEventType, emitAppointmentUpdated, useEventStore } from './event-system';
 import useTimeSlotStore from '../timeSlotStore';
 import { safelyConvertToDate } from '../datetime';
@@ -26,14 +25,10 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
     console.log('Accepting earlier slot with notification ID:', notificationId);
     
     // Get notification details before making the API call to have the shop ID and timestamps
-    const notificationRef = doc(firestore, 'earlier_slot_notifications', notificationId);
-    const notificationDoc = await getDoc(notificationRef);
-    if (!notificationDoc.exists()) {
-      throw new Error('Notification not found');
+    const notificationData = await eigenesAngebot(notificationId);
+    if (!notificationData) {
+      throw new EarlierSlotRefused(t('Der Platz ist leider schon weg.'));
     }
-    
-    // Store notification data for cache invalidation and event emitting
-    const notificationData = notificationDoc.data();
     
     // Make the API call to accept the slot using the Brain client instead of fetch
     // This properly handles authentication tokens

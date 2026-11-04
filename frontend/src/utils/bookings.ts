@@ -1,9 +1,9 @@
-import { doc, getDoc, getDocs } from 'firebase/firestore';
-import { firestore } from './firestore-client';
 import { safelyConvertToDate } from './datetime';
-import { getAppointmentsByCustomerId, getServiceByIdLegacy, getShopByOwner } from './firestore';
-import type { Appointment, Service, Shop, Staff } from './firestore';
-import { publicFromDoc, staffDayQuery } from './firestore/public-appointments';
+import { getServiceByIdLegacy, getShopById } from './firestore';
+import type { Appointment } from './firestore';
+import { publicOfStaffBetween } from './firestore/public-appointments';
+import { eigeneTermine } from './konto';
+import { liveLesen } from './live';
 
 /**
  * Calculate queue position for an appointment
@@ -27,9 +27,8 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
     // geplante Zeit vorbei ist (utils/queue-lane.ts). Vorher zählten auch alle alten, nie
     // abgeschlossenen Termine anderer Tage mit ("Platz 60"); der Tag ist deshalb begrenzt.
     // Die anderen Termine nur als öffentliche Kurzfassung (public-appointments.ts) – fremde Termine liest kein Kunde.
-    const snapshot = await getDocs(staffDayQuery(firestore, appointment.staffId, start));
-    const earlierAppointments = snapshot.docs
-      .map(publicFromDoc)
+    const dayEnd = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 1);
+    const earlierAppointments = (await publicOfStaffBetween(appointment.staffId, dayStart, dayEnd))
       .filter(apt => apt.id !== appointment.id && start.getTime() > safelyConvertToDate(apt.startTime).getTime()
         && (apt.status === 'scheduled' || apt.status === 'in-progress'));
     
@@ -46,9 +45,9 @@ export const calculateQueuePosition = async (appointment: Appointment): Promise<
  * @param userId The ID of the user to load appointments for
  * @returns An array of appointments with additional details
  */
-export const loadAppointmentsWithDetails = async (userId: string) => {
+export const loadAppointmentsWithDetails = async (_userId: string) => {
   try {
-    const userAppointments = await getAppointmentsByCustomerId(userId);
+    const userAppointments = await eigeneTermine();
     
     // Load service, shop and staff details for each appointment
     const appointmentsWithDetails = await Promise.all(
@@ -63,14 +62,13 @@ export const loadAppointmentsWithDetails = async (userId: string) => {
         }
         
         if (appointment.shopId) {
-          shop = await getShopByOwner(appointment.shopId);
+          shop = await getShopById(appointment.shopId);
         }
 
         if (appointment.staffId) {
-          const staffDoc = await getDoc(doc(firestore, 'staff', appointment.staffId));
-          if (staffDoc.exists()) {
-            staff = { id: staffDoc.id, ...staffDoc.data() };
-          }
+          staff = await liveLesen<{ person: Record<string, unknown> }>(`live/person/${encodeURIComponent(appointment.staffId)}`)
+            .then(({ person }) => person)
+            .catch(() => null);
           
           // Calculate queue position if appointment is active
           if (appointment.status !== 'completed' && appointment.status !== 'cancelled') {

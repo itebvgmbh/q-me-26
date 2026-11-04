@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/firestore';
 import { Shop } from '../firestore';
-import { firestore as db } from '../firestore-client';
-import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { liveLesen, LiveFehlt } from '../live';
 import { inLadenliste } from '../marketplace';
 import { t } from '@/i18n';
+
+const ladenOderNull = async (id: string): Promise<Shop | null> => {
+  try {
+    return (await liveLesen<{ laden: Shop }>(`live/laden/${encodeURIComponent(id)}`)).laden;
+  } catch (error) {
+    if (error instanceof LiveFehlt) return null;
+    throw error;
+  }
+};
 
 /**
  * Custom hook for fetching and managing shop data
@@ -30,12 +37,12 @@ export const useShopData = (shopIdFromQR: string | null) => {
       setLoadError(null);
       setUnavailable(false);
       try {
-        // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
-        // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
+        // Vom QR-Code nur diesen einen Laden laden statt aller Läden der Plattform (über das Backend, utils/live.ts).
+        // Ohne Verbindung ein Fehler (Meldung „Keine Verbindung“), nicht „Laden nicht gefunden“.
         if (shopIdFromQR) {
-          const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
+          const laden = await ladenOderNull(shopIdFromQR);
           if (!active) return;
-          if (snap.exists() && snap.data().suspended) {
+          if (laden?.suspended) {
             // Vom Betreiber gesperrt: PublicJoinQueue zeigt den Hinweis an Stelle der Ladenauswahl
             setUnavailable(true);
             setShops([]);
@@ -43,9 +50,9 @@ export const useShopData = (shopIdFromQR: string | null) => {
             setArrivedFromQR(false);
             return;
           }
-          if (snap.exists()) {
-            setShops([{ id: snap.id, ...snap.data() } as Shop]);
-            setSelectedShop(snap.id);
+          if (laden) {
+            setShops([laden]);
+            setSelectedShop(laden.id);
             setArrivedFromQR(true);
             return;
           }
@@ -54,14 +61,12 @@ export const useShopData = (shopIdFromQR: string | null) => {
           setSelectedShop('');
           setArrivedFromQR(false);
         }
-        const snapshot = await getDocsFromServer(collection(db, 'shops'));
+        const { laeden } = await liveLesen<{ laeden: Shop[] }>('live/laeden');
         // Ausgeblendete Läden nur, wenn sie über den Link gewählt sind (inLadenliste, utils/marketplace.ts)
-        const shown = snapshot.docs.filter((d) => inLadenliste(d.data()) || (d.id === shopIdFromQR && !d.data().suspended));
-        if (active) setShops(shown.map((d) => ({ id: d.id, ...d.data() }) as Shop));
+        if (active) setShops(laeden.filter((s) => inLadenliste(s) || (s.id === shopIdFromQR && !s.suspended)));
       } catch (error) {
         console.error('Error loading shops:', error);
         if (!active) return;
-        if (isConnectionError(error) && retryWithSimpleConnection()) return;
         setLoadError(error);
       } finally {
         if (active) setLoading(false);

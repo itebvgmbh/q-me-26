@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Break, createBreak, getBreaksByStaffAndDate, updateBreak, deleteBreak, checkBreakConflicts } from '../utils/firestore/breaks';
 import { Staff } from '../utils/firestore/types';
-import { Timestamp } from 'firebase/firestore';
+import { Zeitpunkt as Timestamp } from '../utils/live';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

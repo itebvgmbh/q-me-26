@@ -1,9 +1,10 @@
-import { doc, DocumentData, getDoc } from 'firebase/firestore';
-import { firestore as db } from './firestore-client';
 import { occupiedWindow, projectLane } from './queue-lane';
 import { publicOfStaffBetween } from './firestore/public-appointments';
 import { getStaffBreaks } from './firestore/breaks';
+import { liveLesen, LiveFehlt } from './live';
 import { merke, t, tn, intlSprache } from '@/i18n';
+
+type DocumentData = Record<string, any>;
 
 /**
  * Eine Regel für alle Termine: Was hier nicht frei ist, darf weder angezeigt noch gespeichert werden.
@@ -95,10 +96,23 @@ export interface StaffRangeData {
   appointments: { id: string; data: DocumentData }[];
 }
 
-export const loadShopData = async (shopId: string): Promise<DocumentData | null> => {
-  const snap = await getDoc(doc(db, 'shops', shopId));
-  return snap.exists() ? snap.data() : null;
+/** null: gibt es nicht (404); andere Fehler (kein Netz) werfen – "kein Laden" hieße sonst "keine Einschränkung" */
+const oderNull = async <T,>(lesen: () => Promise<T>): Promise<T | null> => {
+  try {
+    return await lesen();
+  } catch (error) {
+    if (error instanceof LiveFehlt) return null;
+    throw error;
+  }
 };
+
+/** Laden in der öffentlichen Fassung (Öffnungszeiten, Pausen, Vorlauf, gesperrt) über das Backend */
+export const loadShopData = (shopId: string): Promise<DocumentData | null> =>
+  oderNull(async () => (await liveLesen<{ laden: DocumentData }>(`live/laden/${encodeURIComponent(shopId)}`)).laden);
+
+/** Person in der öffentlichen Fassung (Name, Arbeitszeiten, aktiv) */
+export const loadStaffData = (staffId: string): Promise<DocumentData | null> =>
+  oderNull(async () => (await liveLesen<{ person: DocumentData }>(`live/person/${encodeURIComponent(staffId)}`)).person);
 
 /**
  * Lädt alles, was die Tage einer Person zwischen from und to einschränkt – alle Abfragen gleichzeitig,
@@ -120,17 +134,17 @@ export const loadStaffRange = async (
   if (!staffId) {
     return { shop: await shopPromise, staffId, staff: null, recurringBreaks: [], breaks: [], appointments: [] };
   }
-  // Pausen über das Backend (Stufe 2, backend/app/apis/live: /live/person/{id}/pausen); Laden, Person und Termine folgen
-  const [shopData, staffSnap, pausen, apptSnap] = await Promise.all([
+  // Alles über das Backend (Stufe 2, backend/app/apis/live: /live/laden, /live/person/{id}, …/pausen, …/belegt)
+  const [shopData, staffData, pausen, apptSnap] = await Promise.all([
     shopPromise,
-    getDoc(doc(db, 'staff', staffId)),
+    loadStaffData(staffId),
     getStaffBreaks(staffId),
-    publicOfStaffBetween(db, staffId, new Date(from.getTime() - DAY_MS), to),
+    publicOfStaffBetween(staffId, new Date(from.getTime() - DAY_MS), to),
   ]);
   return {
     shop: shopData,
     staffId,
-    staff: staffSnap.exists() ? staffSnap.data() : null,
+    staff: staffData,
     recurringBreaks: pausen.fest as DocumentData[],
     breaks: pausen.einzeln as DocumentData[],
     appointments: apptSnap.filter((a) => a.shopId === shopId).map(({ id, ...data }) => ({ id, data })),

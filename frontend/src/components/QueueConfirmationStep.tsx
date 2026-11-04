@@ -96,7 +96,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
   const earlierAllowed = hasFeature(shop, 'frueherDran');
   const termineAllowed = hasFeature(shop, 'termine');
   const wann: Wann = termineAllowed ? wannGewaehlt : 'sofort';
-  const usage = useMonthlyUsage(shop?.id, shop);
+  const usage = useMonthlyUsage(shop?.id, shop, { oeffentlich: true });
   // Bei der Nummer steht die Person mit dem frühesten Platz fest, bei der Wunschzeit die gewählte (oder „Egal wer“)
   const person = staff.find((s) => s.id === (wann === 'wunsch' ? selectedStaff : selectedStaffForSlot));
   const personLabel = wann === 'wunsch' && useAnyStaff ? t('Egal wer') : person?.name ?? (searchingForSlot ? '…' : '–');

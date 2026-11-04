@@ -1,7 +1,5 @@
-import { doc, getDoc, updateDoc, runTransaction, Timestamp } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
+import { backendSenden, liveLesen } from './live';
 import { listShopsOfOwner, getStaffByUserId } from './firestore';
 import { gespeichertesGeraet, startseite } from './geraet';
 import { sprache, spracheGewaehlt } from '@/i18n';
@@ -25,12 +23,11 @@ export const onProfileSaved = (listener: ProfileListener) => {
 };
 export const emitProfileSaved = (uid: string, profile: UserProfile) => profileListeners.forEach((listener) => listener(uid, profile));
 
-/** Profil laden: null nur, wenn es wirklich keins gibt. Ohne Verbindung zur Datenbank ein Fehler – das ist nicht
- * dasselbe wie "kein Profil" (sonst landet ein bestehendes Konto in der Rollenwahl, iPhone 27.10.2026). */
-export const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  const userDoc = await getDoc(doc(getFirestore(firebaseApp), 'users', userId));
-  return userDoc.exists() ? (userDoc.data() as UserProfile) : null;
-};
+/** Profil des angemeldeten Kontos über das Backend (GET /routes/konto/profil; Stufe 2, backend/app/libs/laeden.py).
+ * null nur, wenn es wirklich keins gibt. Ohne Verbindung ein Fehler – das ist nicht dasselbe wie "kein Profil" (sonst
+ * landet ein bestehendes Konto in der Rollenwahl, iPhone 27.10.2026). userId: nur das eigene Konto geht. */
+export const loadUserProfile = async (_userId: string): Promise<UserProfile | null> =>
+  (await liveLesen<{ profil: UserProfile | null }>('konto/profil', true)).profil;
 
 /** Wie loadUserProfile, aber jeder Fehler gilt als "kein Profil" – nur für Anzeigen, nie für Entscheidungen über die Rolle */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
@@ -43,61 +40,32 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   }
 };
 
-/** Profil mit Rolle anlegen. Gibt es schon eins, bleibt es unverändert und wird zurückgegeben: In einer Transaktion,
- * damit ein Profil nie überschrieben wird und ohne Verbindung nichts für später vorgemerkt bleibt. */
+/** Profil mit Rolle anlegen. Gibt es schon eins, bleibt es unverändert und wird zurückgegeben (das Backend legt es in
+ * einer Transaktion an, damit ein Profil nie überschrieben wird). E-Mails vom Backend kommen in der gewählten Sprache. */
 export const createUserProfile = async (uid: string, email: string, role: UserRole): Promise<UserProfile> => {
-  const db = getFirestore(firebaseApp);
-  const ref = doc(db, 'users', uid);
-  const now = Timestamp.now();
-  const fresh: UserProfile = {
-    uid,
-    email,
-    role,
-    // E-Mails vom Backend an das Konto kommen in dieser Sprache (backend/app/i18n)
-    language: sprache(),
-    createdAt: now,
-    updatedAt: now
-  };
-
-  const profile = await runTransaction(db, async (tx) => {
-    const existing = await tx.get(ref);
-    if (existing.exists()) return existing.data() as UserProfile;
-    tx.set(ref, fresh);
-    return fresh;
-  });
-  emitProfileSaved(uid, profile);
-  return profile;
+  const { profil } = await backendSenden<{ profil: UserProfile }>('konto/profil/anlegen', { email, role, language: sprache() });
+  emitProfileSaved(uid, profil);
+  return profil;
 };
+
+/** Eigenes Profil ändern (Name, Handynummer, Sprache …) */
+export const saveOwnProfile = async (aenderung: Partial<UserProfile> & Record<string, unknown>): Promise<UserProfile> =>
+  (await backendSenden<{ profil: UserProfile }>('konto/profil', { aenderung })).profil;
 
 /** Sprache im Profil an die gerade gewählte angleichen (beim Laden des Profils): Wer die Sprache wechselt, bekommt
  * die nächsten E-Mails vom Backend in der neuen. Schlägt es fehl, bleibt die alte – kein Grund für eine Meldung. */
-export const syncProfileLanguage = async (userId: string, profile: UserProfile | null): Promise<void> => {
+export const syncProfileLanguage = async (_userId: string, profile: UserProfile | null): Promise<void> => {
   if (!profile || profile.language === sprache() || !spracheGewaehlt()) return;
   try {
-    await updateDoc(doc(getFirestore(firebaseApp), 'users', userId), { language: sprache() });
+    await saveOwnProfile({ language: sprache() });
   } catch (error) {
     console.error('Sprache im Profil nicht gespeichert:', error);
   }
 };
 
-export const updateUserProfile = async (userId: string, data: UpdateProfileData) => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const userRef = doc(db, 'users', userId);
-    
-    // Update user profile in Firestore
-    await updateDoc(userRef, {
-      displayName: data.displayName,
-      email: data.email,
-      phone: data.phone,
-      updatedAt: new Date().toISOString(),
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
+export const updateUserProfile = async (_userId: string, data: UpdateProfileData) => {
+  await saveOwnProfile({ displayName: data.displayName, email: data.email, phone: data.phone });
+  return true;
 };
 
 export const getRedirectPath = async (userId: string): Promise<string> => {

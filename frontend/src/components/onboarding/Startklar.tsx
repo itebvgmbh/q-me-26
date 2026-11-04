@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, doc, getDocs, limit, query, setDoc, Timestamp, where } from 'firebase/firestore';
 import { Check, ChevronDown, Copy, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { APP_BASE_PATH } from 'app';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { firestore } from '../../utils/firestore-client';
+import { backendSenden, liveLesen } from '../../utils/live';
 import type { Appointment, Shop, Staff } from '../../utils/firestore';
 import { HilfeLink } from '../HilfeLink';
 import { t } from '@/i18n';
@@ -28,7 +27,8 @@ export const markOnboarding = async (shopId: string, flag: Flag) => {
     // privater Modus: dann eben nur am Laden
   }
   try {
-    await setDoc(doc(firestore, 'shops', shopId), { onboarding: { [flag]: Timestamp.now() } }, { merge: true });
+    // Nur der Inhaber darf den Laden ändern; für alle anderen bleibt der Merker in diesem Browser
+    await backendSenden(`team/laeden/${encodeURIComponent(shopId)}`, { aenderung: { onboarding: { [flag]: new Date() } } });
   } catch (error) {
     console.warn('Startklar-Merker nicht gespeichert:', error);
   }
@@ -49,8 +49,8 @@ const useEverCalled = (shopId: string, skip: boolean) => {
   useEffect(() => {
     if (skip) return;
     let alive = true;
-    getDocs(query(collection(firestore, 'appointments'), where('shopId', '==', shopId), where('status', 'in', ['in-progress', 'completed']), limit(1)))
-      .then((snap) => alive && setCalled(!snap.empty))
+    liveLesen<{ bedient: boolean }>(`team/laeden/${encodeURIComponent(shopId)}/startklar`, true)
+      .then(({ bedient }) => alive && setCalled(bedient))
       .catch((error) => console.warn('Startklar: Verlauf nicht lesbar', error));
     return () => {
       alive = false;
