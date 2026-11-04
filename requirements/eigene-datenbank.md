@@ -31,6 +31,11 @@
     personen`. Noch über Firestore: das eigene Profil (`ensureStaffUserProfile`, Bereich Profil), Fotos (Bereich
     Einrichtung und Laden) und die Lesezugriffe in `booking-rules.ts`. Tests: `backend/tests/test_team_laden.py`,
     `dev/e2e/team-laden.cjs`.
+  - Stufe 2, Bereich 5 live seit 04.11.2026: Pausen. Lesen öffentlich über `/routes/live/person/<id>/pausen` – auch
+    die Regelprüfung beim Buchen (`booking-rules.ts`) und der Kalender am Tresen (`useStaffBreaks`). Pflegen nur der
+    Inhaber über `/routes/team/pausen…` und `/routes/team/feste-pausen…` (`backend/app/libs/pausen.py`). Neu: Danach
+    rechnet das Backend die freien Zeiten neu (feste Pausen: alle Tage). Tests: `backend/tests/test_pausen.py`,
+    `dev/e2e/pausen.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend
