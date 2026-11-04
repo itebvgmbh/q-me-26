@@ -7,6 +7,9 @@
 - **Fortschritt:** Stufe A gebaut am 04.11.2026 (task-001): Reiter „Briefe“, Sperre und Link „Keine Post mehr“,
   Unzustellbar, Einstellungen, Sammel-PDF, Erinnerung, Auswertung. Tests: `backend/tests/test_briefe.py`,
   `dev/e2e/briefe.cjs`.
+  Stufe B gebaut am 04.11.2026 (task-002): Versand über die Schnittstelle von PIN eBrief mit Testmodus, Nachfragen statt
+  Doppelversand, Kostengrenze während des Versands, Webhook und Abgleich alle 6 Stunden. Zugang eintragen: Block
+  „PIN eBrief: Zugang eintragen“ in `deploy/README.md`. Offen: Zugang vom PIN-Support, Test gegen die echte Testumgebung.
 - **Grundlage:** Recherche der Anbieter vom 04.11.2026 (Abschnitt „Dienstleister“), Brief aus PR #86
   (`backend/app/libs/brief.py`), Übernahme-Code aus PR #67 (`backend/app/libs/uebernahme.py`).
 

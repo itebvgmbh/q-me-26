@@ -26,6 +26,7 @@ from app.apis import verzeichnis as public_api  # noqa: E402
 from app.apis.betreiber import briefe as briefe_api  # noqa: E402
 from app.apis.betreiber import verzeichnis as admin_api  # noqa: E402
 from app.libs import briefaktion as ba  # noqa: E402
+from app.libs import briefdienst  # noqa: E402
 from app.libs import entfernen as ent  # noqa: E402
 from app.libs import mail  # noqa: E402
 from app.libs import protokoll  # noqa: E402
@@ -201,10 +202,10 @@ def mitschneiden():
 
 def test_einstellungen():
     frisch()
-    assert ba.einstellungen() == {"proWelle": 200, "proMonat": 300.0, "preis": 0.77}
-    assert ba.einstellungen_speichern({"proWelle": 50, "proMonat": 100, "preis": 0.95}) == {"proWelle": 50, "proMonat": 100.0, "preis": 0.95}
+    assert ba.einstellungen() == {"proWelle": 200, "proMonat": 300.0, "preis": 0.77, "testmodus": True}
+    assert ba.einstellungen_speichern({"proWelle": 50, "proMonat": 100, "preis": 0.95}) == {"proWelle": 50, "proMonat": 100.0, "preis": 0.95, "testmodus": True}
     assert ba.einstellungen()["proWelle"] == 50
-    for falsch in ({"proWelle": 0}, {"proWelle": 5000}, {"preis": -1}, {"proMonat": "viel"}):
+    for falsch in ({"proWelle": 0}, {"proWelle": 5000}, {"preis": -1}, {"proMonat": "viel"}, {"testmodus": "nein"}):
         try:
             ba.einstellungen_speichern({**ba.einstellungen(), **falsch})
         except ValueError:
@@ -212,9 +213,13 @@ def test_einstellungen():
         raise AssertionError(f"angenommen: {falsch}")
     c = admin_client()
     r = c.post("/routes/betreiber/briefe/einstellungen", json={"proWelle": 2, "proMonat": 10, "preis": 1.5})
-    assert r.status_code == 200 and ba.einstellungen() == {"proWelle": 2, "proMonat": 10.0, "preis": 1.5}
+    assert r.status_code == 200 and ba.einstellungen() == {"proWelle": 2, "proMonat": 10.0, "preis": 1.5, "testmodus": True}
     zeile = protokoll.read(1)[0]
     assert zeile["action"] == "Briefe: Einstellungen geändert" and zeile["before"]["proWelle"] == 50 and zeile["after"]["proWelle"] == 2
+    c.post("/routes/betreiber/briefe/einstellungen", json={"proWelle": 2, "proMonat": 10, "preis": 1.5, "testmodus": False})
+    assert ba.einstellungen()["testmodus"] is False
+    c.post("/routes/betreiber/briefe/einstellungen", json={"proWelle": 2, "proMonat": 10, "preis": 1.5})  # ohne Angabe bleibt es
+    assert ba.einstellungen()["testmodus"] is False
     assert c.post("/routes/betreiber/briefe/einstellungen", json={"proWelle": 0, "proMonat": 10, "preis": 1}).status_code == 400
 
 
@@ -379,6 +384,255 @@ def test_auswertung():
     rows = {w["id"]: w for w in ba.wellen(store.alle())}
     assert rows[w1["id"]]["auswertung"] == {"uebernommen": 1, "unzustellbar": 1, "entfernt": 1, "keinePost": 1, "kostenJeUebernahme": 3.08}
     assert rows[w2["id"]]["auswertung"]["uebernommen"] == 0 and rows[w2["id"]]["auswertung"]["kostenJeUebernahme"] is None
+
+
+# --- Stufe B: Versand über die Schnittstelle von PIN eBrief -----------------------------------------------------------
+
+
+class PinAttrappe:
+    """Wie briefdienst.PinEbrief, nur im Speicher. ablehnen/unklar: Salon-IDs, deren Brief abgelehnt wird bzw. ohne Antwort bleibt."""
+
+    def __init__(self, ablehnen=(), unklar=(), preis=0.77):
+        self.briefe, self.ablehnen, self.unklar, self.preis = [], set(ablehnen), set(unklar), preis
+        self.staende = {}
+
+    def senden(self, pdf, dateiname):
+        eid = dateiname.rsplit("-", 1)[-1].removesuffix(".pdf")
+        if eid in self.ablehnen:
+            raise briefdienst.Abgelehnt("Die Adresse ist nicht lesbar.")
+        if eid in self.unklar:
+            raise briefdienst.Unklar("Zeitüberschreitung")
+        self.briefe.append((dateiname, pdf))
+        return {"auftrag": str(1000 + len(self.briefe)), "dokument": str(5000 + len(self.briefe)), "status": "DISTRIBUTION_COMPLETED", "preis": self.preis}
+
+    def stand(self, auftrag):
+        return self.staende.get(auftrag, {"status": "DISTRIBUTION_COMPLETED", "ereignis": "", "zurueck": False, "preis": self.preis})
+
+    def suchen(self, dateiname, seit):
+        for i, (name, _) in enumerate(self.briefe):
+            if name == dateiname:
+                return {"auftrag": str(1001 + i), "dokument": str(5001 + i), "status": "DISTRIBUTION_COMPLETED", "preis": self.preis}
+        return None
+
+
+def pin(**kw):
+    """Attrappen für echten Versand und Test; der Versand läuft im Test gleich im selben Thread"""
+    echt, test = PinAttrappe(**kw), PinAttrappe(**kw)
+    ba.set_dienst(lambda als_test: test if als_test else echt, {"test": True, "echt": True})
+    ba._im_hintergrund = lambda fn, *args: fn(*args)
+    return echt, test
+
+
+def echt_schalten():
+    ba.einstellungen_speichern({**ba.einstellungen(), "testmodus": False})
+
+
+def test_versand_ueber_pin():
+    store, _ = frisch(salons(3))
+    echt, _ = pin()
+    echt_schalten()
+    welle = ba.versand_starten(["e1", "e2", "e3"], "brief", "https://dranzeit.de", 84, MONDAY)
+    w = ba._wellen().hole(welle["id"])
+    assert w["status"] == "verschickt" and w["weg"] == "pin" and not w["test"] and w["kosten"] == 2.31
+    assert len(echt.briefe) == 3 and all(name.startswith(f"dranzeit-{welle['id']}-") for name, _ in echt.briefe)
+    # Jeder Brief ein eigenes PDF mit einer Seite, nach PLZ sortiert
+    reihenfolge = [name.rsplit("-", 1)[-1].removesuffix(".pdf") for name, _ in echt.briefe]
+    plz = [store.hole(i)["postalCode"] for i in reihenfolge]
+    assert plz == sorted(plz) and all(pdf.startswith(b"%PDF") and b"/Count 1" in pdf for _, pdf in echt.briefe)
+    post = store.hole("e1")["post"][0]
+    assert post["status"] == "verschickt" and post["weg"] == "pin" and post["auftrag"] and post["verschicktAm"] == MONDAY
+    assert store.hole("e1")["uebernahme"]["welle"] == welle["id"]
+    assert "schon einen Brief" in ba.grund_fuer(store.hole("e1"), set(), MONDAY, "brief")
+    assert protokoll.read(1)[0]["action"] == "Briefe: Welle an PIN fertig"
+    # Kein Code im Klartext gespeichert
+    roh = json.dumps([store.alle(), ba._wellen().alle(), protokoll.read(50)], default=str)
+    assert "uebernehmen#code=" not in roh
+
+
+def test_versand_abgelehnt_und_unklar():
+    store, _ = frisch(salons(4))
+    alt = ba.ue.code_erzeugen(store.hole("e2"), store, MONDAY - timedelta(days=40))["code"]
+    echt, _ = pin(ablehnen={"e2"}, unklar={"e3", "e4"})
+    echt_schalten()
+    welle = ba.versand_starten(["e1", "e2", "e3", "e4"], "brief", "https://dranzeit.de", 84, MONDAY)
+    w = ba._wellen().hole(welle["id"])
+    # Abgelehnt: kein Brief, Grund in der Welle, der frühere Code gilt wieder
+    assert w["briefe"]["e2"]["status"] == "fehler" and "nicht lesbar" in w["briefe"]["e2"]["fehler"]
+    assert not store.hole("e2").get("post") and ba.ue.pruefen(alt, store, MONDAY)["id"] == "e2"
+    # Unklar: nicht noch einmal geschickt, erst nachgefragt
+    assert w["briefe"]["e3"]["status"] == "unklar" and ba.grund_fuer(store.hole("e3"), set(), MONDAY, "brief") != ""
+    echt.briefe.append((w["briefe"]["e3"]["datei"], b"%PDF"))  # PIN hatte e3 doch angenommen, e4 nicht
+    ba.abgleich(MONDAY + timedelta(minutes=40))
+    w = ba._wellen().hole(welle["id"])
+    assert w["briefe"]["e3"]["status"] == "verschickt" and store.hole("e3")["post"][0]["status"] == "verschickt"
+    assert w["briefe"]["e4"]["status"] == "fehler" and not store.hole("e4").get("post")
+    assert sum(1 for name, _ in echt.briefe if name.endswith("-e3.pdf")) == 1
+    assert w["status"] == "verschickt" and w["kosten"] == round(2 * 0.77, 2)
+
+
+def test_versand_nach_neustart_nicht_doppelt():
+    store, _ = frisch(salons(3))
+    echt, _ = pin()
+    echt_schalten()
+    # Neustart mitten in der Welle nachgestellt: e1 ging raus, e2 war gerade dran, e3 noch nicht angefangen
+    ba._im_hintergrund = lambda fn, *args: None
+    welle = ba.versand_starten(["e1", "e2", "e3"], "brief", "https://dranzeit.de", 84, MONDAY)
+    assert ba._wellen().hole(welle["id"])["status"] == "versendet"
+    try:
+        ba.versand_starten(["e3"], "brief", "https://dranzeit.de", 84, MONDAY)
+        raise AssertionError("zweite Welle neben laufender")
+    except ValueError as e:
+        assert "gerade verschickt" in str(e)
+    ba._einen_brief(welle["id"], "e1", "brief", "https://dranzeit.de", 84, MONDAY)
+    ba._markieren(welle["id"], "e2", MONDAY)  # wird verschickt, dann abgestürzt
+    echt.briefe.append((ba._wellen().hole(welle["id"])["briefe"]["e2"]["datei"], b"%PDF"))  # PIN hat e2 angenommen
+    ba.abgleich(MONDAY + timedelta(minutes=15))
+    w = ba._wellen().hole(welle["id"])
+    assert w["status"] == "abgebrochen" and w["briefe"]["e1"]["status"] == "verschickt" and w["briefe"]["e2"]["status"] == "verschickt"
+    assert "e3" not in w["briefe"] and not store.hole("e3").get("post") and len(echt.briefe) == 2
+    assert ba.grund_fuer(store.hole("e3"), set(), MONDAY, "brief") == ""
+
+
+def test_versand_kostengrenze():
+    store, _ = frisch(salons(4))
+    echt, _ = pin(preis=1.20)  # PIN rechnet mehr ab als eingestellt
+    ba.einstellungen_speichern({"proWelle": 200, "proMonat": 3.2, "preis": 0.77, "testmodus": False})
+    welle = ba.versand_starten(["e1", "e2", "e3", "e4"], "brief", "https://dranzeit.de", 84, MONDAY)  # Schätzung 3,08 €
+    w = ba._wellen().hole(welle["id"])
+    assert len(echt.briefe) == 2 and w["kosten"] == 2.4 and w["status"] == "abgebrochen" and "Kostengrenze" in w["hinweis"]
+    assert sum(1 for b in w["briefe"].values() if b["status"] == "verschickt") == 2
+
+
+def test_versand_testmodus():
+    store, _ = frisch(salons(2))
+    echt, test = pin()
+    vorher = json.dumps(store.alle(), default=str)
+    welle = ba.versand_starten(["e1", "e2"], "brief", "https://dranzeit.de", 84, MONDAY)  # Standard: Testmodus
+    w = ba._wellen().hole(welle["id"])
+    assert w["test"] and len(test.briefe) == 2 and not echt.briefe
+    assert json.dumps(store.alle(), default=str) == vorher  # Salons unverändert: kein Code, keine Post
+    assert ba.monatskosten(MONDAY) == 0 and ba.grund_fuer(store.hole("e1"), set(), MONDAY, "brief") == ""
+    rows = ba.wellen(store.alle())
+    assert rows[0]["test"] is True and rows[0]["auswertung"]["uebernommen"] == 0
+    # Ohne Zugang geht kein Versand
+    ba.set_dienst(lambda als_test: None, {"test": False, "echt": False})
+    try:
+        ba.versand_starten(["e1"], "brief", "https://dranzeit.de", 84, MONDAY)
+        raise AssertionError("Versand ohne Zugang")
+    except ValueError as e:
+        assert "nicht eingerichtet" in str(e)
+
+
+def test_status_und_webhook():
+    store, _ = frisch(salons(2))
+    echt, _ = pin()
+    echt_schalten()
+    welle = ba.versand_starten(["e1", "e2"], "brief", "https://dranzeit.de", 84, MONDAY)
+    auftrag = ba._wellen().hole(welle["id"])["briefe"]["e1"]["auftrag"]
+    echt.staende[auftrag] = {"status": "JOB_COMPLETED", "ereignis": "DOCUMENT_SENT_BACK", "zurueck": True, "preis": 0.77}
+    os.environ["QME_PIN_WEBHOOK_GEHEIMNIS"] = "geheim-123"
+    from app.apis import briefdienst as webhook_api
+
+    app = FastAPI()
+    app.include_router(webhook_api.router, prefix="/routes")
+    c = TestClient(app)
+    assert c.post("/routes/briefdienst/webhook/falsch", json={"Id": int(auftrag)}).status_code == 403
+    assert not store.hole("e1").get("unzustellbar")
+    r = c.post("/routes/briefdienst/webhook/geheim-123", json={"Id": int(auftrag), "JobStatus": "JOB_COMPLETED"})
+    assert r.status_code == 200 and ba.ist_unzustellbar(store.hole("e1")) and not ba.ist_unzustellbar(store.hole("e2"))
+    # Unbekannter Auftrag: trotzdem 200, damit PIN nicht ewig wiederholt
+    assert c.post("/routes/briefdienst/webhook/geheim-123", json={"Id": 999}).status_code == 200
+    # Fehler bei PIN nach der Annahme: Brief gilt als nicht verschickt, Salon wieder auswählbar
+    auftrag2 = ba._wellen().hole(welle["id"])["briefe"]["e2"]["auftrag"]
+    echt.staende[auftrag2] = {"status": "ERROR_DOCUMENT", "ereignis": "", "zurueck": False, "preis": 0}
+    ba.abgleich(MONDAY + timedelta(hours=7), alle=True)
+    assert ba._wellen().hole(welle["id"])["briefe"]["e2"]["status"] == "fehler" and not store.hole("e2").get("post")
+
+
+def test_versand_api():
+    store, _ = frisch(salons(2))
+    pin()
+    c = admin_client()
+    daten = c.get("/routes/betreiber/briefe").json()
+    assert daten["schnittstelle"] == {"test": True, "echt": True} and daten["einstellungen"]["testmodus"] is True
+    r = c.post("/routes/betreiber/briefe/versand", json={"art": "brief", "ids": ["e1", "e2"]})
+    assert r.status_code == 200 and r.json()["welle"]
+    aktionen = [z["action"] for z in protokoll.read(2)]
+    assert "Briefe: Welle an PIN (Test)" in aktionen and "Briefe: Welle an PIN fertig" in aktionen
+    welle = c.get("/routes/betreiber/briefe").json()["wellen"][0]
+    assert welle["weg"] == "pin" and welle["test"] and welle["geschickt"] == 2 and welle["status"] == "verschickt"
+    ba.set_dienst(lambda als_test: None, {"test": False, "echt": False})
+    assert c.post("/routes/betreiber/briefe/versand", json={"art": "brief", "ids": ["e1"]}).status_code == 409
+
+
+def test_pin_adapter():
+    """Pfade, Anmeldung und Felder wie in https://api.ebrief.de/swagger/v1/swagger.json (Stand 04.11.2026)"""
+    import base64
+
+    class Antwort:
+        def __init__(self, status, daten):
+            self.status_code, self._daten, self.text = status, daten, json.dumps(daten)
+
+        def json(self):
+            return self._daten
+
+    aufrufe = []
+
+    class Sitzung:
+        def request(self, method, url, **kw):
+            aufrufe.append((method, url, kw))
+            if url.endswith("/oauth2/token/generateBearerToken"):
+                return Antwort(200, {"GenerateBearerTokenResult": "tok-1"})
+            job = {"Id": 4711, "PriceNetto": 0.77}
+            if url.endswith("/Jobs/singleFiles"):
+                return Antwort(200, {"ResultCode": "Ok", "Result": {"Jobs": [{**job, "JobStatus": "DISTRIBUTION_COMPLETED", "Documents": [{"Id": 99, "DocumentStatus": "OK"}]}]}})
+            if url.endswith("/Jobs/4711"):
+                return Antwort(200, {"ResultCode": "Ok", "Result": {"Jobs": [{**job, "JobStatus": "JOB_COMPLETED", "Documents": [{"Id": 99, "LastEvent": "DOCUMENT_SENT_BACK"}]}]}})
+            if url.endswith("/Jobs/searchJobDetails"):
+                return Antwort(200, {"ResultCode": "Ok", "Result": {"ResponseDetails": [{**job, "JobStatus": "JOB_COMPLETED", "Documents": [{"Id": 99, "DocumentFileName": "dranzeit-w-e1.pdf"}]}]}})
+            return Antwort(500, {"title": "kaputt"})
+
+    for k in ("QME_PIN_BENUTZER", "QME_PIN_PASSWORT"):
+        os.environ.pop(k, None)
+    os.environ.update(QME_PIN_TEST_BENUTZER="kunde", QME_PIN_TEST_PASSWORT="pw")
+    d = briefdienst.PinEbrief(test=True, sitzung=Sitzung())
+    assert d.senden(b"%PDF-1.4 brief", "dranzeit-w-e1.pdf") == {"auftrag": "4711", "dokument": "99", "status": "DISTRIBUTION_COMPLETED", "preis": 0.77}
+    token, senden = aufrufe[0], aufrufe[1]
+    assert token[0] == "GET" and token[1] == "https://api.staging.ebrief.de/oauth2/token/generateBearerToken" and token[2]["auth"] == ("kunde", "pw")
+    body = senden[2]["json"]
+    assert senden[1] == "https://api.staging.ebrief.de/Jobs/singleFiles" and senden[2]["headers"]["Authorization"] == "Bearer tok-1"
+    assert base64.b64decode(body["Document"]["FileContent"]) == b"%PDF-1.4 brief" and body["Document"]["FileName"] == "dranzeit-w-e1.pdf"
+    assert body["Attributes"]["IsColor"] == "true" and body["Attributes"]["IsDuplex"] == "false"
+    assert d.stand("4711") == {"status": "JOB_COMPLETED", "ereignis": "DOCUMENT_SENT_BACK", "zurueck": True, "preis": 0.77}
+    assert d.suchen("dranzeit-w-e1.pdf", MONDAY)["auftrag"] == "4711" and d.suchen("anders.pdf", MONDAY) is None
+    assert sum(1 for a in aufrufe if "generateBearerToken" in a[1]) == 1  # Token wird wiederverwendet
+
+    class Ablehnung(Sitzung):
+        def request(self, method, url, **kw):
+            if "Token" in url:
+                return Antwort(200, {"GenerateBearerTokenResult": "t"})
+            return Antwort(200, {"ResultCode": "BadRequest", "ErrorMessage": "Keine Adresse gefunden"})
+
+    class Weg(Sitzung):
+        def request(self, method, url, **kw):
+            if "Token" in url:
+                return Antwort(200, {"GenerateBearerTokenResult": "t"})
+            raise briefdienst.requests.Timeout("weg")
+
+    for sitzung, fehler in ((Ablehnung(), briefdienst.Abgelehnt), (Weg(), briefdienst.Unklar)):
+        try:
+            briefdienst.PinEbrief(test=True, sitzung=sitzung).senden(b"%PDF", "x.pdf")
+            raise AssertionError(f"kein {fehler.__name__}")
+        except fehler as e:
+            assert fehler is not briefdienst.Abgelehnt or "Keine Adresse" in str(e)
+    assert briefdienst.eingerichtet() == {"test": True, "echt": False}
+    # Aus dem PowerShell-Block kommen die Werte Base64-kodiert (Passwörter mit Sonderzeichen)
+    os.environ.pop("QME_PIN_TEST_PASSWORT")
+    os.environ["QME_PIN_TEST_PASSWORT_B64"] = base64.urlsafe_b64encode("ä#\"x$ y=".encode()).decode().rstrip("=")
+    assert briefdienst._zugang(True) == ("kunde", "ä#\"x$ y=")
+    for k in ("QME_PIN_TEST_BENUTZER", "QME_PIN_TEST_PASSWORT_B64"):
+        os.environ.pop(k)
+    assert briefdienst.eingerichtet() == {"test": False, "echt": False}
 
 
 if __name__ == "__main__":

@@ -69,6 +69,16 @@ def _daily_privacy_cleanup() -> None:
         print(f"Datenschutz-Aufräumen fehlgeschlagen: {e}")
 
 
+def _briefe_abgleichen() -> None:
+    """Briefwellen über PIN eBrief: abgebrochene abschließen, unklare Briefe klären, Stand und Rückläufer (app/libs/briefaktion.py)"""
+    try:
+        from app.libs import briefaktion
+
+        briefaktion.abgleich()
+    except Exception as e:  # nie den Scheduler deswegen anhalten
+        print(f"Briefe: Abgleich mit PIN fehlgeschlagen: {e}")
+
+
 # Define models (if needed)
 
 def scheduler_task():
@@ -94,6 +104,7 @@ def scheduler_task():
             print(f"Earlier slots check completed: {check_result}")
             last_run_time = datetime.now()
             _daily_privacy_cleanup()
+            _briefe_abgleichen()
             
             # Wait for the next interval
             time.sleep(run_interval)

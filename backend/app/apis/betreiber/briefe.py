@@ -5,12 +5,13 @@
     POST /routes/betreiber/briefe/welle                   Welle erzeugen: Sammel-PDF, nur in diesem Moment (Codes nur darin)
     POST /routes/betreiber/briefe/welle/{id}/hochgeladen  Beim Dienstleister hochgeladen: Briefe gelten als verschickt
     POST /routes/betreiber/briefe/welle/{id}/verwerfen    Nicht hochgeladen: Codes ungültig, Salons wieder auswählbar
+    POST /routes/betreiber/briefe/versand                 Stufe B: Welle im Hintergrund an PIN eBrief (Test oder echt, Einstellung testmodus)
 
 Hängt am Unter-Router `admin` aus app/apis/betreiber (require_admin). Regeln: app/libs/briefaktion.py. Jeder Eingriff steht im
 Protokoll, kein Code.
 """
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
@@ -37,6 +38,7 @@ def uebersicht() -> dict:
         "eintraege": rows,
         "wellen": ba.wellen(entries),
         "erinnerungTage": ba.ERINNERUNG_TAGE,
+        "schnittstelle": ba.schnittstelle(),
     })
 
 
@@ -44,13 +46,14 @@ class EinstellungenRequest(BaseModel):
     proWelle: int
     proMonat: float
     preis: float
+    testmodus: Optional[bool] = None  # fehlt: bleibt, wie er war
 
 
 @router.post("/betreiber/briefe/einstellungen")
 def einstellungen(body: EinstellungenRequest, user: AuthorizedUser) -> dict:
     vorher = ba.einstellungen()
     try:
-        neu = ba.einstellungen_speichern(body.model_dump())
+        neu = ba.einstellungen_speichern({k: v for k, v in body.model_dump().items() if v is not None})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     protokoll.write(user, "Briefe: Einstellungen geändert", {"briefe": "einstellungen"}, before=vorher, after=neu)
@@ -108,3 +111,19 @@ def hochgeladen(welle_id: str, user: AuthorizedUser) -> dict:
 @router.post("/betreiber/briefe/welle/{welle_id}/verwerfen")
 def verwerfen(welle_id: str, user: AuthorizedUser) -> dict:
     return _schritt(welle_id, user, ba.verwerfen, "Briefe: Welle verworfen")
+
+
+@router.post("/betreiber/briefe/versand")
+def versand(body: WelleRequest, user: AuthorizedUser) -> dict:
+    """Stufe B: Die Welle geht im Hintergrund Brief für Brief an PIN eBrief; den Fortschritt zeigt GET /betreiber/briefe."""
+    from app import seo
+
+    if body.art not in ba.ARTEN:
+        raise HTTPException(status_code=400, detail="Art ist brief oder erinnerung.")
+    if not body.ids or len(body.ids) > 2000:
+        raise HTTPException(status_code=400, detail="Bitte Salons auswählen.")
+    try:
+        neu = ba.versand_starten(body.ids, body.art, seo.public_url(), _gruenderplaetze(), user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    return {"welle": neu["id"], "test": neu["test"]}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { FileDown } from 'lucide-react';
+import { FileDown, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,16 +11,18 @@ import {
   loadBriefe,
   markHochgeladen,
   saveEinstellungen,
+  startVersand,
   type BriefArt,
   type BriefEinstellungen,
   type BriefSalon,
   type BriefeDaten,
+  type Schnittstelle,
   type Welle,
 } from '../../utils/briefe';
 import type { Kategorie } from '../../utils/verzeichnis';
 import { Section } from './LadenDetail';
 import { Chip, Pill } from './Verzeichnis';
-import { euro, fmtDate } from './format';
+import { euro, fmtDate, fmtDateTime } from './format';
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Das hat nicht geklappt.');
 const ART_LABEL: Record<BriefArt, string> = { brief: 'Erster Brief', erinnerung: 'Erinnerung' };
@@ -28,8 +30,9 @@ const SELECT = 'h-10 rounded-xl border border-input bg-card px-3 text-sm';
 const anzahl = (n: number, art: BriefArt) => `${n} ${art === 'erinnerung' ? (n === 1 ? 'Erinnerung' : 'Erinnerungen') : n === 1 ? 'Brief' : 'Briefe'}`;
 
 /**
- * Betreiber-Bereich, Reiter Briefe (requirements/briefversand.md, Stufe A): Salons aus dem Verzeichnis auswählen, Welle
- * als Sammel-PDF erzeugen, bei PIN eBrief hochladen, danach „Hochgeladen“. Regeln stehen im Backend (app/libs/briefaktion.py).
+ * Betreiber-Bereich, Reiter Briefe (requirements/briefversand.md): Salons aus dem Verzeichnis auswählen und anschreiben.
+ * Zwei Wege: Sammel-PDF zum Hochladen bei PIN eBrief (Stufe A) oder direkt über die Schnittstelle von PIN (Stufe B, mit
+ * Testmodus). Regeln stehen im Backend (app/libs/briefaktion.py).
  */
 export function Briefe() {
   const [data, setData] = useState<BriefeDaten | null>(null);
@@ -54,6 +57,14 @@ export function Briefe() {
     reload();
   }, [reload]);
 
+  // Läuft eine Welle über PIN, zeigt die Seite den Fortschritt
+  const laeuft = Boolean(data?.wellen.some((w) => w.status === 'versendet'));
+  useEffect(() => {
+    if (!laeuft) return;
+    const t = window.setInterval(reload, 3000);
+    return () => window.clearInterval(t);
+  }, [laeuft, reload]);
+
   const passend = useMemo(
     () =>
       (data?.eintraege ?? []).filter(
@@ -69,7 +80,9 @@ export function Briefe() {
   if (error && !data) return <p className="rounded-3xl bg-destructive p-5 text-destructive-foreground">{error}</p>;
   if (!data) return <p className="text-sm text-muted-foreground">Wird geladen …</p>;
 
-  const { einstellungen, monat } = data;
+  const { einstellungen, monat, schnittstelle } = data;
+  const test = einstellungen.testmodus;
+  const pinBereit = schnittstelle[test ? 'test' : 'echt'];
   const waehlbar = passend.filter((e) => !e.gruende[art]);
   const ausgeschlossen = passend.filter((e) => e.gruende[art]);
   const gewaehlt = waehlbar.filter((e) => !abgewaehlt.has(e.id));
@@ -80,6 +93,7 @@ export function Briefe() {
   const ortsteile = [...new Set(data.eintraege.filter((e) => !bezirk || e.bezirk === bezirk).map((e) => e.ortsteil).filter(Boolean))].sort();
   const offen = data.wellen.filter((w) => w.status === 'erzeugt');
   const faellig = data.eintraege.filter((e) => !e.gruende.erinnerung).length;
+  const gesperrt = busy !== '' || laeuft || !gewaehlt.length || zuViele;
 
   const toggle = (id: string) =>
     setAbgewaehlt((alt) => {
@@ -89,25 +103,43 @@ export function Briefe() {
       return neu;
     });
 
-  const erzeugen = async () => {
-    if (!gewaehlt.length || zuViele || zuTeuer) return;
-    if (!window.confirm(`${anzahl(gewaehlt.length, art)} für ${euro(kosten)} erzeugen? Danach lädt das PDF. Die Codes stehen nur darin.`)) return;
-    setBusy('welle');
+  const run = async (was: string, fn: () => Promise<unknown>, done: string) => {
+    setBusy(was);
     try {
-      await createWelle(art, gewaehlt.map((e) => e.id));
-      toast.success('PDF gespeichert. Bei PIN eBrief hochladen und danach hier „Hochgeladen“ klicken.');
+      await fn();
+      toast.success(done);
       setAbgewaehlt(new Set());
-      await reload();
     } catch (e) {
       toast.error(message(e));
-      await reload();
     } finally {
+      await reload();
       setBusy('');
     }
   };
 
+  const alsPdf = () => {
+    if (gesperrt || zuTeuer) return;
+    if (!window.confirm(`${anzahl(gewaehlt.length, art)} für ${euro(kosten)} als PDF erzeugen? Danach lädt das PDF. Die Codes stehen nur darin.`)) return;
+    run('pdf', () => createWelle(art, gewaehlt.map((e) => e.id)), 'PDF gespeichert. Bei PIN eBrief hochladen und danach hier „Hochgeladen“ klicken.');
+  };
+
+  const ueberPin = () => {
+    if (gesperrt || (!test && zuTeuer)) return;
+    const frage = test
+      ? `${anzahl(gewaehlt.length, art)} an die Testumgebung von PIN schicken? Es wird nichts gedruckt, die Salons bleiben unverändert.`
+      : `${anzahl(gewaehlt.length, art)} für ca. ${euro(kosten)} über PIN eBrief verschicken? Sie gehen sofort in den Druck.`;
+    if (!window.confirm(frage)) return;
+    run('pin', () => startVersand(art, gewaehlt.map((e) => e.id)), test ? 'Test läuft. Den Fortschritt siehst du unten.' : 'Versand läuft. Den Fortschritt siehst du unten.');
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {pinBereit && test && (
+        <p className="rounded-3xl border-2 border-dashed border-foreground p-4 text-sm font-medium">
+          Testmodus: „Über PIN“ geht an die Testumgebung von PIN eBrief. Es wird nichts gedruckt, die Salons bleiben unverändert, und
+          Testwellen zählen nicht. Umschalten unten unter Einstellungen.
+        </p>
+      )}
       {offen.length > 0 && (
         <p className="rounded-3xl border border-foreground bg-signal/30 p-4 text-sm font-medium">
           {offen.length === 1 ? 'Eine Welle ist' : `${offen.length} Wellen sind`} erzeugt, aber noch nicht hochgeladen. Unten „Hochgeladen“ klicken, sobald
@@ -183,20 +215,37 @@ export function Briefe() {
               · diesen Monat schon {euro(monat.kosten)} von {euro(monat.grenze)}
             </span>
           </p>
-          <Button className="ms-auto" variant="signal" disabled={busy !== '' || !gewaehlt.length || zuViele || zuTeuer} onClick={erzeugen}>
-            <FileDown className="h-4 w-4" aria-hidden="true" />
-            {busy === 'welle' ? 'Wird erzeugt …' : `${anzahl(gewaehlt.length, art)} erzeugen`}
-          </Button>
+          <div className="ms-auto flex flex-wrap gap-2">
+            <Button variant={pinBereit ? 'outline' : 'signal'} disabled={gesperrt || zuTeuer} onClick={alsPdf}>
+              <FileDown className="h-4 w-4" aria-hidden="true" />
+              {busy === 'pdf' ? 'Wird erzeugt …' : `${anzahl(gewaehlt.length, art)} als PDF`}
+            </Button>
+            {pinBereit && (
+              <Button variant="signal" disabled={gesperrt || (!test && zuTeuer)} onClick={ueberPin}>
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {busy === 'pin' ? 'Startet …' : test ? `${anzahl(gewaehlt.length, art)} als Test an PIN` : `${anzahl(gewaehlt.length, art)} über PIN`}
+              </Button>
+            )}
+          </div>
         </div>
+        {laeuft && <p className="text-sm font-semibold">Gerade läuft eine Welle über PIN. Neue Briefe gehen erst, wenn sie fertig ist.</p>}
         {zuViele && <p className="text-sm font-semibold text-destructive">Höchstens {anzahl(einstellungen.proWelle, 'brief')} je Welle. Wähl ein paar ab oder grenz die Auswahl ein.</p>}
         {!zuViele && zuTeuer && (
-          <p className="text-sm font-semibold text-destructive">Damit wäre die Kostengrenze von {euro(monat.grenze)} in diesem Monat überschritten.</p>
+          <p className="text-sm font-semibold text-destructive">
+            Damit wäre die Kostengrenze von {euro(monat.grenze)} in diesem Monat überschritten{pinBereit && test ? ' (für einen Test an PIN egal)' : ''}.
+          </p>
+        )}
+        {!pinBereit && (
+          <p className="text-xs text-muted-foreground">
+            Versand direkt über PIN eBrief: Zugang für {test ? 'die Testumgebung' : 'den echten Versand'} fehlt noch (siehe Einstellungen). Bis dahin als PDF
+            erzeugen und bei PIN hochladen.
+          </p>
         )}
       </Section>
 
       <Wellen wellen={data.wellen} onChanged={reload} />
 
-      <Einstellungen werte={einstellungen} onSaved={reload} />
+      <Einstellungen werte={einstellungen} schnittstelle={schnittstelle} onSaved={reload} />
     </div>
   );
 }
@@ -285,6 +334,13 @@ function Ausgeschlossen({ salons, art }: { salons: BriefSalon[]; art: BriefArt }
   );
 }
 
+const wellenStatus = (w: Welle) => {
+  if (w.status === 'erzeugt') return 'noch nicht hochgeladen';
+  if (w.status === 'versendet') return `wird verschickt · ${w.geschickt} von ${w.anzahl}`;
+  if (w.status === 'abgebrochen') return 'abgebrochen';
+  return `verschickt ${fmtDate(w.verschicktAm)}`;
+};
+
 function Wellen({ wellen, onChanged }: { wellen: Welle[]; onChanged: () => void }) {
   const [busy, setBusy] = useState('');
   const run = async (id: string, fn: () => Promise<unknown>, done: string) => {
@@ -303,22 +359,24 @@ function Wellen({ wellen, onChanged }: { wellen: Welle[]; onChanged: () => void 
   return (
     <Section title="Wellen">
       <p className="text-sm text-muted-foreground">
-        PDF bei PIN eBrief hochladen: farbig, einseitig, nach je einer Seite trennen. Danach hier „Hochgeladen“ klicken. Unzustellbare Briefe zeigt PIN im
-        Portal; markier sie im Reiter Verzeichnis am Eintrag mit „Unzustellbar“.
+        Als PDF: bei PIN eBrief hochladen (farbig, einseitig, nach je einer Seite trennen), danach hier „Hochgeladen“ klicken. Unzustellbare Briefe zeigt PIN
+        dann im Portal; markier sie im Reiter Verzeichnis am Eintrag mit „Unzustellbar“. Über PIN verschickte Wellen melden Rückläufer selbst.
       </p>
       {!wellen.length ? (
         <p className="text-sm">Noch keine Welle.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {wellen.map((w) => (
-            <li key={w.id} className="flex flex-col gap-2 rounded-2xl border border-border p-4">
+            <li key={w.id} className={cn('flex flex-col gap-2 rounded-2xl border p-4', w.test ? 'border-dashed border-foreground/50' : 'border-border')}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">
-                  {ART_LABEL[w.art]} · {fmtDate(w.am)}
+                  {ART_LABEL[w.art]} · {fmtDateTime(w.am)}
                 </span>
-                <Pill tone={w.status === 'erzeugt' ? 'signal' : 'muted'}>{w.status === 'erzeugt' ? 'noch nicht hochgeladen' : `verschickt ${fmtDate(w.verschicktAm)}`}</Pill>
+                {w.test && <Pill tone="dark">Test</Pill>}
+                <Pill tone={w.status === 'erzeugt' || w.status === 'versendet' ? 'signal' : w.status === 'abgebrochen' ? 'alarm' : 'muted'}>{wellenStatus(w)}</Pill>
                 <span className="text-sm text-muted-foreground">
-                  {anzahl(w.anzahl, w.art)} · {euro(w.kosten)}
+                  {w.weg === 'pin' ? 'über PIN' : 'als PDF'} · {anzahl(w.anzahl, w.art)}
+                  {!w.test && ` · ${euro(w.kosten)}`}
                 </span>
                 {w.status === 'erzeugt' && (
                   <div className="ms-auto flex gap-2">
@@ -339,7 +397,27 @@ function Wellen({ wellen, onChanged }: { wellen: Welle[]; onChanged: () => void 
                   </div>
                 )}
               </div>
-              {w.status === 'verschickt' && (
+              {w.hinweis && <p className="text-sm font-semibold">{w.hinweis}</p>}
+              {w.weg === 'pin' && w.status !== 'versendet' && (
+                <p className="text-sm">
+                  {w.geschickt} bei PIN angekommen{w.unklar > 0 && ` · ${w.unklar} warten noch auf Antwort von PIN`}
+                  {w.fehler.length > 0 && ` · ${w.fehler.length} nicht verschickt`}
+                </p>
+              )}
+              {w.fehler.length > 0 && (
+                <details className="text-sm">
+                  <summary className="cursor-pointer">Nicht verschickt: {w.fehler.length} (wieder auswählbar)</summary>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {w.fehler.map((f) => (
+                      <li key={f.id}>
+                        <span className="font-medium">{f.name}</span>
+                        <span className="text-muted-foreground"> – {f.grund}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {(w.status === 'verschickt' || w.status === 'abgebrochen') && !w.test && (
                 <p className="text-sm">
                   <strong>{w.auswertung.uebernommen}</strong> übernommen · {w.auswertung.unzustellbar} unzustellbar · {w.auswertung.entfernt} Eintrag entfernt ·{' '}
                   {w.auswertung.keinePost} keine Post
@@ -354,14 +432,16 @@ function Wellen({ wellen, onChanged }: { wellen: Welle[]; onChanged: () => void 
   );
 }
 
-function Einstellungen({ werte, onSaved }: { werte: BriefEinstellungen; onSaved: () => void }) {
+function Einstellungen({ werte, schnittstelle, onSaved }: { werte: BriefEinstellungen; schnittstelle: Schnittstelle; onSaved: () => void }) {
   const [form, setForm] = useState({ proWelle: String(werte.proWelle), proMonat: String(werte.proMonat), preis: String(werte.preis) });
+  const [testmodus, setTestmodus] = useState(werte.testmodus);
   const [busy, setBusy] = useState(false);
   const zahl = (s: string) => Number(s.replace(',', '.'));
   const speichern = async () => {
+    if (werte.testmodus && !testmodus && !window.confirm('Testmodus ausschalten? Dann gehen Briefe über PIN wirklich in den Druck und kosten Geld.')) return;
     setBusy(true);
     try {
-      await saveEinstellungen({ proWelle: Math.round(zahl(form.proWelle)), proMonat: zahl(form.proMonat), preis: zahl(form.preis) });
+      await saveEinstellungen({ proWelle: Math.round(zahl(form.proWelle)), proMonat: zahl(form.proMonat), preis: zahl(form.preis), testmodus });
       toast.success('Einstellungen gespeichert.');
       onSaved();
     } catch (e) {
@@ -381,9 +461,19 @@ function Einstellungen({ werte, onSaved }: { werte: BriefEinstellungen; onSaved:
     <Section title="Einstellungen">
       <div className="grid gap-3 sm:grid-cols-3">
         {feld('proWelle', 'Höchstens Briefe je Welle', 'Mehr lässt sich nicht auswählen.')}
-        {feld('proMonat', 'Kostengrenze je Monat in €', 'Erzeugte und verschickte Wellen im Kalendermonat.')}
+        {feld('proMonat', 'Kostengrenze je Monat in €', 'Erzeugte und verschickte Wellen im Kalendermonat, ohne Tests.')}
         {feld('preis', 'Preis je Brief in € (netto)', 'PIN eBrief farbig: 0,77 €. Steigt voraussichtlich im Januar 2027.')}
       </div>
+      <label className="flex items-start gap-3 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-foreground" checked={testmodus} onChange={(e) => setTestmodus(e.target.checked)} />
+        <span>
+          <span className="font-medium">Testmodus für den Versand über PIN</span>
+          <span className="block text-muted-foreground">Briefe gehen an die Testumgebung von PIN eBrief: nichts wird gedruckt, Salons bleiben unverändert.</span>
+        </span>
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Zugang zu PIN eBrief: Testumgebung {schnittstelle.test ? 'eingerichtet' : 'fehlt'} · echter Versand {schnittstelle.echt ? 'eingerichtet' : 'fehlt'}
+      </p>
       <Button variant="outline" className="self-start" disabled={busy} onClick={speichern}>
         {busy ? 'Speichert …' : 'Speichern'}
       </Button>

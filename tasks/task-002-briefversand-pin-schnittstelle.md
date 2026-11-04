@@ -1,6 +1,6 @@
 # Task — Briefwellen direkt über die Schnittstelle von PIN eBrief verschicken (Stufe B)
 
-- **Status:** Todo
+- **Status:** In Review (Code fertig 04.11.2026; offen: Test gegen die Testumgebung von PIN, sobald der Zugang da ist)
 - **Touches:** backend, frontend
 - **Requirement:** briefversand · step 2/2
 - **Related:** ADR likely — Anbindung eines Druck- und Versanddienstleisters (austauschbarer Anbieter, Statusmeldungen
