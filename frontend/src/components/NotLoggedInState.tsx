@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { EmployeeNavigation } from './EmployeeNavigation';
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { t } from '@/i18n';
 
 interface Props {

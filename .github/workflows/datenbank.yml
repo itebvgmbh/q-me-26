@@ -69,6 +69,10 @@ jobs:
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
         run: .venv/bin/python tests/test_datenumzug.py
+      - name: Eigene Anmeldung (app/libs/anmeldung.py, app/apis/anmeldung)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_anmeldung.py
       - name: Kein Zugriff an der Speicher-Schicht vorbei
         run: .venv/bin/python tests/test_speicher_gebuendelt.py
       - name: Live-Daten für Nummer und Bildschirm (app/apis/live)

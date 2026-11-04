@@ -59,14 +59,12 @@ const fixture = () => {
   return JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 };
 
-/** Im Browser mit E-Mail und Passwort anmelden (Firebase der App, ohne Formular) */
+/** Im Browser mit E-Mail und Passwort anmelden (app/auth/konto.ts, ohne Formular) */
 const signIn = async (page, account) => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
   await page.evaluate(async (account) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const { signInWithEmailAndPassword, anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
     await signInWithEmailAndPassword(firebaseAuth, account.email, account.pw);
   }, account);
 };
@@ -189,48 +187,33 @@ const run = (fn) =>
       process.exit(1);
     });
 
-// --- Anmeldung nachgebildet: kein Testkonto nötig, Firestore wird nicht gefragt ---------------------------------------
+// --- Anmeldung nachgebildet: kein Testkonto nötig ---------------------------------------------------------------------
 
 const UID = 'betreiber-test';
 const EMAIL = 'chef@example.com';
 
-const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-const fakeToken = () => {
-  const now = Math.floor(Date.now() / 1000);
-  return `${b64({ alg: 'none', typ: 'JWT' })}.${b64({
-    iss: 'https://securetoken.google.com/qmedata-7c79e', aud: 'qmedata-7c79e', auth_time: now, user_id: UID, sub: UID,
-    iat: now, exp: now + 3600, email: EMAIL, email_verified: true, firebase: { identities: { email: [EMAIL] }, sign_in_provider: 'password' },
-  })}.x`;
-};
-
-/** Firebase-Anmeldung beantworten, ohne Google zu fragen; Firestore mit dem falschen Token gar nicht erst fragen */
-const mockAuth = async (page) => {
-  const token = fakeToken();
-  const user = {
-    localId: UID, email: EMAIL, emailVerified: true, displayName: 'Chef', createdAt: '1700000000000', lastLoginAt: String(Date.now()),
-    providerUserInfo: [{ providerId: 'password', email: EMAIL, federatedId: EMAIL, rawId: EMAIL }],
-  };
-  await page.route('**/identitytoolkit.googleapis.com/**', (route) => {
-    const url = route.request().url();
-    const body = url.includes('accounts:lookup')
-      ? { kind: 'identitytoolkit#GetAccountInfoResponse', users: [user] }
-      : { kind: 'identitytoolkit#VerifyPasswordResponse', localId: UID, email: EMAIL, displayName: 'Chef', idToken: token, registered: true, refreshToken: 'r', expiresIn: '3600' };
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+/** Eigene Anmeldung (backend/app/apis/anmeldung) beantworten, ohne Backend: anmelden, registrieren, ich, abmelden.
+ *  Seit Stufe 4 reist die Anmeldung im Cookie; hier merkt sich der Test nur, ob jemand angemeldet ist. */
+const mockAuth = async (page, { email = EMAIL, uid = UID, verified = true } = {}) => {
+  const konto = { uid, email, emailVerified: verified, displayName: 'Chef' };
+  let angemeldet = false;
+  await page.route('**/routes/anmeldung/**', (route) => {
+    const pfad = new URL(route.request().url()).pathname.replace('/routes/anmeldung/', '');
+    if (pfad === 'anmelden' || pfad === 'registrieren') angemeldet = true;
+    if (pfad === 'abmelden') angemeldet = false;
+    if (pfad === 'ich' && !angemeldet) {
+      return route.fulfill({ status: 401, contentType: 'application/json', headers: { 'X-Anmeldung-Fehler': 'auth/unauthenticated' }, body: '{"detail":"Du bist nicht angemeldet."}' });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(pfad === 'abmelden' ? { ok: true } : konto) });
   });
-  await page.route('**/securetoken.googleapis.com/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: token, id_token: token, expires_in: '3600', refresh_token: 'r', token_type: 'Bearer', user_id: UID }) }),
-  );
-  await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
 };
 
 const signInFake = async (page) => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2000);
   await page.evaluate(async ({ email }) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    await signInWithEmailAndPassword(firebaseAuth, email, 'egal');
+    const { signInWithEmailAndPassword, anmeldung } = await import('/src/app/auth/konto.ts');
+    await signInWithEmailAndPassword(anmeldung, email, 'egal');
   }, { email: EMAIL });
 };
 

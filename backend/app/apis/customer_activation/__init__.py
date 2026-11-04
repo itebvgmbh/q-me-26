@@ -106,12 +106,10 @@ def _link(db, doc, shop_id: str, uid: str) -> int:
 
 
 def account(uid: str) -> dict:
-    """E-Mail, ob sie bestätigt ist, und Name des Kontos – so, wie Firebase sie kennt, nicht wie der Browser sie schickt"""
-    from firebase_admin import auth
+    """E-Mail, ob sie bestätigt ist, und Name des Kontos – aus der Datenbank, nicht wie der Browser sie schickt"""
+    from app.libs import konto_auth as auth
 
-    from app.apis.firebase_utils import get_firebase_app
-
-    record = auth.get_user(uid, app=get_firebase_app())
+    record = auth.get_user(uid)
     return {"email": (record.email or "").strip(), "verified": bool(record.email_verified), "name": (record.display_name or "").strip()}
 
 

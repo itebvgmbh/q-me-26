@@ -35,9 +35,7 @@ def delete_customer(customer_id: str, user: AuthorizedUser) -> dict:
 @router.delete("/datenschutz/konto")
 def delete_account(user: AuthorizedUser) -> dict:
     """Eigenes Kunden-Konto löschen (Mein Profil). Die Anmeldung gilt danach nicht mehr."""
-    from firebase_admin import auth
-
-    from app.apis.firebase_utils import get_firebase_app
+    from app.libs import konto_auth as auth
 
     db = get_firestore_db()
     if owned_shop_ids(user.sub) or list(db.collection("staff").where("userId", "==", user.sub).limit(1).stream()):
@@ -47,7 +45,7 @@ def delete_account(user: AuthorizedUser) -> dict:
         )
     result = delete_account_data(db, user.sub)
     try:
-        auth.delete_user(user.sub, app=get_firebase_app())
+        auth.delete_user(user.sub)
     except auth.UserNotFoundError:
         pass  # schon weg, etwa beim zweiten Versuch
     return result

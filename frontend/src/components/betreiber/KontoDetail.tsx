@@ -97,7 +97,7 @@ export function KontoDetail({
             {account.appointments}
             {account.upcoming ? ` (${account.upcoming} kommend)` : ''}
           </Fact>
-          <Fact label="Anmeldung">{account.auth ? account.providers.join(', ') || 'Passwort' : 'kein Firebase-Konto'}</Fact>
+          <Fact label="Anmeldung">{account.auth ? account.providers.join(', ') || 'Passwort' : 'kein Konto'}</Fact>
         </dl>
         {account.shops.length > 0 && (
           <div className="flex flex-col gap-1 text-sm">

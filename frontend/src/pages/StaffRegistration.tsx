@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { auth, useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { HilfeLink } from '../components/HilfeLink';
-import { createFirebaseUser } from '../utils/auth-helpers';
+import { createAccount } from '../utils/auth-helpers';
 import { authErrorMessage } from '../utils/auth-errors';
 import { sendVerificationMailAfterSignUp } from '../utils/email-verification';
 import { emitProfileSaved, getUserProfile } from '../utils/user-profile-service';
@@ -88,7 +88,7 @@ const StaffRegistration = () => {
     try {
       let created;
       try {
-        created = await createFirebaseUser(email.trim(), password);
+        created = await createAccount(email.trim(), password);
       } catch (err) {
         if ((err as { code?: string })?.code === 'auth/email-already-in-use') {
           setAccountExists(true);

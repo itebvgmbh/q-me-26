@@ -13,7 +13,7 @@ os.environ.setdefault("FIREBASE_PROJECT_ID", "test")
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-FIREBASE_LINK = "https://qmedata-7c79e.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=AbC-123_x%2Fy%3D&apiKey=k&lang=en"
+CODE = "AbC-123_x/y="  # Code aus app/libs/anmeldung.link_anlegen (hier mit Sonderzeichen, die kodiert werden müssen)
 
 
 def client(email="kim@salon-kaya.de", verified=False, mails=None, mail_result=True, configured=True, origin="https://q-me.spielmacherei.de"):
@@ -23,7 +23,7 @@ def client(email="kim@salon-kaya.de", verified=False, mails=None, mail_result=Tr
 
     api._sent.clear()
     api._account = lambda uid: type("Record", (), {"email": email, "email_verified": verified})()
-    api._firebase_link = lambda address: FIREBASE_LINK
+    api._link_code = lambda address: CODE
     api.mail_configured = lambda: configured
 
     def fake_send(to, subject, html, text=""):
@@ -55,9 +55,8 @@ def test_mail_mit_link_auf_dranzeit():
     assert "bestätige" in mails[0]["subject"]
     link = next(w for w in mails[0]["text"].split() if w.startswith("https://"))
     assert link.startswith("https://q-me.spielmacherei.de/email-bestaetigen?code=")
-    # Code unverändert übernommen (Sonderzeichen sauber kodiert), Firebase-Seite und API-Schlüssel nicht im Link
+    # Code unverändert übernommen (Sonderzeichen sauber kodiert)
     assert parse_qs(urlparse(link).query)["code"] == ["AbC-123_x/y="]
-    assert "firebaseapp" not in mails[0]["html"] and "apiKey" not in link
     assert "kim@salon-kaya.de" in mails[0]["html"]
 
 
@@ -124,10 +123,10 @@ def test_link_ohne_code_wird_abgelehnt():
     import app.apis.email_verification as api
 
     try:
-        api.verification_link("https://qmedata-7c79e.firebaseapp.com/__/auth/action?mode=verifyEmail", "https://dranzeit.de")
+        api.verification_link("", "https://dranzeit.de")
     except ValueError:
         return
-    raise AssertionError("Link ohne oobCode angenommen")
+    raise AssertionError("Link ohne Code angenommen")
 
 
 

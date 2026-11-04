@@ -1,15 +1,13 @@
 """Passwort vergessen: Dranzeit schickt die Mail selbst über Resend (app/libs/mail.py), von hallo@dranzeit.de und auf
-in der Sprache der Anfrage (Accept-Language, app/i18n). Firebases eigene Mail kommt von noreply@…firebaseapp.com, ist englisch und landet bei Microsoft 365 und
-anderen oft im Spam oder in der Quarantäne. Der Link führt auf /passwort-neu?code=…, dort setzt der Browser das neue
-Passwort bei Firebase (confirmPasswordReset, frontend/src/pages/PasswortNeu.tsx).
+in der Sprache der Anfrage (Accept-Language, app/i18n). Der Link führt auf /passwort-neu?code=…, dort setzt der Browser
+das neue Passwort (POST /routes/anmeldung/passwort-neu, frontend/src/pages/PasswortNeu.tsx).
 
-Den Code erzeugt Firebase (Admin SDK, generate_password_reset_link), er gilt eine Stunde. In der Firebase-Konsole ist
-dafür nichts einzustellen.
+Den Code erzeugt app/libs/anmeldung.py (Einmal-Link, nur als Hash gespeichert), er gilt eine Stunde.
 
 Wie bei Firebase verrät die Antwort nicht, ob es zur Adresse ein Konto gibt: Auch ohne Konto (oder bei gesperrtem
 Konto) heißt es „verschickt“, nur geht keine Mail raus. Schutz vor Missbrauch (Mails an fremde Adressen): je Adresse
 höchstens eine Anfrage pro Minute und fünf am Tag, je IP 20 am Tag. Keine Mails an Testadressen (example.com …).
-Ohne Resend-Schlüssel kommt „nicht_eingerichtet“ zurück, dann verschickt der Browser Firebases eigene Mail.
+Ohne Resend-Schlüssel kommt „nicht_eingerichtet“ zurück, dann geht keine Mail raus.
 """
 
 import hashlib
@@ -17,7 +15,7 @@ import re
 import threading
 import time
 from collections import defaultdict, deque
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -50,29 +48,28 @@ def _ip(request: Request) -> str:
 
 def _user(email: str):
     """Konto zur Adresse oder None (kein Konto)"""
-    from firebase_admin import auth
-
-    from app.apis.firebase_utils import get_firebase_app
+    from app.libs import konto_auth as auth
 
     try:
-        return auth.get_user_by_email(email, app=get_firebase_app())
+        return auth.get_user_by_email(email)
     except auth.UserNotFoundError:
         return None
 
 
-def _firebase_link(email: str) -> str:
-    from firebase_admin import auth
+def _link_code(email: str) -> str:
+    """Neuer Code für den Passwort-Link des Kontos zu dieser Adresse"""
+    from app.libs import anmeldung
 
-    from app.apis.firebase_utils import get_firebase_app
+    konto = anmeldung.konto_per_email(email)
+    if konto is None:
+        raise ValueError("Kein Konto zu dieser Adresse")
+    return anmeldung.link_anlegen(konto, "passwort")
 
-    return auth.generate_password_reset_link(email, app=get_firebase_app())
 
-
-def reset_link(firebase_link: str, origin: str) -> str:
-    """Code aus Firebases Link (…/__/auth/action?mode=resetPassword&oobCode=…) in einen Link auf Dranzeit setzen"""
-    code = (parse_qs(urlparse(firebase_link).query).get("oobCode") or [""])[0]
+def reset_link(code: str, origin: str) -> str:
+    """Link auf Dranzeit mit dem Code"""
     if not code:
-        raise ValueError("Firebase-Link ohne oobCode")
+        raise ValueError("Link ohne Code")
     return f"{origin}/passwort-neu?code={quote(code, safe='')}"
 
 
@@ -127,8 +124,8 @@ def _release(keys: list[tuple[str, int, int]], stamp: float) -> None:
 
 def mail_reset(address: str, origin: str, sprache: str = "de") -> None:
     """Passwort-Mail an diese Konto-Adresse, ohne weitere Prüfung (auch für den Betreiber-Bereich).
-    Wirft bei Fehlern von Firebase oder Resend."""
-    subject, html, text = reset_mail(address, reset_link(_firebase_link(address), origin), sprache)
+    Wirft bei Fehlern der Datenbank oder von Resend."""
+    subject, html, text = reset_mail(address, reset_link(_link_code(address), origin), sprache)
     send_mail(address, subject, html, text)
 
 
@@ -161,7 +158,7 @@ def request_reset(body: ResetRequest, request: Request) -> dict:
     _reserve(keys, stamp)
     try:
         send_reset(email, _origin(request), aus_anfrage(request))
-    except Exception as e:  # MailError von Resend, Fehler von Firebase (z. B. TOO_MANY_ATTEMPTS_TRY_LATER)
+    except Exception as e:  # MailError von Resend, Datenbank nicht erreichbar
         _release(keys, stamp)
         print(f"Passwort-Mail an {email} nicht verschickt: {e}")
         raise HTTPException(status_code=502, detail="Die E-Mail konnte gerade nicht verschickt werden. Versuch es später noch mal.")

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { confirmPasswordReset, signInWithEmailAndPassword, verifyPasswordResetCode } from 'firebase/auth';
-import { firebaseAuth } from 'app';
+import { confirmPasswordReset, signInWithEmailAndPassword, verifyPasswordResetCode } from 'app';
+import { anmeldung } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { t, tTeile } from '@/i18n';
@@ -29,7 +29,7 @@ const PasswortNeu = () => {
     // Nur prüfen, nicht einlösen – das passiert erst beim Speichern
     if (!code || checked.current) return;
     checked.current = true;
-    verifyPasswordResetCode(firebaseAuth, code)
+    verifyPasswordResetCode(anmeldung, code)
       .then((address) => {
         setEmail(address);
         setState('formular');
@@ -42,7 +42,7 @@ const PasswortNeu = () => {
     setError(null);
     setSaving(true);
     try {
-      await confirmPasswordReset(firebaseAuth, code, password);
+      await confirmPasswordReset(anmeldung, code, password);
     } catch (err) {
       const errCode = (err as { code?: string })?.code;
       if (errCode === 'auth/expired-action-code' || errCode === 'auth/invalid-action-code') setState('ungueltig');
@@ -51,7 +51,7 @@ const PasswortNeu = () => {
       return;
     }
     try {
-      const { user } = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      const { user } = await signInWithEmailAndPassword(anmeldung, email, password);
       toast.success(t('Dein neues Passwort ist gespeichert. Du bist angemeldet.'));
       navigate(await getRedirectPath(user.uid).catch(() => '/'), { replace: true });
     } catch {

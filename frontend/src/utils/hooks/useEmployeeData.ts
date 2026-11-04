@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { Staff, Service, getStaffEntriesByUserId, getServicesByShopId, getShopById } from '../firestore';
 import { ensureStaffUserProfile } from '../firestore/staff';
 import { t } from '@/i18n';

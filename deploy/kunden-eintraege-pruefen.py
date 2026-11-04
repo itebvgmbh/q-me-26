@@ -38,12 +38,11 @@ def utc(value):
 def main() -> None:
     load_env()
     sys.path.insert(0, os.getcwd())
-    from firebase_admin import auth
-
-    from app.apis.firebase_utils import get_firebase_app, get_firestore_db
+    from app.apis.firebase_utils import get_firestore_db
+    from app.libs import konto_auth as auth
 
     db = get_firestore_db()
-    app = get_firebase_app()
+    app = None
     now = datetime.now(timezone.utc)
 
     rows = [(d.id, d.to_dict() or {}) for d in db.collection("customers").stream()]

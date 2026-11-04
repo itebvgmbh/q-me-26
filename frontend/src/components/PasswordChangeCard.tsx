@@ -1,23 +1,23 @@
 import { useState } from 'react';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'app';
 import { toast } from 'sonner';
-import { firebaseAuth } from 'app';
+import { anmeldung } from 'app';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { FormError, PasswordField } from './auth/AuthShell';
 import { authErrorMessage } from '../utils/auth-errors';
 import { requestPasswordReset } from '../utils/password-reset';
 
-const MIN_LENGTH = 6; // wie beim Registrieren (Firebase verlangt mindestens 6)
+const MIN_LENGTH = 6; // wie beim Registrieren (backend/app/libs/anmeldung.py)
 const WRONG_CURRENT = new Set(['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/wrong-password']);
 
 /**
- * Passwort ändern (Mein Profil, alle Rollen): Firebase verlangt dafür eine frische Anmeldung, deshalb zuerst das
- * aktuelle Passwort. Andere Geräte meldet Firebase nach der Änderung ab. Wer das aktuelle nicht mehr weiß, bekommt
+ * Passwort ändern (Mein Profil, alle Rollen): Das Backend verlangt dafür kurz vorher das aktuelle Passwort
+ * (POST /routes/anmeldung/passwort-pruefen). Andere Geräte meldet es nach der Änderung ab. Wer das aktuelle nicht mehr weiß, bekommt
  * die Mail wie bei „Passwort vergessen?“ (utils/password-reset.ts).
  */
 export const PasswordChangeCard = () => {
-  const user = firebaseAuth.currentUser;
+  const user = anmeldung.currentUser;
   const email = user?.email || '';
   const hasPassword = Boolean(user?.providerData.some((p) => p.providerId === 'password'));
   const [current, setCurrent] = useState('');

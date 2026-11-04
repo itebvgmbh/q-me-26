@@ -12,7 +12,7 @@ const ok = (p) => p.then(() => true, () => false);
 /** Angemeldetes Konto im Browser wieder löschen (Profil und Anmeldung) */
 const removeAccount = (page) =>
   page.evaluate(async () => {
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
     const user = firebaseAuth.currentUser;
     if (!user) return;
     const src = await (await fetch('/src/utils/firestore-client.ts')).text();

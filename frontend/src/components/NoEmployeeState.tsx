@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { Button } from '@/components/ui/button';
 import { EmployeeNavigation } from './EmployeeNavigation';
 import { TeamPushSchalter } from './TeamPushSchalter';

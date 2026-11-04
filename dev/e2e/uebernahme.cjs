@@ -56,8 +56,8 @@ run(async () => {
   await verbinden.click();
   await page.getByRole('heading', { name: 'Angefragt.' }).waitFor({ timeout: 15000 });
   check(
-    'Anfrage: Seite, Laden und Anmeldung ans Backend',
-    anfragen[0]?.eintragId === 'nord' && anfragen[0]?.shopId === LADEN.id && anfragen[0]?.auth === 'Bearer',
+    'Anfrage: Seite und Laden ans Backend (Anmeldung im Cookie)',
+    anfragen[0]?.eintragId === 'nord' && anfragen[0]?.shopId === LADEN.id,
     JSON.stringify(anfragen[0]),
   );
   check('Anfrage: sagt, dass wir erst prüfen', await page.getByText(`Wir prüfen kurz, ob es dein Salon ist, und verbinden die Seite dann mit ${LADEN.name}.`).isVisible());

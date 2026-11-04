@@ -326,4 +326,17 @@ TEXTE: dict = {
     "Diese Datei gibt es nicht.": "هذا الملف غير موجود.",
     # Briefdienst (app/apis/briefdienst)
     "Unbekannt.": "غير معروف.",
+    # Anmeldung (app/apis/anmeldung)
+    'E-Mail oder Passwort stimmen nicht.': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+    'Dieses Konto ist gesperrt.': 'هذا الحساب محظور.',
+    'Zu viele Versuche. Warte kurz und versuch es dann noch einmal.': 'محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مرة أخرى.',
+    'Für diese E-Mail gibt es schon ein Konto. Melde dich an oder setz dein Passwort zurück.': 'يوجد حساب بهذا البريد الإلكتروني بالفعل. سجّل الدخول أو أعد تعيين كلمة المرور.',
+    'Das Passwort ist zu kurz. Nimm mindestens 6 Zeichen.': 'كلمة المرور قصيرة جدًا. استخدم 6 أحرف على الأقل.',
+    'Bitte gib ein Passwort ein.': 'يرجى إدخال كلمة المرور.',
+    'Das Passwort ist zu lang.': 'كلمة المرور طويلة جدًا.',
+    'Dieser Link gilt nicht mehr. Fordere einfach einen neuen an.': 'هذا الرابط لم يعد صالحًا. اطلب رابطًا جديدًا.',
+    'Dieser Link ist abgelaufen. Fordere einfach einen neuen an.': 'انتهت صلاحية هذا الرابط. اطلب رابطًا جديدًا.',
+    'Gib zuerst dein bisheriges Passwort ein.': 'أدخل كلمة المرور الحالية أولًا.',
+    'Du bist nicht angemeldet.': 'أنت غير مسجّل الدخول.',
+    'Diese Anfrage kam nicht von Dranzeit.': 'هذا الطلب لم يأتِ من Dranzeit.',
 }

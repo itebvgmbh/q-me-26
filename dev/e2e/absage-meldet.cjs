@@ -13,9 +13,7 @@ run(async () => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
   await page.evaluate(async (fx) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const { signInWithEmailAndPassword, anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
     await signInWithEmailAndPassword(firebaseAuth, fx.email, fx.pw);
     const appts = await import('/src/utils/firestore/appointments.ts');
     const [y, m, d] = fx.monday.split('-').map(Number);

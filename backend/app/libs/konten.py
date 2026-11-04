@@ -2,7 +2,7 @@
 deploy/konten-aufraeumen.py. Beide zeigen und löschen dasselbe.
 
 Ein Konto löschen heißt dasselbe wie "Konto löschen" im Profil (DELETE /routes/datenschutz/konto): delete_account_data
-aus app/libs/privacy.py, danach das Firebase-Konto. Seine Termine bleiben ohne Namen und Kontakt, kommende werden
+aus app/libs/privacy.py, danach das Konto. Seine Termine bleiben ohne Namen und Kontakt, kommende werden
 abgesagt. Anders als im Profil geht es hier auch für Läden und Team:
 - Läden eines Kontos gehen nur mit, wenn sie selbst genannt sind (sonst Abbruch), samt Leistungen, Team, Pausen,
   Terminen, Kunden-Einträgen, Belegung, Angeboten und Push-Abos. Läden mit laufendem Abo und ITEBV GmbH: Abbruch.
@@ -58,7 +58,7 @@ def is_test_address(email: str) -> bool:
 
 
 def account_row(user) -> dict:
-    """Firebase-Konto als einfacher Eintrag (ohne Passwort-Hash)"""
+    """Konto als einfacher Eintrag (ohne Passwort-Hash)"""
     meta = user.user_metadata
     last = max(meta.last_sign_in_timestamp or 0, getattr(meta, "last_refresh_timestamp", None) or 0)
     return {
@@ -72,11 +72,11 @@ def account_row(user) -> dict:
     }
 
 
-def auth_accounts(app) -> list:
-    """Alle Firebase-Konten als einfache Einträge"""
-    from firebase_admin import auth
+def auth_accounts(app=None) -> list:
+    """Alle Konten (app/libs/anmeldung.py) als einfache Einträge"""
+    from app.libs import konto_auth as auth
 
-    return [account_row(user) for user in auth.list_users(app=app).iterate_all()]
+    return [account_row(user) for user in auth.list_users().iterate_all()]
 
 
 def read_all(fs, name: str) -> dict:

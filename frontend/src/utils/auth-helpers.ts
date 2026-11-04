@@ -1,5 +1,5 @@
-import { firebaseAuth } from 'app';
-import { createUserWithEmailAndPassword, User } from 'firebase/auth';
+import { anmeldung } from 'app';
+import { createUserWithEmailAndPassword, User } from 'app';
 import { createUserProfile } from './user-profile-service';
 import { UserRole } from './types';
 
@@ -10,12 +10,12 @@ import { UserRole } from './types';
 export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 /**
- * Legt das Firebase-Konto an. Ob die E-Mail schon vergeben ist, entscheidet Firebase Auth
- * selbst (auth/email-already-in-use). Die frühere Vorprüfung in Firestore sperrte auch
+ * Legt das Konto an (POST /routes/anmeldung/registrieren). Ob die E-Mail schon vergeben ist, entscheidet das
+ * Backend (auth/email-already-in-use). Die frühere Vorprüfung in Firestore sperrte auch
  * Kunden, die schon einmal gebucht hatten, und Mitarbeiter mit offener Einladung.
  */
-export const createFirebaseUser = async (email: string, password: string): Promise<User> => {
-  const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+export const createAccount = async (email: string, password: string): Promise<User> => {
+  const userCredential = await createUserWithEmailAndPassword(anmeldung, email, password);
   return userCredential.user;
 };
 
@@ -24,7 +24,7 @@ export const createFirebaseUser = async (email: string, password: string): Promi
  * wieder gelöscht – sonst wäre die E-Mail verbraucht und ein neuer Versuch unmöglich.
  */
 export const registerWithRole = async (email: string, password: string, role: UserRole): Promise<User> => {
-  const user = await createFirebaseUser(email, password);
+  const user = await createAccount(email, password);
   try {
     await createUserProfile(user.uid, email, role);
   } catch (error) {

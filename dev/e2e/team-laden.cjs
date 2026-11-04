@@ -73,7 +73,7 @@ run(async () => {
   const team = finde('GET', '/routes/team/laden/laden-test/personen');
   const posts = anfragen.filter((a) => a.method === 'POST');
   rows.push({ name: 'Öffentlich: ohne Token', pass: Boolean(oeff) && !oeff.auth && r.oeffentlich[0].name === 'Kim' && r.oeffentlichAngelegt === '2026-10-01T10:00:00.000Z', detail: oeff?.auth || 'ohne' });
-  rows.push({ name: 'Team: mit Token, Zeitpunkte zurück', pass: team.length >= 1 && team.every((a) => a.auth.startsWith('Bearer ')) && r.teamAblauf === '2026-11-10T10:00:00.000Z', detail: r.teamAblauf });
+  rows.push({ name: 'Team: Zeitpunkte zurück', pass: team.length >= 1 && team.every((a) => !a.auth.startsWith('Bearer ')) && r.teamAblauf === '2026-11-10T10:00:00.000Z', detail: r.teamAblauf });
   const anlegen = finde('POST', '/routes/team/personen')[0];
   rows.push({ name: 'Person anlegen: Daten ohne undefined', pass: anlegen?.body.person.name === 'Ali' && anlegen.body.person.email === 'ali@example.com' && !('phone' in anlegen.body.person) && r.erstellt.id === 'neu1' });
   const aendern = finde('POST', '/routes/team/personen/kim');
@@ -81,12 +81,12 @@ run(async () => {
   const aktiv = finde('POST', '/routes/team/personen/kim/aktiv').map((a) => a.body.aktiv);
   rows.push({ name: 'Deaktivieren und zurückholen', pass: aktiv.join() === 'false,true', detail: aktiv.join() });
   rows.push({ name: '„E-Mail schon im Team?“ über das Team', pass: r.doppelt === 'kim' && team.length >= 2 });
-  rows.push({ name: 'Eigene Einträge mit Token', pass: r.eigene.join() === 'kim' && finde('GET', '/routes/team/ich/personen')[0]?.auth.startsWith('Bearer ') });
+  rows.push({ name: 'Eigene Einträge', pass: r.eigene.join() === 'kim' && Boolean(finde('GET', '/routes/team/ich/personen')[0]) });
   rows.push({ name: 'Leistungen öffentlich lesen', pass: r.leistungen.join() === 'Schnitt' && r.eine === 'Schnitt' && r.fremd === null && r.weg === null });
   const lPosts = posts.filter((a) => a.path.startsWith('/routes/team/leistungen'));
   rows.push({ name: 'Leistung anlegen, ändern, aus-/einblenden', pass: r.neueLeistung === 'neuL' && lPosts.length === 4 && lPosts[1].body.aenderung.price === 25 && lPosts[2].body.aenderung.archived === true && lPosts[3].body.aenderung.archived === false, detail: JSON.stringify(lPosts.map((a) => a.body)) });
-  rows.push({ name: 'Kommende Termine mit Token', pass: r.kommende === 3 && finde('GET', '/routes/team/leistungen/schnitt/kommende')[0]?.auth.startsWith('Bearer ') });
-  rows.push({ name: 'Alle POSTs mit Token', pass: posts.length > 0 && posts.every((a) => a.auth.startsWith('Bearer ')), detail: `${posts.length} POSTs` });
+  rows.push({ name: 'Kommende Termine', pass: r.kommende === 3 && Boolean(finde('GET', '/routes/team/leistungen/schnitt/kommende')[0]) });
+  rows.push({ name: 'Alle POSTs, Anmeldung im Cookie', pass: posts.length > 0 && posts.every((a) => !a.auth.startsWith('Bearer ')), detail: `${posts.length} POSTs` });
   rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
 
   await browser.close();

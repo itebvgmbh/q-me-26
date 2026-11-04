@@ -1,4 +1,4 @@
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { TimeSlot } from './types';
 import { linkOwnCustomerEntry } from './firestore';
 import { saveAnonymousBookingCode } from './localStorageUtils';

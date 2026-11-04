@@ -1,44 +1,30 @@
-import functools
+"""Wer fragt an? Seit Stufe 4 (requirements/eigene-datenbank.md) über die eigene Sitzung im Cookie `qme_sitzung`
+(app/libs/anmeldung.py) statt über ein Firebase-Token. `User.sub` bleibt die Konto-ID wie bisher.
+
+Schreibende Anfragen (alles außer GET/HEAD/OPTIONS) mit Sitzung gehen nur von den eigenen Seiten durch (Origin, siehe
+app/apis/anmeldung.ursprung_pruefen).
+"""
+
 from http import HTTPStatus
 from typing import Annotated, Callable
-import jwt
+
 from fastapi import Depends, HTTPException, WebSocket, WebSocketException, status
 from fastapi.requests import HTTPConnection
-from jwt import PyJWKClient
 from pydantic import BaseModel
-from starlette.requests import Request
 
-
-class AuthConfig(BaseModel):
-    jwks_url: str
-    audience: str
-    header: str
+SICHER = {"GET", "HEAD", "OPTIONS"}
 
 
 class User(BaseModel):
-    # The subject, or user ID, from the authenticated token
+    # Die Konto-ID (früher die Firebase-ID; übernommene Konten behalten sie)
     sub: str
 
-    # Optional extra user data
     user_id: str | None = None
     name: str | None = None
     picture: str | None = None
     email: str | None = None
-    # Hat Firebase die E-Mail-Adresse bestätigt? (Anspruch email_verified im Token)
+    # Hat die Person ihre E-Mail-Adresse bestätigt?
     email_verified: bool | None = None
-
-
-def get_auth_config(request: HTTPConnection) -> AuthConfig:
-    auth_config: AuthConfig | None = request.app.state.auth_config
-
-    if auth_config is None:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="No auth config"
-        )
-    return auth_config
-
-
-AuthConfigDep = Annotated[AuthConfig, Depends(get_auth_config)]
 
 
 def get_audit_log(request: HTTPConnection) -> Callable[[str], None] | None:
@@ -48,124 +34,44 @@ def get_audit_log(request: HTTPConnection) -> Callable[[str], None] | None:
 AuditLogDep = Annotated[Callable[[str], None] | None, Depends(get_audit_log)]
 
 
-def get_authorized_user(
-    request: HTTPConnection,
-) -> User:
-    auth_config = get_auth_config(request)
+def user_from_session(request: HTTPConnection) -> User | None:
+    """Konto der Sitzung im Cookie oder None. Wirft nicht (Datenbank nicht erreichbar: None)."""
+    from app.libs.anmeldung import COOKIE, sitzung_pruefen
 
+    token = request.cookies.get(COOKIE)
+    if not token:
+        return None
     try:
-        if isinstance(request, WebSocket):
-            user = authorize_websocket(request, auth_config)
-        elif isinstance(request, Request):
-            user = authorize_request(request, auth_config)
-        else:
-            raise ValueError("Unexpected request type")
-
-        if user is not None:
-            return user
-        print("Request authentication returned no user")
+        treffer = sitzung_pruefen(token)
     except Exception as e:
-        print(f"Request authentication failed: {e}")
-
-    if isinstance(request, WebSocket):
-        raise WebSocketException(
-            code=status.WS_1008_POLICY_VIOLATION, reason="Not authenticated"
-        )
-    else:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="Not authenticated"
-        )
-
-
-@functools.cache
-def get_jwks_client(url: str):
-    """Reuse client cached by its url, client caches keys by default."""
-    return PyJWKClient(url, cache_keys=True)
-
-
-def get_signing_key(url: str, token: str) -> tuple[str, str]:
-    client = get_jwks_client(url)
-    signing_key = client.get_signing_key_from_jwt(token)
-    key = signing_key.key
-    alg = signing_key.algorithm_name
-    if alg != "RS256":
-        raise ValueError(f"Unsupported signing algorithm: {alg}")
-    return (key, alg)
-
-
-def authorize_websocket(
-    request: WebSocket,
-    auth_config: AuthConfig,
-) -> User | None:
-    # Parse Sec-Websocket-Protocol
-    header = "Sec-Websocket-Protocol"
-    sep = ","
-    prefix = "Authorization.Bearer."
-    protocols_header = request.headers.get(header)
-    protocols = (
-        [h.strip() for h in protocols_header.split(sep)] if protocols_header else []
-    )
-
-    token: str | None = None
-    for p in protocols:
-        if p.startswith(prefix):
-            token = p.removeprefix(prefix)
-            break
-
-    if not token:
-        print(f"Missing bearer {prefix}.<token> in protocols")
+        print(f"Sitzung nicht geprüft: {e.__class__.__name__}: {e}")
         return None
-
-    return authorize_token(token, auth_config)
-
-
-def authorize_request(
-    request: Request,
-    auth_config: AuthConfig,
-) -> User | None:
-    auth_header = request.headers.get(auth_config.header)
-    if not auth_header:
-        print(f"Missing header '{auth_config.header}'")
+    if treffer is None:
         return None
-
-    token = auth_header.startswith("Bearer ") and auth_header[7:]
-    if not token:
-        print(f"Missing bearer token in '{auth_config.header}'")
-        return None
-
-    return authorize_token(token, auth_config)
+    konto = treffer[0]
+    return User(sub=konto.uid, user_id=konto.uid, name=konto.name, email=konto.email, email_verified=konto.email_bestaetigt)
 
 
-def authorize_token(
-    token: str,
-    auth_config: AuthConfig,
-) -> User | None:
-    # Audience and jwks url to get signing key from based on the users config
-    jwks_urls = [(auth_config.audience, auth_config.jwks_url)]
+def _fremder_ursprung(request: HTTPConnection) -> bool:
+    from app.libs.links import allowed_origins
 
-    payload = None
-    for audience, jwks_url in jwks_urls:
-        try:
-            key, alg = get_signing_key(jwks_url, token)
-        except Exception as e:
-            print(f"Failed to get signing key {e}")
-            continue
+    method = getattr(request, "method", "GET")
+    if method in SICHER:
+        return False
+    origin = (request.headers.get("origin") or "").rstrip("/")
+    return bool(origin) and origin not in allowed_origins()
 
-        try:
-            payload = jwt.decode(
-                token,
-                key=key,
-                algorithms=[alg],
-                audience=audience,
-            )
-        except jwt.PyJWTError as e:
-            print(f"Failed to decode and validate token {e}")
-            continue
 
-    try:
-        user = User.model_validate(payload)
-        print(f"User {user.sub} authenticated")
+def get_authorized_user(request: HTTPConnection) -> User:
+    user = user_from_session(request)
+    if user is not None and not _fremder_ursprung(request):
         return user
-    except Exception as e:
-        print(f"Failed to parse token payload {e}")
-        return None
+    if isinstance(request, WebSocket):
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Not authenticated")
+    raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Not authenticated")
+
+
+def authorize_request(request: HTTPConnection, _config=None) -> User | None:
+    """Für öffentliche Endpunkte, die ein Konto nur nutzen, wenn eines angemeldet ist (app/libs/ticket.py)"""
+    user = user_from_session(request)
+    return None if user is None or _fremder_ursprung(request) else user

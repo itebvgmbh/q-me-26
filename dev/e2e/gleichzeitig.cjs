@@ -109,7 +109,7 @@ run(async () => {
     await page.clock.setFixedTime(berlin(`${tueText}T08:00:00`));
     await page.evaluate(async () => {
       window.__queue = await import('/src/utils/QueueBookingService.ts');
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       await firebaseAuth.signOut(); // Nummer ziehen ohne Konto
     });
   }));

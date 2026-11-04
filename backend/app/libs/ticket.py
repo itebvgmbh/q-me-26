@@ -16,15 +16,11 @@ def key_matches(appt: dict, key: str | None) -> bool:
 
 
 def request_uid(request: Request) -> str | None:
-    """Angemeldetes Konto, falls die Anfrage eine gültige Anmeldung mitbringt (öffentliche Endpunkte)"""
-    header = request.headers.get("authorization") or ""
-    if not header.startswith("Bearer ") or len(header) < 20:
-        return None
+    """Angemeldetes Konto, falls die Anfrage eine gültige Sitzung mitbringt (öffentliche Endpunkte)"""
     try:
         from databutton_app.mw.auth_mw import authorize_request
 
-        config = getattr(request.app.state, "auth_config", None)
-        user = authorize_request(request, config) if config else None
+        user = authorize_request(request)
         return user.sub if user else None
     except Exception as e:
         print(f"Anmeldung an der Nummer nicht geprüft: {e}")

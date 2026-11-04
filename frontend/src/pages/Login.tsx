@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { firebaseAuth, useCurrentUser } from 'app';
+import { signInWithEmailAndPassword } from 'app';
+import { anmeldung, useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { t, tTeile } from '@/i18n';
@@ -33,7 +33,7 @@ const Login = () => {
     setError(null);
     setSubmitting(true);
     try {
-      const { user: signedIn } = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+      const { user: signedIn } = await signInWithEmailAndPassword(anmeldung, email.trim(), password);
       const linking = linkAnonymousBookingsToUser(state);
       // Nach "Nummer behalten" erst verknüpfen, damit sie in "Meine Termine" schon auftaucht
       if (state.linkAnonymousBooking) await linking;

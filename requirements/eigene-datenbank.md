@@ -53,7 +53,18 @@
     `dokumente` aus Fassung 0002), besteht dieselben Verträge wie Firestore; Live-Abfragen über `LISTEN/NOTIFY`.
     Umzug mit `deploy/datenumzug.sh` (Probelauf, Umzug mit kurzer Pause des Dienstes, Zurück), Test
     `backend/tests/test_datenumzug.py`. Geändert gegenüber dem Plan: statt Wartungsmodus hält der Umzug den Dienst für
-    ein paar Minuten an – so schreibt auch keine Hintergrundaufgabe dazwischen. Offen: Stefan startet Probelauf und Umzug.
+    ein paar Minuten an – so schreibt auch keine Hintergrundaufgabe dazwischen.
+  - Stufe 3 live seit 04.11.2026: Regeln eingespielt (`regeln-live.cjs` grün), Umzug gelaufen (465 Dokumente in 36
+    Sammlungen), Dranzeit läuft auf PostgreSQL. Beim ersten Umzug lieferte `get_firestore_db()` noch immer Firestore,
+    nur die Module aus Stufe 2 schrieben nach PostgreSQL; zurückgeschaltet (nichts verloren), korrigiert in PR #128 mit
+    Wächter-Test, Umzug wiederholt. Firestore bleibt als Archiv.
+  - Stufe 4 (04.11.2026): eigene Anmeldung (`backend/app/libs/anmeldung.py`, `backend/app/apis/anmeldung`, Schema
+    0003 mit `konten`, `sitzungen`, `einmal_links`; Browser `frontend/src/app/auth/konto.ts`). Das Firebase-SDK ist aus
+    dem Frontend entfernt. Entschieden mit Stefan: Es gibt noch keine echten Kunden, deshalb keine Übergangszeit und
+    kein Token-Tausch; alle melden sich einmal neu an. Konten übernimmt das Backend beim Start aus Firebase (ohne
+    Passwort); die erste Anmeldung prüft das Passwort noch bei Firebase und speichert es dann als Argon2id-Hash. Damit
+    braucht es keine Hash-Parameter von Stefan. Tests: `backend/tests/test_anmeldung.py` (gegen PostgreSQL),
+    `dev/e2e/anmeldung.cjs`, `dev/e2e/passwort-neu.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend

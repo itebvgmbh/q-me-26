@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { t } from '@/i18n';

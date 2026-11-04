@@ -1,4 +1,4 @@
-import { firebaseAuth } from 'app';
+import { anmeldung } from 'app';
 import { Staff, WorkingHours } from './types';
 import { createUserProfile } from '../user-profile-service';
 import { backendSenden, liveLesen } from '../live';
@@ -87,9 +87,9 @@ export const teamEmailMessage = (existing: Staff) =>
 /** Eigenes Profil anlegen, falls es fehlt – nur für das angemeldete Konto; ein vorhandenes bleibt, wie es ist (Backend) */
 export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {
   try {
-    if (!staff.userId || staff.userId !== firebaseAuth.currentUser?.uid) return;
+    if (!staff.userId || staff.userId !== anmeldung.currentUser?.uid) return;
     // Die E-Mail kommt aus der Anmeldung (die Kontaktdaten der Person liest nur der Inhaber)
-    await createUserProfile(staff.userId, staff.email || firebaseAuth.currentUser?.email || '', 'employee');
+    await createUserProfile(staff.userId, staff.email || anmeldung.currentUser?.email || '', 'employee');
   } catch (error) {
     console.error('Error ensuring staff user profile:', error);
   }

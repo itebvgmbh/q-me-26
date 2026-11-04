@@ -321,9 +321,8 @@ def test_konto_loeschen_raeumt_alles_ab():
 
 
 def client(store, uid):
-    import firebase_admin.auth as fb_auth
-
     import app.apis.datenschutz as api
+    import app.libs.konto_auth as fb_auth
     import app.apis.firebase_utils as fu
     from databutton_app.mw.auth_mw import get_authorized_user
 

@@ -176,7 +176,7 @@ def _plain(fragment: str) -> str:
 
 def _owner_email(shop: dict) -> str:
     try:
-        from firebase_admin import auth
+        from app.libs import konto_auth as auth
 
         return auth.get_user(shop["owner"]).email or ""
     except Exception:

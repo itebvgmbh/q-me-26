@@ -117,7 +117,7 @@ run(async () => {
     const page = await newPage(browser, { viewport: { width: 1280, height: 900 } });
     await signIn(page, fx);
     const status = await page.evaluate(async () => {
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       const token = await firebaseAuth.currentUser.getIdToken();
       const call = async (p, auth) => (await fetch(`/routes/betreiber${p}`, { headers: auth ? { Authorization: `Bearer ${token}` } : {} })).status;
       const ich = await (await fetch('/routes/betreiber/ich', { headers: { Authorization: `Bearer ${token}` } })).json();

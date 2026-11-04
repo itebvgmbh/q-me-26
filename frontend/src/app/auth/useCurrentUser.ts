@@ -1,6 +1,5 @@
-import type { User } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { firebaseAuth } from "./firebase";
+import { anmeldung, type User } from "./konto";
 
 /**
  * Hook to subscribe to the current user.
@@ -12,11 +11,11 @@ export const useCurrentUser = (): {
   user: User | null;
   loading: boolean;
 } => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(anmeldung.currentUser);
+  const [loading, setLoading] = useState(anmeldung.currentUser === null);
 
   useEffect(() => {
-    const unsubscribe = firebaseAuth.onAuthStateChanged((user: User | null) => {
+    const unsubscribe = anmeldung.onAuthStateChanged((user: User | null) => {
       setUser(user);
       setLoading(false);
     });

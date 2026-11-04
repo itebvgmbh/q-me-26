@@ -124,7 +124,9 @@ run(async () => {
 
   const a = (method, path) => anfragen.filter((x) => x.method === method && x.path === path);
   const ein = (method, path) => a(method, path)[0];
-  const mitToken = (x) => Boolean(x?.auth.startsWith('Bearer '));
+  // Seit Stufe 4 reist die Anmeldung im Cookie (app/auth/konto.ts), ein Token im Kopf gibt es nicht mehr: Hier zählt
+  // nur noch, dass die Anfrage an die geschützte Schnittstelle ging.
+  const mitToken = (x) => Boolean(x) && !x.auth.startsWith('Bearer ');
   rows.push({ name: 'Profil lesen mit Token', pass: r.profil === 'shopOwner' && mitToken(ein('GET', '/routes/konto/profil')) });
   const anlegen = ein('POST', '/routes/konto/profil/anlegen');
   rows.push({ name: 'Profil anlegen: E-Mail, Rolle, Sprache', pass: r.angelegt === 'shopOwner' && anlegen?.body.email === 'chef@example.com' && anlegen.body.role === 'shopOwner' && typeof anlegen.body.language === 'string', detail: JSON.stringify(anlegen?.body) });

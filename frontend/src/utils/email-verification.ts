@@ -1,6 +1,6 @@
-import { applyActionCode } from 'firebase/auth';
+import { applyActionCode } from 'app';
 import { toast } from 'sonner';
-import { auth, firebaseAuth } from 'app';
+import { auth, anmeldung } from 'app';
 import { t } from '@/i18n';
 
 // E-Mail-Adresse bestätigen: Die Mail verschickt das Backend über Resend (backend/app/apis/email_verification),
@@ -50,18 +50,15 @@ export const sendVerificationMailAfterSignUp = (): void => {
 
 /** Bestätigt die Adresse mit dem Code aus der Mail. Ist jemand angemeldet, kennt sein Konto danach den neuen Stand. */
 export const confirmEmail = async (code: string): Promise<void> => {
-  await applyActionCode(firebaseAuth, code);
+  await applyActionCode(anmeldung, code);
   await refreshVerified();
 };
 
-/** Stand der Bestätigung frisch von Firebase holen (z. B. nachdem der Link in einem anderen Tab geöffnet wurde) */
+/** Stand der Bestätigung frisch vom Backend holen (z. B. nachdem der Link in einem anderen Tab geöffnet wurde) */
 export const refreshVerified = async (): Promise<boolean> => {
-  await firebaseAuth.authStateReady();
-  const user = firebaseAuth.currentUser;
+  await anmeldung.authStateReady();
+  const user = anmeldung.currentUser;
   if (!user) return false;
-  const before = user.emailVerified;
   await user.reload();
-  // Neues ID-Token, damit auch das Backend den neuen Stand sieht
-  if (user.emailVerified && !before) await user.getIdToken(true);
   return user.emailVerified;
 };

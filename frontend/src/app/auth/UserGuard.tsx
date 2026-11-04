@@ -1,4 +1,4 @@
-import type { User } from "firebase/auth";
+import type { User } from "./konto";
 import * as React from "react";
 import { createContext, useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
