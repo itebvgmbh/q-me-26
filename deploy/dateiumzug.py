@@ -116,9 +116,6 @@ def main() -> int:
 
     from app import store
 
-    if store.speicher() != "postgres":
-        print("Abbruch: Der Speicher ist nicht PostgreSQL (QME_SPEICHER).")
-        return 2
     ergebnis = umziehen(store.db(), sammlungen(), probe=args.probe)
     print(f"Dokumente mit Firebase-Bildern: {ergebnis['dokumente']}, verschiedene Bilder: {ergebnis['adressen']}")
     if args.probe:
