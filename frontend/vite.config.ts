@@ -50,14 +50,13 @@ const seitenKoepfe = (): Plugin => ({
 });
 
 // Bibliotheken in eigene Bausteine: Sie ändern sich selten und bleiben so nach einem Ausrollen im Browser-Cache.
-// Firebase (App, Auth) und React braucht jede Seite; die übrigen, die der Einstieg statisch lädt (Radix, lucide,
-// sonner …), kommen in "vendor". Alles andere verteilt Rollup selbst: Leaflet kommt nur mit /shop-map, Messaging nur
-// mit Push. Firestore und Storage lädt der Browser seit Stufe 2 nicht mehr (requirements/eigene-datenbank.md).
+// React braucht jede Seite; die übrigen, die der Einstieg statisch lädt (Radix, lucide, sonner …), kommen in "vendor".
+// Alles andere verteilt Rollup selbst: Leaflet kommt nur mit /shop-map. Firebase lädt der Browser seit Stufe 4 gar
+// nicht mehr (requirements/eigene-datenbank.md).
 // Messen: node dev/bundle-groesse.cjs
 const BAUSTEINE: [string, RegExp][] = [
-	["firebase", /\/node_modules\/(@firebase\/(app|auth|component|logger|util)|firebase\/(app|auth)|idb)\//],
 	["react", /\/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom|@remix-run\/router)\//],
-	// Braucht Firebase und Radix. Läge es in "vendor", bekäme firebase bei jeder Änderung dort einen neuen Namen
+	// Braucht Radix. Läge es in "vendor", bekäme ein anderer Baustein bei jeder Änderung dort einen neuen Namen
 	["tslib", /\/node_modules\/tslib\//],
 ];
 const vomEinstieg = (id: string, info: GetModuleInfo, gesehen = new Set<string>()): boolean => {
@@ -89,19 +88,7 @@ export default defineConfig({
 			},
 		},
 	},
-	optimizeDeps: {
-		exclude: ['firebase', 'firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage']
-	},
 	resolve: {
-		// @firebase/auth and @firebase/firestore are not deduped: the only copies
-		// in the tree are the ones firebase@10 depends on (nested under it), and
-		// forcing root resolution used to pick stale v9-era copies instead.
-		dedupe: [
-			"firebase",
-			"@firebase/app",
-			"@firebase/storage",
-			"@firebase/component"
-		],
 		alias: {
 			"brain": path.resolve(__dirname, "./src/brain"),
 			"components": path.resolve(__dirname, "./src/components"),

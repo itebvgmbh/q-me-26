@@ -73,11 +73,11 @@ run(async () => {
   rows.push({ name: 'Einzelne Pausen nach Tag (auch alte)', pass: r.amTag.join() === 'alt,b1', detail: r.amTag.join() });
   rows.push({ name: 'Überschneidung erkannt, alte übergangen', pass: r.konfliktJa === true && r.konfliktNein === false && r.konfliktSelbst === false, detail: JSON.stringify([r.konfliktJa, r.konfliktNein, r.konfliktSelbst]) });
   const anlegen = post('/routes/team/pausen');
-  rows.push({ name: 'Einzelne anlegen: Zeitpunkte als {"__zeit"}', pass: r.neu === 'neu1' && anlegen?.body.pause.startTime.__zeit === '2026-11-10T08:00:00.000Z' && anlegen.auth.startsWith('Bearer ') });
+  rows.push({ name: 'Einzelne anlegen: Zeitpunkte als {"__zeit"}', pass: r.neu === 'neu1' && anlegen?.body.pause.startTime.__zeit === '2026-11-10T08:00:00.000Z' });
   rows.push({ name: 'Einzelne ändern und löschen', pass: post('/routes/team/pausen/b1')?.body.aenderung.type === 'Termin' && Boolean(post('/routes/team/pausen/b1/loeschen')) });
   rows.push({ name: 'Feste: Wochentag und nur aktive', pass: r.festAlle.join() === 'r1,r2' && r.festDienstag.join() === 'r1' && r.festKonflikt === true && r.festFrei === false });
   rows.push({ name: 'Feste anlegen, abschalten, löschen', pass: r.festNeu === 'neu1' && post('/routes/team/feste-pausen')?.body.pause.dayOfWeek === 3 && post('/routes/team/feste-pausen/r1')?.body.aenderung.active === false && Boolean(post('/routes/team/feste-pausen/r1/loeschen')) });
-  rows.push({ name: 'Alle POSTs mit Token', pass: posts.length === 6 && posts.every((a) => a.auth.startsWith('Bearer ')), detail: `${posts.length} POSTs` });
+  rows.push({ name: 'Alle POSTs, Anmeldung im Cookie', pass: posts.length === 6 && posts.every((a) => !a.auth.startsWith('Bearer ')), detail: `${posts.length} POSTs` });
   rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });
 
   await browser.close();

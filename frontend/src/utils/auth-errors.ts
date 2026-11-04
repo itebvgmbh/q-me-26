@@ -1,6 +1,7 @@
 import { merke, t } from '@/i18n';
 
-// Firebase-Fehlercodes in verständliche Sätze übersetzen (du-Form); angezeigt wird t(text)
+// Fehlercodes der Anmeldung (auth/…, wie früher bei Firebase; backend/app/apis/anmeldung) in verständliche Sätze
+// übersetzen (du-Form); angezeigt wird t(text)
 const MESSAGES: Record<string, string> = {
   'auth/email-already-in-use': merke('Für diese E-Mail gibt es schon ein Konto. Melde dich an oder setz dein Passwort zurück.'),
   'auth/invalid-email': merke('Diese E-Mail-Adresse sieht nicht richtig aus.'),

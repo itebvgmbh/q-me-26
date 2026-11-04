@@ -295,7 +295,7 @@ run(async () => {
     }, customerEmail);
     // Ein Kundenkonto darf für den Laden keinen Link erzeugen (sonst könnte es Einträge übernehmen)
     const foreignLink = await customerPage.evaluate(async (customerId) => {
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${await firebaseAuth.currentUser.getIdToken()}` };
       return (await fetch('/routes/customer-activation', { method: 'POST', headers, body: JSON.stringify({ customer_id: customerId }) })).status;
     }, customer[0].id);
@@ -337,7 +337,7 @@ run(async () => {
       // Testkonto der Kundin wieder löschen (Profil zuerst, dann das Konto)
       await customerPage
         .evaluate(async () => {
-          const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+          const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
           const src = await (await fetch('/src/utils/firestore-client.ts')).text();
           const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
           const { firestore } = await import('/src/utils/firestore-client.ts');

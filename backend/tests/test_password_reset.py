@@ -15,7 +15,7 @@ os.environ.setdefault("FIREBASE_PROJECT_ID", "test")
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-FIREBASE_LINK = "https://qmedata-7c79e.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=Re-9_z%2Fq%3D&apiKey=k&lang=en"
+CODE = "Re-9_z/q="  # Code aus app/libs/anmeldung.link_anlegen (hier mit Sonderzeichen, die kodiert werden müssen)
 ACCOUNTS = {
     "kim@salon-kaya.de": SimpleNamespace(email="kim@salon-kaya.de", disabled=False),
     "gesperrt@salon-kaya.de": SimpleNamespace(email="gesperrt@salon-kaya.de", disabled=True),
@@ -28,7 +28,7 @@ def client(mails=None, mail_result=True, configured=True, origin="https://dranze
 
     api._requests.clear()
     api._user = lambda email: ACCOUNTS.get(email)
-    api._firebase_link = lambda address: FIREBASE_LINK
+    api._link_code = lambda address: CODE
     api.mail_configured = lambda: configured
 
     def fake_send(to, subject, html, text=""):
@@ -59,9 +59,8 @@ def test_mail_mit_link_auf_dranzeit():
     assert mails[0]["subject"] == "Neues Passwort für Dranzeit"
     link = next(w for w in mails[0]["text"].split() if w.startswith("https://"))
     assert link.startswith("https://dranzeit.de/passwort-neu?code=")
-    # Code unverändert übernommen (Sonderzeichen sauber kodiert), Firebase-Seite und API-Schlüssel nicht im Link
+    # Code unverändert übernommen (Sonderzeichen sauber kodiert)
     assert parse_qs(urlparse(link).query)["code"] == ["Re-9_z/q="]
-    assert "firebaseapp" not in mails[0]["html"] and "apiKey" not in link
     assert "Neues Passwort setzen" in mails[0]["html"] and "eine Stunde" in mails[0]["text"]
 
 

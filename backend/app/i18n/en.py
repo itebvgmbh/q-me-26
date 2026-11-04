@@ -296,4 +296,17 @@ TEXTE: dict = {
     "Diese Datei gibt es nicht.": "This file doesn't exist.",
     # Briefdienst (app/apis/briefdienst)
     "Unbekannt.": "Unknown.",
+    # Anmeldung (app/apis/anmeldung)
+    'E-Mail oder Passwort stimmen nicht.': 'Email or password is incorrect.',
+    'Dieses Konto ist gesperrt.': 'This account has been blocked.',
+    'Zu viele Versuche. Warte kurz und versuch es dann noch einmal.': 'Too many attempts. Wait a moment and then try again.',
+    'Für diese E-Mail gibt es schon ein Konto. Melde dich an oder setz dein Passwort zurück.': "There's already an account for this email. Sign in or reset your password.",
+    'Das Passwort ist zu kurz. Nimm mindestens 6 Zeichen.': 'The password is too short. Use at least 6 characters.',
+    'Bitte gib ein Passwort ein.': 'Please enter a password.',
+    'Das Passwort ist zu lang.': 'The password is too long.',
+    'Dieser Link gilt nicht mehr. Fordere einfach einen neuen an.': 'This link is no longer valid. Just request a new one.',
+    'Dieser Link ist abgelaufen. Fordere einfach einen neuen an.': 'This link has expired. Just request a new one.',
+    'Gib zuerst dein bisheriges Passwort ein.': 'Enter your current password first.',
+    'Du bist nicht angemeldet.': "You're not signed in.",
+    'Diese Anfrage kam nicht von Dranzeit.': "This request didn't come from Dranzeit.",
 }

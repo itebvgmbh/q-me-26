@@ -4,7 +4,7 @@ import { TimeSlot } from './types';
 import { API_URL } from 'app';
 import { getAvailableTimeslotsDirect } from './firestore/timeslots';
 import { AppEventType, useEventStore } from './firebase/event-system';
-import { firebaseAuth } from '../app/auth/firebase';
+import { anmeldung } from '../app/auth/konto';
 
 
 // Type für den Cache-Schlüssel
@@ -138,7 +138,7 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
             staff_id: null,
             date: dateString,
             force_refresh: true
-          }, { secure: firebaseAuth.currentUser !== null }).catch(e => console.error('Error notifying backend of cache invalidation:', e));
+          }, { secure: anmeldung.currentUser !== null }).catch(e => console.error('Error notifying backend of cache invalidation:', e));
         } catch (e) {
           console.error('Error notifying backend of cache invalidation:', e);
         }
@@ -215,7 +215,7 @@ const useTimeSlotStore = create<TimeSlotsState>((set, get) => ({
               staff_id: staffId,
               date: dateString,
               force_refresh: true
-            }, { secure: firebaseAuth.currentUser !== null }).catch(e => console.error('Error notifying backend of staff cache invalidation:', e));
+            }, { secure: anmeldung.currentUser !== null }).catch(e => console.error('Error notifying backend of staff cache invalidation:', e));
           } catch (e) {
             console.error('Error notifying backend of staff cache invalidation:', e);
           }

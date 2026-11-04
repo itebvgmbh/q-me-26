@@ -14,9 +14,7 @@ const signIn = async (page, fx) => {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
   await page.evaluate(async (fx) => {
-    const src = await (await fetch('/src/app/auth/firebase.ts')).text();
-    const { signInWithEmailAndPassword } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const { signInWithEmailAndPassword, anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
     await signInWithEmailAndPassword(firebaseAuth, fx.email, fx.pw);
   }, fx);
 };
@@ -24,7 +22,7 @@ const signIn = async (page, fx) => {
 /** Stripe-Kunde für den Testladen anlegen (wie "Weiter zur Bezahlung", ohne zu Stripe zu wechseln) */
 const ensureCustomer = (page, shopId) =>
   page.evaluate(async (shopId) => {
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+    const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
     const token = await firebaseAuth.currentUser.getIdToken();
     const res = await fetch('/routes/billing/checkout', {
       method: 'POST',

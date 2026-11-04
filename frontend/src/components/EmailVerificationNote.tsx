@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BadgeCheck } from 'lucide-react';
-import { firebaseAuth } from 'app';
+import { anmeldung } from 'app';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { UserRole } from '../utils/types';
@@ -8,12 +8,12 @@ import { refreshVerified, sendVerificationMail, verificationMailMessage } from '
 
 /** Mein Profil: Ist die E-Mail-Adresse bestätigt? Sonst Hinweis und Knopf für eine neue Bestätigungs-Mail. Pflicht ist nichts. */
 export const EmailVerificationNote = ({ role }: { role: UserRole }) => {
-  const [verified, setVerified] = useState<boolean | null>(firebaseAuth.currentUser?.emailVerified ? true : null);
+  const [verified, setVerified] = useState<boolean | null>(anmeldung.currentUser?.emailVerified ? true : null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
-    const check = () => refreshVerified().then(setVerified, () => setVerified(firebaseAuth.currentUser?.emailVerified ?? false));
+    const check = () => refreshVerified().then(setVerified, () => setVerified(anmeldung.currentUser?.emailVerified ?? false));
     check();
     // Link aus der Mail in einem anderen Tab geöffnet: beim Zurückkommen neu nachsehen
     const onVisible = () => document.visibilityState === 'visible' && check();

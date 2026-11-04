@@ -85,7 +85,7 @@ run(async () => {
       const src = await (await fetch('/src/utils/firestore-client.ts')).text();
       const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
       const { firestore } = await import('/src/utils/firestore-client.ts');
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       await fs.deleteDoc(fs.doc(firestore, 'users', uid));
       await firebaseAuth.currentUser.delete();
     }, account.uid).catch((e) => check('Wegwerf-Konto löschen', false, String(e).slice(0, 120)));

@@ -37,15 +37,13 @@ Accounts = Callable[[Iterable[str]], set]
 
 
 def existing_accounts(uids: Iterable[str]) -> set:
-    """Welche dieser IDs sind bestehende Firebase-Konten? Fehler gehen nach oben – lieber nichts tun als falsch löschen."""
-    from firebase_admin import auth
-
-    from app.apis.firebase_utils import get_firebase_app
+    """Welche dieser IDs sind bestehende Konten? Fehler gehen nach oben – lieber nichts tun als falsch löschen."""
+    from app.libs import konto_auth as auth
 
     ids = sorted({u for u in uids if isinstance(u, str) and 0 < len(u) <= 128})
     found = set()
-    for start in range(0, len(ids), 100):  # Firebase nimmt höchstens 100 je Anfrage
-        result = auth.get_users([auth.UidIdentifier(u) for u in ids[start : start + 100]], app=get_firebase_app())
+    for start in range(0, len(ids), 100):
+        result = auth.get_users([auth.UidIdentifier(u) for u in ids[start : start + 100]])
         found.update(user.uid for user in result.users)
     return found
 

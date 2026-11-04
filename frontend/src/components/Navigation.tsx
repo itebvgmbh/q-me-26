@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
-import { firebaseAuth } from 'app';
+import { anmeldung } from 'app';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -100,7 +100,7 @@ export function Navigation() {
   const handleLogout = async () => {
     setOpen(false);
     await stopTeamPushBeforeLogout();
-    await firebaseAuth.signOut();
+    await anmeldung.signOut();
     navigate('/');
   };
 

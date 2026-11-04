@@ -28,7 +28,7 @@ const callApi = (page, appointmentId, an, withLogin = true) =>
     async ({ appointmentId, an, withLogin }) => {
       const headers = { 'Content-Type': 'application/json' };
       if (withLogin) {
-        const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+        const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
         headers.Authorization = `Bearer ${await firebaseAuth.currentUser.getIdToken()}`;
       }
       const res = await fetch(`/routes/frueher-dran/${appointmentId}`, { method: 'POST', headers, body: JSON.stringify({ an }) });
@@ -239,7 +239,7 @@ run(async () => {
       // Testkonto der Kundin wieder löschen (Profil zuerst, dann das Konto)
       await kunde
         .evaluate(async () => {
-          const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+          const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
           const src = await (await fetch('/src/utils/firestore-client.ts')).text();
           const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
           const { firestore } = await import('/src/utils/firestore-client.ts');

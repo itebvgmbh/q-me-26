@@ -1,10 +1,9 @@
 """E-Mail-Adresse bestätigen: Nach dem Registrieren mit E-Mail und Passwort (und auf Wunsch unter "Mein Profil")
-schickt Dranzeit eine Mail mit dem Link /email-bestaetigen?code=…  Die Seite bestätigt die Adresse im Browser bei
-Firebase (applyActionCode), danach ist email_verified am Konto gesetzt.
+schickt Dranzeit eine Mail mit dem Link /email-bestaetigen?code=…  Die Seite bestätigt die Adresse
+(POST /routes/anmeldung/email-bestaetigen), danach ist sie am Konto als bestätigt vermerkt.
 
-Den Code erzeugt Firebase (Admin SDK, generate_email_verification_link). Verschickt wird aber nicht Firebases eigene
-Mail, sondern unsere über Resend (app/libs/mail.py), und der Link zeigt auf Dranzeit statt auf die englische
-Firebase-Seite. In der Firebase-Konsole ist dafür nichts einzustellen.
+Den Code erzeugt app/libs/anmeldung.py (Einmal-Link, nur als Hash gespeichert, gilt drei Tage), verschickt wird über
+Resend (app/libs/mail.py).
 
 Wozu: Eine bestätigte Adresse gehört nachweislich dem Konto. Erst dann verbindet /routes/customer-link einen
 Kunden-Eintrag, den ein Laden mit derselben Adresse angelegt hat (customer_activation). Pflicht ist sie nirgends.
@@ -17,7 +16,7 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -42,27 +41,26 @@ def _origin(request: Request) -> str:
 
 
 def _account(uid: str):
-    """Konto so, wie Firebase es kennt – E-Mail und Bestätigung nicht aus dem Browser übernehmen"""
-    from firebase_admin import auth
+    """Konto aus der Datenbank – E-Mail und Bestätigung nicht aus dem Browser übernehmen"""
+    from app.libs import konto_auth as auth
 
-    from app.apis.firebase_utils import get_firebase_app
-
-    return auth.get_user(uid, app=get_firebase_app())
+    return auth.get_user(uid)
 
 
-def _firebase_link(email: str) -> str:
-    from firebase_admin import auth
+def _link_code(email: str) -> str:
+    """Neuer Code für den Bestätigungs-Link des Kontos zu dieser Adresse"""
+    from app.libs import anmeldung
 
-    from app.apis.firebase_utils import get_firebase_app
+    konto = anmeldung.konto_per_email(email)
+    if konto is None:
+        raise ValueError("Kein Konto zu dieser Adresse")
+    return anmeldung.link_anlegen(konto, "bestaetigen")
 
-    return auth.generate_email_verification_link(email, app=get_firebase_app())
 
-
-def verification_link(firebase_link: str, origin: str) -> str:
-    """Code aus Firebases Link (…/__/auth/action?mode=verifyEmail&oobCode=…) in einen Link auf Dranzeit setzen"""
-    code = (parse_qs(urlparse(firebase_link).query).get("oobCode") or [""])[0]
+def verification_link(code: str, origin: str) -> str:
+    """Link auf Dranzeit mit dem Code"""
     if not code:
-        raise ValueError("Firebase-Link ohne oobCode")
+        raise ValueError("Link ohne Code")
     return f"{origin}/email-bestaetigen?code={quote(code, safe='')}"
 
 
@@ -133,10 +131,10 @@ def send_verification(request: Request, user: AuthorizedUser) -> dict:
     stamp = time.time()
     _reserve(user.sub, stamp)
     try:
-        link = verification_link(_firebase_link(email), _origin(request))
+        link = verification_link(_link_code(email), _origin(request))
         subject, html, text = verification_mail(email, link, aus_anfrage(request))
         send_mail(email, subject, html, text)
-    except Exception as e:  # MailError von Resend, Fehler von Firebase (z. B. TOO_MANY_ATTEMPTS_TRY_LATER)
+    except Exception as e:  # MailError von Resend, Datenbank nicht erreichbar
         _release(user.sub, stamp)
         print(f"Bestätigungs-Mail an {email} nicht verschickt: {e}")
         raise HTTPException(status_code=502, detail="Die E-Mail konnte gerade nicht verschickt werden. Versuch es später noch mal.")

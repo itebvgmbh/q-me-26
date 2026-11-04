@@ -1,5 +1,5 @@
 import brain from 'brain';
-import { firebaseAuth } from '../app/auth/firebase';
+import { anmeldung } from '../app/auth/konto';
 
 /**
  * "Früher dran" sofort prüfen lassen, wenn bei einer Person ein Platz frei wird (Absage, Verschiebung)
@@ -8,7 +8,7 @@ import { firebaseAuth } from '../app/auth/firebase';
  * Nur mit Anmeldung – der Server prüft das Token.
  */
 export const requestEarlierSlotCheck = (shopId?: string | null, staffId?: string | null): void => {
-  if (!shopId || !firebaseAuth.currentUser) return;
+  if (!shopId || !anmeldung.currentUser) return;
   brain
     .slot_freed({ shop_id: shopId, staff_id: staffId || null })
     .catch((error: unknown) => console.warn('Früher-dran-Prüfung nicht angestoßen (der Server-Takt holt es nach):', error));

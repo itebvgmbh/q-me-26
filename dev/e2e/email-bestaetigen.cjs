@@ -16,7 +16,7 @@ const ok = (promise) => promise.then(() => true, () => false);
 const removeAccount = (page) =>
   page
     .evaluate(async () => {
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       const src = await (await fetch('/src/utils/firestore-client.ts')).text();
       const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
       const { firestore } = await import('/src/utils/firestore-client.ts');

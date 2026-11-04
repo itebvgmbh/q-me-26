@@ -34,7 +34,7 @@ const COPY = {
   },
 } as const;
 
-/** Registrierung für Kunden und Betriebe – Firebase prüft die E-Mail, Fehler stehen am Formular */
+/** Registrierung für Kunden und Betriebe – das Backend prüft die E-Mail, Fehler stehen am Formular */
 export const RegisterForm = ({ role }: Props) => {
   const copy = COPY[role];
   const navigate = useNavigate();

@@ -190,6 +190,23 @@ Umzug: Was danach in PostgreSQL geschrieben wurde, fehlt in Firestore. Ab dann n
 Firestore bleibt als Archiv stehen und wird nicht mehr beschrieben. Welcher Speicher gerade gilt:
 `bash /opt/q-me/deploy/datenumzug.sh stand`.
 
+## Anmeldung (eigene Konten)
+
+Seit Stufe 4 von `requirements/eigene-datenbank.md` meldet Dranzeit selbst an, Firebase Auth fragt die App nicht mehr.
+
+- **Wo:** Tabellen `konten`, `sitzungen` und `einmal_links` in der Datenbank `q_me` (Schema 0003), Code in
+  `backend/app/libs/anmeldung.py`, Endpunkte unter `/routes/anmeldung/…`, im Browser `frontend/src/app/auth/konto.ts`.
+- **Passwörter** als Argon2id-Hash. Die Sitzung steckt im Cookie `qme_sitzung` (HttpOnly, Secure, SameSite=Lax) und
+  gilt 180 Tage ab der letzten Nutzung. Links aus Mails (Passwort neu: 1 Stunde, Adresse bestätigen: 3 Tage) stehen nur
+  als Hash in der Datenbank.
+- **Übernahme aus Firebase:** Beim Start legt das Backend jedes Firebase-Konto, das noch fehlt, mit derselben ID an,
+  aber ohne Passwort (Log: `Anmeldung: … Firebase-Konten übernommen`). Bei der ersten Anmeldung prüft es das Passwort
+  einmal bei Firebase und speichert es dann selbst. Gibt es das Firebase-Projekt nicht mehr, hilft „Passwort vergessen?“.
+- **Sperren, Adresse ändern, Konten löschen:** wie bisher im Betreiber-Bereich und mit „Konten aufräumen“; beides
+  arbeitet jetzt auf den eigenen Konten. Sperren meldet alle Geräte ab.
+- **Ein `git pull` bringt dafür nichts Neues mit:** keine Schlüssel und keine Einstellungen. Beim ersten Ausrollen sind
+  alle Geräte einmal abgemeldet (Tresen und Handys neu anmelden).
+
 ## Schlüssel eintragen (Google, Anthropic, Resend, Stripe)
 
 Der Einrichtungsassistent (`/shop-setup`) kommt ohne Schlüssel aus – dann fragt er alles ab. Mit Schlüsseln
@@ -949,7 +966,7 @@ Eintragen der Webhook-Adresse durch den Support.
 `deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur
 gelöscht, was ausdrücklich genannt ist. Ein Konto löschen heißt dasselbe wie „Konto löschen“ im Profil; Läden gehen
 nur mit, wenn sie selbst genannt sind. Der Laden ITEBV GmbH, Betreiber-Konten und Läden mit laufendem Abo sind
-geschützt. Vor dem Löschen legt das Skript eine Sicherung unter `/root/dranzeit-konten/` an (nur für root).
+geschützt. Vor dem Löschen legt das Skript eine Sicherung unter `/var/lib/q-me/konten/` an (nur für den Dienst lesbar). Es läuft als Benutzer `q-me` mit der Umgebung des Dienstes, liest also PostgreSQL und die eigenen Konten.
 
 **1. Liste** (ändert nichts). Speichert sie in `Downloads` und in der Zwischenablage:
 

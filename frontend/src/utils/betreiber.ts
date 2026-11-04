@@ -1,8 +1,7 @@
 // Betreiber-Bereich (/betreiber): alle Läden und Konten, Eingriffe, Protokoll.
 // Backend: backend/app/apis/betreiber (nur für Betreiber, QME_ADMIN_EMAILS auf dem Server)
 import { useEffect, useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth, firebaseAuth, useCurrentUser } from 'app';
+import { auth, useCurrentUser } from 'app';
 import type { PlanId } from './plans';
 import type { TelefonStand } from './telefon-assistent';
 
@@ -224,10 +223,10 @@ export const changeEmail = (uid: string, email: string, reason = '') => send<{ e
 export const markVerified = (uid: string, verified: boolean) => send(accountPath(uid, 'email-bestaetigt'), { verified });
 export const sendVerification = (uid: string) => send<{ status: string }>(accountPath(uid, 'bestaetigungs-mail'), {});
 
-/** Passwort-Mail wie bei "Passwort vergessen": über Resend vom Backend, ohne Resend von Firebase */
+/** Passwort-Mail wie bei "Passwort vergessen": über Resend vom Backend */
 export const sendPasswordMail = async (uid: string) => {
   const { email, status } = await send<{ email: string; status: 'verschickt' | 'nicht_eingerichtet' }>(accountPath(uid, 'passwort-mail'), {});
-  if (status !== 'verschickt') await sendPasswordResetEmail(firebaseAuth, email);
+  if (status !== 'verschickt') throw new Error('Ohne Resend-Schlüssel geht keine Passwort-Mail raus.');
   return email;
 };
 

@@ -6,7 +6,7 @@ from fastapi import FastAPI, APIRouter, Depends
 
 dotenv.load_dotenv()
 
-from databutton_app.mw.auth_mw import AuthConfig, get_authorized_user
+from databutton_app.mw.auth_mw import get_authorized_user
 
 
 def get_router_config() -> dict:
@@ -63,22 +63,6 @@ def import_api_routers() -> APIRouter:
     return routes
 
 
-def get_firebase_config() -> dict | None:
-    extensions = os.environ.get("DATABUTTON_EXTENSIONS", "[]")
-    extensions = json.loads(extensions)
-
-    for ext in extensions:
-        if ext["name"] == "firebase-auth":
-            return ext["config"]["firebaseConfig"]
-
-    # Outside Databutton: only the project id is needed to validate ID tokens
-    project_id = os.environ.get("FIREBASE_PROJECT_ID")
-    if project_id:
-        return {"projectId": project_id}
-
-    return None
-
-
 def create_app() -> FastAPI:
     """Create the app. This is called by uvicorn with the factory option to construct the app object."""
     app = FastAPI()
@@ -108,20 +92,7 @@ def create_app() -> FastAPI:
             for method in route.methods:
                 print(f"{method} {route.path}")
 
-    firebase_config = get_firebase_config()
-
-    if firebase_config is None:
-        print("No firebase config found")
-        app.state.auth_config = None
-    else:
-        print("Firebase config found")
-        auth_config = {
-            "jwks_url": "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
-            "audience": firebase_config["projectId"],
-            "header": "authorization",
-        }
-
-        app.state.auth_config = AuthConfig(**auth_config)
+    # Anmeldung über die eigene Sitzung (app/libs/anmeldung.py, databutton_app/mw/auth_mw.py), nicht mehr über Firebase
 
     @app.on_event("startup")
     def datenbank_melden() -> None:
@@ -129,6 +100,21 @@ def create_app() -> FastAPI:
         from app.libs.datenbank import zustand
 
         print(f"Datenbank: {zustand()}")
+
+    @app.on_event("startup")
+    def konten_uebernehmen() -> None:
+        # Firebase-Konten, die in der eigenen Datenbank noch fehlen (Stufe 4, app/libs/anmeldung.py), im Hintergrund
+        import threading
+
+        def uebernehmen() -> None:
+            from app.libs.anmeldung import firebase_konten_uebernehmen
+
+            try:
+                print(f"Anmeldung: {firebase_konten_uebernehmen()} Firebase-Konten übernommen")
+            except Exception as e:  # Start des Dienstes nie daran scheitern lassen
+                print(f"Anmeldung: Firebase-Konten nicht übernommen ({e.__class__.__name__}: {e})")
+
+        threading.Thread(target=uebernehmen, name="konten-uebernehmen", daemon=True).start()
 
     @app.on_event("startup")
     def autostart_scheduler() -> None:

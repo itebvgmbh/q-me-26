@@ -71,7 +71,7 @@ run(async () => {
   await shot(page, 'brief-knopf');
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), knopf.click()]);
   check('Download mit Namen vom Backend', download.suggestedFilename() === 'Dranzeit-Brief-salon-nord.pdf', download.suggestedFilename());
-  check('Backend bekommt Eintrag, Code und Anmeldung', briefe[0]?.path === '/verzeichnis/nord/brief' && briefe[0]?.code === CODE && briefe[0]?.auth === 'Bearer', JSON.stringify(briefe[0]));
+  check('Backend bekommt Eintrag und Code', briefe[0]?.path === '/verzeichnis/nord/brief' && briefe[0]?.code === CODE, JSON.stringify(briefe[0]));
 
   // Backend lehnt ab: Meldung, Code bleibt sichtbar
   const text = 'Für den Brief fehlt die Anschrift (Straße, PLZ, Ort).';

@@ -294,4 +294,17 @@ TEXTE: dict = {
     "Diese Datei gibt es nicht.": "Bu dosya mevcut değil.",
     # Briefdienst (app/apis/briefdienst)
     "Unbekannt.": "Bilinmiyor.",
+    # Anmeldung (app/apis/anmeldung)
+    'E-Mail oder Passwort stimmen nicht.': 'E-posta veya şifre yanlış.',
+    'Dieses Konto ist gesperrt.': 'Bu hesap engellendi.',
+    'Zu viele Versuche. Warte kurz und versuch es dann noch einmal.': 'Çok fazla deneme yapıldı. Biraz bekleyin ve tekrar deneyin.',
+    'Für diese E-Mail gibt es schon ein Konto. Melde dich an oder setz dein Passwort zurück.': 'Bu e-posta için zaten bir hesap var. Giriş yapın veya şifrenizi sıfırlayın.',
+    'Das Passwort ist zu kurz. Nimm mindestens 6 Zeichen.': 'Şifre çok kısa. En az 6 karakter kullanın.',
+    'Bitte gib ein Passwort ein.': 'Lütfen bir şifre girin.',
+    'Das Passwort ist zu lang.': 'Şifre çok uzun.',
+    'Dieser Link gilt nicht mehr. Fordere einfach einen neuen an.': 'Bu bağlantı artık geçerli değil. Yeni bir tane isteyin.',
+    'Dieser Link ist abgelaufen. Fordere einfach einen neuen an.': 'Bu bağlantının süresi doldu. Yeni bir tane isteyin.',
+    'Gib zuerst dein bisheriges Passwort ein.': 'Önce mevcut şifrenizi girin.',
+    'Du bist nicht angemeldet.': 'Giriş yapmadınız.',
+    'Diese Anfrage kam nicht von Dranzeit.': "Bu istek Dranzeit'tan gelmedi.",
 }

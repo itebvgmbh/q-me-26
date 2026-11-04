@@ -11,7 +11,7 @@ const signInAgain = (page, email, pw) =>
     async ({ email, pw }) => {
       const src = await (await fetch('/src/app/auth/firebase.ts')).text();
       const { signInWithEmailAndPassword, signOut } = await import(src.match(/from "([^"]*firebase[^"]*auth[^"]*)"/)[1]);
-      const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
+      const { anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
       await signOut(firebaseAuth);
       try {
         await signInWithEmailAndPassword(firebaseAuth, email, pw);

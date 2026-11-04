@@ -9,10 +9,10 @@ der Liste ausdrücklich nennt. Auf dem Server als root, im Backend-Ordner (Fireb
     cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/konten-aufraeumen.py loeschen K1-K4,K7,L2 --ausfuehren
 
 liste      Liest nur. Nummeriert Konten (K1 …) und Läden (L1 …) und merkt sich die Nummern in
-           /root/dranzeit-konten/liste-<Zeit>.json (nur für root lesbar), damit "loeschen" genau diese meint.
+           /var/lib/q-me/konten/liste-<Zeit>.json (nur für den Dienst lesbar), damit "loeschen" genau diese meint.
            Wer nach der Liste dazukommt, hat keine Nummer und bleibt.
 loeschen   Ohne --ausfuehren ein Probelauf: zeigt, was wegginge, ändert nichts. Mit --ausfuehren erst eine Sicherung
-           aller betroffenen Dokumente nach /root/dranzeit-konten/sicherung-<Zeit>.json, dann löschen, dann nachprüfen.
+           aller betroffenen Dokumente nach /var/lib/q-me/konten/sicherung-<Zeit>.json, dann löschen, dann nachprüfen.
 
 Ein Konto löschen heißt dasselbe wie "Konto löschen" im Profil (DELETE /routes/datenschutz/konto): delete_account_data
 aus app/libs/privacy.py, danach das Firebase-Konto. Seine Termine bleiben ohne Namen und Kontakt, kommende werden
@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.libs.konten import ITEBV_SHOP, auth_accounts, backup_data, execute, overview, plan_deletion, utc, verify  # noqa: E402,F401
 
 ENV_FILE = os.environ.get("QME_ENV_FILE", "/etc/q-me.env")
-OUT_DIR = Path(os.environ.get("QME_KONTEN_DIR", "/root/dranzeit-konten"))
+OUT_DIR = Path(os.environ.get("QME_KONTEN_DIR", "/var/lib/q-me/konten"))
 LEGEND = (
     "Kennzeichen: BETREIBER = steht in QME_ADMIN_EMAILS/QME_ADMIN_UIDS · ITEBV = Inhaber oder Team im Laden ITEBV GmbH\n"
     "  FIXTURE = dev/fixtures.py · LASTTEST = dev/e2e/lasttest.cjs · E2E = anderes Testskript in dev/e2e\n"
@@ -52,7 +52,11 @@ def load_env() -> None:
     """Firebase-Einträge und die Betreiber-Liste aus /etc/q-me.env übernehmen (ohne die Datei per Shell einzulesen)"""
     if not os.path.exists(ENV_FILE):
         return
-    with open(ENV_FILE, encoding="utf-8") as f:
+    try:
+        f = open(ENV_FILE, encoding="utf-8")
+    except PermissionError:  # als Dienst gestartet (als_dienst): die Umgebung ist dann schon gesetzt
+        return
+    with f:
         for line in f:
             name, sep, value = line.strip().partition("=")
             if sep and (name.startswith("FIREBASE_") or name in ("QME_ADMIN_EMAILS", "QME_ADMIN_UIDS")) and not os.environ.get(name):
@@ -213,17 +217,18 @@ def format_plan(plan: dict, numbers: dict) -> str:
 
 
 def firebase():
+    """Daten (app/store: seit dem Umzug PostgreSQL) und Konten (app/libs/konto_auth.py); der Name ist historisch"""
     import contextlib
     import io
 
     load_env()
     sys.path.insert(0, os.getcwd())
-    from app.apis.firebase_utils import get_firebase_app, get_firestore_db
+    from app.apis.firebase_utils import get_firestore_db
 
     # Hinweis der Firestore-Bibliothek zu where(); PowerShell zeigt ihn sonst als roten Fehler
     warnings.filterwarnings("ignore", message="Detected filter using positional arguments")
     with contextlib.redirect_stdout(io.StringIO()):  # Startmeldungen von firebase_utils nicht in die Liste
-        return get_firestore_db(), get_firebase_app()
+        return get_firestore_db(), None
 
 
 def cmd_liste() -> None:
@@ -235,7 +240,7 @@ def cmd_liste() -> None:
 
 
 def cmd_loeschen(selection: str, run: bool) -> None:
-    from firebase_admin import auth
+    from app.libs import konto_auth as auth
 
     fs, app = firebase()
     list_file = latest_list()
@@ -283,7 +288,22 @@ def cmd_loeschen(selection: str, run: bool) -> None:
     print("Nachprüfung: alles Ausgewählte ist weg. Fertig.")
 
 
+def als_dienst() -> None:
+    """Als root gestartet (Blöcke in deploy/README.md): als Benutzer q-me mit der Umgebung des Dienstes neu starten.
+    Daten und Konten liegen in PostgreSQL, angemeldet wird dort nur als q-me (peer) – wie deploy/datenumzug.sh."""
+    if os.name != "posix" or os.geteuid() != 0 or not os.path.exists(ENV_FILE) or os.environ.get("QME_KONTEN_ALS_ROOT"):
+        return
+    sys.stdout.flush()
+    os.execvp("systemd-run", [
+        "systemd-run", "--quiet", "--wait", "--pipe", "--collect", "--uid=q-me", "--gid=q-me",
+        "-p", f"EnvironmentFile={ENV_FILE}", "-p", f"WorkingDirectory={os.getcwd()}",
+        "-E", "PYTHONDONTWRITEBYTECODE=1", "-E", "TZ=Europe/Berlin", "-E", "PYTHONUNBUFFERED=1",
+        sys.executable, os.path.abspath(__file__), *sys.argv[1:],
+    ])
+
+
 def main(argv: list) -> None:
+    als_dienst()
     if len(argv) >= 1 and argv[0] == "liste":
         cmd_liste()
     elif len(argv) >= 2 and argv[0] == "loeschen" and set(argv[2:]) <= {"--ausfuehren"}:

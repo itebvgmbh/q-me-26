@@ -86,7 +86,8 @@ run(async () => {
 
   rows.push({ name: 'Nur die Person, ohne abgesagte', pass: zuerst, detail: JSON.stringify(erst) });
   rows.push({ name: '„aenderung“: neuer Stand ohne Neuladen', pass: danach, detail: JSON.stringify(zweit) });
-  rows.push({ name: 'Mit Anmelde-Token gefragt', pass: tokens.length >= 2 && tokens.every((t) => t.startsWith('Bearer ')), detail: `${tokens.length} Abrufe` });
+  // Anmeldung im Cookie (app/auth/konto.ts), kein Token im Kopf
+  rows.push({ name: 'Übers Team gefragt, ohne Token', pass: tokens.length >= 2 && tokens.every((t) => !t.startsWith('Bearer ')), detail: `${tokens.length} Abrufe` });
   rows.push({ name: '403: kein schneller Wiederholversuch', pass: abrufe.verboten === 1, detail: `${abrufe.verboten} Abrufe in ~10 s` });
   rows.push({ name: '403: keine Termine', pass: (await page.evaluate(() => window.__verboten || [])).length === 0 });
   rows.push({ name: 'Keine JavaScript-Fehler', pass: errors.length === 0, detail: errors.join(' | ') });

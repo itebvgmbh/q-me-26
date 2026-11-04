@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app import store
 from pydantic import BaseModel
 
-from app.apis.firebase_utils import get_firebase_app, get_firestore_db
+from app.apis.firebase_utils import get_firestore_db
 from app.auth import AuthorizedUser
 from app.auth.access import admin_lists, is_admin, is_admin_account, require_admin
 from app.libs import konten, protokoll
@@ -86,9 +86,10 @@ def _reason(text: str) -> str:
 
 
 def _auth():
-    from firebase_admin import auth
+    """Konten (app/libs/konto_auth.py: dieselben Aufrufe wie früher firebase_admin.auth)"""
+    from app.libs import konto_auth
 
-    return auth
+    return konto_auth
 
 
 def _profile_language(uid: str) -> str:
@@ -104,10 +105,10 @@ def _profile_language(uid: str) -> str:
 
 
 def _account(uid: str):
-    """Firebase-Konto oder 404"""
+    """Konto oder 404"""
     auth = _auth()
     try:
-        return auth.get_user(_check_id(uid, "Dieses Konto"), app=get_firebase_app())
+        return auth.get_user(_check_id(uid, "Dieses Konto"))
     except auth.UserNotFoundError:
         raise HTTPException(status_code=404, detail="Dieses Konto gibt es nicht mehr.")
 
@@ -226,7 +227,7 @@ def uebersicht() -> dict:
     """Alle Läden und Konten mit Kennzahlen und dem Stand der Einrichtung"""
     fs, now = get_firestore_db(), _now()
     emails, uids = admin_lists()
-    ov = konten.overview(fs, konten.auth_accounts(get_firebase_app()), emails, uids, now)
+    ov = konten.overview(fs, konten.auth_accounts(None), emails, uids, now)
     blocked = protokoll.blocked_accounts()
     for a in ov["accounts"]:
         a["kind"] = _kind(a["markers"])
@@ -264,7 +265,7 @@ def laden(shop_id: str) -> dict:
     if shop.get("owner") and ID_RE.fullmatch(shop["owner"]):
         auth = _auth()
         try:
-            owner = konten.account_row(auth.get_user(shop["owner"], app=get_firebase_app()))
+            owner = konten.account_row(auth.get_user(shop["owner"]))
         except auth.UserNotFoundError:
             owner = None
     keep = ("name", "street", "postalCode", "city", "phone", "email", "website", "industry", "ownerName", "owner",
@@ -602,7 +603,7 @@ def laden_sperren(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
     if shop.get("suspended"):
         return {"changed": False}
     reason = _reason(body.reason)
-    auth, app = _auth(), get_firebase_app()
+    auth, app = _auth(), None
     disabled, skipped = [], []
     for uid in _shop_accounts(shop_id, shop):
         try:
@@ -632,7 +633,7 @@ def laden_entsperren(shop_id: str, body: ReasonRequest, user: AuthorizedUser) ->
     suspended = shop.get("suspended")
     if not suspended:
         return {"changed": False}
-    auth, app = _auth(), get_firebase_app()
+    auth, app = _auth(), None
     blocked = protokoll.blocked_accounts()
     fs = get_firestore_db()
     other = set()
@@ -668,7 +669,7 @@ def konto_sperren(uid: str, body: ReasonRequest, user: AuthorizedUser) -> dict:
     if is_admin_account(uid, record.email or ""):
         raise HTTPException(status_code=409, detail="Betreiber-Konten lassen sich hier nicht sperren.")
     reason = _reason(body.reason)
-    auth, app = _auth(), get_firebase_app()
+    auth, app = _auth(), None
     auth.update_user(uid, disabled=True, app=app)
     auth.revoke_refresh_tokens(uid, app=app)
     protokoll.set_blocked(uid, True)
@@ -680,7 +681,7 @@ def konto_sperren(uid: str, body: ReasonRequest, user: AuthorizedUser) -> dict:
 def konto_entsperren(uid: str, body: ReasonRequest, user: AuthorizedUser) -> dict:
     record = _account(uid)
     auth = _auth()
-    auth.update_user(uid, disabled=False, app=get_firebase_app())
+    auth.update_user(uid, disabled=False)
     protokoll.set_blocked(uid, False)
     protokoll.write(user, "Konto entsperrt", {"uid": uid, "email": record.email}, body.reason.strip(), {"disabled": record.disabled})
     return {"disabled": False}
@@ -702,7 +703,7 @@ def email_aendern(uid: str, body: EmailRequest, user: AuthorizedUser) -> dict:
         return {"email": email, "changed": False}
     auth = _auth()
     try:
-        auth.update_user(uid, email=email, email_verified=False, app=get_firebase_app())
+        auth.update_user(uid, email=email, email_verified=False)
     except auth.EmailAlreadyExistsError:
         raise HTTPException(status_code=409, detail="Mit dieser Adresse gibt es schon ein Konto.")
     profile = get_firestore_db().collection("users").document(uid)
@@ -719,7 +720,7 @@ class VerifiedRequest(BaseModel):
 @admin.post("/betreiber/konto/{uid}/email-bestaetigt")
 def email_bestaetigt(uid: str, body: VerifiedRequest, user: AuthorizedUser) -> dict:
     record = _account(uid)
-    _auth().update_user(uid, email_verified=body.verified, app=get_firebase_app())
+    _auth().update_user(uid, email_verified=body.verified)
     protokoll.write(user, "E-Mail als bestätigt markiert" if body.verified else "E-Mail als unbestätigt markiert",
                     {"uid": uid, "email": record.email}, before={"emailVerified": record.email_verified})
     return {"emailVerified": body.verified}
@@ -743,7 +744,7 @@ def bestaetigungs_mail(uid: str, request: Request, user: AuthorizedUser) -> dict
     if not mail_configured():
         return {"status": "nicht_eingerichtet"}
     try:
-        link = ev.verification_link(ev._firebase_link(email), ev._origin(request))
+        link = ev.verification_link(ev._link_code(email), ev._origin(request))
         subject, html, text = ev.verification_mail(email, link, _profile_language(uid))
         send_mail(email, subject, html, text)
     except Exception as e:
@@ -756,7 +757,7 @@ def bestaetigungs_mail(uid: str, request: Request, user: AuthorizedUser) -> dict
 @admin.post("/betreiber/konto/{uid}/passwort-mail")
 def passwort_mail(uid: str, request: Request, user: AuthorizedUser) -> dict:
     """Passwort-Mail wie bei „Passwort vergessen“ (app/apis/password_reset), über Resend und ohne Mengenbegrenzung.
-    status: verschickt | nicht_eingerichtet (kein Resend-Schlüssel: dann verschickt der Browser Firebases eigene Mail)"""
+    status: verschickt | nicht_eingerichtet (kein Resend-Schlüssel: dann geht keine Mail raus)"""
     from app.apis import password_reset as pr
     from app.apis.email_verification import _origin
     from app.libs.mail import mail_configured
@@ -796,7 +797,7 @@ def _deletion_plan(body: DeleteRequest) -> dict:
         raise HTTPException(status_code=400, detail="Einen Laden und/oder ein Konto auswählen.")
     for value in body.uids + body.shopIds:
         _check_id(value, "Das")
-    auth, app = _auth(), get_firebase_app()
+    auth, app = _auth(), None
     accounts = {}
     for uid in body.uids:
         try:
@@ -852,7 +853,7 @@ def loeschen(body: DeleteRequest, user: AuthorizedUser) -> dict:
     summary = _summary(plan)
     selection = ", ".join([f"Laden {s['name']} ({s['id']})" for s in plan["shops"]] + [f"Konto {u['email'] or u['uid']}" for u in plan["users"]])
     backup = protokoll.save_backup(konten.backup_data(plan, selection, "Betreiber-Bereich"), plan["now"])
-    auth, app = _auth(), get_firebase_app()
+    auth, app = _auth(), None
 
     def delete_auth_user(uid):
         try:
