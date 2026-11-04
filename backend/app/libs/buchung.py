@@ -42,7 +42,12 @@ def run_transaction(db, run: Callable, max_attempts: int = TRANSACTION_ATTEMPTS)
 
 
 class PlatzWeg(Exception):
-    """Keiner der Plätze ist mehr frei. Text wie im Frontend: 'Da ist schon ein Termin (10:00–10:30).'"""
+    """Keiner der Plätze ist mehr frei. Text wie im Frontend: 'Da ist schon ein Termin (10:00–10:30).'
+    window: Zeit des Termins, der im Weg ist (für die übersetzte Meldung), wenn bekannt."""
+
+    def __init__(self, message: str, window=None):
+        super().__init__(message)
+        self.window = window
 
 
 def pick_reference_code(used: set, rng=None) -> str:
@@ -83,15 +88,15 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
 
     @store.transactional
     def run(tx) -> dict:
-        chosen, change, conflict = None, None, None
+        chosen, change, conflict, window = None, None, None, None
         for place in candidates:
             change = read_placement(tx, db, ref.id, shop_id, occupy=place)
             if not change.conflict:
                 chosen = place
                 break
-            conflict = conflict or change.conflict
+            conflict, window = (conflict, window) if conflict else (change.conflict, change.conflict_window)
         if chosen is None:
-            raise PlatzWeg(conflict or "Der Platz ist gerade weggegangen.")
+            raise PlatzWeg(conflict or "Der Platz ist gerade weggegangen.", window)
         numbers_ref = db.collection(SHOP_DAYS).document(f"{shop_id}_{day_key(code_day)}") if needs_code else None
         numbers = numbers_ref.get(transaction=tx) if numbers_ref else None
         codes = list(((numbers.to_dict() or {}).get("codes") or []) if numbers is not None and numbers.exists else [])

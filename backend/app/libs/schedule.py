@@ -74,6 +74,8 @@ def placement_of(appointment: Optional[dict]) -> Optional[Placement]:
 class PlacementChange:
     conflict: Optional[str]
     write: Callable[[], None] = field(repr=False)
+    # Zeit des Termins, der im Weg ist (für die übersetzte Meldung, app/libs/team_termine.py)
+    conflict_window: Optional["Placement"] = None
 
 
 def read_placement(transaction, db, appointment_id: str, shop_id: str,
@@ -107,6 +109,7 @@ def read_placement(transaction, db, appointment_id: str, shop_id: str,
                     suspects.append(other_id)
 
     conflict: Optional[str] = None
+    conflict_window: Optional[Placement] = None
     fixes: Dict[str, Optional[Placement]] = {}
     for other_id in suspects:
         snap = db.collection("appointments").document(other_id).get(transaction=transaction)
@@ -114,6 +117,7 @@ def read_placement(transaction, db, appointment_id: str, shop_id: str,
         if actual and occupy and actual.overlaps(occupy) and conflict is None:
             conflict = (f"Da ist schon ein Termin ({actual.start.astimezone(BERLIN):%H:%M}–"
                         f"{actual.end.astimezone(BERLIN):%H:%M}).")
+            conflict_window = actual
         fixes[other_id] = actual
 
     def write() -> None:
@@ -132,7 +136,7 @@ def read_placement(transaction, db, appointment_id: str, shop_id: str,
             transaction.set(ref, {"shopId": shop_id, "staffId": staff_id, "day": day, "slots": slots,
                                   "updatedAt": store.SERVER_TIMESTAMP})
 
-    return PlacementChange(conflict, write)
+    return PlacementChange(conflict, write, conflict_window)
 
 
 SHOP_DAYS = "shop_days"  # Tagesnummern je Laden (frontend: shopDayRef in schedule.ts)

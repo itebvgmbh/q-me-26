@@ -270,4 +270,12 @@ TEXTE: dict = {
     # Live-Daten (app/apis/live)
     "Kein gültiger Kanal": "No valid channel",
     "Tag als JJJJ-MM-TT": "Day as YYYY-MM-DD",
+    # Termine des Teams (app/apis/team_termine)
+    "Diesen Status gibt es nicht.": "This status doesn't exist.",
+    "Diese Art von Termin gibt es nicht.": "This type of appointment doesn't exist.",
+    "Ungültige Zeitangabe für den Termin.": "Invalid time for the appointment.",
+    "Diese Person gehört nicht zu diesem Laden.": "This person doesn't belong to this shop.",
+    "Ungültiger Zeitraum.": "Invalid period.",
+    "Da ist schon ein Termin ({von}–{bis}).": "There's already an appointment then ({von}–{bis}).",
+    "Der Platz ist gerade weggegangen.": "That slot was just taken.",
 }

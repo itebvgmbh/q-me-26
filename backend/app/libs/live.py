@@ -5,6 +5,10 @@ Damit sie sich trotzdem sofort aktualisieren, gibt es Kanäle:
 
 - `termin:<Termin-ID>`: Die Kurzfassung dieses Termins hat sich geändert.
 - `tag:<Laden>_<Tag>`: Ein Termin des Ladens an diesem Tag hat sich geändert (`shopDay`, Tag nach deutscher Zeit).
+- `laden:<Laden>`: Irgendein Termin des Ladens hat sich geändert (Tresen, Kalender, Woche; app/apis/team_termine).
+
+Schreibt das Backend selbst einen Termin (app/libs/team_termine.py), meldet es die Kanäle gleich danach selbst
+(`termin_geaendert`). So kommen auch Änderungen an, die nur private Felder betreffen, etwa einen Namen.
 
 Ein Listener auf `public_appointments` (von heute bis in `TAGE` Tagen) meldet jede Änderung an die betroffenen
 Kanäle. Das gilt auch für Änderungen, die der Browser noch selbst schreibt, etwa am Tresen. Die Seiten hören per
@@ -59,6 +63,43 @@ def json_wert(wert):
     if hasattr(wert, "path"):  # DocumentReference
         return wert.path
     return None
+
+
+def aus_json(wert):
+    """Gegenstück zu json_wert für Anfragen aus dem Browser: {"__zeit": "…"} wird wieder zum datetime (UTC)"""
+    if isinstance(wert, dict):
+        if set(wert) == {"__zeit"} and isinstance(wert["__zeit"], str):
+            text = wert["__zeit"].strip()
+            try:
+                zeit = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+            except ValueError:
+                raise ValueError(f"Kein Zeitpunkt: {text!r}")
+            return zeit if zeit.tzinfo else zeit.replace(tzinfo=timezone.utc)
+        return {str(k): aus_json(v) for k, v in wert.items()}
+    if isinstance(wert, list):
+        return [aus_json(v) for v in wert]
+    return wert
+
+
+def kanaele_fuer(termin: dict | None, termin_id: str) -> set[str]:
+    """Alle Kanäle, die eine Änderung an diesem Termin betrifft"""
+    kanaele = {f"termin:{termin_id}"}
+    if termin and termin.get("shopId"):
+        kanaele.add(f"laden:{termin['shopId']}")
+        start = termin.get("startTime")
+        if isinstance(start, datetime):
+            tag = (start if start.tzinfo else start.replace(tzinfo=timezone.utc)).astimezone(BERLIN).date().isoformat()
+            kanaele.add(f"tag:{termin['shopId']}_{tag}")
+    return kanaele
+
+
+def termin_geaendert(termin_id: str, *staende: dict | None) -> None:
+    """Nach einem Schreibschritt des Backends: alle betroffenen Kanäle melden (vorher und nachher, z. B. anderer Tag)"""
+    kanaele = set()
+    for stand in staende:
+        kanaele |= kanaele_fuer(stand, termin_id)
+    for kanal in kanaele:
+        verteiler.melden(kanal)
 
 
 def heute(jetzt: datetime | None = None) -> date:
@@ -203,6 +244,8 @@ class Waechter:
                 self._verteiler.melden(f"termin:{snap.id}")
                 for tag in {neu, alt} - {None, ""}:
                     self._verteiler.melden(f"tag:{tag}")
+                if daten.get("shopId"):
+                    self._verteiler.melden(f"laden:{daten['shopId']}")
         except Exception:  # nie den Listener-Thread sterben lassen
             log.exception("Live: Änderung nicht verteilt")
 

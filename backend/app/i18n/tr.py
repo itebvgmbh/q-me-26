@@ -268,4 +268,12 @@ TEXTE: dict = {
     # Live-Daten (app/apis/live)
     "Kein gültiger Kanal": "Geçerli kanal yok",
     "Tag als JJJJ-MM-TT": "Gün YYYY-AA-GG biçiminde olmalı",
+    # Termine des Teams (app/apis/team_termine)
+    "Diesen Status gibt es nicht.": "Bu durum mevcut değil.",
+    "Diese Art von Termin gibt es nicht.": "Bu randevu türü mevcut değil.",
+    "Ungültige Zeitangabe für den Termin.": "Randevu için geçersiz saat.",
+    "Diese Person gehört nicht zu diesem Laden.": "Bu kişi bu salona ait değil.",
+    "Ungültiger Zeitraum.": "Geçersiz zaman aralığı.",
+    "Da ist schon ein Termin ({von}–{bis}).": "Bu saatte zaten bir randevu var ({von}–{bis}).",
+    "Der Platz ist gerade weggegangen.": "Bu yer az önce doldu.",
 }

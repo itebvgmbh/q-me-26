@@ -300,4 +300,12 @@ TEXTE: dict = {
     # Live-Daten (app/apis/live)
     "Kein gültiger Kanal": "لا توجد قناة صالحة",
     "Tag als JJJJ-MM-TT": "اليوم بصيغة YYYY-MM-DD",
+    # Termine des Teams (app/apis/team_termine)
+    "Diesen Status gibt es nicht.": "هذه الحالة غير موجودة.",
+    "Diese Art von Termin gibt es nicht.": "هذا النوع من المواعيد غير موجود.",
+    "Ungültige Zeitangabe für den Termin.": "وقت غير صالح للموعد.",
+    "Diese Person gehört nicht zu diesem Laden.": "هذا الشخص لا ينتمي إلى هذا المحل.",
+    "Ungültiger Zeitraum.": "فترة غير صالحة.",
+    "Da ist schon ein Termin ({von}–{bis}).": "يوجد موعد بالفعل ({von}–{bis}).",
+    "Der Platz ist gerade weggegangen.": "تم حجز هذا الموعد للتو.",
 }
