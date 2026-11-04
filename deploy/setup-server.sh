@@ -71,10 +71,6 @@ else
 	cat > "$ENV_FILE" <<EOF
 # Q-ME Backend. Liest der Dienst q-me beim Start.
 PORT=$PORT
-# Firebase-Projekt, dessen Anmelde-Tokens das Backend akzeptiert
-FIREBASE_PROJECT_ID=qmedata-7c79e
-# Dienstkonto-Schlüssel (JSON aus der Firebase-Konsole), Rechte 640 root:q-me
-FIREBASE_SERVICE_ACCOUNT_KEY_FILE=$SECRETS_DIR/firebase-service-account.json
 EOF
 	chown root:q-me "$ENV_FILE"
 	chmod 640 "$ENV_FILE"
@@ -116,7 +112,4 @@ fi
 
 echo
 echo "Fertig. Noch offen:"
-[ -f "$SECRETS_DIR/firebase-service-account.json" ] \
-	|| echo "  - Firebase-Schlüssel nach $SECRETS_DIR/firebase-service-account.json legen (640 root:q-me), dann: systemctl restart q-me"
 echo "  - DNS: A-Record $DOMAIN -> IPv4 dieses Servers (Caddy holt das Zertifikat dann selbst)"
-echo "  - Firebase Console -> Authentication -> Autorisierte Domains: $DOMAIN"

@@ -1,6 +1,6 @@
 // Logo und Foto einer Person im Testladen hochladen (wie „Mein Laden“ und „Team“), ansehen und wieder löschen.
-// Prüft nach dem Einspielen von storage.rules, dass Inhaber weiter hochladen können (deploy/README.md,
-// „Speicher-Regeln“). Was andere nicht dürfen, prüfen die Emulator-Tests in dev/regeln. Braucht den Entwicklungsserver.
+// Bilder liegen seit Stufe 2 auf dem eigenen Server (backend/app/libs/laeden.py); was andere nicht dürfen, prüft
+// backend/tests/test_laeden.py. Braucht den Entwicklungsserver und ein echtes Testkonto (dev/fixtures.py).
 const { BASE, launch, newPage, collectErrors, fixture, signIn, report, run } = require('./lib.cjs');
 
 /** Im Browser: Bild hochladen wie die App (utils/firestore/storage.ts), Rückgabe die Download-Adresse */

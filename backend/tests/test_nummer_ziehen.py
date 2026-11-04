@@ -155,7 +155,7 @@ def test_gratis_ohne_termine_zieht_trotzdem_nummern():
 
 def test_gedraenge_beim_lesen_laeuft_neu_an():
     # Firestore bricht im Ansturm schon beim Lesen ab ("cross-transaction contention"); dann die ganze Transaktion neu
-    from google.api_core.exceptions import Aborted
+    from app.store import Aborted
     from app.libs import buchung
 
     client, db, store = setup()

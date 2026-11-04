@@ -1,9 +1,9 @@
-"""Speicher-Schicht auf PostgreSQL (requirements/eigene-datenbank.md, Stufe 3).
+"""Speicher-Schicht auf PostgreSQL (requirements/eigene-datenbank.md, Stufe 3; seit Stufe 5 die einzige).
 
 Derselbe kleine Teil von Firestore wie in app/store/__init__.py beschrieben, auf einer Tabelle `dokumente`
 (migrations/versions/…_0002_dokumente.py): je Dokument eine Zeile mit Pfad der Sammlung, ID und Inhalt als jsonb.
-Gilt, wenn QME_SPEICHER=postgres gesetzt ist; sonst bleibt Firestore. Wie sich beides verhalten muss, hält
-tests/test_speicher_vertrag.py fest – die Verträge laufen gegen beide.
+Wie sie sich verhalten muss, hält tests/test_speicher_vertrag.py fest; bis Stufe 5 liefen die Verträge auch gegen
+Firestore, beide bestanden dieselben.
 
 So bildet der Client Firestore nach:
 - **Werte:** Zeitpunkte stehen als {"__zeit": "2026-11-04T09:30:15.123456Z"} (UTC, feste Länge) im jsonb. So sortieren
@@ -13,7 +13,7 @@ So bildet der Client Firestore nach:
   Typs, Sortierung nach Firestores Typ-Reihenfolge (null < Wahrheitswert < Zahl < Zeitpunkt < Text < Liste < Karte),
   ohne Angabe nach ID. Wer nach einem Feld sortiert oder es mit <, >= … vergleicht, findet nur Dokumente mit dem Feld.
 - **Schreiben:** Jeder Schreibvorgang liest das Dokument, rechnet den neuen Stand in Python aus (merge, Punkt-Pfade,
-  SERVER_TIMESTAMP, DELETE_FIELD, Increment – die Sonderwerte aus google.cloud.firestore gelten auch hier) und schreibt
+  SERVER_TIMESTAMP, DELETE_FIELD, Increment aus app/store) und schreibt
   ihn zurück, alles in einer Transaktion mit SERIALIZABLE. Konflikte laufen neu an.
 - **Transaktionen:** Lesen über `ref.get(transaction=tx)`, Schreiben gesammelt bis zum Ende. Bei Konflikt läuft die ganze
   Funktion noch einmal (wie bei Firestore), nach `max_attempts` Versuchen kommt `Aborted`.
@@ -554,7 +554,7 @@ class WriteBatch:
 
 
 def transactional(fn: Callable) -> Callable:
-    """Gegenstück zu google.cloud.firestore.transactional für Transaction aus diesem Modul"""
+    """Wie früher google.cloud.firestore.transactional, für Transaction aus diesem Modul"""
 
     def ausfuehren(transaction: Transaction, *args: Any, **kwargs: Any) -> Any:
         return transaction.ausfuehren(fn, *args, **kwargs)

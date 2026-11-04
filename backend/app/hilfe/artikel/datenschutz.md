@@ -27,7 +27,7 @@ Werbe- oder Analyse-Cookies setzt Dranzeit nicht ein.
 
 ## Welche Dienstleister beteiligt sind
 
-Dranzeit läuft auf einem Server von Hetzner in Deutschland. Anmeldung und Datenbank laufen über Google Firebase (Google Ireland Limited). E-Mails verschickt Resend, Push-Nachrichten stellen die Dienste der Browser-Hersteller zu, die Abos rechnet Stripe ab. Nur beim Einrichten eines Ladens helfen Google Places und Anthropic; dabei werden keine Kundendaten übertragen. Die vollständige Liste steht in der [Datenschutzerklärung](/datenschutz).
+Dranzeit läuft auf einem Server von Hetzner in Deutschland, mit eigener Datenbank und eigener Anmeldung. Bis November 2026 lagen Anmeldung und Datenbank bei Google Firebase (Google Ireland Limited); dort bleibt nur eine alte Kopie, bis das Projekt gelöscht ist. E-Mails verschickt Resend, Push-Nachrichten stellen die Dienste der Browser-Hersteller zu, die Abos rechnet Stripe ab. Nur beim Einrichten eines Ladens helfen Google Places und Anthropic; dabei werden keine Kundendaten übertragen. Die vollständige Liste steht in der [Datenschutzerklärung](/datenschutz).
 
 ## Auftragsverarbeitung
 

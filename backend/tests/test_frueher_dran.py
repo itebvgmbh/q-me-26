@@ -13,7 +13,7 @@ os.environ.setdefault("FIREBASE_PROJECT_ID", "test")
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from google.cloud import firestore as gcf  # noqa: E402
+from app import store as gcf  # noqa: E402
 
 NOW = datetime.now(timezone.utc)
 

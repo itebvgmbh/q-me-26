@@ -9,7 +9,8 @@ neben den anderen Projekten dort:
 | Web-App (gebautes React) | statische Dateien in `/opt/q-me-web` |
 | HTTPS, `/routes/*` → Backend | eigener Block in der vorhandenen `/etc/caddy/Caddyfile` |
 | Code | `/opt/q-me` (Git-Checkout, gehört root) |
-| Konfiguration | `/etc/q-me.env`, Firebase-Schlüssel in `/etc/q-me/` |
+| Konfiguration | `/etc/q-me.env` |
+| Daten | PostgreSQL (Datenbank `q_me`), Bilder in `/var/lib/q-me/dateien` |
 
 Kein Docker, kein zweiter Caddy: Die Ports 80/443 gehören dem vorhandenen Caddy.
 `setup-server.sh` hängt nur einen Block an dessen Caddyfile an (mit Sicherung und
@@ -21,11 +22,6 @@ ohne Unterbrechung weiter.
 1. **DNS**: A-Record `q-me.spielmacherei.de` → `195.201.26.108`, dort, wo auch
    `mamie.spielmacherei.de` eingetragen ist. Ohne den Eintrag bekommt Caddy kein
    Zertifikat. Die anderen Seiten stört das nicht.
-2. **Firebase Console → Authentication → Settings → Autorisierte Domains**:
-   `q-me.spielmacherei.de` eintragen, sonst scheitert die Google-Anmeldung.
-3. **Firebase-Dienstkonto-Schlüssel**: Firebase Console → Projekteinstellungen →
-   Dienstkonten → „Neuen privaten Schlüssel generieren“ (Projekt `qmedata-7c79e`).
-   Die JSON-Datei gehört nie ins Repository.
 
 ## Erstinstallation
 
@@ -49,48 +45,8 @@ Das Skript installiert `uv` (Python 3.13 für das Backend), legt Konto, Dienst u
 Caddyfile. Als Backend-Port nimmt es den ersten freien ab 8090; auf dem
 Spielmacherei-Server ist 8090 belegt, dort läuft Q-ME auf 8091.
 
-Zum Schluss den Schlüssel einspielen: den ganzen Block in PowerShell einfügen. Er
-sucht die neueste Schlüsseldatei in `Downloads` (oder fragt nach dem Pfad), prüft,
-dass sie zum Projekt `qmedata-7c79e` gehört, lädt sie hoch, startet das Backend neu,
-testet, ob es damit Firestore lesen kann, und bietet an, die lokale Datei zu löschen.
-Vorher prüft er die Verbindung und fragt nie nach einem Passwort.
-
-```powershell
-& {
-  $server = 'root@195.201.26.108'
-  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
-  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
-  $downloads = Join-Path $env:USERPROFILE 'Downloads'
-  $vorschlag = Get-ChildItem -Path $downloads -Filter 'qmedata-7c79e-firebase-adminsdk-*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-  if ($vorschlag) {
-    $eingabe = Read-Host "Schluessel gefunden: $($vorschlag.FullName)`nEnter = diese Datei nehmen, sonst Pfad eingeben oder Datei hier hineinziehen"
-  } else {
-    $eingabe = Read-Host 'Keine Schluesseldatei in Downloads gefunden. Pfad eingeben oder Datei hier hineinziehen'
-  }
-  if ([string]::IsNullOrWhiteSpace($eingabe)) { $datei = $vorschlag.FullName } else { $datei = $eingabe.Trim().Trim('"').Trim("'") }
-  if (-not $datei -or -not (Test-Path -LiteralPath $datei)) { Write-Host "Abbruch: Datei nicht gefunden: $datei" -ForegroundColor Red; return }
-  try { $json = Get-Content -LiteralPath $datei -Raw | ConvertFrom-Json } catch { Write-Host 'Abbruch: Das ist keine JSON-Datei.' -ForegroundColor Red; return }
-  if ($json.type -ne 'service_account' -or $json.project_id -ne 'qmedata-7c79e') { Write-Host "Abbruch: Falsche Datei. Erwartet: Dienstkonto von qmedata-7c79e. Gefunden: $($json.type) / $($json.project_id)" -ForegroundColor Red; return }
-  Write-Host '1/3 Schluessel hochladen ...' -ForegroundColor Cyan
-  scp -o BatchMode=yes $datei "${server}:/etc/q-me/firebase-service-account.json"
-  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Hochladen fehlgeschlagen.' -ForegroundColor Red; return }
-  Write-Host '2/3 Rechte setzen und Backend neu starten ...' -ForegroundColor Cyan
-  ssh -o BatchMode=yes $server 'chown root:q-me /etc/q-me/firebase-service-account.json && chmod 640 /etc/q-me/firebase-service-account.json && systemctl restart q-me && sleep 4 && systemctl is-active q-me'
-  if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Backend laeuft nicht. Letzte Meldungen:' -ForegroundColor Red; ssh -o BatchMode=yes $server 'journalctl -u q-me -n 30 --no-pager'; return }
-  Write-Host '3/3 Pruefen, ob das Backend mit dem Schluessel Firestore lesen kann ...' -ForegroundColor Cyan
-  $anfrage = '{"shop_id":"zNS505OFvKZpFaR1vTdN","service_id":"QJd2oXDcbaHJH9jViOGu","date":"' + (Get-Date -Format 'yyyy-MM-dd') + 'T12:00:00"}'
-  $antwort = $anfrage | ssh -o BatchMode=yes $server 'curl -s -X POST -H Content-Type:application/json --data-binary @- http://127.0.0.1:$(sed -n s/^PORT=//p /etc/q-me.env)/routes/available-timeslots'
-  if ("$antwort" -match '^\s*\{"timeslots":') {
-    Write-Host 'Fertig: Schluessel ist eingespielt und funktioniert.' -ForegroundColor Green
-  } else {
-    Write-Host 'Schluessel ist hochgeladen, aber die Pruefung schlug fehl. Antwort des Backends:' -ForegroundColor Yellow
-    Write-Host "$antwort"
-    ssh -o BatchMode=yes $server 'journalctl -u q-me -n 30 --no-pager'
-    return
-  }
-  if ((Read-Host 'Lokale Schluesseldatei jetzt loeschen? (j/n)') -eq 'j') { Remove-Item -LiteralPath $datei; Write-Host 'Lokale Datei geloescht.' }
-}
-```
+Firebase braucht es seit Stufe 5 von `requirements/eigene-datenbank.md` nicht mehr: Datenbank, Anmeldung und Bilder
+liegen auf dem Server, `update.sh` richtet die Datenbank selbst ein.
 
 ## Aktualisieren
 
@@ -107,12 +63,12 @@ Vom eigenen Rechner aus, ganzen Block in PowerShell einfügen:
   $umgebung = ssh -o BatchMode=yes $server 'systemctl show q-me -p Environment' 2>&1 | Out-String
   if ($umgebung -match 'TZ=Europe/Berlin') { Write-Host 'Zeitzone: Backend rechnet jetzt in deutscher Zeit.' -ForegroundColor Green } else { Write-Host 'Zeitzone ist NICHT gesetzt. Ausgabe vom Server:' -ForegroundColor Red; Write-Host $umgebung; return }
   ssh -o BatchMode=yes $server 'journalctl -u q-me -n 300 --no-pager | grep -q Scheduler.autostarted'
-  if ($LASTEXITCODE -eq 0) { Write-Host 'Frueher dran: Hintergrunddienst laeuft (prueft alle 5 Minuten).' -ForegroundColor Green } else { Write-Host 'Frueher dran: Hintergrunddienst laeuft NICHT. Meist fehlt der Firebase-Schluessel (Block "Schluessel einspielen").' -ForegroundColor Yellow }
+  if ($LASTEXITCODE -eq 0) { Write-Host 'Frueher dran: Hintergrunddienst laeuft (prueft alle 5 Minuten).' -ForegroundColor Green } else { Write-Host 'Frueher dran: Hintergrunddienst laeuft NICHT. Meist fehlt die Datenbank (QME_DATABASE_URL, Abschnitt Datenbank).' -ForegroundColor Yellow }
 }
 ```
 
 Der Block meldet zum Schluss auch, ob der Hintergrunddienst für „Früher dran“
-läuft. Er startet mit dem Backend automatisch, sobald der Firebase-Schlüssel da ist,
+läuft. Er startet mit dem Backend automatisch, sobald die Datenbank eingerichtet ist,
 und prüft alle 5 Minuten. Sofort geprüft wird zusätzlich nach jeder Absage,
 Verschiebung und Annahme. Jeder frei gewordene Platz geht zuerst exklusiv an die
 Person, die als Nächste in der Reihe steht, und erst nach Ablauf der Frist an die
@@ -129,8 +85,8 @@ neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 ## Datenbank (PostgreSQL)
 
 Seit 04.11.2026 hat Dranzeit eine eigene Datenbank auf diesem Server. Plan und Stufen stehen in
-`requirements/eigene-datenbank.md`. Bis Stufe 3 liegen alle Daten weiter in Firestore, die Datenbank ist bis dahin
-leer.
+`requirements/eigene-datenbank.md`. Seit dem Umzug am 04.11.2026 liegen alle Daten hier (Tabelle `dokumente`,
+dazu `konten`, `sitzungen` und `einmal_links` für die Anmeldung).
 
 - **Datenbank und Anmeldung:** Datenbank `q_me` im gemeinsamen PostgreSQL 16 des Servers, Rolle `q-me`. Angemeldet
   wird über den lokalen Socket ohne Passwort (peer), es gibt also kein Datenbank-Geheimnis. Die Adresse steht in
@@ -157,38 +113,23 @@ leer.
   laufen auf GitHub gegen eine Wegwerf-Datenbank (Workflow „Datenbank“). Ohne `QME_TEST_DATABASE_URL` laufen lokal nur
   die Tests der Adresse.
 
-### Umzug von Firestore nach PostgreSQL (Stufe 3)
+### Umzug von Firestore nach PostgreSQL (erledigt)
 
-Das Backend kann seine Daten in Firestore oder in PostgreSQL halten, mit demselben Verhalten
-(`backend/app/store/postgres.py`, Tabelle `dokumente`; geprüft von `backend/tests/test_speicher_vertrag.py` gegen
-beide). Welche gilt, steht in `/etc/q-me.env` als `QME_SPEICHER=postgres`; fehlt die Zeile, gilt Firestore. Ein
-`git pull` oder Ausrollen schaltet nicht um, und es zieht keine Daten um.
+Am 04.11.2026 sind alle Daten aus Firestore in die Tabelle `dokumente` umgezogen (465 Dokumente in 36 Sammlungen),
+seitdem arbeitet das Backend nur noch mit PostgreSQL (`backend/app/store/postgres.py`). Das Umzugsskript und die
+Firestore-Umsetzung sind in Stufe 5 ausgebaut; in Firestore liegt nur noch die alte Kopie, bis das Firebase-Projekt
+gelöscht ist (Abschnitt „Firebase-Projekt“).
 
-Umziehen geht mit `deploy/datenumzug.sh`. Das Skript liest alle Produktionsdaten aus Firestore, deshalb startet es
-Stefan. Jeder Schritt ist ein einzelner Befehl:
+### Bilder aus Firebase Storage (Stufe 5)
 
-1. **Probelauf, jederzeit, ohne Unterbrechung.** Er zieht alles in eine Wegwerf-Datenbank `q_me_probe`, vergleicht
-   Anzahlen und eine Stichprobe und löscht die Probe wieder. Am Ende muss „Probelauf … stimmt“ stehen.
+Ältere Logos und Fotos standen als Adresse auf `firebasestorage.googleapis.com` in den Daten. `deploy/dateiumzug.sh`
+holt sie auf den Server (`/var/lib/q-me/dateien`, wie hochgeladene Bilder) und setzt die neue Adresse ein. Der Dienst
+läuft dabei weiter, das Skript lässt sich beliebig oft wiederholen:
 
-```powershell
-ssh -o BatchMode=yes -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 'bash /opt/q-me/deploy/datenumzug.sh probe'; if ($LASTEXITCODE -eq 0) { Write-Host 'Probelauf stimmt.' -ForegroundColor Green } else { Write-Host "Probelauf fehlgeschlagen (Code $LASTEXITCODE) - Ausgabe oben an Claude geben. Verbindung pruefen: Abschnitt Verbindung pruefen." -ForegroundColor Red }
+```bash
+bash /opt/q-me/deploy/dateiumzug.sh probe   # nur zählen
+bash /opt/q-me/deploy/dateiumzug.sh umzug   # holen und ersetzen
 ```
-
-2. **Umzug, nachts.** Der Dienst ist dabei ein paar Minuten aus. Das Skript sichert die Datenbank, hält den Dienst an,
-   zieht um, vergleicht und schaltet auf PostgreSQL. Stimmt der Vergleich nicht oder startet das Backend nicht, läuft
-   es unverändert mit Firestore weiter.
-
-```powershell
-ssh -o BatchMode=yes -i ~/.ssh/id_ed25519_spielmacherei root@195.201.26.108 'bash /opt/q-me/deploy/datenumzug.sh umzug'; if ($LASTEXITCODE -eq 0) { Write-Host 'Umzug fertig, Dranzeit laeuft auf PostgreSQL.' -ForegroundColor Green } else { Write-Host "Umzug nicht fertig (Code $LASTEXITCODE), Dranzeit laeuft weiter mit Firestore. Ausgabe oben an Claude geben." -ForegroundColor Red }
-```
-
-3. **Prüfen:** Claude lässt `verbindung.cjs`, `live.cjs` und `seiten.cjs` gegen dranzeit.de laufen. Danach am
-   Tresen einen Termin anlegen und aufrufen, im privaten Fenster eine Nummer ziehen und wieder absagen.
-
-**Zurück:** `bash /opt/q-me/deploy/datenumzug.sh zurueck` schaltet wieder auf Firestore. Das passt nur direkt nach dem
-Umzug: Was danach in PostgreSQL geschrieben wurde, fehlt in Firestore. Ab dann nur noch vorwärts korrigieren.
-Firestore bleibt als Archiv stehen und wird nicht mehr beschrieben. Welcher Speicher gerade gilt:
-`bash /opt/q-me/deploy/datenumzug.sh stand`.
 
 ## Anmeldung (eigene Konten)
 
@@ -199,9 +140,10 @@ Seit Stufe 4 von `requirements/eigene-datenbank.md` meldet Dranzeit selbst an, F
 - **Passwörter** als Argon2id-Hash. Die Sitzung steckt im Cookie `qme_sitzung` (HttpOnly, Secure, SameSite=Lax) und
   gilt 180 Tage ab der letzten Nutzung. Links aus Mails (Passwort neu: 1 Stunde, Adresse bestätigen: 3 Tage) stehen nur
   als Hash in der Datenbank.
-- **Übernahme aus Firebase:** Beim Start legt das Backend jedes Firebase-Konto, das noch fehlt, mit derselben ID an,
-  aber ohne Passwort (Log: `Anmeldung: … Firebase-Konten übernommen`). Bei der ersten Anmeldung prüft es das Passwort
-  einmal bei Firebase und speichert es dann selbst. Gibt es das Firebase-Projekt nicht mehr, hilft „Passwort vergessen?“.
+- **Übernahme aus Firebase:** Beim ersten Start von Stufe 4 (04.11.2026) kamen alle 8 Firebase-Konten mit derselben ID
+  nach `konten`, aber ohne Passwort. Bei der ersten Anmeldung prüft das Backend das Passwort einmal bei Firebase (über
+  die öffentliche Schnittstelle, ohne Firebase-Paket) und speichert es dann selbst. Gibt es das Firebase-Projekt nicht
+  mehr, hilft „Passwort vergessen?“.
 - **Sperren, Adresse ändern, Konten löschen:** wie bisher im Betreiber-Bereich und mit „Konten aufräumen“; beides
   arbeitet jetzt auf den eigenen Konten. Sperren meldet alle Geräte ab.
 - **Ein `git pull` bringt dafür nichts Neues mit:** keine Schlüssel und keine Einstellungen. Beim ersten Ausrollen sind
@@ -279,19 +221,18 @@ Missbrauch bremst das Backend selbst: nur angemeldete Betriebe, je Konto und Stu
 
 Ein eigener Hintergrunddienst im Backend (`app/libs/notify_worker.py`) schickt Kunden eine Nachricht, kurz
 bevor sie dran sind, und wenn der Tresen sie aufruft. Gebuchte Termine bekommen 2 Stunden vorher eine
-Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schlüssel da ist.
+Erinnerung. Er startet zusammen mit „Früher dran“, sobald die Datenbank eingerichtet ist.
 
 - **Web-Push:** Die Schlüssel (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) erzeugt `update.sh` beim ersten Lauf
   selbst und schreibt sie nach `/etc/q-me.env`. Nichts zu tun. Auf dem iPhone gehen Push-Nachrichten nur aus
   der App vom Home-Bildschirm; dort bietet die Nummernseite die E-Mail an.
-- **Push an die iPhone/iPad-App:** über Firebase Cloud Messaging mit demselben Dienstkonto wie Firestore
-  (`app/libs/fcm.py`), kein weiterer Schlüssel auf dem Server. Was dafür bei Apple und in Firebase
-  einzurichten ist, steht in `mobile/README.md`.
+- **Push an die iPhone/iPad-App:** zurzeit aus. Bis Stufe 5 lief er über Firebase Cloud Messaging; künftig geht er
+  direkt an Apple (APNs), dafür braucht es den APNs-Schlüssel aus dem Apple-Entwicklerkonto (`app/libs/fcm.py`,
+  `mobile/README.md`). Bis dahin bekommt die App Erinnerungen per E-Mail.
 - **E-Mail:** braucht `RESEND_API_KEY` (Abschnitt „Schlüssel eintragen“). Links in E-Mails zeigen auf
   `PUBLIC_URL` (Standard `https://dranzeit.de`, kein Geheimnis, in `/etc/q-me.env` änderbar), das Logo im Kopf
   der Mails ebenso (`/img/mail/logo.png`, neu erzeugen mit `node dev/mail-logo.cjs`). Auch „Passwort vergessen“
-  läuft über Resend (`app/apis/password_reset`, Link auf `/passwort-neu`); ohne Schlüssel verschickt Firebase
-  seine eigene englische Mail von `…firebaseapp.com`, die bei Microsoft 365 gern im Spam landet.
+  läuft über Resend (`app/apis/password_reset`, Link auf `/passwort-neu`); ohne Schlüssel geht keine Mail raus.
 - **Postfach:** `hilfe@dranzeit.de` und `hallo@dranzeit.de` sind ein freigegebenes Postfach „Dranzeit“ in
   Microsoft 365 (ITEBV GmbH). DNS dafür in der Hetzner-Zone `dranzeit.de`: MX auf
   `dranzeit-de.mail.protection.outlook.com`, SPF `include:spf.protection.outlook.com` am Domain-Namen,
@@ -305,7 +246,7 @@ Erinnerung. Er startet zusammen mit „Früher dran“, sobald der Firebase-Schl
 ## Ein Platz nur einmal (Belegung je Person und Tag)
 
 Seit 20.10.2026 schreibt jede Buchung, Nummer, Verschiebung, Absage und „Früher dran“-Annahme in derselben
-Firestore-Transaktion zwei Hilfsdokumente fort (Erklärung: `frontend/src/utils/firestore/schedule.ts`):
+Transaktion zwei Hilfsdokumente fort (heute im Backend, z. B. `backend/app/libs/team_termine.py`):
 
 - `schedules/{staffId}_{YYYY-MM-DD}` – belegte Zeiten der Person an dem Tag (nur Termin-IDs und Uhrzeiten)
 - `shop_days/{shopId}_{YYYY-MM-DD}` – an dem Tag vergebene Nummern des Ladens
@@ -316,121 +257,27 @@ Platzsuche, Nummernseite und Wartezimmer-Bildschirm lesen ohne Anmeldung nur sie
 Start für alle Termine an (Log „Kurzfassungen der Termine angelegt“, danach Vermerk `meta/public_appointments`) und
 gleicht sie laufend ab (Log „Kurzfassungen der Termine: … angeglichen“, `backend/app/libs/public_appointments.py`).
 
-Nichts einzurichten: Die Firestore-Regeln (`firestore.rules`, Abschnitt „Firestore-Regeln“ unten) lassen beide
-Sammlungen für jeden zu – auch Nummer ziehen ohne Konto schreibt dort. Werden die Regeln einmal verschärft, müssen
-beide für jeden schreibbar bleiben, der buchen darf (also auch ohne Anmeldung), sonst schlägt jede Buchung fehl.
-Ein Vorschlag:
-
-```
-match /schedules/{id} {
-  allow read: if true;
-  allow create, update: if request.resource.data.keys().hasOnly(['shopId', 'staffId', 'day', 'slots', 'updatedAt'])
-    && id == request.resource.data.staffId + '_' + request.resource.data.day;
-}
-match /shop_days/{id} {
-  allow read: if true;
-  allow create, update: if request.resource.data.keys().hasOnly(['shopId', 'day', 'codes', 'updatedAt'])
-    && id == request.resource.data.shopId + '_' + request.resource.data.day;
-}
-```
+Nichts einzurichten: Beide Sammlungen schreibt nur das Backend.
 
 Dokumente vergangener Tage löscht das Backend einmal am Tag (zusammen mit dem Datenschutz-Aufräumen). Termine von
 vor der Umstellung stehen nicht in der Belegung; die prüft die App wie bisher vor dem Speichern. Browserfenster,
 die schon vor dem Update offen waren, buchen bis zum Neuladen noch ohne Sperre.
 
-## Firestore-Regeln
+## Firebase-Projekt (Rest bis zur Löschung)
 
-Die Sicherheitsregeln der Datenbank stehen in `firestore.rules` (Hauptordner des Repos, mit Begründung je Regel).
-Eingespielt werden sie **nur von Hand in der Firebase-Konsole** – ein `git pull` oder Ausrollen ändert an den
-Regeln nichts. Geprüft werden sie im Emulator (`dev/regeln`, läuft auf GitHub bei jeder Änderung).
+Seit Stufe 5 von `requirements/eigene-datenbank.md` nutzt Dranzeit Firebase nicht mehr: kein Firebase im Browser, kein
+Firebase-Paket im Backend. Im Projekt `qmedata-7c79e` liegt nur noch:
 
-Fassung 2026-11-04 (Kopfzeile `// Fassung:` in `firestore.rules`): **Für den Browser ist alles zu.** Seit Stufe 2 von
-`requirements/eigene-datenbank.md` liest und schreibt die App nur noch über das Backend (`/routes/live`,
-`/routes/team`, `/routes/konto`, `/routes/nummer` …). Das Backend arbeitet mit dem Admin SDK und ist von den Regeln
-nicht betroffen; wer was darf, prüft es selbst. Die Regeln sind damit nur noch das Schloss davor: Wer den öffentlichen
-Web-Schlüssel aus der App nimmt, kommt an keine Daten.
+- die alte Kopie der Datenbank aus der Zeit bis 04.11.2026 (Firestore, für den Browser seit der Regel-Fassung
+  2026-11-04 gesperrt),
+- die alten Bilder in Firebase Storage, bis `deploy/dateiumzug.sh umzug` sie geholt hat,
+- die Konten mit ihren alten Passwörtern. Die braucht nur noch die erste Anmeldung eines Kontos, das sich seit
+  Stufe 4 noch nicht angemeldet hat (siehe „Anmeldung“).
 
-**Erst ausrollen, dann einspielen.** Erst der Stand mit PR #125 liest alles über das Backend; mit den neuen Regeln und
-einem älteren Stand im Browser blieben Seiten leer. Ob der Stand live ist, zeigt `node dev/e2e/regeln-live.cjs`
-(„Laden über das Backend“ OK). Browserfenster, die seit vor dem Ausrollen offen sind (etwa der Tresen), nach dem
-Einspielen einmal neu laden. An Daten bringt ein `git pull` hierfür nichts Neues mit.
-
-Die letzte Fassung mit Zugriff aus dem Browser (2026-10-29) steht in der Git-Geschichte von `firestore.rules`; die
-eingespielte Fassung sichert der Block unten ohnehin nach `Downloads`.
-
-### Einspielen
-
-1. Firebase-Konsole öffnen: https://console.firebase.google.com/project/qmedata-7c79e/firestore/rules
-2. Im Regel-Editor **Strg+A, Strg+C** (die alten Regeln landen in der Zwischenablage).
-3. Diesen Block in PowerShell einfügen. Er sichert die alten Regeln nach `Downloads\firestore-regeln-alt-….txt`,
-   holt die neuen von GitHub (Branch `bildschirm`) und legt sie in die Zwischenablage:
-
-```powershell
-& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service cloud\.firestore') { Write-Host 'In der Zwischenablage stehen keine Firestore-Regeln. Im Regel-Editor erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/firestore.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service cloud\.firestore' -or $neu -notmatch '// Fassung: (\S+)') { Write-Host 'Die geladene Datei sieht nicht wie die Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $fassung = $Matches[1]; if ($alt -match '// Fassung: (\S+)' -and $Matches[1] -eq $fassung) { Write-Host "Die Fassung $fassung ist schon eingespielt. Nichts zu tun." -ForegroundColor Green; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('firestore-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; $datei = Join-Path $downloads 'firestore-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Fassung $fassung, Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
-```
-
-4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen**. Meldet der Editor einen Fehler, nicht
-   veröffentlichen (die alten Regeln gelten dann weiter). Bis die neuen überall wirken, kann es eine Minute dauern.
-
-### Prüfen
-
-- Auf dranzeit.de als Inhaber unter „Mein Laden“ etwas ändern und speichern, ein Logo hochladen; am Tresen einen
-  Termin anlegen und aufrufen; im privaten Fenster (ohne Anmeldung) eine Nummer ziehen und auf der Nummernseite
-  wieder absagen. Alles muss gehen wie vorher.
-- Claude: `node dev/e2e/regeln-live.cjs` (alles OK, sobald die Regeln wirken; vorher FEHL bei den Lese-Prüfungen),
-  dazu `verbindung.cjs`, `live.cjs` und `seiten.cjs` gegen dranzeit.de.
-- Der Block oben ist mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/regeln-einspielen.test.ps1`.
-
-### Zurücknehmen
-
-Klemmt danach etwas (Speichern im Laden, Buchen, Nummer ziehen), die alten Regeln wieder einspielen. Der Block holt
-die gesicherte Datei aus `Downloads` (Vorschlag: die neueste) in die Zwischenablage:
-
-```powershell
-& { $downloads = Join-Path $env:USERPROFILE 'Downloads'; $vorschlag = Get-ChildItem -Path $downloads -Filter 'firestore-regeln-alt-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1; $hinweis = if ($vorschlag) { " [Enter = $($vorschlag.Name)]" } else { '' }; $eingabe = (Read-Host "Gesicherte Regeln (Datei, Drag & Drop geht)$hinweis").Trim().Trim('"').Trim("'"); $pfad = if ($eingabe) { $eingabe } elseif ($vorschlag) { $vorschlag.FullName } else { '' }; if (-not $pfad -or -not (Test-Path -LiteralPath $pfad)) { Write-Host "Datei nicht gefunden: $pfad" -ForegroundColor Red; return }; $alt = [IO.File]::ReadAllText($pfad, [Text.Encoding]::UTF8); if ($alt -notmatch 'service cloud\.firestore') { Write-Host 'Die Datei enthaelt keine Firestore-Regeln. Abgebrochen.' -ForegroundColor Red; return }; Set-Clipboard -Value $alt; Write-Host "Alte Regeln aus $pfad in der Zwischenablage." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
-```
-
-Dann im Regel-Editor **Strg+A, Strg+V, Veröffentlichen**. Die Konsole führt außerdem einen Verlauf der
-veröffentlichten Fassungen; auch daraus lässt sich die alte wieder veröffentlichen.
-
-Ändern sich die Regeln später: `firestore.rules` und die Tests in `dev/regeln` zusammen anpassen, auf GitHub grün
-werden lassen, dann wie oben einspielen.
-
-## Speicher-Regeln
-
-Ältere Logos der Läden und Fotos der Personen liegen im Firebase-Speicher (Storage); neue lädt die App seit Stufe 2
-zum eigenen Server hoch (`/var/lib/q-me/dateien`, nächtlich mit der Datenbank gesichert). Was im Speicher erlaubt
-ist, steht in `storage.rules` (Hauptordner des Repos). Wie bei den Firestore-Regeln gilt: **nur von Hand in der
-Firebase-Konsole** einspielen, ein `git pull` oder Ausrollen ändert daran nichts. Geprüft im Emulator
-(`dev/regeln/speicher.test.mjs`, läuft auf GitHub mit den Firestore-Regeln).
-
-Fassung 2026-11-04 (Kopfzeile `// Fassung:` in `storage.rules`):
-- Ältere Bilder ansehen geht weiter ohne Anmeldung (Buchungsseite, Wartezimmer-Bildschirm), bis sie in Stufe 5
-  umgezogen sind.
-- Hochladen, Ersetzen, Löschen und Auflisten sind zu, auch für den Inhaber. Die Regeln fragen Firestore nicht mehr.
-
-Auch hier: **erst ausrollen, dann einspielen** (wie oben bei den Firestore-Regeln).
-
-### Einspielen (Speicher)
-
-1. Firebase-Konsole öffnen: https://console.firebase.google.com/project/qmedata-7c79e/storage/rules
-2. Im Regel-Editor **Strg+A, Strg+C** (die alten Regeln landen in der Zwischenablage).
-3. Diesen Block in PowerShell einfügen. Er sichert die alten Regeln nach `Downloads\speicher-regeln-alt-….txt`,
-   holt die neuen von GitHub (Branch `bildschirm`) und legt sie in die Zwischenablage:
-
-```powershell
-& { $alt = Get-Clipboard -Raw; if (-not $alt -or $alt -notmatch 'service firebase\.storage') { Write-Host 'In der Zwischenablage stehen keine Speicher-Regeln. Im Regel-Editor unter Storage erst Strg+A, Strg+C, dann diesen Block noch einmal.' -ForegroundColor Red; return }; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; $web = New-Object Net.WebClient; $web.Encoding = [Text.Encoding]::UTF8; try { $neu = $web.DownloadString('https://raw.githubusercontent.com/itebvgmbh/q-me-26/bildschirm/storage.rules') } catch { Write-Host "Neue Regeln nicht geladen: $($_.Exception.Message)" -ForegroundColor Red; return }; if ($neu -notmatch 'service firebase\.storage' -or $neu -notmatch '// Fassung: (\S+)') { Write-Host 'Die geladene Datei sieht nicht wie die Speicher-Regeln aus. Abgebrochen, nichts geaendert.' -ForegroundColor Red; return }; $fassung = $Matches[1]; if ($alt -match '// Fassung: (\S+)' -and $Matches[1] -eq $fassung) { Write-Host "Die Fassung $fassung ist schon eingespielt. Nichts zu tun." -ForegroundColor Green; return }; $downloads = Join-Path $env:USERPROFILE 'Downloads'; $sicherung = Join-Path $downloads ('speicher-regeln-alt-' + (Get-Date -Format 'yyyy-MM-dd-HHmm') + '.txt'); [IO.File]::WriteAllText($sicherung, $alt, (New-Object Text.UTF8Encoding $false)); Write-Host "Alte Regeln gesichert: $sicherung" -ForegroundColor Green; $datei = Join-Path $downloads 'speicher-regeln-neu.rules'; [IO.File]::WriteAllText($datei, $neu, (New-Object Text.UTF8Encoding $false)); Set-Clipboard -Value $neu; Write-Host "Neue Regeln in der Zwischenablage (Fassung $fassung, Kopie: $datei)." -ForegroundColor Green; Write-Host 'Jetzt im Regel-Editor: Strg+A, Strg+V, Veroeffentlichen.' -ForegroundColor Green }
-```
-
-4. Im Regel-Editor **Strg+A, Strg+V**, dann **Veröffentlichen**. Meldet der Editor einen Fehler, nicht
-   veröffentlichen (die alten Regeln gelten dann weiter).
-
-Prüfen: auf dranzeit.de als Inhaber unter „Laden“ → „Mein Laden“ ein Logo hochladen (geht zum eigenen Server und muss
-weiter klappen); ein älteres Logo wird weiter angezeigt. Der Block oben ist
-mit Attrappen getestet: `powershell -NoProfile -File dev/powershell/speicher-regeln-einspielen.test.ps1`.
-
-Zurücknehmen: im Regel-Editor den Verlauf öffnen (Uhr-Symbol links) und die vorige Fassung veröffentlichen – oder
-`Downloads\speicher-regeln-alt-….txt` öffnen, alles kopieren, im Editor einfügen und veröffentlichen.
+Löschen (Stefan, in der Firebase-Konsole → Projekteinstellungen → Projekt löschen), sobald die Bilder geholt sind und
+die eigenen Konten sich einmal angemeldet haben. Wer danach noch kein neues Passwort hat, nimmt „Passwort vergessen?“.
+Den Dienstkonto-Schlüssel `/etc/q-me/firebase-service-account.json` und die Zeilen `FIREBASE_*` in `/etc/q-me.env`
+braucht der Server nicht mehr; sie können mit dem Projekt weg.
 
 ## Hilfe-Bereich (/hilfe)
 
@@ -767,9 +614,7 @@ Vorher von Hand (in dieser Reihenfolge):
 1. **Domains kaufen:** `dranzeit.de` und `www.dranzeit.de` (dazu am besten `.com`, `.app`, `.at`, `.ch`, `.eu`).
 2. **DNS** beim Domain-Anbieter: A-Record `dranzeit.de` und `www.dranzeit.de` → `195.201.26.108`,
    AAAA-Record beider Namen → `2a01:4f8:1c18:b8d8::1`. Warten, bis der Block unten „DNS stimmt“ meldet.
-3. **Firebase Console** → Authentication → Settings → Autorisierte Domains: `dranzeit.de` und
-   `www.dranzeit.de` eintragen (sonst scheitert die Google-Anmeldung).
-4. **Resend** → Domains → `dranzeit.de` hinzufügen, die SPF/DKIM-Einträge beim Domain-Anbieter eintragen.
+3. **Resend** → Domains → `dranzeit.de` hinzufügen, die SPF/DKIM-Einträge beim Domain-Anbieter eintragen.
 
 Dann den Block einfügen. Er prüft DNS, setzt den Dranzeit-Block in der gemeinsamen Caddyfile (alte Adresse
 leitet weiter, Stadtseiten und Sitemap gehen ans Backend), stellt `PUBLIC_URL` um, richtet bei vorhandenem
@@ -806,8 +651,8 @@ Läden sehen darf nur der Betreiber. Inhaber sehen unter `/scheduler-control` nu
 Läden. Wer Betreiber ist, steht in `/etc/q-me.env` (keine Geheimsache, aber nur root kann es ändern):
 
 ```bash
-QME_ADMIN_EMAILS=a@example.com,b@example.com   # E-Mail des Firebase-Kontos, mehrere mit Komma
-QME_ADMIN_UIDS=…                               # alternativ die Firebase-UID
+QME_ADMIN_EMAILS=a@example.com,b@example.com   # E-Mail des Kontos, mehrere mit Komma
+QME_ADMIN_UIDS=…                               # alternativ die Konto-ID
 ```
 
 Danach `systemctl restart q-me`. Ohne Eintrag kann niemand steuern; der Dienst startet trotzdem von selbst.
@@ -829,7 +674,7 @@ Betreiber-Konten nie), Konto sperren, Anmelde-Adresse ändern, Passwort-Mail, Be
 `konten-aufraeumen.py` (Probelauf, Namen eintippen, Sicherung). Kündigen, Erstatten und Gutschriften gehen im
 Stripe-Dashboard; die Laden-Ansicht verlinkt den Kunden dort.
 
-Gründe, Protokoll und Sicherungen liegen **nicht** in Firestore (dort ist alles ohne Anmeldung lesbar), sondern im
+Gründe, Protokoll und Sicherungen liegen **nicht** in der Datenbank der App, sondern im
 Datenordner des Dienstes: `/opt/q-me/backend/.local_data/betreiber/` (`protokoll.jsonl`, `sicherungen/`,
 `gesperrte-konten.json`, nur für den Dienst lesbar). Ein `git pull` bringt diese Dateien nicht mit und löscht sie nicht.
 
@@ -873,7 +718,7 @@ bekommt automatisch auch eine solche Seite, mit Nummer ziehen und Termin buchen.
   deren Start-, Impressums- oder Kontaktseite, geht ein Link dorthin (24 Stunden); erst damit geht die Seite offline.
   Passt die Adresse nicht, bleibt die Seite online. Zu jeder Anfrage und jeder Entfernung bekommen die Adressen aus
   `QME_ADMIN_EMAILS` eine Mail. „Nur Angaben korrigieren“ schickt nur diese Mail. Adresse und Grund stehen im Protokoll
-  (nicht in Firestore). Offline nehmen von Hand und Zurückholen geht hier im Reiter.
+  (nicht in der Datenbank der App). Offline nehmen von Hand und Zurückholen geht hier im Reiter.
 - **Wünsche**: „Das wünsch ich mir“ auf der Seite zählt mit (je Person und Tag einmal) – Liste nach Wünschen für den
   Vertrieb.
 
@@ -890,7 +735,7 @@ Voraussetzungen: `GOOGLE_MAPS_API_KEY` mit **Places API (New)** (wie der Einrich
 Seite mit 20 Treffern ein paar Cent), `ANTHROPIC_API_KEY`, Caddy mit den Pfaden `/friseur` und `/barbershop`
 (`python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de dranzeit.com www.dranzeit.com`
 erneut ausführen; bis dahin leitet die App auf `/routes/seo/friseur/…` um). Die Sammlung `verzeichnis` schreibt nur
-das Backend; im Browser ist sie zu, sobald die Firestore-Regeln eingespielt sind (Abschnitt „Firestore-Regeln“).
+das Backend.
 
 ### Briefe an Salons (Reiter Briefe, PIN eBrief)
 
@@ -1080,8 +925,8 @@ curl -s https://dranzeit.de/routes/scheduler-status
 # → {"detail":"Not authenticated"}: Caddy und Backend sind verbunden
 ```
 
-Meldet das Backend `No such file or directory: '/etc/q-me/firebase-service-account.json'`,
-fehlt der Schlüssel.
+Meldet das Backend `Datenbank: nicht erreichbar`, ist PostgreSQL aus oder `QME_DATABASE_URL` fehlt (Abschnitt
+„Datenbank (PostgreSQL)“).
 
 ## Platzbedarf
 

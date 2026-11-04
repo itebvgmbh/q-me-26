@@ -429,27 +429,14 @@ def test_geloeschte_app_wird_abgemeldet():
         notify_worker.fcm_configured = lambda: False
 
 
-def test_app_nachricht_wie_web_push():
-    message = fcm.build_message("fcm-token-iphone-1234567890", "Du bist dran", "Barber Ali ruft dich auf.", "/nummer/dran", "called-dran")
-    assert message.token == "fcm-token-iphone-1234567890"
-    assert message.notification.title == "Du bist dran"
-    # url öffnet die Nummer beim Antippen, tag ersetzt die ältere Nachricht zur selben Nummer
-    assert message.data == {"url": "/nummer/dran", "tag": "called-dran"}
-    assert message.apns.headers["apns-collapse-id"] == "called-dran"
-    assert message.apns.headers["apns-priority"] == "10"
-    assert message.apns.payload.aps.sound == "default"
-    assert message.android.collapse_key == "called-dran"
-
-
-def test_ohne_dienstkonto_kein_app_kanal():
-    alt = {k: os.environ.pop(k, None) for k in ("FIREBASE_SERVICE_ACCOUNT_KEY", "FIREBASE_SERVICE_ACCOUNT_KEY_FILE")}
+def test_app_kanal_aus_bis_apns():
+    """Firebase ist ausgebaut (Stufe 5); bis zum Anschluss an APNs geht nichts an die App"""
+    assert fcm.fcm_configured() is False
     try:
-        assert fcm.fcm_configured() is False
-        os.environ["FIREBASE_SERVICE_ACCOUNT_KEY_FILE"] = "/etc/q-me-firebase.json"
-        assert fcm.fcm_configured() is True
-    finally:
-        os.environ.pop("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", None)
-        os.environ.update({k: v for k, v in alt.items() if v is not None})
+        fcm.send_app_push("token", "Du bist dran", "Barber Ali ruft dich auf.", "/nummer/dran", "called-dran")
+        raise AssertionError("Push an die App ohne Kanal")
+    except RuntimeError:
+        pass
 
 
 # --- Nachrichten an das Team (app/libs/team_notify.py) ---------------------------------------------

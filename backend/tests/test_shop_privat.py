@@ -5,11 +5,11 @@ Stripe-Modus beim Abo (app/apis/billing, known_customer). Ohne Firebase und ohne
     cd backend && .venv/bin/python tests/test_shop_privat.py
 """
 import stripe
-from google.cloud import firestore
 
-import test_privacy
+import test_privacy  # setzt den Pfad zum Backend
 from test_privacy import FakeDb
 
+from app import store as firestore  # noqa: E402
 from app.libs import shop_privat  # noqa: E402
 
 

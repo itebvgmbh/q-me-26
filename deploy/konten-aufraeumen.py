@@ -290,7 +290,7 @@ def cmd_loeschen(selection: str, run: bool) -> None:
 
 def als_dienst() -> None:
     """Als root gestartet (Blöcke in deploy/README.md): als Benutzer q-me mit der Umgebung des Dienstes neu starten.
-    Daten und Konten liegen in PostgreSQL, angemeldet wird dort nur als q-me (peer) – wie deploy/datenumzug.sh."""
+    Daten und Konten liegen in PostgreSQL, angemeldet wird dort nur als q-me (peer) – wie deploy/dateiumzug.sh."""
     if os.name != "posix" or os.geteuid() != 0 or not os.path.exists(ENV_FILE) or os.environ.get("QME_KONTEN_ALS_ROOT"):
         return
     sys.stdout.flush()
