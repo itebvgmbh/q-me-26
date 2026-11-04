@@ -22,8 +22,8 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from google.api_core.exceptions import Conflict
-from google.cloud import firestore as gcf
+from app.store import Conflict
+from app import store
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
@@ -52,7 +52,7 @@ def _expired(data: dict, now: datetime) -> bool:
 
 def _hash_plain(ref, token: str) -> None:
     """Klartext-Token eines alten Eintrags durch seinen Hash ersetzen – der Link gilt weiter"""
-    ref.update({"activationTokenHash": token_hash(token), "activationToken": gcf.DELETE_FIELD})
+    ref.update({"activationTokenHash": token_hash(token), "activationToken": store.DELETE_FIELD})
 
 
 def hash_plain_tokens(db) -> int:
@@ -101,7 +101,7 @@ def _link(db, doc, shop_id: str, uid: str) -> int:
             batch.update(a.reference, update)
             write_public(batch, db, a.id, {**(a.to_dict() or {}), **update})  # öffentliche Kurzfassung mit
         batch.commit()
-    doc.reference.update({"userId": uid, "isActive": True, "activatedAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP})
+    doc.reference.update({"userId": uid, "isActive": True, "activatedAt": store.SERVER_TIMESTAMP, "updatedAt": store.SERVER_TIMESTAMP})
     return len(appointments)
 
 
@@ -144,8 +144,8 @@ def create_link(body: LinkRequest, request: Request, user: AuthorizedUser) -> di
         {
             "activationTokenHash": token_hash(token),
             "activationExpires": expires,
-            "activationToken": gcf.DELETE_FIELD,
-            "updatedAt": gcf.SERVER_TIMESTAMP,
+            "activationToken": store.DELETE_FIELD,
+            "updatedAt": store.SERVER_TIMESTAMP,
         }
     )
     return {"link": f"{public_origin(request)}/activate?token={token}", "expires": expires.isoformat()}
@@ -221,9 +221,9 @@ def link_own_entry(shop_id: str, user: AuthorizedUser) -> dict:
                 "email": email,
                 "userId": user.sub,
                 "isActive": True,
-                "createdAt": gcf.SERVER_TIMESTAMP,
-                "updatedAt": gcf.SERVER_TIMESTAMP,
-                "activatedAt": gcf.SERVER_TIMESTAMP,
+                "createdAt": store.SERVER_TIMESTAMP,
+                "updatedAt": store.SERVER_TIMESTAMP,
+                "activatedAt": store.SERVER_TIMESTAMP,
             }
         )
     except Conflict:

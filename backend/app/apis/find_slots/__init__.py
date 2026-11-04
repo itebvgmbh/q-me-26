@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime, timedelta
 from fastapi import APIRouter
-from firebase_admin import firestore
+from app import store
 from pydantic import BaseModel
 
 # Import modules
@@ -105,9 +105,9 @@ async def find_new_slots_for_appointments(appointment_ids: List[str]) -> None:
 
             # First check for cancelled appointments that could be offered as earlier slots
             cancelled_appt_query = db.collection('appointments')
-            cancelled_appt_query = cancelled_appt_query.where(filter=firestore.FieldFilter('shopId', '==', shop_id))
-            cancelled_appt_query = cancelled_appt_query.where(filter=firestore.FieldFilter('staffId', '==', staff_id))
-            cancelled_appt_query = cancelled_appt_query.where(filter=firestore.FieldFilter('status', '==', 'cancelled'))
+            cancelled_appt_query = cancelled_appt_query.where(filter=store.FieldFilter('shopId', '==', shop_id))
+            cancelled_appt_query = cancelled_appt_query.where(filter=store.FieldFilter('staffId', '==', staff_id))
+            cancelled_appt_query = cancelled_appt_query.where(filter=store.FieldFilter('status', '==', 'cancelled'))
             
             # We don't need to query by service as we can filter those after fetching
             cancelled_appointments = []
@@ -289,7 +289,7 @@ async def find_new_slots_for_appointments(appointment_ids: List[str]) -> None:
                         'originalEndTime': appointment['endTime'],
                         'earlierStartTime': earlier_start_iso,
                         'earlierEndTime': earlier_end_iso,
-                        'createdAt': firestore.SERVER_TIMESTAMP,
+                        'createdAt': store.SERVER_TIMESTAMP,
                         'isRead': False,
                         'isAccepted': False
                     }

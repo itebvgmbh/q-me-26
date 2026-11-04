@@ -31,7 +31,7 @@ def setup(store=None, uid=None):
     nummer._frueher_dran_neu = lambda *a: None
     nummer.throttle = lambda *a, **k: None
     nummer.request_uid = lambda request: uid
-    buchung.firestore.transactional = transactional
+    buchung.store.transactional = transactional
     app = FastAPI()
     app.include_router(nummer.router)
     return TestClient(app), db, store

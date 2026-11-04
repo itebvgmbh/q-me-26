@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import stripe
 
 from fastapi import APIRouter, HTTPException, Request
-from google.cloud import firestore as gcf
+from app import store
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
@@ -209,7 +209,7 @@ def claim_founder(body: ShopRequest, user: AuthorizedUser) -> dict:
     shop_ref = db.collection("shops").document(body.shop_id)
     counter_ref = db.collection(FOUNDERS_DOC[0]).document(FOUNDERS_DOC[1])
 
-    @gcf.transactional
+    @store.transactional
     def claim(transaction) -> int:
         shop = shop_ref.get(transaction=transaction).to_dict() or {}
         counter = counter_ref.get(transaction=transaction).to_dict() or {}

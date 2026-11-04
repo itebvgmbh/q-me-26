@@ -16,8 +16,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks
-from google.cloud import firestore
-
+from app import store
 from app.auth import AuthorizedUser
 from app.apis.cache import invalidate_shop_date_cache
 from app.apis.check_slots import _check_lock, trigger_check_in_background
@@ -161,7 +160,7 @@ def _accept(db, notification_id: str, user_id: Optional[str]) -> Dict:
     occupy = Placement(staff_id, earlier_start, earlier_end)
     transaction = db.transaction()
 
-    @firestore.transactional
+    @store.transactional
     def move(tx) -> str:
         appt_snap = appointment_ref.get(transaction=tx)
         note_snap = notification_ref.get(transaction=tx)
@@ -183,11 +182,11 @@ def _accept(db, notification_id: str, user_id: Optional[str]) -> Dict:
             "startTime": earlier_start,
             "endTime": earlier_end,
             "staffId": staff_id,
-            "updatedAt": firestore.SERVER_TIMESTAMP,
+            "updatedAt": store.SERVER_TIMESTAMP,
         })
         # Öffentliche Kurzfassung (Nummernseite, Bildschirm, Platzsuche) im selben Schritt
         write_public(tx, db, appointment_id, {**current, "startTime": earlier_start, "endTime": earlier_end, "staffId": staff_id})
-        tx.update(notification_ref, {"isAccepted": True, "isRead": True, "acceptedAt": firestore.SERVER_TIMESTAMP})
+        tx.update(notification_ref, {"isAccepted": True, "isRead": True, "acceptedAt": store.SERVER_TIMESTAMP})
         change.write()
         return "moved"
 

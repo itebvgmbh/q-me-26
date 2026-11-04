@@ -14,8 +14,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
-from google.cloud import firestore as gcf
-
+from app import store
 from app.i18n import merke
 from app.libs import telefon as t
 from app.libs.plans import has_feature, is_suspended
@@ -178,4 +177,4 @@ def anruf_ende(db, call_sid: str, sekunden: int) -> None:
     shop_id = (snap.to_dict() or {}).get("shopId")
     ref.delete()
     if shop_id and sekunden > 0:
-        db.collection(t.LAEDEN).document(shop_id).set({"sekunden": gcf.Increment(sekunden), "anrufe": gcf.Increment(1)}, merge=True)
+        db.collection(t.LAEDEN).document(shop_id).set({"sekunden": store.Increment(sekunden), "anrufe": store.Increment(1)}, merge=True)

@@ -46,7 +46,7 @@ def split_legacy(staff: dict) -> dict:
 
 def migrate(db, now: datetime | None = None, batch_size: int = 200) -> int:
     """Kontaktfelder vom staff-Eintrag zu den Kontaktdaten des Ladens umziehen. Gibt die Zahl der Personen zurück."""
-    from google.cloud import firestore
+    from app import store
 
     now = now or datetime.now(timezone.utc)
     moved = 0
@@ -61,7 +61,7 @@ def migrate(db, now: datetime | None = None, batch_size: int = 200) -> int:
             values = {k: v for k, v in legacy.items() if v not in (None, "")}
             if values:
                 batch.set(contact_ref(db, shop_id, doc.id), {**values, "updatedAt": now}, merge=True)
-        batch.update(doc.reference, {f: firestore.DELETE_FIELD for f in legacy})
+        batch.update(doc.reference, {f: store.DELETE_FIELD for f in legacy})
         moved += 1
         pending += 2
         if pending >= batch_size:

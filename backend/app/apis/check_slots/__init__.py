@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from firebase_admin import firestore
+from app import store
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
@@ -287,7 +287,7 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
     for notification_id in plan.delete:
         notifications.document(notification_id).delete()
     for notification_id in plan.expire:
-        notifications.document(notification_id).update({'status': 'expired', 'expiredAt': firestore.SERVER_TIMESTAMP})
+        notifications.document(notification_id).update({'status': 'expired', 'expiredAt': store.SERVER_TIMESTAMP})
     for notification_id, (start, end) in plan.move:
         notifications.document(notification_id).update({
             'earlierStartTime': start.isoformat(),
@@ -311,7 +311,7 @@ def _run_check(shop_id: Optional[str], staff_id: Optional[str], now: Optional[da
             # Ortszeit ohne Zeitzone – so liest accept_slot sie (Europe/Berlin)
             'earlierStartTime': start.isoformat(),
             'earlierEndTime': end.isoformat(),
-            'createdAt': firestore.SERVER_TIMESTAMP,
+            'createdAt': store.SERVER_TIMESTAMP,
             'offeredAt': _aware(now),
             'expiresAt': hold_until,
             'status': 'offered',

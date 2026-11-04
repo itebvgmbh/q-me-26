@@ -58,7 +58,7 @@ def stripe_ids(db, shop_id: str, shop: dict | None = None, mode: str | None = No
 
 def save_stripe_ids(db, shop_id: str, customer_id: str | None = None, subscription_id: str | None = None, mode: str = LIVE) -> None:
     """Stripe-IDs speichern (nur die übergebenen) und vom öffentlichen Laden-Eintrag entfernen"""
-    from google.cloud import firestore
+    from app import store
 
     values = {k: v for k, v in (("customerId", customer_id), ("subscriptionId", subscription_id)) if v}
     if mode == TEST:
@@ -72,7 +72,7 @@ def save_stripe_ids(db, shop_id: str, customer_id: str | None = None, subscripti
     billing = ((snap.to_dict() or {}).get("billing") or {}) if snap.exists else {}
     legacy = [k for k in STRIPE_FIELDS if k in billing]
     if legacy:
-        shop.update({f"billing.{k}": firestore.DELETE_FIELD for k in legacy})
+        shop.update({f"billing.{k}": store.DELETE_FIELD for k in legacy})
 
 
 def clear_stripe_ids(db, shop_id: str, mode: str = LIVE) -> None:
@@ -113,7 +113,7 @@ def clear_locked_accounts(db, shop_id: str) -> None:
 
 def migrate(db) -> int:
     """Stripe-IDs und gesperrte Konten vom Laden-Eintrag nach privat umziehen. Gibt die Zahl der Läden zurück."""
-    from google.cloud import firestore
+    from app import store
 
     moved = 0
     for doc in db.collection("shops").stream():
@@ -129,9 +129,9 @@ def migrate(db) -> int:
             privat_ref(db, doc.id, "stripe").set({**{k: v for k, v in ids.items() if v}, "updatedAt": now}, merge=True)
         if accounts:
             privat_ref(db, doc.id, "sperre").set({"accounts": list(accounts), "updatedAt": now}, merge=True)
-        update = {f"billing.{k}": firestore.DELETE_FIELD for k in ids}
+        update = {f"billing.{k}": store.DELETE_FIELD for k in ids}
         if accounts is not None:
-            update["suspended.accounts"] = firestore.DELETE_FIELD
+            update["suspended.accounts"] = store.DELETE_FIELD
         doc.reference.update(update)
         moved += 1
     return moved

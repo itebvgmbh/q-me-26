@@ -51,17 +51,15 @@ async def create_appointment_endpoint(request: CreateAppointmentRequest, backgro
     """Create a new appointment with automatic cache invalidation"""
     try:
         from dateutil.parser import parse as parse_date
-        from google.cloud import firestore
-        
+
         appointment_data = request.dict()
-        
+
+        # Als datetime speichern; der Speicher legt es als Zeitpunkt ab (früher ein Aufruf, den es nicht gibt)
         if 'startTime' in appointment_data and appointment_data['startTime']:
-            start_time = parse_date(appointment_data['startTime'])
-            appointment_data['startTime'] = firestore.firestore.Timestamp.from_datetime(start_time.replace(tzinfo=None))
-            
+            appointment_data['startTime'] = parse_date(appointment_data['startTime'])
+
         if 'endTime' in appointment_data and appointment_data['endTime']:
-            end_time = parse_date(appointment_data['endTime'])
-            appointment_data['endTime'] = firestore.firestore.Timestamp.from_datetime(end_time.replace(tzinfo=None))
+            appointment_data['endTime'] = parse_date(appointment_data['endTime'])
         
         result = await create_appointment(appointment_data, background_tasks)
         
@@ -80,19 +78,14 @@ async def update_appointment_endpoint(request: UpdateAppointmentRequest, backgro
         
         update_data = request.dict(exclude={'appointmentId'}, exclude_unset=True)
         
+        from dateutil.parser import parse as parse_date
+
+        # Als datetime speichern; der Speicher legt es als Zeitpunkt ab (früher ein Aufruf, den es nicht gibt)
         if 'startTime' in update_data and update_data['startTime']:
-            from dateutil.parser import parse as parse_date
-            from google.cloud import firestore
-            
-            start_time = parse_date(update_data['startTime'])
-            update_data['startTime'] = firestore.firestore.Timestamp.from_datetime(start_time.replace(tzinfo=None))
-            
+            update_data['startTime'] = parse_date(update_data['startTime'])
+
         if 'endTime' in update_data and update_data['endTime']:
-            from dateutil.parser import parse as parse_date
-            from google.cloud import firestore
-            
-            end_time = parse_date(update_data['endTime'])
-            update_data['endTime'] = firestore.firestore.Timestamp.from_datetime(end_time.replace(tzinfo=None))
+            update_data['endTime'] = parse_date(update_data['endTime'])
         
         result = await update_appointment(appointment_id, update_data, background_tasks)
         

@@ -22,7 +22,7 @@ from typing import List, Optional
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
-from google.cloud import firestore as gcf
+from app import store
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firebase_app, get_firestore_db
@@ -326,7 +326,7 @@ def gruender(shop_id: str, body: FounderRequest, user: AuthorizedUser) -> dict:
     counter_ref = db.collection(FOUNDERS_DOC[0]).document(FOUNDERS_DOC[1])
     now = _now()
 
-    @gcf.transactional
+    @store.transactional
     def change(transaction) -> dict:
         shop = ref.get(transaction=transaction).to_dict() or {}
         counter = counter_ref.get(transaction=transaction).to_dict() or {}
