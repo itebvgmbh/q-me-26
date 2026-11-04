@@ -129,9 +129,9 @@ def main() -> int:
     parser.add_argument("--lesen", action="store_true", help="nur lesen und zählen")
     args = parser.parse_args()
 
-    from app.apis.firebase_utils import get_firestore_db
+    from app.apis.firebase_utils import google_firestore_db  # Quelle ist immer Firestore, egal was QME_SPEICHER sagt
 
-    return umziehen(get_firestore_db(), args.ziel, args.lesen)
+    return umziehen(google_firestore_db(), args.ziel, args.lesen)
 
 
 if __name__ == "__main__":
