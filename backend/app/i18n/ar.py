@@ -308,4 +308,11 @@ TEXTE: dict = {
     "Ungültiger Zeitraum.": "فترة غير صالحة.",
     "Da ist schon ein Termin ({von}–{bis}).": "يوجد موعد بالفعل ({von}–{bis}).",
     "Der Platz ist gerade weggegangen.": "تم حجز هذا الموعد للتو.",
+    # Team und Leistungen (app/apis/team_laden)
+    "Bitte gib einen Namen ein.": "يرجى إدخال اسم.",
+    "Ungültige Angaben zur Person.": "بيانات الشخص غير صالحة.",
+    "Diese Person gibt es nicht mehr.": "هذا الشخص لم يعد موجودًا.",
+    "Das darf nur der Inhaber des Ladens.": "هذا مسموح لصاحب المحل فقط.",
+    "Ungültige Angaben zur Leistung.": "بيانات الخدمة غير صالحة.",
+    "Diese Leistung gibt es nicht mehr.": "هذه الخدمة لم تعد موجودة.",
 }

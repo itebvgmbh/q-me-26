@@ -276,4 +276,11 @@ TEXTE: dict = {
     "Ungültiger Zeitraum.": "Geçersiz zaman aralığı.",
     "Da ist schon ein Termin ({von}–{bis}).": "Bu saatte zaten bir randevu var ({von}–{bis}).",
     "Der Platz ist gerade weggegangen.": "Bu yer az önce doldu.",
+    # Team und Leistungen (app/apis/team_laden)
+    "Bitte gib einen Namen ein.": "Lütfen bir isim gir.",
+    "Ungültige Angaben zur Person.": "Kişi bilgileri geçersiz.",
+    "Diese Person gibt es nicht mehr.": "Bu kişi artık yok.",
+    "Das darf nur der Inhaber des Ladens.": "Bunu yalnızca salon sahibi yapabilir.",
+    "Ungültige Angaben zur Leistung.": "Hizmet bilgileri geçersiz.",
+    "Diese Leistung gibt es nicht mehr.": "Bu hizmet artık yok.",
 }
