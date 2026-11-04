@@ -47,7 +47,8 @@ node dev/e2e/briefe.cjs                     # Betreiber-Bereich → Briefe: Ausw
 node dev/e2e/uebernahme.cjs                 # Seite übernehmen ohne Code: Anfrage an den Betreiber, Nachweis per E-Mail (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig, keine Mail)
 node dev/e2e/telefon-hinweis.cjs            # Telefon-Assistent: „Per Telefon buchen“ auf Ladenseite, in der Ladenliste und beim Buchen, Kasten, QR-Plakat, Preis (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig)
 node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
-node dev/e2e/regeln-live.cjs                # Firestore-Regeln in der echten Datenbank: Tarif-Felder gesperrt, Löschen nur mit Vermerk, meta zu
+node dev/e2e/rechte-live.cjs                # Rechte an der Schnittstelle von dranzeit.de: ohne Konto 401, öffentlich ohne Konto-IDs/Kontakte, Anmeldung (ohne Konto, ändert nichts)
+node dev/e2e/regeln-live.cjs                # Firestore der alten Kopie für den Browser zu (bis das Firebase-Projekt gelöscht ist)
 node dev/e2e/bilder-hochladen.cjs           # Logo und Foto im Testladen hochladen, ansehen, löschen (Speicher-Regeln, deploy/README.md)
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
