@@ -2,9 +2,8 @@
 
 - **ID:** briefversand
 - **Stand:** 04.11.2026
-- **Status:** Entwurf zur Abstimmung mit Stefan. Entschieden ist nur: Statt jeden Brief einzeln zu erzeugen, schreibt
-  Dranzeit viele Salons auf einmal an und übergibt die Briefe einem Druck- und Versanddienstleister. Offen: siehe
-  „Offen“.
+- **Status:** Abgestimmt mit Stefan am 04.11.2026 (siehe „Entschieden“). Statt jeden Brief einzeln zu erzeugen,
+  schreibt Dranzeit viele Salons auf einmal an und übergibt die Briefe einem Druck- und Versanddienstleister.
 - **Grundlage:** Recherche der Anbieter vom 04.11.2026 (Abschnitt „Dienstleister“), Brief aus PR #86
   (`backend/app/libs/brief.py`), Übernahme-Code aus PR #67 (`backend/app/libs/uebernahme.py`).
 
@@ -39,8 +38,9 @@ Preise netto, 1 Blatt A4 einseitig, inklusive Porto, Standardbrief Inland:
 | E-POST (Deutsche Post) | 0,83 € (0,80 €) | nur mit Partnervertrag | nein | – |
 | Pingen (Zürich) | 1,13 € unter 500/Monat | beste Schnittstelle, Python-SDK | nein, Rücksendezeile im Adressfeld | nicht öffentlich |
 
-- **Vorschlag:** PIN eBrief. Günstigster Farbpreis, stellt in Berlin selbst zu, Staging und Webhooks, löscht die PDFs
-  spätestens nach 28 Tagen. Das ist wichtig, weil der Code im PDF im Klartext steht. Ersatz: onlinebrief24.
+- **Entschieden:** PIN eBrief, farbig. Günstigster Farbpreis, stellt in Berlin selbst zu, Staging und Webhooks, löscht
+  die PDFs spätestens nach 28 Tagen. Das ist wichtig, weil der Code im PDF im Klartext steht. Ersatz, falls PIN nicht
+  klappt: onlinebrief24.
 - **Porto 2027:** Die Deutsche Post will den Standardbrief zum 01.01.2027 von 0,95 € auf 1,15 € verteuern. Die
   Bundesnetzagentur hat noch nicht zugestimmt. Die Preise der Anbieter werden mitsteigen.
 - **Werbebrief-Tarif (Dialogpost):** 0,38 € Porto, aber erst ab 200 Briefen je Leitregion (Berlin: 10, 12, 13, 14)
@@ -60,7 +60,16 @@ Im Betreiber-Bereich, Reiter Verzeichnis, gibt es einen Bereich „Briefe“:
   aufklappbaren Liste, zum Beispiel „12 ohne Anschrift, 3 keine Post gewünscht, 5 schon übernommen“.
 - **Vorschau:** Anzahl Briefe, voraussichtliche Kosten (Preis je Brief aus der Einstellung), Liste mit Name und
   Anschrift. Einzelne Salons lassen sich abwählen.
-- **Obergrenze je Welle** (Vorschlag 200 Briefe). Mehr lässt sich nicht auswählen.
+- **Obergrenze je Welle.** Mehr lässt sich nicht auswählen.
+
+### Einstellungen
+
+Im Betreiber-Bereich einstellbar, jede Änderung steht im Protokoll:
+
+- Obergrenze je Welle, Standard 200 Briefe.
+- Kostengrenze je Kalendermonat, Standard 300 €.
+- Preis je Brief für die Kostenvorschau, Standard 0,77 € (PIN, farbig). Die Preise steigen voraussichtlich im Januar
+  2027.
 
 ### Welle erzeugen und verschicken
 
@@ -71,6 +80,9 @@ Stufe A (Sammel-PDF):
 - Der Betreiber lädt das PDF beim Dienstleister hoch und lässt es nach je einer Seite aufteilen.
 - Danach klickt er „Hochgeladen“. Erst dann gelten die Briefe als verschickt. Ohne diesen Klick steht die Welle auf
   „erzeugt“ und lässt sich verwerfen. Die Codes verfallen dann, und die Salons sind wieder auswählbar.
+- **Unzustellbar:** PIN zeigt unzustellbare Briefe in Stufe A nur im eigenen Portal. Der Betreiber markiert diese
+  Salons im Betreiber-Bereich mit dem Knopf „Unzustellbar“. Ab Stufe B kommt das automatisch.
+- **Erste Welle:** 10–20 Briefe, einer davon an die eigene Adresse (siehe „Probedruck“). Danach Stufe B.
 
 Stufe B (Versand per Schnittstelle):
 
@@ -85,11 +97,11 @@ Stufe B (Versand per Schnittstelle):
 
 ### Erinnerungsbrief
 
-- Nach einer Frist (Vorschlag 21 Tage) erscheinen Salons aus einer Welle als „Erinnerung fällig“. Voraussetzung:
+- 21 Tage nach dem ersten Brief erscheinen Salons aus einer Welle als „Erinnerung fällig“. Voraussetzung:
   nicht übernommen, nicht entfernt, keine Sperre, nicht unzustellbar.
 - Der Betreiber verschickt die Erinnerungen als eigene Welle, mit demselben Ablauf.
 - Eigener, kürzerer Text („Vor drei Wochen haben wir dir geschrieben …“) mit neuem Code. Der alte verfällt.
-- Höchstens zwei Briefe je Salon (Vorschlag). Danach ist der Salon nicht mehr auswählbar.
+- Höchstens zwei Briefe je Salon. Danach ist der Salon nicht mehr auswählbar.
 - In der ersten Fassung geht nichts ohne Bestätigung des Betreibers raus. Kein Nachtlauf.
 
 ### Auswertung
@@ -106,8 +118,7 @@ Ein Salon ist nur auswählbar, wenn alles davon zutrifft:
 - Noch nicht mit einem Dranzeit-Laden verbunden (`shopId` leer).
 - Keine Sperre „keine Post“ (siehe unten), auch nicht auf der Sperrliste.
 - Nicht als unzustellbar markiert.
-- Weniger als zwei Briefe bisher, und der letzte ist mindestens so alt wie die Erinnerungsfrist.
-- Die Anschrift stammt aus einer zulässigen Quelle (siehe „Datenschutz und Recht“).
+- Weniger als zwei Briefe bisher, und der letzte ist mindestens 21 Tage alt.
 
 Diese Regeln stehen an einer Stelle im Backend (Erweiterung von `brief.hindernis()`). Die Auswahl im Betreiber-Bereich
 und der Versand prüfen dieselben Regeln. Der Versand prüft sie unmittelbar vor jedem einzelnen Brief noch einmal.
@@ -119,6 +130,12 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
 
 - **Knopf „Keine Post mehr“** am Eintrag im Betreiber-Bereich, mit Grund (E-Mail, Brief, Anruf, vor Ort).
   Ins Protokoll kommt der Eintrag „Verzeichnis: keine Post“.
+- **Link „Keine Post mehr“ auf der Salonseite**, unten neben „Eintrag entfernen“. Ein Klick sperrt sofort, ohne
+  Nachweis per E-Mail: Missbrauch kostet uns nur einen Brief, und ein Widerspruch soll einfach sein. Eine Grenze je
+  IP-Adresse und Tag verhindert Massenklicks. Die Seite bleibt online. Der Betreiber bekommt eine Mail. Auf Seiten
+  echter Dranzeit-Läden gibt es den Link nicht.
+- **Brieftext:** Der Hinweis im Brief nennt den Link zusätzlich zu Mail und Absenderadresse. Stefan gibt den Wortlaut
+  frei.
 - **Automatisch gesperrt:** wenn der Salon seinen Eintrag entfernt und wenn ein Brief unzustellbar zurückkommt (dann mit
   Hinweis „Anschrift prüfen“; nach einer Korrektur der Anschrift ist die Sperre aufgehoben).
 - **Sperrliste, die das Löschen überlebt:** Wird ein Eintrag gelöscht und derselbe Salon später neu importiert, darf er
@@ -131,18 +148,14 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
   erkennbar widersprochen hat. Darum die Sperre oben.
 - **Quelle der Anschrift.** Die Orientierungshilfe Direktwerbung der Datenschutzkonferenz (Februar 2022, Ziffer 4.2)
   hält es für regelmäßig unzulässig, Daten aus einem Online-Impressum für Werbung zu nutzen. Der Import
-  (`verzeichnis_import.py`) liest heute Startseite, Impressum, Kontaktseite und Preisseiten zusammen und merkt sich
-  nicht, wo die Anschrift stand. Neu:
-  - Der Import merkt sich je Eintrag die Quelle der Anschrift (`quelle.adresse`): `startseite`, `kontakt`,
-    `impressum`, `von_hand`. Dafür sucht er die gefundene Straße in den einzelnen Seiten. Steht sie nur im Impressum,
-    ist die Quelle `impressum`.
-  - Bei „Von Hand“ wählt der Betreiber, woher die Anschrift stammt, zum Beispiel vor Ort gesehen oder von der
-    Kontaktseite. Inhalte aus Google Places dürfen nicht gespeichert werden; das gilt weiter.
-  - Für bestehende Einträge ohne diese Angabe gibt es eine einmalige Nachprüfung, die die Webseite noch einmal liest.
-  - Welche Quellen für Briefe zulässig sind, klärt die rechtliche Prüfung (siehe „Offen“). Bis dahin gilt `impressum`
-    als nicht zulässig.
+  (`verzeichnis_import.py`) liest Startseite, Impressum, Kontaktseite und Preisseiten zusammen und merkt sich nicht, wo
+  die Anschrift stand.
+  - **Entschieden am 04.11.2026 (Stefan):** Alle Quellen zählen, auch das Impressum. Dranzeit merkt sich die Quelle
+    nicht je Eintrag. Das Risiko trägt Stefan bewusst.
   - Für uns spricht: Der Brief geht an die Ladenadresse, die am Laden und meist auch auf der Kontaktseite steht. Er
     nennt keinen Namen aus dem Impressum, sondern „Inhaberin oder Inhaber“.
+  - Schließt die rechtliche Prüfung Impressum-Adressen aus, müssen die Webseiten aller Einträge erneut gelesen werden.
+    Das ist dann eine eigene Aufgabe.
 - **Informationspflicht (Art. 14 DSGVO):** Der Brief nennt schon die Quelle („von deiner Webseite“) und verweist auf
   die Datenschutzerklärung. Stammt die Anschrift nicht von der Webseite, passt sich der Satz an.
 - **Widerspruch (Art. 21 DSGVO):** Die Datenschutzkonferenz empfiehlt, den Hinweis deutlich abgesetzt auf jede
@@ -168,8 +181,9 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
 - **Testmodus:** Eine Einstellung schaltet zwischen der Staging-Umgebung des Anbieters und dem echten Versand. Im
   Testmodus zeigt der Bereich „Briefe“ einen deutlichen Hinweis, und Wellen sind als Test markiert. Sie zählen in keiner
   Auswertung und sperren keinen Salon.
-- **Kostengrenze:** Neben der Obergrenze je Welle gibt es eine Grenze je Monat in Euro (Vorschlag 300 €). Der Versand
-  hört auf, sobald sie erreicht ist, und meldet das.
+- **Kostengrenze:** Neben der Obergrenze je Welle gibt es eine Grenze je Kalendermonat in Euro (siehe
+  „Einstellungen“). In Stufe A lässt sich keine Welle erzeugen, die zusammen mit den Wellen des Monats darüber läge.
+  In Stufe B hört der Versand auf, sobald sie erreicht ist, und meldet das.
 - **Nie doppelt:** Ein zweiter Klick, ein Neustart des Backends oder ein Netzwerkfehler dürfen keinen Brief doppelt
   auslösen. Vor jedem Brief merkt sich Dranzeit „wird verschickt“. Nach einem Abbruch fragt es den Anbieter, bevor es
   neu versucht.
@@ -184,12 +198,14 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
 | API-Zugang anfordern (bei PIN über den Support), Webhook-Adresse eintragen lassen | Stefan | B |
 | API-Schlüssel und Webhook-Geheimnis in `/etc/q-me.env` | Stefan, Block mit `Read-Host -AsSecureString` | B |
 | Testmodus einschalten und Staging-Zugang hinterlegen | Claude per ssh (ohne Geheimnisse), Schlüssel Stefan | B |
-| Einmalige Nachprüfung der Adressquelle bestehender Einträge | Claude per ssh, Probelauf zuerst | A |
+| Wortlaut von Erinnerungsbrief und Hinweis „Keine Post mehr“ freigeben | Stefan | A |
 
 ## Acceptance – Abnahme
 
-- **Auswahl:** Gesperrte, übernommene, entfernte, unzustellbare Salons und Salons ohne vollständige Anschrift oder mit
-  unzulässiger Quelle sind nie auswählbar. Die Liste der Ausgeschlossenen nennt den Grund.
+- **Auswahl:** Gesperrte, übernommene, entfernte, unzustellbare Salons und Salons ohne vollständige Anschrift sind nie
+  auswählbar. Die Liste der Ausgeschlossenen nennt den Grund.
+- **Einstellungen:** Obergrenze je Welle, Kostengrenze je Monat und Preis je Brief lassen sich im Betreiber-Bereich
+  ändern. Jede Änderung steht im Protokoll.
 - **Sammel-PDF:** Es hat so viele Seiten wie Salons, sortiert nach PLZ. Jede Seite hat einen eigenen Code, jeder Code
   ist einlösbar, ein früherer Code des Salons gilt nicht mehr.
 - **Kein Klartext:** Nach einer Welle steht kein Code im Klartext in der Datenbank, im Protokoll oder im Server-Log
@@ -199,7 +215,9 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
 - **Versand per Schnittstelle:** In der Staging-Umgebung werden alle Testbriefe angenommen und die Anschrift erkannt,
   auch bei langen Namen und Sonderzeichen. Doppelklick und Neustart während einer Welle lösen keinen Brief doppelt aus.
 - **Status:** „unzustellbar“ sperrt den Salon und zeigt „Anschrift prüfen“.
-- **Keine Post:** Der Knopf sperrt. Die Sperre überlebt Löschen und Neuimport desselben Salons.
+- **Keine Post:** Knopf im Betreiber-Bereich und Link auf der Salonseite sperren sofort, der Betreiber bekommt eine
+  Mail. Die Sperre überlebt Löschen und Neuimport desselben Salons.
+- **Unzustellbar:** Der Knopf im Betreiber-Bereich sperrt den Salon für weitere Briefe und zeigt „Anschrift prüfen“.
 - **Erinnerung:** frühestens nach der Frist, höchstens zwei Briefe je Salon.
 - **Grenzen:** Obergrenze je Welle und Kostengrenze je Monat greifen.
 - **Testmodus:** Im Testmodus geht kein Auftrag an den echten Versand.
@@ -216,17 +234,20 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
 - E-Mail- oder Telefon-Akquise. Beides scheidet nach § 7 UWG aus.
 - Briefe ins Ausland.
 
-## Offen
+## Entschieden (Stefan, 04.11.2026)
 
-1. **Dienstleister:** PIN eBrief (Vorschlag) oder onlinebrief24?
-2. **Reihenfolge:** Erst Stufe A und eine kleine erste Welle (10–20 Briefe), dann Stufe B? Oder gleich Stufe B?
-3. **Quelle der Anschrift:** Welche Quellen sind zulässig? Vorschlag bis zur rechtlichen Prüfung: alle außer
-   `impressum`.
-4. **Erinnerung:** Nach wie vielen Tagen (Vorschlag 21)? Höchstens wie viele Briefe je Salon (Vorschlag 2)?
-5. **Grenzen:** Je Welle (Vorschlag 200 Briefe) und je Monat (Vorschlag 300 €)?
-6. **Farbe oder schwarz-weiß:** Bei PIN 3 Cent Unterschied. Vorschlag: Farbe, die gelbe Marke trägt den Brief.
-7. **Rückläufer:** PIN meldet unzustellbare Briefe als Status und vernichtet sie. Bei anderen Anbietern kommen sie an die
-   Absenderadresse der ITEBV. Wer trägt sie dann ein?
+1. **Dienstleister:** PIN eBrief. Ersatz onlinebrief24.
+2. **Reihenfolge:** Erst Stufe A mit einer ersten Welle von 10–20 Briefen, dann Stufe B.
+3. **Quelle der Anschrift:** Alle Quellen, auch das Impressum. Die Quelle wird nicht je Eintrag festgehalten.
+4. **Erinnerung:** 21 Tage nach dem ersten Brief, höchstens zwei Briefe je Salon.
+5. **Grenzen:** Im Betreiber-Bereich einstellbar. Standard 200 Briefe je Welle und 300 € je Monat.
+6. **Druck:** farbig.
+7. **Rückläufer:** In Stufe A markiert der Betreiber sie mit dem Knopf „Unzustellbar“. Ab Stufe B kommen sie per Status.
+8. **Keine Post:** Zusätzlich zu Mail und Brief ein Link auf der Salonseite. Er sperrt sofort, ohne Nachweis per
+   E-Mail.
+9. **Aufgaben:** Stufe A ist eine Aufgabe, Stufe B eine zweite.
+
+Weiter offen und nicht durch Code zu lösen: die rechtliche Prüfung des Brieftexts.
 
 ## Vorschlag zur Umsetzung (nicht Teil der Anforderung)
 
@@ -239,5 +260,13 @@ schreiben.“ Dafür gibt es noch kein Feld. Neu:
   es dafür nicht.
 - **Schnittstelle:** neue Routen unter `/betreiber/briefe`, Webhook unter `/briefdienst/webhook` mit Geheimnis.
 - **Oberfläche:** neuer Bereich in `frontend/src/components/betreiber/Verzeichnis.tsx` oder eigener Reiter „Briefe“.
-- **Aufwand:** Stufe A etwa 2–3 Tage (Regeln, Sperre, Adressquelle samt Nachprüfung, Sammel-PDF, Oberfläche, Tests).
-  Stufe B etwa 3–4 Tage (Adapter, Status, Schutz vor Doppelversand, Grenzen, Testmodus, Erinnerung, Auswertung).
+- **Aufwand:** Stufe A etwa 3 Tage (Regeln, Sperre samt Link auf der Salonseite, Einstellungen, Sammel-PDF, Welle,
+  Erinnerung, Auswertung, Oberfläche, Tests). Stufe B etwa 2–3 Tage (Adapter, Status, Schutz vor Doppelversand,
+  Testmodus).
+
+## Generated tasks
+
+- `tasks/task-001-briefwellen-sammel-pdf.md` – Stufe A: Sperre „Keine Post mehr“, Unzustellbar, Einstellungen,
+  Bereich „Briefe“, Sammel-PDF, Erinnerung, Auswertung, Datenschutzerklärung.
+- `tasks/task-002-briefversand-pin-schnittstelle.md` – Stufe B: Versand per Schnittstelle von PIN eBrief mit Status,
+  Schutz vor Doppelversand und Testmodus.
