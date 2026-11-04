@@ -25,6 +25,8 @@ def test_adresse_mit_treiber_psycopg():
     )
     assert datenbank.sqlalchemy_url("postgres://u:p@h:5432/d") == "postgresql+psycopg://u:p@h:5432/d"
     assert datenbank.sqlalchemy_url("postgresql+psycopg:///x") == "postgresql+psycopg:///x"
+    assert datenbank.psycopg_url("postgres://u:p@h:5432/d") == "postgresql://u:p@h:5432/d"
+    assert datenbank.psycopg_url("postgresql:///q_me?host=/var/run/postgresql") == "postgresql:///q_me?host=/var/run/postgresql"
 
 
 def test_falsche_oder_fehlende_adresse():
@@ -88,6 +90,7 @@ def db_test_schema_bis_zur_neuesten_fassung_und_zurueck():
     assert datenbank.zustand() == f"erreichbar, Schema-Fassung {_head(cfg)}"
     with datenbank.engine().connect() as conn:
         assert conn.execute(text("select 1 from pg_extension where extname = 'btree_gist'")).scalar() == 1
+        assert conn.execute(text("select to_regclass('dokumente') is not null")).scalar() is True
     # Zurück und wieder vor: Jede Fassung muss sich zurücknehmen lassen
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")

@@ -27,8 +27,15 @@ def sqlalchemy_url(url: str | None = None) -> str:
     raise ValueError("QME_DATABASE_URL muss mit postgresql:// beginnen")
 
 
+def psycopg_url(url: str | None = None) -> str:
+    """Adresse für psycopg selbst (LISTEN/NOTIFY in app/store/postgres.py), ohne den Treiber-Zusatz von SQLAlchemy"""
+    return "postgresql://" + sqlalchemy_url(url)[len("postgresql+psycopg://"):]
+
+
 def engine():
-    """Gemeinsamer Verbindungs-Pool. Klein halten: PostgreSQL auf dem Server teilen sich mehrere Projekte."""
+    """Gemeinsamer Verbindungs-Pool. Klein halten: PostgreSQL auf dem Server teilen sich mehrere Projekte. Höchstens
+    20 Verbindungen (dazu eine für LISTEN): Eine Transaktion kann nebenbei eine zweite Verbindung brauchen (Lesen ohne
+    Transaktion), bei 40 Threads im Backend reichen 10 dafür nicht sicher."""
     global _engine
     if _engine is None:
         from sqlalchemy import create_engine
@@ -36,8 +43,9 @@ def engine():
         _engine = create_engine(
             sqlalchemy_url(),
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=5,
+            pool_size=8,
+            max_overflow=12,
+            pool_timeout=15,
             connect_args={"connect_timeout": 5},
         )
     return _engine
