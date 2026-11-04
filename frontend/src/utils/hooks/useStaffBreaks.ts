@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where, type DocumentData } from 'firebase/firestore';
-import { firestore as db } from '../firestore-client';
+import type { DocumentData } from 'firebase/firestore';
+import { getStaffBreaks } from '../firestore/breaks';
 
 /** Pausen einer Person, wie booking-rules sie liest: wiederkehrende (recurring-breaks) und einzelne (breaks) */
 export interface StaffBreaks {
@@ -8,7 +8,7 @@ export interface StaffBreaks {
   single: DocumentData[];
 }
 
-/** Pausen aller Personen für den Kalender am Tresen – einmal je Team geladen, gilt für jeden Tag */
+/** Pausen aller Personen für den Kalender am Tresen – einmal je Team geladen, gilt für jeden Tag (über das Backend) */
 export function useStaffBreaks(staffIds: string[]): Record<string, StaffBreaks> {
   const [breaks, setBreaks] = useState<Record<string, StaffBreaks>>({});
   const key = [...staffIds].sort().join(',');
@@ -21,11 +21,8 @@ export function useStaffBreaks(staffIds: string[]): Record<string, StaffBreaks> 
     let active = true;
     Promise.all(
       key.split(',').map(async (staffId) => {
-        const [recurring, single] = await Promise.all([
-          getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId))),
-          getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
-        ]);
-        return [staffId, { recurring: recurring.docs.map((d) => d.data()), single: single.docs.map((d) => d.data()) }] as const;
+        const { einzeln, fest } = await getStaffBreaks(staffId);
+        return [staffId, { recurring: fest as DocumentData[], single: einzeln as DocumentData[] }] as const;
       }),
     )
       .then((entries) => active && setBreaks(Object.fromEntries(entries)))

@@ -1,7 +1,8 @@
-import { collection, doc, DocumentData, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { doc, DocumentData, getDoc } from 'firebase/firestore';
 import { firestore as db } from './firestore-client';
 import { occupiedWindow, projectLane } from './queue-lane';
 import { publicOfStaffBetween } from './firestore/public-appointments';
+import { getStaffBreaks } from './firestore/breaks';
 import { merke, t, tn, intlSprache } from '@/i18n';
 
 /**
@@ -119,19 +120,19 @@ export const loadStaffRange = async (
   if (!staffId) {
     return { shop: await shopPromise, staffId, staff: null, recurringBreaks: [], breaks: [], appointments: [] };
   }
-  const [shopData, staffSnap, recurringSnap, breaksSnap, apptSnap] = await Promise.all([
+  // Pausen über das Backend (Stufe 2, backend/app/apis/live: /live/person/{id}/pausen); Laden, Person und Termine folgen
+  const [shopData, staffSnap, pausen, apptSnap] = await Promise.all([
     shopPromise,
     getDoc(doc(db, 'staff', staffId)),
-    getDocs(query(collection(db, 'recurring-breaks'), where('staffId', '==', staffId))),
-    getDocs(query(collection(db, 'breaks'), where('staffId', '==', staffId))),
+    getStaffBreaks(staffId),
     publicOfStaffBetween(db, staffId, new Date(from.getTime() - DAY_MS), to),
   ]);
   return {
     shop: shopData,
     staffId,
     staff: staffSnap.exists() ? staffSnap.data() : null,
-    recurringBreaks: recurringSnap.docs.map((d) => d.data()),
-    breaks: breaksSnap.docs.map((d) => d.data()),
+    recurringBreaks: pausen.fest as DocumentData[],
+    breaks: pausen.einzeln as DocumentData[],
     appointments: apptSnap.filter((a) => a.shopId === shopId).map(({ id, ...data }) => ({ id, data })),
   };
 };

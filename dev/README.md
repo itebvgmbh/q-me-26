@@ -80,6 +80,7 @@ node dev/e2e/live.cjs                       # Nummer und Bildschirm über /route
 node dev/e2e/team-termine.cjs               # Termine des Teams über /routes/team/termine: was der Browser schickt und zurückbekommt (Anmeldung und Backend nachgestellt, ohne Testkonto)
 node dev/e2e/mein-tag.cjs                   # Mein Tag (useAppointments): nur Termine der Person, live per Ereignis, 403 ohne Dauerschleife (nachgestellt, ohne Testkonto)
 node dev/e2e/team-laden.cjs                 # Team und Leistungen (staff.ts, services.ts): welche Schnittstelle, was geschickt wird, was zurückkommt (nachgestellt, ohne Testkonto)
+node dev/e2e/pausen.cjs                     # Pausen (breaks.ts, recurring-breaks.ts): lesen nach Tag/Wochentag, pflegen mit Token, Überschneidungen (nachgestellt, ohne Testkonto)
 node --experimental-strip-types dev/verbindung.test.mjs   # welche Browser die einfache Verbindungsart nehmen (ohne Browser)
 node --experimental-strip-types dev/i18n-pruefen.mjs --offen   # Übersetzungen: fehlt etwas, passen Platzhalter, Text noch ohne t()? (ohne Browser)
 node dev/e2e/wlan.cjs block                 # gesperrtes WLAN: klare Meldung statt "nicht gefunden"
