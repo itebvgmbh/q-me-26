@@ -22,7 +22,7 @@ import { useKeepScreenOn } from '../utils/native-app';
 import {
   listShopsOfOwner,
   getShopById,
-  getShopStaff,
+  getTeamStaff,
   createAppointment,
   Shop,
   Staff,
@@ -156,7 +156,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
       setShop(shopData);
       merkeLaden(shopData.id);
       const [staffData, servicesData, customersData] = await Promise.all([
-        getShopStaff(shopData.id),
+        getTeamStaff(shopData.id),
         getServicesByShopId(shopData.id),
         getCustomersByShopId(shopData.id),
       ]);

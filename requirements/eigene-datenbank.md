@@ -23,6 +23,14 @@
     (`utils/hooks/useAppointments.ts`) und lädt nach dem Anlegen gleich nach. Personendaten, Leistungen und Pausen
     liest Mein Tag noch aus Firestore; die kommen mit den Bereichen „Team und Leistungen“ und „Pausen“. Test:
     `dev/e2e/mein-tag.cjs`.
+  - Stufe 2, Bereich 4 live seit 04.11.2026: Team und Leistungen. Lesen öffentlich über `/routes/live/laden/<id>/
+    personen` und `…/leistungen` – neu ohne Konto-ID, Einladung und Kontaktdaten; Inhaber und Team lesen über
+    `/routes/team/laden/<id>/personen` (Kontaktdaten nur der Inhaber). Personen und Leistungen pflegen über
+    `/routes/team/…` (`backend/app/libs/team_laden.py`, Rechte wie in firestore.rules); den Team-Vermerk beim
+    Deaktivieren und Zurückholen setzt das Backend. Mein Tag findet die eigenen Einträge über `/routes/team/ich/
+    personen`. Noch über Firestore: das eigene Profil (`ensureStaffUserProfile`, Bereich Profil), Fotos (Bereich
+    Einrichtung und Laden) und die Lesezugriffe in `booking-rules.ts`. Tests: `backend/tests/test_team_laden.py`,
+    `dev/e2e/team-laden.cjs`.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend
