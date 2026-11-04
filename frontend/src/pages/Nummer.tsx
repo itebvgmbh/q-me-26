@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { Bell, BellRing, CalendarPlus, Check, Mail } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,11 +11,10 @@ import { Ticket } from '../components/brand/Ticket';
 import { HilfeLink } from '../components/HilfeLink';
 import { PlatzAendern } from '../components/PlatzAendern';
 import { FrueherDranSchalter } from '../components/FrueherDranSchalter';
-import { firestore } from '../utils/firestore-client';
 import { safelyConvertToDate } from '../utils/datetime';
-import { getServiceByIdLegacy, getShopById } from '../utils/firestore';
 import type { Shop } from '../utils/firestore';
-import { publicFromDoc, publicRef, staffDayQuery, type PublicAppointment } from '../utils/firestore/public-appointments';
+import type { PublicAppointment } from '../utils/firestore/public-appointments';
+import { useLive } from '../utils/live';
 import { cancelTicket, keyFromHash, rememberTicketKey, storedTicketKey } from '../utils/ticket-key';
 import { hasFeature } from '../utils/plans';
 import { aheadOf, delayMinutes, expectedStart, projectLane, SHOW_DELAY_MINUTES } from '../utils/queue-lane';
@@ -37,19 +35,28 @@ import {
 } from '../utils/push';
 import { inNativeApp } from '../utils/native-app';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
-import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 import { datumsLocale, t, tn } from '@/i18n';
-
-// So lange darf die Nummer brauchen, bevor die Seite mit einfacher Verbindungsart neu lädt (utils/connection.ts)
-const SLOW_CONNECTION_MS = 8000;
 
 const dayLabel = (d: Date) =>
   isToday(d) ? t('Heute') : isTomorrow(d) ? t('Morgen') : format(d, t('EEEEEE d.M.'), { locale: datumsLocale() });
 
+/** Was das Backend für die Nummernseite liefert (backend/app/apis/live: GET /live/nummer/{id}) */
+interface NummerLive {
+  termin: PublicAppointment;
+  /** Wer an dem Tag bei derselben Person ansteht, einschließlich dieser Nummer */
+  spur: PublicAppointment[];
+  laden: Shop | null;
+  leistung: { name: string } | null;
+  person: { name: string } | null;
+  kanaele: string[];
+}
+
+const KEINE: PublicAppointment[] = [];
+
 /**
  * Eigene Seite je Nummer: aktualisiert sich live, von hier aus Benachrichtigung einschalten.
- * Liest nur die öffentliche Kurzfassung (utils/firestore/public-appointments.ts – Zeit, Status, Nummer, keine
- * Namen). Eine Nummer ohne Konto gibt zurück, wer ihren Schlüssel hat: im Link (#k=…) oder in diesem Browser.
+ * Holt nur die öffentliche Kurzfassung (Zeit, Status, Nummer, keine Namen) vom Backend und hört dort auf Änderungen
+ * (utils/live.ts). Eine Nummer ohne Konto gibt zurück, wer ihren Schlüssel hat: im Link (#k=…) oder in diesem Browser.
  */
 export default function Nummer() {
   const { id = '' } = useParams();
@@ -62,11 +69,16 @@ export default function Nummer() {
   // Angezeigter Platz war beim Bestätigen schon weg, die Nummer hat gleich den nächsten bekommen (QueueBookingService)
   const movedOnJoin = justJoined && params.get('verschoben') === '1';
 
-  const [appt, setAppt] = useState<PublicAppointment | null>(null);
-  const [missing, setMissing] = useState(false);
-  const [names, setNames] = useState<{ shop?: string; service?: string; staff?: string }>({});
-  const [shopData, setShopData] = useState<Shop | null>(null);
-  const [lane, setLane] = useState<PublicAppointment[]>([]);
+  // Nummer, Schlange, Laden, Leistung und Person, live vom Backend
+  const live = useLive<NummerLive>(id ? `nummer/${encodeURIComponent(id)}` : null);
+  const appt = live.daten?.termin ?? null;
+  const lane = live.daten?.spur ?? KEINE;
+  const shopData = live.daten?.laden ?? null;
+  const missing = live.fehlt;
+  const names = useMemo(
+    () => ({ shop: live.daten?.laden?.name, service: live.daten?.leistung?.name, staff: live.daten?.person?.name }),
+    [live.daten],
+  );
   const [now, setNow] = useState(() => Date.now());
   // „Platz ändern“, auch direkt aus „Meine Termine“ (?aendern=1)
   const [moving, setMoving] = useState(() => params.get('aendern') === '1');
@@ -79,64 +91,12 @@ export default function Nummer() {
     if (id && fromLink) rememberTicketKey(id, fromLink);
   }, [id, hash]);
 
-  // Die Nummer selbst, live
+  // Nummer auf diesem Gerät merken (Hinweis auf der Startseite, Benachrichtigungen); nur beim ersten Laden
   useEffect(() => {
-    if (!id) return;
-    return onSnapshot(
-      publicRef(firestore, id),
-      (snap) => {
-        // Ohne Verbindung meldet Firestore nach ~10 s „nicht da“ aus dem leeren Zwischenspeicher –
-        // dann weiter warten statt „Diese Nummer gibt es nicht“; das sagt nur der Server
-        const fromServer = !snap.metadata.fromCache;
-        if (!snap.exists()) {
-          if (fromServer) setMissing(true);
-          return;
-        }
-        setAppt({ id: snap.id, ...snap.data() } as PublicAppointment);
-      },
-      (error) => {
-        if (isConnectionError(error) && retryWithSimpleConnection()) return;
-        setMissing(true);
-      },
-    );
-  }, [id]);
-
-  // Hängt die Dauerverbindung zur Datenbank, kommt die Nummer nicht an: einmal mit einfacher Verbindungsart
-  // neu laden (in Safari ist sie schon an, dann bleibt es beim Warten)
-  useEffect(() => {
-    if (appt || missing) return;
-    const timer = window.setTimeout(() => retryWithSimpleConnection(), SLOW_CONNECTION_MS);
-    return () => window.clearTimeout(timer);
-  }, [appt, missing]);
-
-  // Laden, Leistung, Person einmal nachladen
-  useEffect(() => {
-    if (!appt?.shopId) return;
-    let alive = true;
-    (async () => {
-      const [shop, service, staffSnap] = await Promise.all([
-        getShopById(appt.shopId),
-        appt.serviceId ? getServiceByIdLegacy(appt.serviceId) : Promise.resolve(null),
-        appt.staffId ? getDoc(doc(firestore, 'staff', appt.staffId)) : Promise.resolve(null),
-      ]);
-      if (!alive) return;
-      setNames({ shop: shop?.name, service: service?.name, staff: staffSnap?.exists() ? (staffSnap.data().name as string) : undefined });
-      setShopData(shop);
-      rememberTicket({ id: appt.id, shopId: appt.shopId, start: safelyConvertToDate(appt.startTime).toISOString() });
-    })();
-    return () => {
-      alive = false;
-    };
-    // Nur beim ersten Laden der Nummer
+    if (!appt?.id || !appt.shopId) return;
+    rememberTicket({ id: appt.id, shopId: appt.shopId, start: safelyConvertToDate(appt.startTime).toISOString() });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
-
-  // Wer an dem Tag bei derselben Person ansteht, live (gleiche Abfrage wie utils/bookings.ts)
-  useEffect(() => {
-    if (!appt?.staffId || !appt.startTime) return;
-    const q = staffDayQuery(firestore, appt.staffId, safelyConvertToDate(appt.startTime));
-    return onSnapshot(q, (snap) => setLane(snap.docs.map(publicFromDoc)), () => setLane([]));
-  }, [appt?.staffId, appt?.startTime?.seconds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);

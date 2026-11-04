@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDoc } from 'firebase/firestore';
 import { ArrowRight } from 'lucide-react';
-import { firestore } from '../../utils/firestore-client';
-import { publicRef } from '../../utils/firestore/public-appointments';
+import type { PublicAppointment } from '../../utils/firestore/public-appointments';
+import { liveLesen } from '../../utils/live';
 import { getRememberedTickets } from '../../utils/push';
 import { t } from '@/i18n';
 
@@ -25,14 +24,14 @@ export const ActiveTicketBanner = () => {
     (async () => {
       for (const candidate of candidates) {
         try {
-          const snap = await getDoc(publicRef(firestore, candidate.id));
-          const data = snap.data();
-          if (snap.exists() && (data?.status === 'scheduled' || data?.status === 'in-progress')) {
-            if (alive) setTicket({ id: candidate.id, code: data?.referenceCode || undefined });
+          // Dieselbe Abfrage wie die Nummernseite (backend/app/apis/live); gibt es die Nummer nicht mehr: 404
+          const { termin } = await liveLesen<{ termin: PublicAppointment }>(`nummer/${encodeURIComponent(candidate.id)}`);
+          if (termin.status === 'scheduled' || termin.status === 'in-progress') {
+            if (alive) setTicket({ id: candidate.id, code: termin.referenceCode || undefined });
             return;
           }
         } catch {
-          /* offline: kein Hinweis */
+          /* offline oder gelöscht: kein Hinweis */
         }
       }
     })();

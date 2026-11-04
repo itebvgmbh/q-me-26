@@ -1,8 +1,9 @@
 // Verbindungsart zur Datenbank (frontend/src/utils/connection.ts), nur lesend, keine Testdaten nötig:
 //  - iPhone (Safari-Technik) nimmt gleich die einfache Verbindungsart (Long-Polling, CI=1), Windows-Chrome die
 //    Dauerverbindung (CI=0). Hintergrund: 21.10.2026 hing die Dauerverbindung auf einem iPhone 59 Sekunden.
-//  - Nummernseite: Kommt über die Dauerverbindung nichts an, lädt sie nach 8 Sekunden mit einfacher
-//    Verbindungsart neu. In Safari (schon einfach) lädt sie nicht endlos neu.
+//  - Nummernseite: Sie holt ihre Daten seit Stufe 2 vom Backend (frontend/src/utils/live.ts), nicht mehr über
+//    Firestore. Auch wenn Firestore gar nicht antwortet, kommt die Antwort sofort und ohne Neuladen – in Chrome
+//    und auf dem iPhone. (Bis 04.11.2026 lud sie nach 8 Sekunden mit einfacher Verbindungsart neu.)
 // Braucht: Entwicklungsserver (npm run dev). Liest den Laden aus QME_SHOP_ID (Standard: ITEBV-Testbetrieb).
 const { BASE, SHOP_ID, launch, shot, collectErrors, report, run } = require('./lib.cjs');
 
@@ -28,44 +29,35 @@ run(async () => {
     await ctx.close();
   }
 
-  // --- Nummernseite: Datenbank antwortet nicht → nach 8 s neu laden mit einfacher Verbindungsart ---
-  // Chrome erkennt eine hängende Dauerverbindung selbst und schaltet um, das iPhone tat es nicht. Darum hier beim
-  // ersten Laden gar keine Antwort (stuck), wie auf dem iPhone; nach dem Neuladen (Dokument 2) normal.
-  const hang = async (ua, stuck) => {
+  // --- Nummernseite: kommt vom Backend, Firestore darf schweigen ---
+  // Wie am 21.10.2026 auf dem iPhone: Firestore beantwortet gar nichts (stuck). Die Nummernseite fragt es nicht mehr.
+  for (const [name, ua] of [['Chrome', undefined], ['iPhone', IPHONE]]) {
     const ctx = await browser.newContext({ ...PHONE, ...(ua ? { userAgent: ua } : {}) });
     const page = await ctx.newPage();
     const errors = collectErrors(page);
     let docs = 0;
-    const urls = [];
-    page.on('request', (r) => r.isNavigationRequest() && r.frame() === page.mainFrame() && docs++);
+    const listen = [];
+    const live = [];
+    page.on('request', (r) => {
+      if (r.isNavigationRequest() && r.frame() === page.mainFrame()) docs++;
+      if (r.url().includes('/routes/live/')) live.push(new URL(r.url()).pathname);
+    });
     await page.route('**/Listen/channel**', (route) => {
-      urls.push({ doc: docs, url: route.request().url() });
-      if (stuck(docs)) return; // nie beantworten
-      return route.continue();
+      listen.push(route.request().url()); // nie beantworten
     });
     const t0 = Date.now();
     await page.goto(`${BASE}/nummer/gibt-es-nicht-verbindungstest`, { waitUntil: 'domcontentloaded' });
-    return { ctx, page, errors, urls, t0, docs: () => docs };
-  };
-
-  const chrome = await hang(undefined, (doc) => doc < 2);
-  await chrome.page.getByText('Diese Nummer gibt es nicht.').waitFor({ timeout: 30000 }).catch(() => {});
-  const seconds = (Date.now() - chrome.t0) / 1000;
-  const flag = await chrome.page.evaluate(() => sessionStorage.getItem('qme-verbindung-einfach'));
-  const after = modes(chrome.urls.filter((u) => u.doc >= 2).map((u) => u.url));
-  rows.push({ name: 'Hängt: nach 8 s neu geladen', pass: chrome.docs() === 2 && seconds >= 8 && seconds < 25, detail: `${chrome.docs()} Ladevorgänge, ${seconds.toFixed(1)} s` });
-  rows.push({ name: 'Hängt: danach einfache Verbindung', pass: flag === '1' && after.join() === '1', detail: `Merker ${flag}, CI=${after.join(',')}` });
-  rows.push({ name: 'Hängt: Ergebnis kommt an', pass: await chrome.page.getByText('Diese Nummer gibt es nicht.').isVisible() });
-  rows.push({ name: 'Hängt: keine JavaScript-Fehler', pass: chrome.errors.length === 0, detail: chrome.errors.join(' | ') });
-  await chrome.ctx.close();
-
-  const safari = await hang(IPHONE, () => true);
-  // Länger als Firestores 10 s bis „offline“: dann meldet es „nicht da“ aus dem Zwischenspeicher – kein 404 zeigen
-  await safari.page.waitForTimeout(14000);
-  rows.push({ name: 'Safari: kein Neuladen im Kreis', pass: safari.docs() === 1, detail: `${safari.docs()} Ladevorgänge` });
-  rows.push({ name: 'Safari: wartet sichtbar', pass: await safari.page.getByText('Deine Nummer wird geladen').isVisible() });
-  await shot(safari.page, 'verbindung-safari-wartet', false);
-  await safari.ctx.close();
+    await page.getByText('Diese Nummer gibt es nicht.').waitFor({ timeout: 15000 }).catch(() => {});
+    const seconds = (Date.now() - t0) / 1000;
+    const shown = await page.getByText('Diese Nummer gibt es nicht.').isVisible();
+    rows.push({ name: `${name}: Nummer ohne Firestore sofort da`, pass: shown && seconds < 8, detail: `${seconds.toFixed(1)} s` });
+    rows.push({ name: `${name}: über das Backend`, pass: live.includes('/routes/live/nummer/gibt-es-nicht-verbindungstest'), detail: live.join(', ') });
+    rows.push({ name: `${name}: kein Neuladen`, pass: docs === 1, detail: `${docs} Ladevorgänge` });
+    rows.push({ name: `${name}: Firestore nicht gefragt`, pass: listen.length === 0, detail: `${listen.length} Listen-Anfragen` });
+    rows.push({ name: `${name}: keine JavaScript-Fehler`, pass: errors.length === 0, detail: errors.join(' | ') });
+    if (ua) await shot(page, 'verbindung-nummer-iphone', false);
+    await ctx.close();
+  }
 
   await browser.close();
   return report(rows);
