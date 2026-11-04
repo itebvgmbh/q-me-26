@@ -18,8 +18,12 @@ import {
   createClaimCode,
   downloadClaimLetter,
   importSalon,
+  KEINE_POST_GRUENDE,
+  liftKeinePost,
   loadVerzeichnis,
   rejectTakeover,
+  setKeinePost,
+  setUnzustellbar,
   saveEintrag,
   searchGoogle,
   setStatus,
@@ -51,7 +55,7 @@ const KATEGORIE_LABEL: Record<Kategorie, string> = { friseur: 'Friseur', barbers
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Das hat nicht geklappt.');
 const host = (url: string) => url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
 
-const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
+export const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
   <button
     type="button"
     onClick={onClick}
@@ -65,7 +69,7 @@ const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => v
   </button>
 );
 
-const Pill = ({ children, tone }: { children: ReactNode; tone?: 'signal' | 'muted' | 'dark' | 'alarm' }) => (
+export const Pill = ({ children, tone }: { children: ReactNode; tone?: 'signal' | 'muted' | 'dark' | 'alarm' }) => (
   <span
     className={cn(
       'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
@@ -798,6 +802,8 @@ function EintragEditor({ entry, onSaved, onClose }: { entry?: Eintrag; onSaved: 
 
       {entry && !isShop && <ClaimCode entry={entry} onChanged={() => onSaved(entry)} />}
 
+      {entry && !isShop && <Post entry={entry} onChanged={() => onSaved(entry)} />}
+
       {entry && (
         <Section title="Herkunft">
           <dl className="grid gap-3 sm:grid-cols-2">
@@ -911,6 +917,86 @@ const ClaimCode = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void
           {busy ? 'Erzeugt …' : info?.erstelltAm ? 'Neuen Code erzeugen' : 'Code erzeugen'}
         </Button>
       )}
+    </Section>
+  );
+};
+
+/** Briefe an den Salon (Reiter Briefe): bisherige Briefe, Sperre „Keine Post mehr“, Rückläufer */
+const Post = ({ entry, onChanged }: { entry: Eintrag; onChanged: () => void }) => {
+  const [grund, setGrund] = useState<string>(KEINE_POST_GRUENDE[0]);
+  const [busy, setBusy] = useState(false);
+  const run = async (fn: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(done);
+      onChanged();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const briefe = entry.post ?? [];
+
+  return (
+    <Section title="Post">
+      {briefe.length ? (
+        <ul className="flex flex-col gap-1 text-sm">
+          {briefe.map((p) => (
+            <li key={p.welle}>
+              {p.art === 'erinnerung' ? 'Erinnerung' : 'Brief'} vom {fmtDate(p.verschicktAm || p.am)}
+              {p.status === 'erzeugt' && <span className="text-muted-foreground"> · noch nicht hochgeladen</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">Noch kein Brief aus einer Welle.</p>
+      )}
+      {entry.postSperre ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Pill tone="alarm">Keine Post</Pill>
+          <span className="text-sm">
+            seit {fmtDate(entry.postSperre.am)} ({entry.postSperre.grund})
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => window.confirm('Sperre aufheben? Der Salon kann dann wieder Briefe bekommen.') && run(() => liftKeinePost(entry.id), 'Sperre aufgehoben.')}
+          >
+            Sperre aufheben
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Label htmlFor="v-keine-post" className="text-sm">
+            Salon will keine Post, gesagt per
+          </Label>
+          <select id="v-keine-post" className="h-9 rounded-xl border border-input bg-card px-3 text-sm" value={grund} onChange={(e) => setGrund(e.target.value)}>
+            {KEINE_POST_GRUENDE.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => setKeinePost(entry.id, grund), 'Keine Post mehr an diesen Salon.')}>
+            Keine Post mehr
+          </Button>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {entry.unzustellbar && <Pill tone="alarm">Unzustellbar – Anschrift prüfen</Pill>}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => run(() => setUnzustellbar(entry.id, !entry.unzustellbar), entry.unzustellbar ? 'Wieder zustellbar.' : 'Als unzustellbar markiert.')}
+        >
+          {entry.unzustellbar ? 'Doch zustellbar' : 'Unzustellbar'}
+        </Button>
+        <span className="text-xs text-muted-foreground">Kam ein Brief zurück (im Portal von PIN zu sehen)? Nach einer neuen Anschrift ist der Salon wieder auswählbar.</span>
+      </div>
     </Section>
   );
 };

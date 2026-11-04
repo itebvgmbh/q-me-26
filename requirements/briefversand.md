@@ -4,6 +4,9 @@
 - **Stand:** 04.11.2026
 - **Status:** Abgestimmt mit Stefan am 04.11.2026 (siehe „Entschieden“). Statt jeden Brief einzeln zu erzeugen,
   schreibt Dranzeit viele Salons auf einmal an und übergibt die Briefe einem Druck- und Versanddienstleister.
+- **Fortschritt:** Stufe A gebaut am 04.11.2026 (task-001): Reiter „Briefe“, Sperre und Link „Keine Post mehr“,
+  Unzustellbar, Einstellungen, Sammel-PDF, Erinnerung, Auswertung. Tests: `backend/tests/test_briefe.py`,
+  `dev/e2e/briefe.cjs`.
 - **Grundlage:** Recherche der Anbieter vom 04.11.2026 (Abschnitt „Dienstleister“), Brief aus PR #86
   (`backend/app/libs/brief.py`), Übernahme-Code aus PR #67 (`backend/app/libs/uebernahme.py`).
 
