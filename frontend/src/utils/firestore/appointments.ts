@@ -1,16 +1,10 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, runTransaction, deleteField, FieldValue } from 'firebase/firestore';
-import { assertBookable, bookableOf, SlotConflictError } from '../booking-rules';
-import { freesOrWantsSlot, requestEarlierSlotCheck } from '../earlierSlots';
+import { collection, doc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { assertBookable, bookableOf } from '../booking-rules';
 import { getFirestore } from 'firebase/firestore';
-import { firebaseApp, firebaseAuth } from 'app';
+import { firebaseApp } from 'app';
 import { Appointment } from './types';
-import { dayKey, pickReferenceCode, placementOf, readPlacement, samePlacement, shopDayRef, type PlacementChange } from './schedule';
-import { shopDayQuery, writePublic } from './public-appointments';
+import { backendSenden, liveLesen, LiveFehlt } from '../live';
 import { t } from '@/i18n';
-
-// Gleichzeitige Buchungen derselben Person laufen nacheinander (siehe schedule.ts); bei einem Ansturm
-// braucht die letzte mehrere Anläufe
-const TRANSACTION_OPTIONS = { maxAttempts: 12 };
 
 export const getAppointmentsInRange = async (shopId: string, startDate: Date, endDate: Date, staffId?: string): Promise<Appointment[]> => {
   console.log('Getting appointments for shop:', shopId, 'between:', startDate, 'and:', endDate);
@@ -236,227 +230,60 @@ const toDateValue = (value: any): Date | null => {
   return null;
 };
 
-/** Anderer Platz für denselben neuen Termin, falls der gewünschte beim Speichern schon weg ist */
-export interface AlternativeSlot {
-  staffId: string;
-  start: Date;
-  end: Date;
-}
-
-/**
- * Legt einen Termin an. alternatives (nur Nummer ziehen, siehe QueueBookingService): weitere Plätze am selben
- * Tag in der gewünschten Reihenfolge – ist der gewünschte Platz schon belegt, nimmt die Transaktion den ersten
- * freien davon, statt mit SlotConflictError abzubrechen. Bei einem Ansturm kommt so jeder in einem Durchgang unter.
- */
-export const createAppointment = async (
-  data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>,
-  options: { alternatives?: AlternativeSlot[] } = {},
-): Promise<Appointment> => {
-  console.log('Creating appointment with data:', data);
+/** Freie Zeiten im Browser neu rechnen und den anderen Ansichten Bescheid sagen (wie bisher nach jeder Änderung) */
+const nachDemSpeichern = async (art: 'neu' | 'geaendert', termin: Appointment, vorher?: Appointment) => {
   try {
-    const db = getFirestore(firebaseApp);
-    const appointmentRef = doc(collection(db, 'appointments'));
-    
-    // Jeder neue Termin muss die Regeln erfüllen: Öffnungszeiten, Arbeitszeiten, Pausen, andere Termine.
-    // Vorher wurde hier nur auf Überschneidung mit Terminen geprüft – Pausen und Zeiten fehlten.
-    // Gleichzeitige Buchungen fängt erst die Transaktion unten ab (Belegung je Person und Tag).
-    const newStart = toDateValue(data.startTime);
-    const newEnd = toDateValue(data.endTime);
-    if (!newStart || !newEnd) {
-      throw new Error(t('Ungültige Zeitangabe für den Termin.'));
+    const { default: useTimeSlotStore } = await import('../timeSlotStore');
+    const events = await import('../firebase/event-system');
+    const start = toDateValue(termin.startTime);
+    const alt = vorher ? toDateValue(vorher.startTime) : null;
+    if (alt && vorher) useTimeSlotStore.getState().invalidateCache(vorher.shopId, alt);
+    if (start) useTimeSlotStore.getState().invalidateCache(termin.shopId, start);
+    if (art === 'neu' && start) {
+      events.emitAppointmentCreated({
+        appointmentId: termin.id,
+        shopId: termin.shopId,
+        staffId: termin.staffId,
+        date: start.toISOString().split('T')[0],
+        timeSlot: { start, end: toDateValue(termin.endTime) ?? start },
+      });
+    } else if (art === 'geaendert') {
+      events.emitAppointmentUpdated({
+        appointmentId: termin.id,
+        shopId: termin.shopId,
+        staffId: termin.staffId,
+        originalDate: alt ?? undefined,
+        newDate: start ?? undefined,
+        status: termin.status,
+      });
     }
-    // Mögliche Plätze: der gewünschte (override null = so wie in data), dahinter die Ausweichplätze desselben
-    // Tages (die Tagesnummer hängt am Tag). Alle nach denselben Regeln geprüft; ohne Ausweichplätze wie bisher.
-    const requested = { staffId: data.staffId, start: newStart, end: newEnd, override: null as AlternativeSlot | null };
-    const sameDay = data.staffId ? (options.alternatives || []).filter((a) => a.staffId && dayKey(a.start) === dayKey(newStart)) : [];
-    let candidates = [requested, ...sameDay.map((a) => ({ ...a, override: a }))];
-    if (data.status !== 'cancelled') {
-      candidates = await bookableOf(data.shopId, candidates);
-    }
-    
-    // Ensure startTime and endTime are Timestamp objects
-    const processedData = { ...data };
-    if (processedData.startTime instanceof Date) {
-      processedData.startTime = Timestamp.fromDate(processedData.startTime);
-    }
-    if (processedData.endTime instanceof Date) {
-      processedData.endTime = Timestamp.fromDate(processedData.endTime);
-    }
-    
-    // Nummer für den Aufruf: jede Nummer aus der Schlange (auch vom Tresen) und jede Buchung ohne Konto,
-    // am selben Tag im selben Laden nur einmal (Wartezimmer-Bildschirm, Nummernseite). Vergeben wird sie
-    // in der Transaktion über shop_days; die Termine des Tages zählen für Nummern von vor dieser Umstellung.
-    const needsCode = Boolean(processedData.isAnonymous || processedData.type === 'queue');
-    const codeDay = toDateValue(processedData.startTime) ?? new Date();
-    const earlierCodes = needsCode ? await referenceCodesOfDay(processedData.shopId, codeDay) : [];
-
-    // Name und Handynummer aus dem eigenen Profil, wenn jemand für sich selbst bucht. Profile anderer Konten liest
-    // der Browser nicht (firestore.rules); bucht der Laden für einen Kunden, gilt der Name aus der Kundenliste.
-    if (processedData.customerId && processedData.customerId !== 'walk-in' && processedData.customerId === firebaseAuth.currentUser?.uid) {
-      try {
-        console.log(`Looking up customer name for user ID: ${processedData.customerId}`);
-        // Die customerId ist die uid des Users, daher direkt in der users-Collection nachschauen
-        const userRef = doc(db, 'users', processedData.customerId);
-        const userDoc = await getDoc(userRef);
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          console.log(`Found user data:`, userData);
-          
-          // TASK QME-61: Verwende IMMER users.displayName wenn verfügbar
-          // Priorität: displayName > email > customers.name > 'Unbekannter Kunde'
-          if (userData.displayName) {
-            processedData.customerName = userData.displayName;
-            console.log(`Using displayName from users collection: ${processedData.customerName}`);
-          } else if (userData.email) {
-            processedData.customerName = userData.email;
-            console.log(`Using email from users collection: ${processedData.customerName}`);
-          } else {
-            // Fallback auf vorhandenen Namen oder 'Unbekannter Kunde'
-            processedData.customerName = processedData.customerName || 'Unbekannter Kunde';
-            console.log(`No valid name or email found, using: ${processedData.customerName}`);
-          }
-          // Handynummer aus dem Profil ("Damit der Laden dich erreicht"): steht am Tresen, nach 90 Tagen gelöscht
-          if (userData.phoneNumber && !processedData.customerPhone) {
-            processedData.customerPhone = userData.phoneNumber;
-          }
-        } else {
-          console.log(`No user document found for ID: ${processedData.customerId}`);
-          // Fallback auf vorhandenen Namen oder 'Unbekannter Kunde'
-          processedData.customerName = processedData.customerName || 'Unbekannter Kunde';
-        }
-      } catch (err) {
-        console.error('Error fetching customer name:', err);
-        // Bei Fehler den vorhandenen Namen beibehalten oder Fallback verwenden
-        processedData.customerName = processedData.customerName || 'Unbekannter Kunde';
-      }
-    }
-    
-    const baseData = {
-      id: appointmentRef.id,
-      ...processedData,
-      // Standardwert für type, falls nicht angegeben
-      type: processedData.type || 'booked',
-      // Sicherstellen, dass customerName nie undefined ist
-      customerName: processedData.customerName || 'Unbekannter Kunde',
-    };
-    // Platz belegen, Nummer ziehen und Termin speichern in einem Schritt: Wer zeitgleich denselben Platz
-    // will, läuft neu an und bekommt SlotConflictError ("Der Platz ist gerade weggegangen") – oder mit
-    // Ausweichplätzen den ersten davon, der dann noch frei ist.
-    const appointmentData = await runTransaction(db, async (tx) => {
-      let chosen = baseData;
-      let placement: PlacementChange | null = null;
-      let conflict: string | null = null;
-      for (const { override } of candidates) {
-        chosen = override
-          ? { ...baseData, staffId: override.staffId, startTime: Timestamp.fromDate(override.start), endTime: Timestamp.fromDate(override.end) }
-          : baseData;
-        const occupy = placementOf(chosen);
-        placement = occupy ? await readPlacement(tx, db, appointmentRef.id, { shopId: baseData.shopId, occupy }) : null;
-        if (!placement?.conflict) break;
-        conflict ??= placement.conflict;
-      }
-      if (placement?.conflict) throw new SlotConflictError(conflict || placement.conflict);
-      const numbersRef = needsCode ? shopDayRef(db, baseData.shopId, codeDay) : null;
-      const numbers = numbersRef ? await tx.get(numbersRef) : null;
-      const codes: string[] = (numbers?.data()?.codes as string[]) || [];
-      const referenceCode = needsCode ? pickReferenceCode(new Set([...earlierCodes, ...codes])) : undefined;
-      const now = Timestamp.now();
-      const created = { ...chosen, ...(referenceCode ? { referenceCode } : {}), createdAt: now, updatedAt: now };
-      tx.set(appointmentRef, created);
-      writePublic(tx, db, appointmentRef.id, created);
-      placement?.write();
-      if (numbersRef && referenceCode) {
-        tx.set(numbersRef, { shopId: baseData.shopId, day: dayKey(codeDay), codes: [...codes, referenceCode], updatedAt: now });
-      }
-      return created;
-    }, TRANSACTION_OPTIONS);
-    // Neuer Termin mit "früher benachrichtigen": gleich nach einem früheren Platz suchen
-    if (appointmentData.checkEarlierOptions) requestEarlierSlotCheck(appointmentData.shopId, appointmentData.staffId);
-    
-    // NEUE FUNKTIONALITÄT: Cache-Invalidierung und Event-Emission
-    try {
-      // 1. Importiere benötigte Module dynamisch um zirkuläre Abhängigkeiten zu vermeiden
-      const { default: useTimeSlotStore } = await import('../timeSlotStore');
-      const { emitAppointmentCreated } = await import('../firebase/event-system');
-      
-      // 2. Cache für den entsprechenden Shop und das Datum invalidieren
-      console.log('Invalidating timeslot cache after appointment creation...');
-      if (appointmentData.startTime && typeof appointmentData.startTime.toDate === 'function') {
-        const appointmentDate = appointmentData.startTime.toDate();
-        useTimeSlotStore.getState().invalidateCache(appointmentData.shopId, appointmentDate);
-        
-        // 3. Event emittieren, damit andere Komponenten wissen, dass es eine neue Buchung gibt
-        console.log('Emitting APPOINTMENT_CREATED event...');
-        emitAppointmentCreated({
-          appointmentId: appointmentData.id,
-          shopId: appointmentData.shopId,
-          staffId: appointmentData.staffId,
-          date: appointmentDate.toISOString().split('T')[0],
-          timeSlot: {
-            start: appointmentData.startTime.toDate(),
-            end: appointmentData.endTime.toDate()
-          }
-        });
-        
-        // 4. Backend über Cache-Invalidierung informieren
-        try {
-          const { default: brain } = await import('brain');
-          console.log('Notifying backend about cache invalidation...');
-          brain.get_available_timeslots({
-            shop_id: appointmentData.shopId,
-            service_id: "force_refresh", // Dummy service ID
-            staff_id: appointmentData.staffId,
-            date: appointmentDate.toISOString().split('T')[0],
-            force_refresh: true
-          }).catch(e => console.error('Error notifying backend of cache invalidation:', e));
-        } catch (e) {
-          console.error('Error importing brain client:', e);
-        }
-      }
-    } catch (cacheError) {
-      // Cache-Fehler sollten den Erfolg der Buchung nicht beeinträchtigen
-      console.error('Error invalidating cache or emitting event:', cacheError);
-    }
-    
-    return appointmentData;
   } catch (error) {
-    console.error('Error creating appointment:', error);
-    throw error;
+    // Zwischenspeicher und Ereignisse dürfen das Speichern nicht scheitern lassen
+    console.error('Error invalidating cache or emitting event:', error);
   }
-};
-
-// Nummern, die an diesem Tag im Laden schon an Termine vergeben sind (auch abgesagte) – aus den öffentlichen
-// Kurzfassungen, damit es auch ohne Anmeldung geht (public-appointments.ts)
-async function referenceCodesOfDay(shopId: string, day: Date): Promise<string[]> {
-  const db = getFirestore(firebaseApp);
-  const snap = await getDocs(shopDayQuery(db, shopId, day));
-  return snap.docs.map((d) => d.data().referenceCode as string | undefined).filter((c): c is string => Boolean(c));
-}
-
-// Termin nach einem Schreibschritt mit merge: Felder überschrieben, deleteField() entfernt
-const applyUpdate = (current: Record<string, any>, update: Record<string, unknown>): Record<string, any> => {
-  const after = { ...current };
-  for (const [key, value] of Object.entries(update)) {
-    if (value instanceof FieldValue && value.isEqual(deleteField())) delete after[key];
-    else after[key] = value;
-  }
-  return after;
 };
 
 /**
- * Nachricht an den Kunden vormerken, wenn der Laden absagt oder die Zeit ändert. Der Benachrichtigungsdienst
- * (backend/app/libs/notify_worker.py) schickt sie per Push/E-Mail und löscht den Merker. Vergangene Tage nicht.
+ * Legt einen Termin an (Tresen, Kalender, Mein Tag). Die Regeln – Öffnungs- und Arbeitszeiten, Pausen, andere
+ * Termine – prüft der Browser wie bisher (booking-rules.ts). Platz belegen, Tagesnummer und öffentliche Kurzfassung
+ * erledigt seit Stufe 2 das Backend in einer Transaktion (POST /routes/team/termine, backend/app/libs/team_termine.py):
+ * Wer zeitgleich denselben Platz will, bekommt SlotConflictError („Da ist schon ein Termin …“). Freie Zeiten im
+ * Backend und „Früher dran“ stößt das Backend selbst an.
  */
-const customerNoticeFor = (before: Appointment, after: Appointment): Record<string, unknown> | null => {
-  const start = toDateValue(before.startTime);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (!start || start < today || before.status === 'cancelled' || before.status === 'completed') return null;
-  if (after.status === 'cancelled') return { customerNotice: 'cancelled' };
-  const moved = toDateValue(after.startTime)?.getTime() !== start.getTime();
-  // Merker von vorher behalten: zweimal verschieben ist eine Nachricht mit der neuesten Zeit
-  return moved ? { customerNotice: 'moved', customerNoticePreviousStart: before.customerNoticePreviousStart ?? before.startTime } : null;
+export const createAppointment = async (data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment> => {
+  const start = toDateValue(data.startTime);
+  const end = toDateValue(data.endTime);
+  if (!start || !end) {
+    throw new Error(t('Ungültige Zeitangabe für den Termin.'));
+  }
+  if (data.status !== 'cancelled') {
+    await bookableOf(data.shopId, [{ staffId: data.staffId, start, end }]);
+  }
+  const { termin } = await backendSenden<{ termin: Appointment }>('team/termine', {
+    termin: { ...data, startTime: start, endTime: end },
+  });
+  await nachDemSpeichern('neu', termin);
+  return termin;
 };
 
 export const updateAppointment = async (
@@ -465,181 +292,37 @@ export const updateAppointment = async (
   /** notifyCustomer: Der Laden ändert – bei Absage oder neuer Zeit bekommt der Kunde Bescheid */
   options: { notifyCustomer?: boolean } = {},
 ): Promise<Appointment> => {
-  console.log('Updating appointment...', { appointmentId, appointmentData });
+  const pfad = `team/termine/${encodeURIComponent(appointmentId)}`;
+  let originalAppointment: Appointment;
   try {
-    const db = getFirestore(firebaseApp);
-    const appointmentRef = doc(db, 'appointments', appointmentId);
-    
-    // First, get the original appointment data to handle cache invalidation properly
-    const originalAppointmentDoc = await getDoc(appointmentRef);
-    if (!originalAppointmentDoc.exists()) {
-      throw new Error('Appointment not found for update');
-    }
-    const originalAppointment = { id: originalAppointmentDoc.id, ...originalAppointmentDoc.data() } as Appointment;
-    
-    // Ändern sich Zeit oder Person, gelten dieselben Regeln wie beim Anlegen (ohne den Termin selbst)
-    const merged = { ...originalAppointment, ...appointmentData } as Appointment;
-    const before = [toDateValue(originalAppointment.startTime)?.getTime(), toDateValue(originalAppointment.endTime)?.getTime(), originalAppointment.staffId];
-    const after = [toDateValue(merged.startTime)?.getTime(), toDateValue(merged.endTime)?.getTime(), merged.staffId];
-    const timeOrStaffChanged = before.some((value, i) => value !== after[i]);
-    // Abgesagten Termin wieder aufnehmen belegt seinen Platz neu – dieselben Regeln
-    const reactivated = originalAppointment.status === 'cancelled' && merged.status !== 'cancelled';
-    const cancelling = originalAppointment.status !== 'cancelled' && merged.status === 'cancelled';
-    if ((timeOrStaffChanged || reactivated) && merged.status !== 'cancelled') {
-      const start = toDateValue(merged.startTime);
-      const end = toDateValue(merged.endTime);
-      if (!start || !end) throw new Error(t('Ungültige Zeitangabe für den Termin.'));
-      await assertBookable({ shopId: merged.shopId, staffId: merged.staffId, start, end, excludeAppointmentId: appointmentId });
-    }
-    
-    const now = Timestamp.now();
-    const updateData: Record<string, unknown> = {
-      ...appointmentData,
-      updatedAt: now
-    };
-    // Zeitpunkte für die Auswertung (Wartezeit = Nummer ziehen bis Aufruf), nur beim ersten Wechsel
-    const called = appointmentData.status === 'in-progress' && originalAppointment.status !== 'in-progress';
-    if (called && !originalAppointment.calledAt) {
-      updateData.calledAt = now;
-    }
-    // Letzter Aufruf: ab hier rechnet die Schlange, wie lange er noch dran ist (utils/queue-lane.ts)
-    if (called) updateData.lastCalledAt = now;
-    if (appointmentData.status === 'completed' && originalAppointment.status !== 'completed') {
-      updateData.completedAt = now;
-      if (!originalAppointment.calledAt && !updateData.calledAt) updateData.calledAt = now;
-    }
-    // Zurück auf "Wartet": beim nächsten Aufruf kommt "Du bist dran" noch einmal
-    if (appointmentData.status === 'scheduled' && originalAppointment.status === 'in-progress') {
-      updateData.notifiedCalledAt = deleteField();
-    }
-    if (options.notifyCustomer) {
-      const notice = customerNoticeFor(originalAppointment, merged);
-      if (notice) Object.assign(updateData, notice, { customerNoticeAt: now });
-    }
-
-    // Belegte Zeit ändert sich (Verschieben, Absagen, Wiederaufnehmen, aber auch Aufrufen und Fertig – wer
-    // früher fertig ist, gibt den Rest frei): alten Platz in der Belegung freigeben, neuen eintragen – in einer
-    // Transaktion. Geprüft wird nur, was wie eine Buchung ist; Aufrufen und Fertig passieren im Laden.
-    // Die öffentliche Kurzfassung (public-appointments.ts) schreibt jede Änderung mit, aus dem Stand in der Transaktion.
-    const bookingChange = (timeOrStaffChanged || reactivated) && merged.status !== 'cancelled';
-    const placementChanges = cancelling || !samePlacement(placementOf(originalAppointment), placementOf({ ...merged, ...updateData } as Appointment));
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(appointmentRef);
-      if (!snap.exists()) throw new Error('Appointment not found for update');
-      const current = snap.data() as Appointment;
-      const after = applyUpdate(current, updateData);
-      let placement: PlacementChange | null = null;
-      if (bookingChange || placementChanges) {
-        const release = placementOf(current);
-        const occupy = placementOf(after as Appointment);
-        placement = await readPlacement(tx, db, appointmentId, { shopId: current.shopId, release, occupy, check: bookingChange });
-        if (bookingChange && occupy && placement.conflict) throw new SlotConflictError(placement.conflict);
-      }
-      tx.set(appointmentRef, updateData, { merge: true });
-      writePublic(tx, db, appointmentId, after);
-      placement?.write();
-    }, TRANSACTION_OPTIONS);
-    console.log('Appointment updated successfully');
-
-    // "Früher dran": frei gewordenen Platz sofort neu verteilen statt bis zu 5 Minuten zu warten.
-    // Auch wer früher fertig ist oder früher aufgerufen wird, gibt Zeit frei (utils/queue-lane.ts).
-    const finishesEarly =
-      (called && Date.now() < (toDateValue(originalAppointment.startTime)?.getTime() ?? 0)) ||
-      (appointmentData.status === 'completed' &&
-        originalAppointment.status !== 'completed' &&
-        Date.now() < (toDateValue(originalAppointment.endTime)?.getTime() ?? 0));
-    if (freesOrWantsSlot(originalAppointment, merged) || finishesEarly) {
-      requestEarlierSlotCheck(originalAppointment.shopId, originalAppointment.staffId);
-      if (merged.staffId && merged.staffId !== originalAppointment.staffId) requestEarlierSlotCheck(merged.shopId, merged.staffId);
-    }
-
-    // Fetch the updated document
-    const updatedDoc = await getDoc(appointmentRef);
-    if (!updatedDoc.exists()) {
-      throw new Error('Appointment not found after update');
-    }
-    
-    const updatedAppointment = { id: updatedDoc.id, ...updatedDoc.data() } as Appointment;
-    
-    // Cache invalidation and event emission
-    try {
-      // Handle cache invalidation for both the old and new dates if times changed
-      if (appointmentData.startTime || appointmentData.status === 'cancelled') {
-        // 1. Dynamically import modules to avoid circular dependencies
-        const { default: useTimeSlotStore } = await import('../timeSlotStore');
-        const { emitAppointmentUpdated } = await import('../firebase/event-system');
-        
-        console.log('Invalidating timeslot cache after appointment update...');
-        
-        // 2. Invalidate cache for the original appointment date
-        if (originalAppointment.startTime && typeof originalAppointment.startTime.toDate === 'function') {
-          const originalDate = originalAppointment.startTime.toDate();
-          useTimeSlotStore.getState().invalidateCache(originalAppointment.shopId, originalDate);
-          
-          // Also notify backend about invalidation
-          try {
-            const { default: brain } = await import('brain');
-            console.log('Notifying backend about original date cache invalidation...');
-            brain.get_available_timeslots({
-              shop_id: originalAppointment.shopId,
-              service_id: "force_refresh",
-              staff_id: originalAppointment.staffId,
-              date: originalDate.toISOString(),
-              force_refresh: true
-            }).catch(e => console.error('Error notifying backend of original date cache invalidation:', e));
-          } catch (e) {
-            console.error('Error importing brain client for original date:', e);
-          }
-        }
-        
-        // 3. If appointment time changed, also invalidate cache for the new date
-        if (appointmentData.startTime && 
-            originalAppointment.startTime && 
-            appointmentData.startTime !== originalAppointment.startTime) {
-          
-          const newStartTime = appointmentData.startTime instanceof Date ? 
-            appointmentData.startTime : 
-            appointmentData.startTime.toDate();
-            
-          useTimeSlotStore.getState().invalidateCache(updatedAppointment.shopId, newStartTime);
-          
-          // Also notify backend about new date invalidation
-          try {
-            const { default: brain } = await import('brain');
-            console.log('Notifying backend about new date cache invalidation...');
-            brain.get_available_timeslots({
-              shop_id: updatedAppointment.shopId,
-              service_id: "force_refresh",
-              staff_id: updatedAppointment.staffId,
-              date: newStartTime.toISOString(),
-              force_refresh: true
-            }).catch(e => console.error('Error notifying backend of new date cache invalidation:', e));
-          } catch (e) {
-            console.error('Error importing brain client for new date:', e);
-          }
-        }
-        
-        // 4. Emit event for appointment update
-        console.log('Emitting APPOINTMENT_UPDATED event...');
-        emitAppointmentUpdated({
-          appointmentId: updatedAppointment.id,
-          shopId: updatedAppointment.shopId,
-          staffId: updatedAppointment.staffId,
-          originalDate: originalAppointment.startTime?.toDate(),
-          newDate: updatedAppointment.startTime?.toDate(),
-          status: updatedAppointment.status
-        });
-      }
-    } catch (cacheError) {
-      // Cache errors should not affect the appointment update success
-      console.error('Error invalidating cache or emitting event during update:', cacheError);
-    }
-
-    return updatedAppointment;
+    originalAppointment = (await liveLesen<{ termin: Appointment }>(pfad, true)).termin;
   } catch (error) {
-    console.error('Error in updateAppointment:', error);
+    if (error instanceof LiveFehlt) throw new Error('Appointment not found for update');
     throw error;
   }
+
+  // Ändern sich Zeit oder Person, gelten dieselben Regeln wie beim Anlegen (ohne den Termin selbst).
+  // Abgesagten Termin wieder aufnehmen belegt seinen Platz neu – dieselben Regeln.
+  const merged = { ...originalAppointment, ...appointmentData } as Appointment;
+  const before = [toDateValue(originalAppointment.startTime)?.getTime(), toDateValue(originalAppointment.endTime)?.getTime(), originalAppointment.staffId];
+  const after = [toDateValue(merged.startTime)?.getTime(), toDateValue(merged.endTime)?.getTime(), merged.staffId];
+  const timeOrStaffChanged = before.some((value, i) => value !== after[i]);
+  const reactivated = originalAppointment.status === 'cancelled' && merged.status !== 'cancelled';
+  if ((timeOrStaffChanged || reactivated) && merged.status !== 'cancelled') {
+    const start = toDateValue(merged.startTime);
+    const end = toDateValue(merged.endTime);
+    if (!start || !end) throw new Error(t('Ungültige Zeitangabe für den Termin.'));
+    await assertBookable({ shopId: merged.shopId, staffId: merged.staffId, start, end, excludeAppointmentId: appointmentId });
+  }
+
+  // Zeitpunkte (Aufruf, Fertig), Nachricht an den Kunden, Belegung und Kurzfassung setzt das Backend in einer
+  // Transaktion (POST /routes/team/termine/{id}); auch „Früher dran“ stößt es an, wo ein Platz frei wird
+  const { termin: updatedAppointment } = await backendSenden<{ termin: Appointment }>(pfad, {
+    aenderung: appointmentData,
+    kundeBenachrichtigen: Boolean(options.notifyCustomer),
+  });
+  await nachDemSpeichern('geaendert', updatedAppointment, originalAppointment);
+  return updatedAppointment;
 };
 
 export const getDailyRevenue = async (shopId: string): Promise<number> => {

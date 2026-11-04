@@ -70,7 +70,7 @@ export default function Nummer() {
   const movedOnJoin = justJoined && params.get('verschoben') === '1';
 
   // Nummer, Schlange, Laden, Leistung und Person, live vom Backend
-  const live = useLive<NummerLive>(id ? `nummer/${encodeURIComponent(id)}` : null);
+  const live = useLive<NummerLive>(id ? `live/nummer/${encodeURIComponent(id)}` : null);
   const appt = live.daten?.termin ?? null;
   const lane = live.daten?.spur ?? KEINE;
   const shopData = live.daten?.laden ?? null;

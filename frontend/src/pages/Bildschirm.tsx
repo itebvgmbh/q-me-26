@@ -39,7 +39,7 @@ export default function Bildschirm() {
   const [now, setNow] = useState(() => new Date());
   const today = dayKey(now);
   // Um Mitternacht kommt mit dem neuen Tag ein neuer Abruf, bis dahin bleibt der alte stehen
-  const live = useLive<BildschirmLive>(shopId ? `bildschirm/${encodeURIComponent(shopId)}?tag=${today}` : null);
+  const live = useLive<BildschirmLive>(shopId ? `live/bildschirm/${encodeURIComponent(shopId)}?tag=${today}` : null);
   const shop: Shop | null | undefined = live.fehlt ? null : live.daten ? live.daten.laden : undefined;
   const staff = live.daten?.personen;
   const appts = live.daten?.termine;

@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { auth } from 'app';
+import { t } from '@/i18n';
 
 /**
  * Live-Daten vom Backend statt direkt aus Firestore (requirements/eigene-datenbank.md, Stufe 2;
- * backend/app/apis/live, backend/app/libs/live.py).
+ * backend/app/apis/live, backend/app/apis/team_termine, backend/app/libs/live.py).
  *
  * Eine Seite lädt ihre Daten mit einem normalen Abruf. Jede Antwort nennt ihre Kanäle, und die Seite hört per
  * Server-Sent Events auf sie. Meldet das Backend „aenderung“, lädt sie neu. Dazu kommt ein Neuladen jede Minute,
  * sobald die Seite wieder sichtbar ist und wenn das Netz zurück ist. So bleibt sie aktuell, auch wenn einmal ein
  * Hinweis verloren geht. Das ersetzt Firestores Dauerverbindung und damit die Sonderwege für Safari (utils/connection.ts).
+ *
+ * Pfade sind relativ zu /routes/ (z. B. "live/nummer/…", "team/termine?…"). Mit anmelden: true geht das
+ * Anmelde-Token mit (Tresen, Kalender); die Ereignisse selbst brauchen keins, über sie gehen keine Daten.
  */
 
 /** Zeitpunkt aus dem Backend ({"__zeit": "…Z"}). Verhält sich wie ein Firestore-Timestamp: toDate(), toMillis(), seconds. */
@@ -61,15 +66,73 @@ export const ausBackend = <T,>(wert: unknown): T => {
   return wert as T;
 };
 
-/** 404 vom Backend: Nummer oder Laden gibt es nicht */
+/** Für Anfragen ans Backend: Zeitpunkte (Date, Firestore-Timestamp, Zeitpunkt) werden zu {"__zeit": …}, undefined fällt weg */
+export const zuBackend = (wert: unknown): unknown => {
+  if (wert instanceof Date) return { __zeit: wert.toISOString() };
+  if (Array.isArray(wert)) return wert.map(zuBackend);
+  if (wert && typeof wert === 'object') {
+    const zeit = wert as { toDate?: () => Date };
+    if (typeof zeit.toDate === 'function') return { __zeit: zeit.toDate().toISOString() };
+    return Object.fromEntries(
+      Object.entries(wert as Record<string, unknown>)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, zuBackend(v)]),
+    );
+  }
+  return wert;
+};
+
+/** 404 vom Backend: Nummer, Laden oder Termin gibt es nicht */
 export class LiveFehlt extends Error {}
 
-export const liveLesen = async <T,>(pfad: string): Promise<T> => {
-  const res = await fetch(`/routes/live/${pfad}`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+const kopf = async (anmelden: boolean): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (anmelden) headers.Authorization = await auth.getAuthHeaderValue();
+  return headers;
+};
+
+const fehlerAus = async (res: Response): Promise<Error> => {
+  let detail = '';
+  try {
+    detail = (await res.json())?.detail;
+  } catch {
+    /* keine JSON-Antwort */
+  }
+  const text = typeof detail === 'string' && detail ? detail : t('Das hat nicht geklappt (Fehler {status}).', { status: res.status });
+  const fehler = new Error(text);
+  // 409: Der Platz ist inzwischen belegt – wie bisher aus der Transaktion im Browser (isSlotConflict in booking-rules.ts
+  // erkennt den Namen; die Klasse selbst wird hier nicht geladen, sonst hinge Firestore an jeder Seite mit Live-Daten)
+  if (res.status === 409) fehler.name = 'SlotConflictError';
+  (fehler as Error & { status?: number }).status = res.status;
+  return fehler;
+};
+
+export const liveLesen = async <T,>(pfad: string, anmelden = false): Promise<T> => {
+  const res = await fetch(`/routes/${pfad}`, { headers: await kopf(anmelden), cache: 'no-store' });
   if (res.status === 404) throw new LiveFehlt(pfad);
-  if (!res.ok) throw new Error(`Live-Daten: Fehler ${res.status}`);
+  if (!res.ok) throw await fehlerAus(res);
   return ausBackend<T>(await res.json());
 };
+
+/** POST ans Backend mit Anmeldung; Zeitpunkte hin und zurück wie oben */
+export const backendSenden = async <T,>(pfad: string, daten: unknown): Promise<T> => {
+  let res: Response;
+  try {
+    res = await fetch(`/routes/${pfad}`, {
+      method: 'POST',
+      headers: { ...(await kopf(true)), 'Content-Type': 'application/json' },
+      body: JSON.stringify(zuBackend(daten)),
+    });
+  } catch {
+    throw new Error(t('Keine Verbindung zum Server. Bitte prüf dein Internet.'));
+  }
+  if (!res.ok) throw await fehlerAus(res);
+  return ausBackend<T>(await res.json());
+};
+
+/** Termine eines Ladens, die in [von, bis) beginnen – nur für Inhaber und Team (backend/app/apis/team_termine) */
+export const teamTerminePfad = (shopId: string, von: Date, bis: Date) =>
+  `team/termine?${new URLSearchParams({ shopId, von: von.toISOString(), bis: bis.toISOString() })}`;
 
 export const ereignisAdresse = (kanaele: string[]) =>
   `/routes/live/ereignisse?${kanaele.map((k) => `kanal=${encodeURIComponent(k)}`).join('&')}`;
@@ -91,10 +154,13 @@ export interface LiveZustand<T> {
 }
 
 /**
- * Daten von /routes/live/<pfad>, live gehalten. pfad null: (noch) nichts laden. Neuer pfad: neu laden; die alten Daten
- * bleiben stehen, bis die neuen da sind (z. B. Bildschirm um Mitternacht).
+ * Daten von /routes/<pfad>, live gehalten. pfad null: (noch) nichts laden. Neuer pfad: neu laden; die alten Daten
+ * bleiben stehen, bis die neuen da sind (z. B. Bildschirm um Mitternacht). anmelden: mit Anmelde-Token (Team).
  */
-export function useLive<T extends { kanaele?: string[] }>(pfad: string | null, neuLadenMs = 60_000): LiveZustand<T> {
+export function useLive<T extends { kanaele?: string[] }>(
+  pfad: string | null,
+  { anmelden = false, neuLadenMs = 60_000 }: { anmelden?: boolean; neuLadenMs?: number } = {},
+): LiveZustand<T> {
   const [daten, setDaten] = useState<T | null>(null);
   const [fehlt, setFehlt] = useState(false);
   const [fehlversuche, setFehlversuche] = useState(0);
@@ -105,7 +171,7 @@ export function useLive<T extends { kanaele?: string[] }>(pfad: string | null, n
     if (!pfad) return;
     const nr = ++lauf.current;
     try {
-      const neu = await liveLesen<T>(pfad);
+      const neu = await liveLesen<T>(pfad, anmelden);
       if (nr !== lauf.current) return; // ein neuerer Abruf läuft schon
       geladenUm.current = Date.now();
       setDaten(neu);
@@ -121,7 +187,7 @@ export function useLive<T extends { kanaele?: string[] }>(pfad: string | null, n
         setFehlversuche((n) => n + 1);
       }
     }
-  }, [pfad]);
+  }, [pfad, anmelden]);
 
   // Erst laden, dann im Takt, beim Wiederkommen und wenn das Netz zurück ist
   useEffect(() => {
