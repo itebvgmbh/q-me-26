@@ -207,3 +207,14 @@ def eine_leistung(service_id: str, response: Response) -> dict:
     if gefunden is None:
         raise HTTPException(status_code=404, detail="Diese Leistung gibt es nicht mehr.")
     return live.json_wert({"leistung": gefunden})
+
+
+@router.get("/live/person/{staff_id}/pausen")
+def person_pausen(staff_id: str, response: Response) -> dict:
+    """Einzelne und feste Pausen einer Person, öffentlich (freie Plätze; Stufe 2, Bereich 5, app/libs/pausen.py)"""
+    from app.libs import pausen
+
+    _keine_ablage(response)
+    if not ID.match(staff_id):
+        raise HTTPException(status_code=404, detail="Diese Person gibt es nicht mehr.")
+    return live.json_wert(pausen.pausen_der_person(store.db(), staff_id))

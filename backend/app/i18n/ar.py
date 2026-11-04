@@ -315,4 +315,8 @@ TEXTE: dict = {
     "Das darf nur der Inhaber des Ladens.": "هذا مسموح لصاحب المحل فقط.",
     "Ungültige Angaben zur Leistung.": "بيانات الخدمة غير صالحة.",
     "Diese Leistung gibt es nicht mehr.": "هذه الخدمة لم تعد موجودة.",
+    # Pausen (app/apis/pausen)
+    "Ungültige Zeitangabe für die Pause.": "وقت غير صالح للاستراحة.",
+    "Das Ende der Pause muss nach dem Beginn liegen.": "يجب أن تنتهي الاستراحة بعد بدايتها.",
+    "Diese Pause gibt es nicht mehr.": "هذه الاستراحة لم تعد موجودة.",
 }
