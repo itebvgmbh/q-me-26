@@ -1,152 +1,55 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, addDoc } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { Shop } from './types';
-import { newShopPlanFields } from '../plans';
+import { backendSenden, liveLesen, LiveFehlt } from '../live';
 
-export const getShopById = async (shopId: string): Promise<Shop | null> => {
+/**
+ * Läden über das Backend (requirements/eigene-datenbank.md, Stufe 2; backend/app/libs/laeden.py).
+ * - Öffentlich (Läden finden, Buchen, Nummer ziehen): ohne Inhaber-Konto, Startklar-Merker und Onboarding-Mails.
+ * - Inhaber und Team: der ganze Laden (getTeamShop, eigene Läden).
+ * Anlegen nur als Gratis-Laden mit Testphase – die Tarif-Felder setzt das Backend; ändern nur der Inhaber.
+ */
+
+const oderNull = async <T,>(lesen: () => Promise<T>): Promise<T | null> => {
   try {
-    const db = getFirestore(firebaseApp);
-    const shopRef = doc(db, 'shops', shopId);
-    const shopDoc = await getDoc(shopRef);
-    
-    if (!shopDoc.exists()) {
-      return null;
-    }
-
-    return { id: shopDoc.id, ...shopDoc.data() } as Shop;
+    return await lesen();
   } catch (error) {
-    console.error('Error getting shop by ID:', error);
+    if (!(error instanceof LiveFehlt)) console.error('Laden nicht geladen:', error);
     return null;
   }
 };
 
-export const getShopByOwner = async (idOrOwner: string): Promise<Shop | null> => {
-  console.log('Getting shop by id or owner:', idOrOwner);
-  const db = getFirestore(firebaseApp);
-  const shopsRef = collection(db, 'shops');
-  
-  try {
-    // Try to get shop by ID first
-    const shopDoc = await getDoc(doc(db, 'shops', idOrOwner));
-    if (shopDoc.exists()) {
-      return { id: shopDoc.id, ...shopDoc.data() } as Shop;
-    }
+/** Öffentlich; null, wenn es den Laden nicht gibt */
+export const getShopById = (shopId: string): Promise<Shop | null> =>
+  oderNull(async () => (await liveLesen<{ laden: Shop }>(`live/laden/${encodeURIComponent(shopId)}`)).laden);
 
-    // If not found, try to get by owner
-    const q = query(shopsRef, where('owner', '==', idOrOwner));
-    const snapshot = await getDocs(q);
+/** Für Inhaber und Team: der ganze Laden (Tarif, Startklar-Merker) */
+export const getTeamShop = (shopId: string): Promise<Shop | null> =>
+  oderNull(async () => (await liveLesen<{ laden: Shop }>(`team/laeden/${encodeURIComponent(shopId)}`, true)).laden);
 
-    if (snapshot.empty) {
-      return null;
-    }
+/** Früher: ID oder Inhaber-Konto. Termine tragen die ID des Ladens, also reicht der Laden zur ID. */
+export const getShopByOwner = (idOrOwner: string): Promise<Shop | null> => getShopById(idOrOwner);
 
-    const shopData = snapshot.docs[0];
-    return { id: shopData.id, ...shopData.data() } as Shop;
-  } catch (error) {
-    console.error('Error getting shop:', error);
-    return null;
-  }
-};
+export const createShop = async (_ownerId: string, shopData: Omit<Shop, 'id' | 'owner' | 'createdAt' | 'updatedAt'>): Promise<Shop> =>
+  (await backendSenden<{ laden: Shop }>('team/laeden', { laden: shopData })).laden;
 
-export const createShop = async (ownerId: string, shopData: Omit<Shop, 'id' | 'owner' | 'createdAt' | 'updatedAt'>): Promise<Shop> => {
-  console.log('Starting shop creation...');
-  try {
-    const db = getFirestore(firebaseApp);
-    const shopsCollection = collection(db, 'shops');
-    
-    const now = Timestamp.now();
-    const newShop = {
-      ...shopData,
-      // 30 Tage alles testen, danach Gratis oder ein Abo (utils/plans.ts)
-      ...newShopPlanFields(),
-      owner: ownerId,
-      createdAt: now,
-      updatedAt: now
-    };
+export const updateShop = async (shopId: string, shopData: Partial<Omit<Shop, 'id' | 'owner' | 'createdAt' | 'updatedAt'>>): Promise<Shop> =>
+  (await backendSenden<{ laden: Shop }>(`team/laeden/${encodeURIComponent(shopId)}`, { aenderung: shopData })).laden;
 
-    // Create a new document with auto-generated ID
-    const docRef = await addDoc(shopsCollection, newShop);
-    console.log('Shop document created with ID:', docRef.id);
+/** Läden des angemeldeten Kontos; wirft bei Fehlern (getShopsByOwnerId liefert dann [] – "kein Laden" wäre falsch) */
+export const listShopsOfOwner = async (_ownerId: string): Promise<Shop[]> =>
+  (await liveLesen<{ laeden: Shop[] }>('team/ich/laeden', true)).laeden;
 
-    return {
-      id: docRef.id,
-      ...newShop
-    } as Shop;
-  } catch (error) {
-    console.error('Error in createShop:', error);
-    throw error;
-  }
-};
-
-export const updateShop = async (shopId: string, shopData: Partial<Omit<Shop, 'id' | 'owner' | 'createdAt' | 'updatedAt'>>): Promise<Shop> => {
-  console.log('Updating shop...', { shopId, shopData });
-  try {
-    const db = getFirestore(firebaseApp);
-    const shopRef = doc(db, 'shops', shopId);
-    
-    const now = Timestamp.now();
-    const updateData = {
-      ...shopData,
-      updatedAt: now
-    };
-
-    await setDoc(shopRef, updateData, { merge: true });
-    console.log('Shop updated successfully');
-
-    // Fetch the updated document
-    const updatedDoc = await getDoc(shopRef);
-    if (!updatedDoc.exists()) {
-      throw new Error('Shop not found after update');
-    }
-
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Shop;
-  } catch (error) {
-    console.error('Error in updateShop:', error);
-    throw error;
-  }
-};
-
-/** Läden eines Inhabers; wirft bei Fehlern (getShopsByOwnerId liefert dann [] – "kein Laden" wäre falsch) */
-export const listShopsOfOwner = async (ownerId: string): Promise<Shop[]> => {
-  const db = getFirestore(firebaseApp);
-  const snapshot = await getDocs(query(collection(db, 'shops'), where('owner', '==', ownerId)));
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Shop[];
-};
-
-// Get all shops for a specific owner
 export const getShopsByOwnerId = async (ownerId: string): Promise<Shop[]> => {
   try {
-    const db = getFirestore(firebaseApp);
-    const shopsRef = collection(db, 'shops');
-    console.log('Getting shops for owner:', ownerId);
-    const q = query(shopsRef, where('owner', '==', ownerId));
-    console.log('Query:', q);
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Shop[];
+    return await listShopsOfOwner(ownerId);
   } catch (error) {
     console.error('Error getting shops by owner:', error);
     return [];
   }
 };
 
-export const getShops = async (): Promise<Shop[]> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const shopsRef = collection(db, 'shops');
-    const querySnapshot = await getDocs(shopsRef);
-    // Für die Buchung: vom Betreiber gesperrte Läden nicht anbieten
-    return querySnapshot.docs
-      .filter((d) => !d.data().suspended)
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Shop[];
-  } catch (error) {
-    console.error('Error getting shops:', error);
-    throw error;
-  }
-};
+/** Alle Läden, die man buchen kann (ohne vom Betreiber gesperrte) */
+export const getShops = async (): Promise<Shop[]> =>
+  (await liveLesen<{ laeden: Shop[] }>('live/laeden')).laeden.filter((s) => !s.suspended);
+
+/** Alle Läden in der öffentlichen Fassung, auch gesperrte (die Aufrufer filtern selbst) */
+export const getAllPublicShops = async (): Promise<Shop[]> => (await liveLesen<{ laeden: Shop[] }>('live/laeden')).laeden;

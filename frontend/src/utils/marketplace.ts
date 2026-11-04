@@ -1,25 +1,14 @@
-import { collection, getDocs, getDocsFromServer, query, where, getDoc, doc, orderBy, limit } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { Shop, Service } from './firestore/types';
 import { offeredServices } from './firestore/services';
+import { liveLesen } from './live';
 
 /** In öffentlichen Listen (Startseite, Läden finden, Ladenwahl): nicht gesperrt und nicht vom Betreiber ausgeblendet */
 export const inLadenliste = (shop: { suspended?: unknown; unlisted?: unknown }) => !shop.suspended && !shop.unlisted;
 
-// Holen Sie alle aktiven Shops für den Marktplatz
-/** Alle Shops vom Server; wirft bei fehlender Verbindung (statt still eine leere Liste zu liefern) */
-export const fetchMarketplaceShops = async (): Promise<Shop[]> => {
-  const db = getFirestore(firebaseApp);
-  const querySnapshot = await getDocsFromServer(collection(db, 'shops'));
+/** Alle Läden für Listen und Karte (öffentliche Fassung vom Backend, GET /routes/live/laeden); wirft ohne Verbindung */
+export const fetchMarketplaceShops = async (): Promise<Shop[]> =>
   // Gesperrte und ausgeblendete Läden tauchen in keiner Liste auf (per Link bleibt ein ausgeblendeter buchbar)
-  return querySnapshot.docs
-    .filter((d) => inLadenliste(d.data()))
-    .map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Shop[];
-};
+  (await liveLesen<{ laeden: Shop[] }>('live/laeden')).laeden.filter(inLadenliste);
 
 export const getAllShopsForMarketplace = async (): Promise<Shop[]> => {
   try {
@@ -30,43 +19,22 @@ export const getAllShopsForMarketplace = async (): Promise<Shop[]> => {
   }
 };
 
-// Holen Sie Services für mehrere Shops gleichzeitig für Anzeige im Marktplatz
+/** Bis zu fünf angebotene Leistungen je Laden, nach Namen (Anzeige in Listen und auf der Karte) */
 export const getServicesForShops = async (shopIds: string[]): Promise<{ [shopId: string]: Service[] }> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const result: { [shopId: string]: Service[] } = {};
-    
-    // Initialisiere leere Arrays für alle Shop-IDs
-    shopIds.forEach(id => {
-      result[id] = [];
-    });
-    
-    // Abfragen für jeden Shop einzeln, um Leistungen zu holen - ohne orderBy
-    await Promise.all(
-      shopIds.map(async (shopId) => {
-        const servicesRef = collection(db, 'services');
-        const q = query(servicesRef, where('shopId', '==', shopId));
-        const snapshot = await getDocs(q);
-        
-        // Sortiere Ergebnisse clientseitig um Indexprobleme zu vermeiden
-        const services = offeredServices(snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Service[]);
-        
-        // Sortiere nach Namen
-        services.sort((a, b) => a.name.localeCompare(b.name));
-        
-        // Begrenze auf 5 Einträge
-        result[shopId] = services.slice(0, 5);
-      })
-    );
-    
-    return result;
-  } catch (error) {
-    console.error('Error getting services for shops:', error);
-    return {};
-  }
+  const result: { [shopId: string]: Service[] } = Object.fromEntries(shopIds.map((id) => [id, []]));
+  await Promise.all(
+    shopIds.map(async (shopId) => {
+      try {
+        const { leistungen } = await liveLesen<{ leistungen: Service[] }>(`live/laden/${encodeURIComponent(shopId)}/leistungen`);
+        result[shopId] = offeredServices(leistungen)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .slice(0, 5);
+      } catch (error) {
+        console.error('Leistungen nicht geladen:', shopId, error);
+      }
+    }),
+  );
+  return result;
 };
 
 // Suchfunktion für Shops mit Filteroptionen
@@ -78,11 +46,7 @@ export interface ShopSearchFilters {
 
 export const searchShops = async (filters: ShopSearchFilters): Promise<Shop[]> => {
   try {
-    // Zunächst alle Shops holen
     const allShops = await getAllShopsForMarketplace();
-    
-    // Filterung auf Client-Seite durchführen
-    // In einer realen Anwendung würde man dies mit Firestore-Abfragen optimieren
     return allShops.filter(shop => {
       // Filter nach Standort (berücksichtigt alte und neue Adressstruktur)
       if (filters.location) {
@@ -91,19 +55,17 @@ export const searchShops = async (filters: ShopSearchFilters): Promise<Shop[]> =
         const postalCodeMatch = shop.postalCode && shop.postalCode.toLowerCase().includes(locationLower);
         const streetMatch = shop.street && shop.street.toLowerCase().includes(locationLower);
         const legacyAddressMatch = shop.address && shop.address.toLowerCase().includes(locationLower);
-        
+
         if (!(cityMatch || postalCodeMatch || streetMatch || legacyAddressMatch)) {
           return false;
         }
       }
-      
+
       // Filter nach Branche
       if (filters.industry && shop.industry !== filters.industry) {
         return false;
       }
-      
-      // Hier können weitere Filter hinzugefügt werden, sobald die Datenstruktur etabliert ist
-      
+
       return true;
     });
   } catch (error) {

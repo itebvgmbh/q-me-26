@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserProfile, USER_ROLES } from '../utils/types';
+import { loadUserProfile, saveOwnProfile } from '../utils/user-profile-service';
 import { toast } from 'sonner';
 import { t } from '@/i18n';
 import { DeleteAccountCard } from './DeleteAccountCard';
@@ -26,12 +24,8 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const db = getFirestore(firebaseApp);
-        const docRef = doc(db, 'users', userId);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data() as UserProfile;
+        const data = await loadUserProfile(userId);
+        if (data) {
           setProfile(data);
           setDisplayName(data.displayName || '');
           setPhoneNumber(data.phoneNumber || '');
@@ -51,14 +45,7 @@ export const ProfileForm = ({ userId }: ProfileFormProps) => {
     setUpdating(true);
 
     try {
-      const db = getFirestore(firebaseApp);
-      const docRef = doc(db, 'users', userId);
-      
-      await updateDoc(docRef, {
-        displayName,
-        phoneNumber,
-        updatedAt: new Date()
-      });
+      await saveOwnProfile({ displayName, phoneNumber });
 
       toast.success(t('Gespeichert.'));
     } catch (error) {

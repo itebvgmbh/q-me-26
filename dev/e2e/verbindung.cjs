@@ -1,31 +1,35 @@
-// Verbindungsart zur Datenbank (frontend/src/utils/connection.ts), nur lesend, keine Testdaten nötig:
-//  - iPhone (Safari-Technik) nimmt gleich die einfache Verbindungsart (Long-Polling, CI=1), Windows-Chrome die
-//    Dauerverbindung (CI=0). Hintergrund: 21.10.2026 hing die Dauerverbindung auf einem iPhone 59 Sekunden.
-//  - Nummernseite: Sie holt ihre Daten seit Stufe 2 vom Backend (frontend/src/utils/live.ts), nicht mehr über
-//    Firestore. Auch wenn Firestore gar nicht antwortet, kommt die Antwort sofort und ohne Neuladen – in Chrome
-//    und auf dem iPhone. (Bis 04.11.2026 lud sie nach 8 Sekunden mit einfacher Verbindungsart neu.)
+// Verbindung zum Server (frontend/src/utils/live.ts), nur lesend, keine Testdaten nötig. Seit Stufe 2
+// (requirements/eigene-datenbank.md) fragt der Browser Firestore gar nicht mehr – also auch keine Dauerverbindung, die
+// in manchen WLANs und auf dem iPhone hing (21.10.2026: 59 Sekunden). Geprüft, in Chrome und auf dem iPhone:
+//  - Nummer ziehen: Laden und Leistungen kommen vom Backend, keine einzige Anfrage an Firestore.
+//  - Nummernseite: kommt sofort und ohne Neuladen, auch wenn Firestore gar nicht antworten würde.
 // Braucht: Entwicklungsserver (npm run dev). Liest den Laden aus QME_SHOP_ID (Standard: ITEBV-Testbetrieb).
 const { BASE, SHOP_ID, launch, shot, collectErrors, report, run } = require('./lib.cjs');
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.7 Mobile/15E148 Safari/604.1';
 const PHONE = { viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE' };
-
-/** Verbindungsart der Listen-Anfragen: CI=0 Dauerverbindung, CI=1 einfach (Long-Polling) */
-const modes = (urls) => [...new Set(urls.map((u) => new URL(u).searchParams.get('CI')).filter((v) => v !== null))];
+const FIRESTORE = /firestore\.googleapis\.com|\/Listen\/channel|\/Write\/channel/;
 
 run(async () => {
   const browser = await launch();
   const rows = [];
 
-  // --- Welche Verbindungsart je Gerät ---
-  for (const [name, ua, want] of [['Windows-Chrome', undefined, '0'], ['iPhone', IPHONE, '1']]) {
+  // --- Nummer ziehen: alles vom Backend, Firestore nie gefragt ---
+  for (const [name, ua] of [['Chrome', undefined], ['iPhone', IPHONE]]) {
     const ctx = await browser.newContext({ ...PHONE, ...(ua ? { userAgent: ua } : {}) });
     const page = await ctx.newPage();
-    const urls = [];
-    page.on('request', (r) => r.url().includes('/Listen/channel') && urls.push(r.url()));
+    const errors = collectErrors(page);
+    const firestore = [];
+    const live = [];
+    page.on('request', (r) => {
+      if (FIRESTORE.test(r.url())) firestore.push(r.url());
+      if (r.url().includes('/routes/live/')) live.push(new URL(r.url()).pathname);
+    });
     await page.goto(`${BASE}/public-join-queue?shopId=${SHOP_ID}`, { waitUntil: 'domcontentloaded' });
     await page.locator('section button[aria-pressed]').first().waitFor({ timeout: 30000 });
-    rows.push({ name: `${name}: CI=${want}`, pass: modes(urls).join() === want, detail: `CI=${modes(urls).join(',')}` });
+    rows.push({ name: `${name}: Nummer ziehen ohne Firestore`, pass: firestore.length === 0, detail: `${firestore.length} Anfragen` });
+    rows.push({ name: `${name}: Laden vom Backend`, pass: live.includes(`/routes/live/laden/${SHOP_ID}`), detail: [...new Set(live)].join(', ') });
+    rows.push({ name: `${name}: keine JavaScript-Fehler (ziehen)`, pass: errors.length === 0, detail: errors.join(' | ') });
     await ctx.close();
   }
 
@@ -42,7 +46,7 @@ run(async () => {
       if (r.isNavigationRequest() && r.frame() === page.mainFrame()) docs++;
       if (r.url().includes('/routes/live/')) live.push(new URL(r.url()).pathname);
     });
-    await page.route('**/Listen/channel**', (route) => {
+    await page.route(FIRESTORE, (route) => {
       listen.push(route.request().url()); // nie beantworten
     });
     const t0 = Date.now();

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Shop, Service } from '../utils/firestore/types';
 import { fetchMarketplaceShops, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
-import { isConnectionError, retryWithSimpleConnection } from '../utils/connection';
 import { ConnectionProblem } from '../components/ConnectionProblem';
 import { ShopCard } from '../components/ShopCard';
 import { Button } from '@/components/ui/button';
@@ -161,7 +160,6 @@ const ShopMap = () => {
         }
       } catch (error) {
         console.error('Error loading shops with coordinates:', error);
-        if (isConnectionError(error) && retryWithSimpleConnection()) return;
         setLoadError(error);
       } finally {
         setLoading(false);

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { t } from '@/i18n';
-import { doc, getDocFromServer } from 'firebase/firestore';
 import { getServicesByShopId, getStaffByShopId, offeredServices, Service, Shop, Staff } from '../firestore';
-import { firestore as db } from '../firestore-client';
-import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { isConnectionError } from '../connection';
+import { liveLesen, LiveFehlt } from '../live';
 
 /**
  * Custom hook for fetching and managing shop details
@@ -33,14 +32,17 @@ export const useShopDetails = (shopId: string | null) => {
       try {
         setLoading(true);
         
-        // Vom Server lesen: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
-        const snap = await getDocFromServer(doc(db, 'shops', shopId));
-        if (!snap.exists()) {
+        // Über das Backend: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
+        let laden: Shop;
+        try {
+          laden = (await liveLesen<{ laden: Shop }>(`live/laden/${encodeURIComponent(shopId)}`)).laden;
+        } catch (error) {
+          if (!(error instanceof LiveFehlt)) throw error;
           toast.error(t('Laden nicht gefunden'));
           navigate('/');
           return;
         }
-        setShop({ id: snap.id, ...snap.data() } as Shop);
+        setShop(laden);
 
         // Load services data
         const servicesData = await getServicesByShopId(shopId);
@@ -55,7 +57,6 @@ export const useShopDetails = (shopId: string | null) => {
       } catch (error) {
         console.error('Fehler beim Laden der Shop-Details:', error);
         if (isConnectionError(error)) {
-          if (retryWithSimpleConnection()) return;
           setLoadError(error);
           setLoading(false);
           return;

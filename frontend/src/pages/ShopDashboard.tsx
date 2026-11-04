@@ -21,7 +21,7 @@ import { weekDays } from '../utils/calendar-layout';
 import { useKeepScreenOn } from '../utils/native-app';
 import {
   listShopsOfOwner,
-  getShopById,
+  getTeamShop,
   getTeamStaff,
   createAppointment,
   Shop,
@@ -148,7 +148,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   const loadShopData = async (shopId: string) => {
     setIsLoading(true);
     try {
-      const shopData = await getShopById(shopId);
+      const shopData = await getTeamShop(shopId);
       if (!shopData) {
         toast.error(t('Der Laden konnte nicht geladen werden.'));
         return;

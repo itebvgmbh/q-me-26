@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DocumentData } from 'firebase/firestore';
+type DocumentData = Record<string, any>;
 import { getStaffBreaks } from '../firestore/breaks';
 
 /** Pausen einer Person, wie booking-rules sie liest: wiederkehrende (recurring-breaks) und einzelne (breaks) */

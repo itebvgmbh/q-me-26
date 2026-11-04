@@ -1,6 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp, firebaseAuth } from 'app';
+import { firebaseAuth } from 'app';
 import { Staff, WorkingHours } from './types';
 import { createUserProfile } from '../user-profile-service';
 import { backendSenden, liveLesen } from '../live';
@@ -86,19 +84,12 @@ export const teamEmailMessage = (existing: Staff) =>
     ? t('{name} mit dieser E-Mail ist deaktiviert. Hol sie unten unter „Deaktiviert“ zurück ins Team.', { name: existing.name })
     : t('{name} hat diese E-Mail schon im Team.', { name: existing.name });
 
-// Eigenes Profil anlegen, falls es fehlt (Bereich „Profil“ folgt; bis dahin direkt in Firestore wie bisher)
+/** Eigenes Profil anlegen, falls es fehlt – nur für das angemeldete Konto; ein vorhandenes bleibt, wie es ist (Backend) */
 export const ensureStaffUserProfile = async (staff: Staff): Promise<void> => {
   try {
-    if (!staff.userId) {
-      console.log('Staff has no userId, cannot create user profile:', staff.id);
-      return;
-    }
-    const db = getFirestore(firebaseApp);
-    const userDoc = await getDoc(doc(db, 'users', staff.userId));
-    if (!userDoc.exists()) {
-      // Das eigene Profil: die E-Mail kommt aus der Anmeldung (die Kontaktdaten der Person liest nur der Inhaber)
-      await createUserProfile(staff.userId, staff.email || firebaseAuth.currentUser?.email || '', 'employee');
-    }
+    if (!staff.userId || staff.userId !== firebaseAuth.currentUser?.uid) return;
+    // Die E-Mail kommt aus der Anmeldung (die Kontaktdaten der Person liest nur der Inhaber)
+    await createUserProfile(staff.userId, staff.email || firebaseAuth.currentUser?.email || '', 'employee');
   } catch (error) {
     console.error('Error ensuring staff user profile:', error);
   }

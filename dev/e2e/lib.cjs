@@ -82,66 +82,54 @@ const nextMonday = () => {
 /**
  * Wegwerf-Laden mit eigenem Inhaber-Konto, danach in page angemeldet (eigener Browser-Kontext, newPage). Aufbau wie
  * der Testladen aus fixtures.py: Mo–Fr 9–17 Uhr, Person Robin Mo–Sa 8–18 Uhr, Leistung Schnitt 30 Minuten.
- * Für Tarif-Stände, die nur das Backend ändern darf (firestore.rules): Die gibt es nur beim Anlegen und nur zum
- * eigenen Nachteil – state.trialEndsAt (Date, Testphase vorbei) oder state.suspended (gesperrt).
+ * Angelegt wie in der App über das Backend (Stufe 2, requirements/eigene-datenbank.md): immer Gratis mit Testphase.
+ * Andere Tarif-Stände (Testphase vorbei, gesperrt) setzt nur noch das Backend – dafür den Betreiber-Bereich oder
+ * dev/fixtures.py auf dem Server nehmen; state.trialEndsAt/state.suspended gehen hier nicht mehr.
  * Rückgabe wie fixture(): { email, pw, uid, shopId, staffId, serviceId, monday }. Wieder weg mit removeTempShop.
  */
 const tempShop = async (page, name, state = {}) => {
+  if (state.trialEndsAt || state.suspended) {
+    throw new Error('tempShop: Testphase vorbei oder gesperrt setzt seit Stufe 2 nur das Backend (Betreiber-Bereich, dev/fixtures.py).');
+  }
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
   const shop = await page.evaluate(
-    async ({ name, trialEndsAt, suspended }) => {
+    async ({ name }) => {
       const { registerWithRole } = await import('/src/utils/auth-helpers.ts');
-      const src = await (await fetch('/src/utils/firestore-client.ts')).text();
-      const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
-      const { firestore } = await import('/src/utils/firestore-client.ts');
+      const { createShop } = await import('/src/utils/firestore/shops.ts');
+      const { createService } = await import('/src/utils/firestore/services.ts');
+      const { createStaff } = await import('/src/utils/firestore/staff.ts');
       const email = `q-me-test-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@example.com`;
       const pw = `Test-${Math.random().toString(36).slice(2)}`;
       const { uid } = await registerWithRole(email, pw, 'shopOwner');
-      const now = fs.Timestamp.now();
       const days = [0, 1, 2, 3, 4, 5, 6];
-      const ref = await fs.addDoc(fs.collection(firestore, 'shops'), {
-        name, owner: uid, phone: '1', email, createdAt: now, updatedAt: now,
+      const laden = await createShop(uid, {
+        name, phone: '1', email,
         businessHoursByDay: days.map((d) => ({ dayOfWeek: d, isOpen: d >= 1 && d <= 5, openTime: '09:00', closeTime: '17:00', breaks: [] })),
-        ...(trialEndsAt ? { trialEndsAt: fs.Timestamp.fromMillis(trialEndsAt) } : {}),
-        ...(suspended ? { suspended: { at: now } } : {}),
       });
-      const service = await fs.addDoc(fs.collection(firestore, 'services'), { shopId: ref.id, name: 'Schnitt', duration: 30, price: 20, createdAt: now, updatedAt: now });
+      const service = await createService({ shopId: laden.id, name: 'Schnitt', duration: 30, price: 20 });
       // E-Mail der Person bei den Kontaktdaten des Ladens (nur Inhaber), wie createStaff in der App
-      const { createStaff } = await import('/src/utils/firestore/staff.ts');
       const staff = await createStaff({
-        shopId: ref.id, name: 'Robin', email: 'robin@example.com', phone: '', role: 'staff', serviceIds: [service.id], isActive: true,
+        shopId: laden.id, name: 'Robin', email: 'robin@example.com', phone: '', role: 'staff', serviceIds: [service.id], isActive: true,
         status: 'available', userId: '',
         workingHours: days.map((d) => ({ dayOfWeek: d, startTime: '08:00', endTime: '18:00', isWorking: d !== 0 })),
       });
-      return { email, pw, uid, shopId: ref.id, staffId: staff.id, serviceId: service.id };
+      return { email, pw, uid, shopId: laden.id, staffId: staff.id, serviceId: service.id };
     },
-    { name, trialEndsAt: state.trialEndsAt ? state.trialEndsAt.getTime() : null, suspended: Boolean(state.suspended) },
+    { name },
   );
   return { ...shop, monday: nextMonday() };
 };
 
-/** Wegwerf-Laden samt Konto wieder löschen (page: dieselbe Seite wie bei tempShop, noch angemeldet) */
-const removeTempShop = (page, shop) =>
-  page.evaluate(async ({ shopId, uid }) => {
-    const src = await (await fetch('/src/utils/firestore-client.ts')).text();
-    const fs = await import(src.match(/from "([^"]*firebase[^"]*firestore[^"]*)"/)[1]);
-    const { firestore } = await import('/src/utils/firestore-client.ts');
-    const { firebaseAuth } = await import('/src/app/auth/firebase.ts');
-    // Termine vor ihren Kurzfassungen: die darf erst weg, wenn der Termin weg ist (firestore.rules)
-    for (const coll of ['appointments', 'public_appointments', 'earlier_slot_notifications', 'services', 'staff', 'customers', 'breaks', 'recurring-breaks', 'schedules', 'shop_days']) {
-      const snap = await fs.getDocs(fs.query(fs.collection(firestore, coll), fs.where('shopId', '==', shopId)));
-      for (const d of snap.docs) await fs.deleteDoc(d.ref);
-    }
-    for (const d of (await fs.getDocs(fs.collection(firestore, 'shops', shopId, 'staff_contacts'))).docs) await fs.deleteDoc(d.ref);
-    // Laden löschen geht nur mit Vermerk in deleted_shops im selben Schritt (firestore.rules)
-    const batch = fs.writeBatch(firestore);
-    batch.set(fs.doc(firestore, 'deleted_shops', shopId), { owner: uid, deletedAt: fs.Timestamp.now() });
-    batch.delete(fs.doc(firestore, 'shops', shopId));
-    await batch.commit();
-    await fs.deleteDoc(fs.doc(firestore, 'users', uid));
-    await firebaseAuth.currentUser.delete();
-  }, shop);
+/**
+ * Wegwerf-Laden aufräumen. Läden löscht der Browser seit Stufe 2 nicht mehr selbst (nur das Backend, mit Sicherung):
+ * Konto und Laden (Inhaber q-me-test-…@example.com) bleiben stehen, bis der Betreiber „Konten aufräumen“ laufen lässt
+ * (deploy/konten-aufraeumen.py oder Betreiber-Bereich → Löschen). Das Konto bleibt absichtlich, daran erkennt man den
+ * Testladen.
+ */
+const removeTempShop = async (_page, shop) => {
+  console.log(`Wegwerf-Laden ${shop.shopId} (${shop.email}) bleibt bis zum nächsten „Konten aufräumen“.`);
+};
 
 /**
  * Buchungsablauf (Nummer ziehen / Termin buchen) bis zum Schritt „Wann?“: Leistung und Person nur anklicken, wo es etwas

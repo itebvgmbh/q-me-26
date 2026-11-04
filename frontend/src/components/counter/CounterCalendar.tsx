@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
 import { format, isSameDay } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
+import { Zeitpunkt as Timestamp } from '../../utils/live';
 import { toast } from 'sonner';
 import { teamTerminePfad, useLive } from '../../utils/live';
 import { Button } from '@/components/ui/button';

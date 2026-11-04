@@ -65,9 +65,11 @@ run(async () => {
   });
 
   const posts = anfragen.filter((a) => a.method === 'POST');
-  const lesen = anfragen.filter((a) => a.method === 'GET');
+  // Die Startseite (signInFake) lädt nebenbei die Ladenliste – die gehört nicht zu den Pausen
+  const lesen = anfragen.filter((a) => a.method === 'GET' && a.path !== '/routes/live/laeden');
   const post = (path) => posts.find((a) => a.path === path);
-  rows.push({ name: 'Lesen öffentlich, ohne Token', pass: lesen.length > 0 && lesen.every((a) => a.path === '/routes/live/person/kim/pausen' && !a.auth), detail: `${lesen.length} Abrufe` });
+  const fremd = lesen.filter((a) => a.path !== '/routes/live/person/kim/pausen' || a.auth);
+  rows.push({ name: 'Lesen öffentlich, ohne Token', pass: lesen.length > 0 && fremd.length === 0, detail: `${lesen.length} Abrufe ${fremd.map((a) => `${a.path}${a.auth ? ' (Token)' : ''}`).join(', ')}` });
   rows.push({ name: 'Einzelne Pausen nach Tag (auch alte)', pass: r.amTag.join() === 'alt,b1', detail: r.amTag.join() });
   rows.push({ name: 'Überschneidung erkannt, alte übergangen', pass: r.konfliktJa === true && r.konfliktNein === false && r.konfliktSelbst === false, detail: JSON.stringify([r.konfliktJa, r.konfliktNein, r.konfliktSelbst]) });
   const anlegen = post('/routes/team/pausen');

@@ -1,17 +1,19 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore as db } from '../firestore-client';
 import { TimeSlot } from '../types';
 import { buildDayContext, earliestOnlineStart, findConflict, loadShopData, loadStaffRange, StaffDayContext } from '../booking-rules';
+import { liveLesen, LiveFehlt } from '../live';
 
 // Raster der angebotenen Startzeiten – gleich wie im Backend
 const SLOT_INTERVAL_MINUTES = 15;
 
-/** Dauer einer Leistung inklusive Vorbereitungszeit in Minuten (0 = nicht buchbar) */
+/** Dauer einer Leistung inklusive Vorbereitungszeit in Minuten (0 = nicht buchbar; GET /routes/live/leistung/{id}) */
 const loadServiceMinutes = async (serviceId: string): Promise<number> => {
-  const snap = await getDoc(doc(db, 'services', serviceId));
-  if (!snap.exists()) return 0;
-  const service = snap.data();
-  return Number(service.duration || 0) + Number(service.setupTime || 0);
+  try {
+    const { leistung } = await liveLesen<{ leistung: { duration?: number; setupTime?: number } }>(`live/leistung/${encodeURIComponent(serviceId)}`);
+    return Number(leistung.duration || 0) + Number(leistung.setupTime || 0);
+  } catch (error) {
+    if (error instanceof LiveFehlt) return 0;
+    throw error;
+  }
 };
 
 /** Alle freien Startzeiten eines Tages auf dem 15-Minuten-Raster (gerechnet ab Mitternacht Ortszeit) */
@@ -30,7 +32,7 @@ const slotsForDay = (ctx: StaffDayContext, day: Date, totalMinutes: number): Tim
 };
 
 /**
- * Freie Zeiten einer Person an einem Tag für die Online-Buchung, direkt aus Firestore.
+ * Freie Zeiten einer Person an einem Tag für die Online-Buchung, im Browser gerechnet aus den Daten vom Backend.
  * Nutzt dieselbe Regel wie das Speichern (booking-rules): Öffnungszeiten, Arbeitszeiten, Pausen, Termine.
  * Dazu die Vorlaufzeit des Ladens für Online-Termine (onlineLeadMinutes) – Nummer ziehen und Tresen nutzen
  * findEarliestSlots und gehen ohne Vorlauf.
@@ -51,7 +53,7 @@ export const getAvailableTimeslotsDirect = async (
     const earliest = earliestOnlineStart(range.shop);
     return slotsForDay(buildDayContext(range, dateObj), dateObj, totalMinutes).filter((slot) => slot.start.getTime() >= earliest);
   } catch (error) {
-    console.error('Error directly fetching timeslots from Firestore:', error);
+    console.error('Freie Zeiten nicht geladen:', error);
     return [];
   }
 };
@@ -106,23 +108,4 @@ export const findEarliestSlots = async (
 ): Promise<Record<string, TimeSlot | null>> => {
   const upcoming = await upcomingSlots(shopId, serviceId, staffIds, 1, maxDays);
   return Object.fromEntries(staffIds.map((staffId) => [staffId, upcoming[staffId][0] ?? null]));
-};
-
-/**
- * Die nächsten freien Plätze über alle genannten Personen, nach Beginn sortiert (höchstens limit) –
- * der erste ist der früheste, bei mehreren Personen also der der schnellsten.
- * Für Nummer ziehen, wenn der angezeigte Platz beim Bestätigen schon weg war (QueueBookingService).
- */
-export const findNextSlots = async (
-  shopId: string,
-  serviceId: string,
-  staffIds: string[],
-  limit: number,
-  maxDays = 14,
-): Promise<{ staffId: string; slot: TimeSlot }[]> => {
-  const upcoming = await upcomingSlots(shopId, serviceId, staffIds, limit, maxDays);
-  return staffIds
-    .flatMap((staffId) => upcoming[staffId].map((slot) => ({ staffId, slot })))
-    .sort((a, b) => a.slot.start.getTime() - b.slot.start.getTime())
-    .slice(0, limit);
 };

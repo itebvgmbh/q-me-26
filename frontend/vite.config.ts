@@ -50,11 +50,11 @@ const seitenKoepfe = (): Plugin => ({
 });
 
 // Bibliotheken in eigene Bausteine: Sie ändern sich selten und bleiben so nach einem Ausrollen im Browser-Cache.
-// Firestore, Firebase (App, Auth) und React braucht jede Seite; die übrigen, die der Einstieg statisch lädt
-// (Radix, lucide, sonner …), kommen in "vendor". Alles andere verteilt Rollup selbst: Leaflet kommt nur mit
-// /shop-map, Firebase Storage nur mit den Seiten zum Bild-Hochladen. Messen: node dev/bundle-groesse.cjs
+// Firebase (App, Auth) und React braucht jede Seite; die übrigen, die der Einstieg statisch lädt (Radix, lucide,
+// sonner …), kommen in "vendor". Alles andere verteilt Rollup selbst: Leaflet kommt nur mit /shop-map, Messaging nur
+// mit Push. Firestore und Storage lädt der Browser seit Stufe 2 nicht mehr (requirements/eigene-datenbank.md).
+// Messen: node dev/bundle-groesse.cjs
 const BAUSTEINE: [string, RegExp][] = [
-	["firestore", /\/node_modules\/(@firebase\/(firestore|webchannel-wrapper)|firebase\/firestore)\//],
 	["firebase", /\/node_modules\/(@firebase\/(app|auth|component|logger|util)|firebase\/(app|auth)|idb)\//],
 	["react", /\/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom|@remix-run\/router)\//],
 	// Braucht Firebase und Radix. Läge es in "vendor", bekäme firebase bei jeder Änderung dort einen neuen Namen

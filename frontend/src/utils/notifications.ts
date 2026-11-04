@@ -1,40 +1,18 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { firestore } from './firestore-client';
 import type { EarlierSlotNotificationType } from './types';
+import { eigeneAngebote } from './konto';
 import { tn } from '@/i18n';
 
 /**
- * Load notifications about earlier available slots for a user
- * 
- * @param userId The ID of the user to load notifications for
+ * Offene Angebote „Früher dran“ des angemeldeten Kontos (über das Backend, utils/konto.ts)
+ *
+ * @param _userId nur das eigene Konto geht
  * @returns An array of notifications
  */
-export const loadUserNotifications = async (userId: string): Promise<EarlierSlotNotificationType[]> => {
-  console.log('Loading notifications for user ID:', userId);
+export const loadUserNotifications = async (_userId: string): Promise<EarlierSlotNotificationType[]> => {
   try {
-    // Query notifications from Firestore
-    const notificationsRef = collection(firestore, 'earlier_slot_notifications');
-    const q = query(
-      notificationsRef,
-      where('userId', '==', userId),
-      where('isAccepted', '==', false)
-    );
-    
-    console.log('Firestore query for notifications for user:', userId);
-    
-    const querySnapshot = await getDocs(q);
-    const data = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    
-    console.log('Found notifications:', data.length);
-    
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log('No notifications received from Firestore');
-      return [];
-    }
+    const data = await eigeneAngebote();
+    if (data.length === 0) return [];
 
     // Convert Firestore data to notification objects with proper date handling
     const parsedNotifications = data.map((notification: any) => {

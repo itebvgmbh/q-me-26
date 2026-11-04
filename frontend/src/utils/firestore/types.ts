@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import type { Zeitpunkt as Timestamp } from '../live';
 import type { Sprache } from '@/i18n';
 
 export interface BusinessHoursDay {
