@@ -278,4 +278,11 @@ TEXTE: dict = {
     "Ungültiger Zeitraum.": "Invalid period.",
     "Da ist schon ein Termin ({von}–{bis}).": "There's already an appointment then ({von}–{bis}).",
     "Der Platz ist gerade weggegangen.": "That slot was just taken.",
+    # Team und Leistungen (app/apis/team_laden)
+    "Bitte gib einen Namen ein.": "Please enter a name.",
+    "Ungültige Angaben zur Person.": "Invalid details for this person.",
+    "Diese Person gibt es nicht mehr.": "This person no longer exists.",
+    "Das darf nur der Inhaber des Ladens.": "Only the shop owner can do that.",
+    "Ungültige Angaben zur Leistung.": "Invalid details for this service.",
+    "Diese Leistung gibt es nicht mehr.": "This service no longer exists.",
 }
