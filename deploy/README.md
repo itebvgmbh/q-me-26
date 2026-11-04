@@ -856,6 +856,75 @@ Seite mit 20 Treffern ein paar Cent), `ANTHROPIC_API_KEY`, Caddy mit den Pfaden 
 erneut ausführen; bis dahin leitet die App auf `/routes/seo/friseur/…` um). Die Sammlung `verzeichnis` schreibt nur
 das Backend; im Browser ist sie zu, sobald die Firestore-Regeln eingespielt sind (Abschnitt „Firestore-Regeln“).
 
+### Briefe an Salons (Reiter Briefe, PIN eBrief)
+
+Anforderung: `requirements/briefversand.md`. Im Reiter „Briefe“ wählt der Betreiber Salons aus und schickt sie auf einem von
+zwei Wegen:
+
+- **Als PDF (ohne Zugang):** Sammel-PDF laden, bei PIN eBrief hochladen (farbig, einseitig, nach je einer Seite trennen),
+  danach „Hochgeladen“ klicken.
+- **Über PIN (mit Zugang):** Dranzeit schickt jeden Brief selbst (`app/libs/briefdienst.py`). Standard ist der
+  **Testmodus**: Alles geht an die Testumgebung von PIN, nichts wird gedruckt, die Salons bleiben unverändert. Umschalten
+  im Reiter „Briefe“ unter Einstellungen.
+
+Den Zugang (Benutzer und Passwort für die API) vergibt der PIN-Support (support@ebrief.de, 030 577978-800). Er kann für
+Testumgebung und echten Versand verschieden sein. Die Daten liegen Base64-kodiert in `/etc/q-me.env`
+(`QME_PIN_TEST_BENUTZER_B64` und `QME_PIN_TEST_PASSWORT_B64` bzw. `QME_PIN_BENUTZER_B64` und `QME_PIN_PASSWORT_B64`), damit
+auch Passwörter mit Sonderzeichen durch `set-secret.sh` kommen.
+
+**PIN eBrief: Zugang eintragen:** Den Block in PowerShell einfügen. Er fragt, ob es um die Testumgebung oder den echten
+Versand geht, und fragt Benutzer und Passwort verdeckt ab. Danach legt er beim ersten Mal das Geheimnis für den Webhook
+an, prüft die Anmeldung bei PIN (ohne einen Brief zu schicken) und zeigt die Webhook-Adresse, die du dem PIN-Support
+schickst.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $skript = ssh -o BatchMode=yes $server 'grep -c QME_PIN_PASSWORT_B64 /opt/q-me/deploy/set-secret.sh' 2>&1 | Out-String
+  if ($skript -notmatch '^\s*[1-9]') { Write-Host 'Abbruch: Der Server kennt den Versand ueber PIN noch nicht. Erst den Block "Aktualisieren" ausfuehren.' -ForegroundColor Red; return }
+  $wahl = Read-Host 'Zugang fuer die Testumgebung (t) oder fuer den echten Versand (e)? [t]'
+  $art = 'test'
+  $praefix = 'QME_PIN_TEST_'
+  if ($wahl -match '^\s*[eE]') { $art = 'echt'; $praefix = 'QME_PIN_' }
+  $eintraege = @(@('BENUTZER_B64', "Benutzername von PIN eBrief ($art, wird nicht angezeigt)"), @('PASSWORT_B64', "Passwort von PIN eBrief ($art, wird nicht angezeigt)"))
+  foreach ($eintrag in $eintraege) {
+    $geheim = Read-Host $eintrag[1] -AsSecureString
+    $zeiger = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
+    $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($zeiger)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($zeiger)
+    if (-not $wert) { Write-Host ('Abbruch: Nichts eingegeben fuer ' + $praefix + $eintrag[0] + '.') -ForegroundColor Red; return }
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($wert)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+    $wert = $null
+    $b64 | ssh -o BatchMode=yes $server ('bash /opt/q-me/deploy/set-secret.sh ' + $praefix + $eintrag[0])
+    $ende = $LASTEXITCODE
+    $b64 = $null
+    if ($ende -ne 0) { Write-Host ('Abbruch: ' + $praefix + $eintrag[0] + ' konnte nicht gesetzt werden, Meldung oben.') -ForegroundColor Red; return }
+  }
+  $vorhanden = ssh -o BatchMode=yes $server 'grep -c ^QME_PIN_WEBHOOK_GEHEIMNIS= /etc/q-me.env' 2>&1 | Out-String
+  if ($vorhanden -notmatch '^\s*[1-9]') { ssh -o BatchMode=yes $server 'openssl rand -hex 24 | bash /opt/q-me/deploy/set-secret.sh QME_PIN_WEBHOOK_GEHEIMNIS'; if ($LASTEXITCODE -ne 0) { Write-Host 'Abbruch: Das Geheimnis fuer den Webhook konnte nicht angelegt werden, Meldung oben.' -ForegroundColor Red; return } }
+  $probe = ssh -o BatchMode=yes $server ('cd /opt/q-me/backend && .venv/bin/python ../deploy/pin-pruefen.py ' + $art) 2>&1 | Out-String
+  $probeEnde = $LASTEXITCODE
+  Write-Host $probe.Trim()
+  if ($probeEnde -ne 0) { Write-Host 'Eingetragen, aber die Anmeldung bei PIN klappt nicht. Benutzer und Passwort pruefen und den Block noch einmal ausfuehren.' -ForegroundColor Yellow; return }
+  $zeile = ssh -o BatchMode=yes $server 'grep ^QME_PIN_WEBHOOK_GEHEIMNIS= /etc/q-me.env' 2>&1 | Out-String
+  $adresse = 'https://dranzeit.de/routes/briefdienst/webhook/' + ($zeile.Trim() -replace '^QME_PIN_WEBHOOK_GEHEIMNIS=', '')
+  Write-Host 'Fertig. Diese Webhook-Adresse an support@ebrief.de schicken (fuer Status-Meldungen zu deinen Auftraegen):' -ForegroundColor Green
+  Write-Host $adresse
+}
+```
+
+Ohne Webhook fragt Dranzeit den Stand der Briefe alle 6 Stunden selbst ab (Hintergrunddienst, `app/apis/schedulers`);
+Rückläufer (`DOCUMENT_SENT_BACK`) sperren den Salon wie der Knopf „Unzustellbar“. Den Zugang später noch einmal prüfen:
+
+```bash
+cd /opt/q-me/backend && .venv/bin/python ../deploy/pin-pruefen.py test
+```
+
+Nicht mit `git pull`: Konto bei PIN eBrief, AVV mit PIN, Guthaben bzw. Zahlart, der API-Zugang vom Support und das
+Eintragen der Webhook-Adresse durch den Support.
+
 ## Konten aufräumen
 
 `deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur

@@ -626,6 +626,13 @@ def test_pin_adapter():
         except fehler as e:
             assert fehler is not briefdienst.Abgelehnt or "Keine Adresse" in str(e)
     assert briefdienst.eingerichtet() == {"test": True, "echt": False}
+    # Aus dem PowerShell-Block kommen die Werte Base64-kodiert (Passwörter mit Sonderzeichen)
+    os.environ.pop("QME_PIN_TEST_PASSWORT")
+    os.environ["QME_PIN_TEST_PASSWORT_B64"] = base64.urlsafe_b64encode("ä#\"x$ y=".encode()).decode().rstrip("=")
+    assert briefdienst._zugang(True) == ("kunde", "ä#\"x$ y=")
+    for k in ("QME_PIN_TEST_BENUTZER", "QME_PIN_TEST_PASSWORT_B64"):
+        os.environ.pop(k)
+    assert briefdienst.eingerichtet() == {"test": False, "echt": False}
 
 
 if __name__ == "__main__":

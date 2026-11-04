@@ -11,8 +11,10 @@ Schnittstelle laut https://www.ebrief.de/api-dokumentation und https://api.ebrie
     Damit fragt Dranzeit nach einem Abbruch nach, ob ein Brief angekommen ist, statt ihn ein zweites Mal zu schicken.
 Antworten: {ResultCode (Ok, BadRequest, …), ErrorMessage, Result}. Attribute sind Text: "true"/"false".
 
-Zugang (/etc/q-me.env, setzt Stefan selbst): QME_PIN_BENUTZER, QME_PIN_PASSWORT für den echten Versand,
-QME_PIN_TEST_BENUTZER, QME_PIN_TEST_PASSWORT für die Testumgebung (ohne: dieselben wie für den echten Versand).
+Zugang (/etc/q-me.env, setzt Stefan selbst mit dem Block „PIN eBrief: Zugang eintragen“ aus deploy/README.md):
+QME_PIN_BENUTZER, QME_PIN_PASSWORT für den echten Versand, QME_PIN_TEST_BENUTZER, QME_PIN_TEST_PASSWORT für die
+Testumgebung (ohne: dieselben wie für den echten Versand). Jeweils auch als …_B64 (Base64, URL-sicher, ohne „=“): So
+kommen Passwörter mit Sonderzeichen durch deploy/set-secret.sh, das nur Buchstaben, Ziffern, „-“ und „_“ annimmt.
 """
 
 import base64
@@ -38,11 +40,25 @@ class Unklar(Exception):
     """Keine eindeutige Antwort (Zeitüberschreitung, Serverfehler): Der Brief ist vielleicht angekommen"""
 
 
+def _wert(name: str) -> str:
+    """Klartext aus NAME oder Base64 (URL-sicher) aus NAME_B64"""
+    if os.environ.get(name):
+        return os.environ[name]
+    roh = (os.environ.get(f"{name}_B64") or "").strip()
+    if not roh:
+        return ""
+    try:
+        return base64.urlsafe_b64decode(roh + "=" * (-len(roh) % 4)).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        print(f"Briefe: {name}_B64 ist kein gültiges Base64.")
+        return ""
+
+
 def _zugang(test: bool) -> Optional[tuple]:
-    if test and os.environ.get("QME_PIN_TEST_BENUTZER") and os.environ.get("QME_PIN_TEST_PASSWORT"):
-        return os.environ["QME_PIN_TEST_BENUTZER"], os.environ["QME_PIN_TEST_PASSWORT"]
-    if os.environ.get("QME_PIN_BENUTZER") and os.environ.get("QME_PIN_PASSWORT"):
-        return os.environ["QME_PIN_BENUTZER"], os.environ["QME_PIN_PASSWORT"]
+    if test and _wert("QME_PIN_TEST_BENUTZER") and _wert("QME_PIN_TEST_PASSWORT"):
+        return _wert("QME_PIN_TEST_BENUTZER"), _wert("QME_PIN_TEST_PASSWORT")
+    if _wert("QME_PIN_BENUTZER") and _wert("QME_PIN_PASSWORT"):
+        return _wert("QME_PIN_BENUTZER"), _wert("QME_PIN_PASSWORT")
     return None
 
 

@@ -1,6 +1,6 @@
 # Task — Salons in Wellen anschreiben: Auswahl, Sperre, Sammel-PDF, Erinnerung (Stufe A)
 
-- **Status:** In Review (Code fertig 04.11.2026; erste echte Welle steht aus)
+- **Status:** Live seit 04.11.2026 (offen: Probedruck mit der ersten echten Welle)
 - **Touches:** backend, frontend
 - **Requirement:** briefversand · step 1/2
 - **Related:** ADR likely — Datenmodell für Briefwellen, Brief-Historie je Salon und eine Sperrliste, die das Löschen
