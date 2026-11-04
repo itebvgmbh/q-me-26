@@ -1,19 +1,15 @@
 """
 Vertrag der Speicher-Schicht (app/store, requirements/eigene-datenbank.md): So verhält sich der Teil von Firestore, den
-das Backend benutzt. Die Tests laufen auf GitHub gegen den Firestore-Emulator und gegen PostgreSQL (app/store/postgres.py,
-Workflow „Datenbank“). Beide müssen genau dieselben Tests bestehen. Weicht eine ab, ändert sich das Verhalten der App.
+das Backend benutzt. Bis Stufe 5 liefen sie gegen den Firestore-Emulator und gegen PostgreSQL, beide bestanden dieselben
+Tests. Seit Firestore ausgebaut ist, halten sie das Verhalten der PostgreSQL-Umsetzung fest (app/store/postgres.py,
+Workflow „Datenbank“).
 
-Ohne Emulator und ohne Datenbank wird alles übersprungen. Mit Emulator (Java und firebase-tools aus dev/regeln):
-
-    cd dev/regeln && npx firebase emulators:exec --only firestore --project demo-dranzeit \
-        "../../backend/.venv/bin/python ../../backend/tests/test_speicher_vertrag.py"
-
-Mit PostgreSQL (eine Wegwerf-Datenbank, nie die echte):
+Ohne Datenbank wird alles übersprungen. Mit PostgreSQL (eine Wegwerf-Datenbank, nie die echte):
 
     cd backend && QME_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/q_me_test \
         .venv/bin/python tests/test_speicher_vertrag.py
 
-Jeder Lauf schreibt in eigene Sammlungen (vertrag_<zufall>_…), im Emulator also ohne Rückstände für andere Tests.
+Jeder Lauf schreibt in eigene Sammlungen (vertrag_<zufall>_…).
 """
 import os
 import secrets
@@ -34,12 +30,8 @@ BERLIN = ZoneInfo("Europe/Berlin")
 
 
 def client():
-    """Client für den Vertrag: Firestore-Emulator (FIRESTORE_EMULATOR_HOST) oder PostgreSQL (QME_TEST_DATABASE_URL,
-    eine Wegwerf-Datenbank: das Schema wird auf die neueste Fassung gebracht)."""
-    if os.environ.get("FIRESTORE_EMULATOR_HOST"):
-        from google.cloud import firestore
-
-        return firestore.Client(project=os.environ.get("GCLOUD_PROJECT", "demo-dranzeit"))
+    """Client für den Vertrag: PostgreSQL (QME_TEST_DATABASE_URL, eine Wegwerf-Datenbank: das Schema wird auf die
+    neueste Fassung gebracht)."""
     url = os.environ.get("QME_TEST_DATABASE_URL", "").strip()
     if url:
         from alembic import command
@@ -398,7 +390,7 @@ if __name__ == "__main__":
     db = client()
     vertraege = [v for k, v in dict(globals()).items() if k.startswith("vertrag_")]
     if db is None:
-        print(f"{len(vertraege)} Verträge übersprungen (ohne FIRESTORE_EMULATOR_HOST oder QME_TEST_DATABASE_URL)")
+        print(f"{len(vertraege)} Verträge übersprungen (ohne QME_TEST_DATABASE_URL)")
         sys.exit(0)
     for v in vertraege:
         v(db)

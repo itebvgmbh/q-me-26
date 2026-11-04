@@ -24,6 +24,9 @@ export interface User {
 }
 
 type Daten = { uid: string; email: string | null; emailVerified: boolean; displayName?: string | null };
+// GET /routes/anmeldung/ich ohne Sitzung: {"uid": null}
+type Ich = Daten | { uid: null };
+const angemeldet = (d: Ich): d is Daten => typeof d.uid === 'string' && d.uid !== '';
 type Fehler = Error & { code?: string; status?: number };
 
 const SPEICHER = 'dranzeit.konto';
@@ -88,10 +91,14 @@ class Konto implements User {
   }
 
   async reload(): Promise<void> {
-    const d = await anfrage<Daten>(`${PFAD}/ich`).catch((e: Fehler) => {
+    const d = await anfrage<Ich>(`${PFAD}/ich`).catch((e: Fehler) => {
       if (e.status === 401) setzen(null);
       throw e;
     });
+    if (!angemeldet(d)) {
+      setzen(null);
+      throw fehler('auth/user-token-expired');
+    }
     this.email = d.email ?? null;
     this.emailVerified = Boolean(d.emailVerified);
     this.displayName = d.displayName ?? null;
@@ -156,8 +163,10 @@ const pruefen: Promise<void> = (async () => {
   if (typeof window === 'undefined') return;
   try {
     const res = await fetch(`${PFAD}/ich`, { credentials: 'same-origin', cache: 'no-store' });
-    if (res.ok) setzen((await res.json()) as Daten);
-    else if (res.status === 401) setzen(null);
+    if (res.ok) {
+      const d = (await res.json()) as Ich;
+      setzen(angemeldet(d) ? d : null);
+    } else if (res.status === 401) setzen(null);
     else if (!bereit) setzen(null);
   } catch {
     // Kein Netz: den gemerkten Stand behalten (Anfragen ans Backend scheitern dann ohnehin)

@@ -120,15 +120,15 @@ def abmelden(request: Request, response: Response) -> dict:
 
 @router.get("/anmeldung/ich")
 def ich(request: Request, response: Response) -> dict:
-    """Eigenes Konto. Ohne gültige Sitzung 401 (und das Cookie wird gelöscht)."""
+    """Eigenes Konto. Ohne gültige Sitzung {"uid": null} (kein Fehler: Das fragt jede Seite beim Öffnen, auch ohne
+    Anmeldung), ein abgelaufenes Cookie wird dabei gelöscht."""
+    response.headers["Cache-Control"] = "no-store"
     token = request.cookies.get(COOKIE)
     treffer = anmeldung.sitzung_pruefen(token)
     if treffer is None:
         if token:
-            raise HTTPException(status_code=401, detail=TEXTE["auth/unauthenticated"],
-                                headers={"X-Anmeldung-Fehler": "auth/unauthenticated", "Set-Cookie": f"{COOKIE}=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=lax"})
-        raise fehler("auth/unauthenticated", 401)
-    response.headers["Cache-Control"] = "no-store"
+            cookie_loeschen(response)
+        return {"uid": None}
     return treffer[0].oeffentlich()
 
 

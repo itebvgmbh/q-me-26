@@ -65,6 +65,15 @@
     Passwort); die erste Anmeldung prüft das Passwort noch bei Firebase und speichert es dann als Argon2id-Hash. Damit
     braucht es keine Hash-Parameter von Stefan. Tests: `backend/tests/test_anmeldung.py` (gegen PostgreSQL),
     `dev/e2e/anmeldung.cjs`, `dev/e2e/passwort-neu.cjs`.
+    Live seit 04.11.2026 (PR #129): 8 Firebase-Konten übernommen.
+  - Stufe 5 (04.11.2026): Firebase aus dem Backend ausgebaut. `app/store` hat eigene Sonderwerte und Fehler und nur
+    noch PostgreSQL, `firebase-admin` ist aus `requirements.txt`, `app/apis/firebase_utils` gibt nur noch den Client der
+    Speicher-Schicht. Weg sind auch die Firestore-Umsetzung samt Emulator-Job, das Umzugsskript, `firestore.rules`,
+    `storage.rules` mit `dev/regeln` und Workflow sowie `deploy/firebase-domains.py`. Alte Bilder holt
+    `deploy/dateiumzug.sh` aus Firebase Storage. Push an die iPhone-App ist bis zum Anschluss an APNs aus (braucht das
+    Apple-Konto). Die Datenschutzerklärung und die AGB nennen Firebase nur noch als alte Kopie bis zur Löschung.
+    Offen: das Firebase-Projekt löschen (Stefan, `deploy/README.md` „Firebase-Projekt“), die Testskripte
+    `dev/fixtures.py`, `dev/daten.py` und die e2e-Skripte mit echtem Testkonto auf das Backend umstellen.
 - **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
   200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
   Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend

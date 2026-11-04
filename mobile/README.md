@@ -35,6 +35,13 @@ Antippen einer Mitteilung öffnet die Nummer (`data.url`), ein QR-Code die Seite
 
 ### Push
 
+**Stand seit Stufe 5 von `requirements/eigene-datenbank.md`: Firebase ist ausgebaut, Push an die App ist aus.**
+Das Backend lädt kein `firebase_admin` mehr; `backend/app/libs/fcm.py` meldet „kein Kanal“, und die Seiten bieten
+Push in der App nicht an (Erinnerungen kommen per E-Mail). Neu angeschlossen wird die App direkt an Apple (APNs):
+der AppDelegate meldet das APNs-Token statt eines FCM-Tokens, und das Backend schickt mit dem APNs-Schlüssel aus dem
+Apple-Entwicklerkonto. Das kommt, sobald es das Konto gibt. Bis dahin beschreibt der Ablauf unten den alten Weg über
+Firebase; die Schritte zu Firebase (APNs-Schlüssel dort hinterlegen, `GoogleService-Info.plist`) entfallen.
+
 1. Nummernseite (`/nummer/<id>`) → „Benachrichtigung einschalten“. In der App fragt iOS einmal um Erlaubnis.
 2. iOS liefert ein APNs-Token, der AppDelegate tauscht es über Firebase Messaging gegen ein FCM-Token.
 3. Die Seite meldet es an: `POST /routes/push/subscribe-app` (Termin, Schlüssel der Nummer, Token, Sprache).

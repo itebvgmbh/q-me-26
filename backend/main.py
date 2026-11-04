@@ -102,29 +102,15 @@ def create_app() -> FastAPI:
         print(f"Datenbank: {zustand()}")
 
     @app.on_event("startup")
-    def konten_uebernehmen() -> None:
-        # Firebase-Konten, die in der eigenen Datenbank noch fehlen (Stufe 4, app/libs/anmeldung.py), im Hintergrund
-        import threading
-
-        def uebernehmen() -> None:
-            from app.libs.anmeldung import firebase_konten_uebernehmen
-
-            try:
-                print(f"Anmeldung: {firebase_konten_uebernehmen()} Firebase-Konten übernommen")
-            except Exception as e:  # Start des Dienstes nie daran scheitern lassen
-                print(f"Anmeldung: Firebase-Konten nicht übernommen ({e.__class__.__name__}: {e})")
-
-        threading.Thread(target=uebernehmen, name="konten-uebernehmen", daemon=True).start()
-
-    @app.on_event("startup")
     def autostart_scheduler() -> None:
         # "Früher dran" braucht den Hintergrunddienst; vorher musste ihn jemand nach
-        # jedem Neustart von Hand starten. Ohne Dienstkonto-Schlüssel bleibt er aus.
-        key_file = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", "")
+        # jedem Neustart von Hand starten. Ohne Datenbank (QME_DATABASE_URL) bleibt er aus.
+        from app.libs.datenbank import database_url
+
         if os.environ.get("QME_SCHEDULER_AUTOSTART", "1") != "1":
             print("Scheduler autostart disabled (QME_SCHEDULER_AUTOSTART)")
-        elif not (key_file and os.path.isfile(key_file)) and not os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY"):
-            print("Scheduler autostart skipped: no Firebase service account key")
+        elif not database_url():
+            print("Scheduler autostart skipped: no database (QME_DATABASE_URL)")
         else:
             from app.apis.schedulers import start_scheduler_thread
 

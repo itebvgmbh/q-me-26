@@ -15,7 +15,7 @@ os.environ.setdefault("FIREBASE_PROJECT_ID", "test")
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from google.cloud import firestore as gcf  # noqa: E402
+from app import store as gcf  # noqa: E402
 
 from app.libs.links import token_hash  # noqa: E402
 
@@ -42,7 +42,7 @@ class Ref:
         self.db.data[self.coll][self.id] = dict(values)
 
     def create(self, values):
-        from google.api_core.exceptions import Conflict
+        from app.store import Conflict
 
         if self.id in self.db.data[self.coll]:
             raise Conflict("gibt es schon")

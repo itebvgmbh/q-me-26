@@ -1,18 +1,12 @@
-"""Benachrichtigungen an die Dranzeit-App (iPhone/iPad) über Firebase Cloud Messaging.
+"""Benachrichtigungen an die Dranzeit-App (iPhone/iPad).
 
-In der App gibt es keinen Web-Push (WKWebView). Die App (mobile/) holt sich deshalb ein FCM-Token und meldet es an
-wie eine Web-Push-Anmeldung: app/apis/push (/push/subscribe-app), Sammlung push_subscriptions mit Feld token statt
-endpoint. Firebase stellt über APNs zu – dafür braucht das Firebase-Projekt den APNs-Schlüssel von Apple
-(mobile/README.md). Zugang: dasselbe Dienstkonto wie Firestore (app/apis/firebase_utils), kein eigener Schlüssel.
+In der App gibt es keinen Web-Push (WKWebView). Bis Stufe 5 (requirements/eigene-datenbank.md) holte sich die App
+(mobile/) ein Token von Firebase Cloud Messaging und meldete es an wie eine Web-Push-Anmeldung (app/apis/push,
+/push/subscribe-app, Sammlung push_subscriptions mit Feld token statt endpoint). Firebase ist ausgebaut; die App bekommt
+ihre Nachrichten künftig direkt von Apple (APNs). Dafür braucht es den APNs-Schlüssel aus dem Apple-Entwicklerkonto
+(mobile/README.md). Bis dahin ist der Kanal aus: fcm_configured() ist False, die Seiten bieten Push in der App nicht an,
+und Erinnerungen gehen per E-Mail und Web-Push. Der Name der Datei bleibt, damit Aufrufer und Tests gleich bleiben.
 """
-
-import os
-import time
-
-from firebase_admin import messaging
-
-# So lange darf eine Nachricht unterwegs sein; danach ist "Gleich bist du dran" überholt (wie ttl beim Web-Push)
-TTL_SECONDS = 900
 
 
 class TokenGone(Exception):
@@ -20,33 +14,9 @@ class TokenGone(Exception):
 
 
 def fcm_configured() -> bool:
-    """Wie Firestore: Ohne Dienstkonto (z. B. in den Tests) gibt es keinen Kanal zur App."""
-    return bool(os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "").strip() or os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", "").strip())
-
-
-def build_message(token: str, title: str, body: str, url: str, tag: str) -> messaging.Message:
-    """url und tag wie beim Web-Push (frontend/public/sw.js): url öffnet die App beim Antippen
-    (frontend/src/utils/native-app.ts), tag ersetzt eine ältere Nachricht zur selben Nummer."""
-    return messaging.Message(
-        token=token,
-        notification=messaging.Notification(title=title, body=body),
-        data={"url": url, "tag": tag},
-        apns=messaging.APNSConfig(
-            headers={
-                "apns-priority": "10",
-                "apns-expiration": str(int(time.time()) + TTL_SECONDS),
-                "apns-collapse-id": tag[:64],
-            },
-            payload=messaging.APNSPayload(aps=messaging.Aps(sound="default", thread_id=tag)),
-        ),
-        android=messaging.AndroidConfig(priority="high", ttl=TTL_SECONDS, collapse_key=tag),
-    )
+    """Gibt es einen Kanal zur App? Bis zum Anschluss an APNs nein."""
+    return False
 
 
 def send_app_push(token: str, title: str, body: str, url: str, tag: str) -> None:
-    from app.apis.firebase_utils import get_firebase_app
-
-    try:
-        messaging.send(build_message(token, title, body, url, tag), app=get_firebase_app())
-    except (messaging.UnregisteredError, messaging.SenderIdMismatchError) as e:
-        raise TokenGone() from e
+    raise RuntimeError("Push an die App ist noch nicht an APNs angeschlossen (app/libs/fcm.py)")

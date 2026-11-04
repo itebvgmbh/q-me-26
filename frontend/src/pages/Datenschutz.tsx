@@ -31,7 +31,9 @@ export default function Datenschutz() {
           <li>
             <strong>Konto:</strong> E-Mail-Adresse, Name, auf Wunsch Telefonnummer, und deine Termine. Name und
             Telefonnummer sieht der Laden bei deinen Terminen. Du meldest dich mit
-            E-Mail-Adresse und Passwort an; das Passwort prüft Google Firebase, wir sehen es nicht. Hat ein Laden dich als
+            E-Mail-Adresse und Passwort an. Das Passwort speichern wir nur als Prüfwert (Argon2), lesbar sehen wir es
+            nie. Für Konten von vor November 2026 prüft Google Firebase, wo die Anmeldung bis dahin lag, das Passwort bei
+            der ersten Anmeldung danach noch einmal. Hat ein Laden dich als
             Kunde angelegt und du verbindest dein Konto über seinen Link, gehören die Termine, die der Laden für dich
             einträgt, zu deinem Konto (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
@@ -122,11 +124,13 @@ export default function Datenschutz() {
         <h2>Dienstleister, die wir einsetzen</h2>
         <ul>
           <li>
-            <strong>Hetzner Online GmbH</strong> (Gunzenhausen): Server in Deutschland, auf dem Dranzeit läuft.
+            <strong>Hetzner Online GmbH</strong> (Gunzenhausen): Server in Deutschland, auf dem Dranzeit läuft, mit
+            Datenbank, Anmeldung und Ladenlogos.
           </li>
           <li>
-            <strong>Google Firebase</strong> (Google Ireland Limited, Dublin): Anmeldung, Datenbank für Läden, Termine
-            und Wartenummern, Speicher für Ladenlogos.
+            <strong>Google Firebase</strong> (Google Ireland Limited, Dublin): bis November 2026 Anmeldung, Datenbank und
+            Speicher für Ladenlogos. Die Daten liegen seitdem auf unserem Server; bei Google bleibt nur eine alte Kopie,
+            bis wir das Firebase-Projekt löschen.
           </li>
           <li>
             <strong>Resend</strong> (Resend, Inc., San Francisco): Versand von E-Mails, zum Beispiel Bestätigung der

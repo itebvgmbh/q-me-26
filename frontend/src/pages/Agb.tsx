@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Agb() {
   return (
-    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="20.10.2026">
+    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="04.11.2026">
       <section>
         <h2>1. Geltungsbereich</h2>
         <p>
@@ -105,8 +105,9 @@ export default function Agb() {
             Daten werden verschlüsselt übertragen, Zugriffe sind auf das Nötige beschränkt.
           </li>
           <li>
-            <strong>Unterauftragsverarbeiter:</strong> Hetzner Online GmbH (Server in Deutschland), Google Ireland Limited
-            (Firebase: Anmeldung, Datenbank), Resend, Inc. (E-Mail-Versand) sowie die Push-Dienste der Browser-Hersteller. Über
+            <strong>Unterauftragsverarbeiter:</strong> Hetzner Online GmbH (Server in Deutschland, mit Datenbank und
+            Anmeldung), Google Ireland Limited (Firebase: nur noch eine alte Kopie aus der Zeit bis November 2026, bis zu
+            ihrer Löschung), Resend, Inc. (E-Mail-Versand) sowie die Push-Dienste der Browser-Hersteller. Über
             neue Unterauftragsverarbeiter informieren wir vorher; der Kunde kann widersprechen.
           </li>
           <li>

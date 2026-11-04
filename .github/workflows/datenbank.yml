@@ -1,6 +1,6 @@
 # Prüft die Anbindung an PostgreSQL und die Schema-Fassungen (backend/tests/test_datenbank.py) gegen eine
-# Wegwerf-Datenbank, die Syntax von deploy/datenbank.sh, dass niemand an der Speicher-Schicht vorbei auf Firestore
-# zugreift, und den Vertrag der Speicher-Schicht gegen den Firestore-Emulator. Läuft, sobald sich Backend oder
+# Wegwerf-Datenbank, die Syntax der Skripte fürs Ausrollen, den Vertrag der Speicher-Schicht und die eigene Anmeldung
+# gegen PostgreSQL, und dass das Backend keine Google- oder Firebase-Pakete mehr lädt. Läuft, sobald sich Backend oder
 # Datenbank-Skripte ändern;
 # von Hand: Actions → Datenbank → Run workflow. Anleitung: requirements/eigene-datenbank.md (Stufe 0).
 name: Datenbank
@@ -10,14 +10,14 @@ on:
     paths:
       - backend/**
       - deploy/datenbank.sh
-      - deploy/datenumzug.*
+      - deploy/dateiumzug.*
       - deploy/update.sh
       - .github/workflows/datenbank.yml
   pull_request:
     paths:
       - backend/**
       - deploy/datenbank.sh
-      - deploy/datenumzug.*
+      - deploy/dateiumzug.*
       - deploy/update.sh
       - .github/workflows/datenbank.yml
   workflow_dispatch:
@@ -54,9 +54,9 @@ jobs:
         working-directory: deploy
         run: |
           bash -n datenbank.sh
-          bash -n datenumzug.sh
+          bash -n dateiumzug.sh
           bash -n update.sh
-          shellcheck -S warning datenbank.sh datenumzug.sh
+          shellcheck -S warning datenbank.sh dateiumzug.sh
       - name: Anbindung und Schema
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
@@ -65,15 +65,13 @@ jobs:
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
         run: .venv/bin/python tests/test_speicher_vertrag.py
-      - name: Umzug Firestore → PostgreSQL (deploy/datenumzug.py)
-        env:
-          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
-        run: .venv/bin/python tests/test_datenumzug.py
+      - name: Bilder aus Firebase Storage holen (deploy/dateiumzug.py)
+        run: .venv/bin/python tests/test_dateiumzug.py
       - name: Eigene Anmeldung (app/libs/anmeldung.py, app/apis/anmeldung)
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
         run: .venv/bin/python tests/test_anmeldung.py
-      - name: Kein Zugriff an der Speicher-Schicht vorbei
+      - name: Keine Google- und Firebase-Pakete mehr
         run: .venv/bin/python tests/test_speicher_gebuendelt.py
       - name: Live-Daten für Nummer und Bildschirm (app/apis/live)
         run: .venv/bin/python tests/test_live.py
@@ -85,34 +83,3 @@ jobs:
         run: .venv/bin/python tests/test_pausen.py
       - name: Läden, Bilder, Kunden, Konto (app/libs/laeden.py)
         run: .venv/bin/python tests/test_laeden.py
-
-  # Vertrag der Speicher-Schicht (backend/tests/test_speicher_vertrag.py) gegen den Firestore-Emulator: hält fest, wie
-  # sich der genutzte Teil von Firestore verhält. In Stufe 3 muss PostgreSQL dieselben Verträge bestehen.
-  vertrag:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: dev/regeln/package-lock.json
-      - uses: astral-sh/setup-uv@v6
-      - name: Python und Abhängigkeiten wie auf dem Server
-        working-directory: backend
-        run: |
-          uv venv --python 3.13 .venv
-          uv pip install --python .venv/bin/python -r requirements.txt
-      - name: Firebase-Emulator (aus dev/regeln)
-        working-directory: dev/regeln
-        run: npm ci
-      - name: Vertrag gegen Firestore
-        working-directory: dev/regeln
-        run: >-
-          npx firebase emulators:exec --only firestore --project demo-dranzeit
-          "../../backend/.venv/bin/python ../../backend/tests/test_speicher_vertrag.py"

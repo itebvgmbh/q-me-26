@@ -147,7 +147,7 @@ def db_test_registrieren_anmelden_abmelden():
     assert _code(r) == "auth/weak-password"
 
     assert c.post("/routes/anmeldung/abmelden", headers=DRANZEIT).status_code == 200
-    assert c.get("/routes/anmeldung/ich").status_code == 401
+    assert c.get("/routes/anmeldung/ich").json() == {"uid": None}
     assert c.get("/routes/geheim").status_code == 401
 
     r = c.post("/routes/anmeldung/anmelden", json={"email": "kim@salon.de", "passwort": "falsch"}, headers=DRANZEIT)
@@ -207,7 +207,7 @@ def db_test_passwort_aendern_nur_kurz_nach_bestaetigung():
     assert c.post("/routes/anmeldung/passwort-pruefen", json={"passwort": "geheim123"}, headers=DRANZEIT).status_code == 200
     assert c.post("/routes/anmeldung/passwort-aendern", json={"passwort": "neues1234"}, headers=DRANZEIT).status_code == 200
     assert c.get("/routes/anmeldung/ich").json()["uid"] == uid  # eigene Sitzung bleibt
-    assert anderes.get("/routes/anmeldung/ich").status_code == 401  # andere Geräte abgemeldet
+    assert anderes.get("/routes/anmeldung/ich").json() == {"uid": None}  # andere Geräte abgemeldet
     r = _app().post("/routes/anmeldung/anmelden", json={"email": "kim@salon.de", "passwort": "neues1234"}, headers=DRANZEIT)
     assert r.status_code == 200
 
@@ -227,7 +227,7 @@ def db_test_passwort_vergessen_und_adresse_bestaetigen():
     assert _code(r) == "auth/weak-password"
     r = c.post("/routes/anmeldung/passwort-neu", json={"code": neuer, "passwort": "neues1234"}, headers=DRANZEIT)
     assert r.status_code == 200, r.text
-    assert c.get("/routes/anmeldung/ich").status_code == 401  # alle Sitzungen beendet
+    assert c.get("/routes/anmeldung/ich").json() == {"uid": None}  # alle Sitzungen beendet
     r = c.post("/routes/anmeldung/passwort-neu", json={"code": neuer, "passwort": "nochmal123"}, headers=DRANZEIT)
     assert _code(r) == "auth/invalid-action-code"  # nur einmal
     assert anmeldung.konto(konto.uid).email_bestaetigt  # Link kam per Mail: Adresse damit bestätigt
@@ -265,7 +265,7 @@ def db_test_sperren_wie_firebase():
     assert konto_auth.get_user_by_email("KIM@salon.de").uid == uid
     assert [u.uid for u in konto_auth.get_users([konto_auth.UidIdentifier(uid), konto_auth.UidIdentifier("weg")]).users] == [uid]
     konto_auth.update_user(uid, disabled=True)
-    assert c.get("/routes/anmeldung/ich").status_code == 401  # Sitzungen beendet
+    assert c.get("/routes/anmeldung/ich").json() == {"uid": None}  # Sitzungen beendet
     r = c.post("/routes/anmeldung/anmelden", json={"email": "kim@salon.de", "passwort": "geheim123"}, headers=DRANZEIT)
     assert r.status_code == 403 and _code(r) == "auth/user-disabled"
     konto_auth.update_user(uid, disabled=False)
@@ -279,7 +279,7 @@ def db_test_sperren_wie_firebase():
         pass
     assert {u.email for u in konto_auth.list_users().iterate_all()} == {"kim@salon.de", "mo@salon.de"}
     konto_auth.delete_user(uid)
-    assert c.get("/routes/anmeldung/ich").status_code == 401
+    assert c.get("/routes/anmeldung/ich").json() == {"uid": None}
     try:
         konto_auth.get_user(uid)
         raise AssertionError("gelöschtes Konto gefunden")
@@ -288,21 +288,13 @@ def db_test_sperren_wie_firebase():
 
 
 def db_test_uebernahme_aus_firebase():
+    """Übernommene Konten (herkunft firebase, ohne Passwort): Die erste Anmeldung prüft bei Firebase, danach nicht mehr"""
     _schema()
-    import firebase_admin.auth as fb_auth
+    from datetime import datetime, timezone
 
-    import app.apis.firebase_utils as fu
-
-    # Beim Start: Firebase-Konten ohne Passwort übernehmen, vorhandene bleiben unberührt
-    meta = SimpleNamespace(creation_timestamp=1_700_000_000_000)
-    firebase = [
-        SimpleNamespace(uid="A" * 28, email="alt@salon.de", email_verified=True, disabled=False, display_name="Alt", user_metadata=meta),
-        SimpleNamespace(uid="B" * 28, email="gesperrt@salon.de", email_verified=False, disabled=True, display_name=None, user_metadata=meta),
-        SimpleNamespace(uid="C" * 28, email=None, email_verified=False, disabled=False, display_name=None, user_metadata=meta),
-    ]
-    vorher = fb_auth.list_users, fu.get_firebase_app, anmeldung.firebase_passwort
-    fb_auth.list_users = lambda app=None: SimpleNamespace(iterate_all=lambda: iter(firebase))
-    fu.get_firebase_app = lambda: None
+    anmeldung.anlegen("alt@salon.de", None, uid="A" * 28, bestaetigt=True, herkunft="firebase",
+                      angelegt=datetime(2023, 11, 14, tzinfo=timezone.utc))
+    vorher = anmeldung.firebase_passwort
     gefragt = []
 
     def firebase_passwort(email, passwort):
@@ -311,12 +303,8 @@ def db_test_uebernahme_aus_firebase():
 
     anmeldung.firebase_passwort = firebase_passwort
     try:
-        assert anmeldung.firebase_konten_uebernehmen() == 2
-        assert anmeldung.firebase_konten_uebernehmen() == 0  # zweiter Start: nichts doppelt
         alt = anmeldung.konto("A" * 28)
         assert alt.passwort is None and alt.email_bestaetigt and alt.herkunft == "firebase" and alt.angelegt.year == 2023
-        assert anmeldung.konto("B" * 28).gesperrt
-
         c = _app()
         r = c.post("/routes/anmeldung/anmelden", json={"email": "alt@salon.de", "passwort": "falsch"}, headers=DRANZEIT)
         assert _code(r) == "auth/invalid-credential" and gefragt == ["alt@salon.de"]
@@ -327,8 +315,13 @@ def db_test_uebernahme_aus_firebase():
         gefragt.clear()
         r = _app().post("/routes/anmeldung/anmelden", json={"email": "alt@salon.de", "passwort": "altes-pw"}, headers=DRANZEIT)
         assert r.status_code == 200 and gefragt == []
+        # Firebase nicht erreichbar oder Projekt gelöscht: wie ein falsches Passwort
+        anmeldung.anlegen("weg@salon.de", None, uid="B" * 28, herkunft="firebase")
+        anmeldung.firebase_passwort = lambda email, passwort: None
+        r = _app().post("/routes/anmeldung/anmelden", json={"email": "weg@salon.de", "passwort": "egal123"}, headers=DRANZEIT)
+        assert _code(r) == "auth/invalid-credential"
     finally:
-        fb_auth.list_users, fu.get_firebase_app, anmeldung.firebase_passwort = vorher
+        anmeldung.firebase_passwort = vorher
 
 
 def db_test_sitzung_ablauf():
@@ -341,13 +334,13 @@ def db_test_sitzung_ablauf():
     c.post("/routes/anmeldung/registrieren", json={"email": "kim@salon.de", "passwort": "geheim123"}, headers=DRANZEIT)
     with datenbank.engine().begin() as conn:
         conn.execute(text("update sitzungen set zuletzt = now() - interval '1 day'"))
-    assert c.get("/routes/anmeldung/ich").status_code == 200
+    assert c.get("/routes/anmeldung/ich").json()["uid"]
     with datenbank.engine().connect() as conn:
         ab = conn.execute(text("select laeuft_ab - now() from sitzungen")).scalar()
     assert ab > anmeldung.SITZUNG_DAUER - timedelta(minutes=1)  # verlängert
     with datenbank.engine().begin() as conn:
         conn.execute(text("update sitzungen set laeuft_ab = now() - interval '1 second'"))
-    assert c.get("/routes/anmeldung/ich").status_code == 401
+    assert c.get("/routes/anmeldung/ich").json() == {"uid": None}
 
 
 if __name__ == "__main__":

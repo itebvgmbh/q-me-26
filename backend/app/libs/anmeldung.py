@@ -12,10 +12,11 @@ Konten, Sitzungen und Einmal-Links liegen in PostgreSQL (Schema 0003, migrations
   höchstens 20-mal in der Stunde. Schreibende Anfragen mit Sitzung prüft databutton_app/mw/auth_mw.py auf ihren
   Ursprung (Origin).
 
-**Übernahme aus Firebase:** Alle Firebase-Konten kommen mit ihrer bisherigen ID nach `konten`, aber ohne Passwort
-(Firebase gibt es nicht im Klartext heraus). Die erste Anmeldung prüft das Passwort deshalb noch einmal bei Firebase
-und speichert es danach als Argon2id-Hash. Gibt es das Firebase-Projekt nicht mehr, setzt die Person ihr Passwort über
-„Passwort vergessen“ neu. `firebase_konten_uebernehmen()` läuft bei jedem Start und legt nur an, was fehlt.
+**Übernahme aus Firebase:** Beim ersten Start von Stufe 4 (04.11.2026) kamen alle Firebase-Konten mit ihrer bisherigen
+ID nach `konten`, aber ohne Passwort (herkunft „firebase“). Die erste Anmeldung prüft das Passwort deshalb noch einmal
+bei Firebase (öffentliche REST-Schnittstelle, kein Firebase-Paket) und speichert es danach als Argon2id-Hash. Gibt es
+das Firebase-Projekt nicht mehr, scheitert die Prüfung still, und die Person setzt ihr Passwort über „Passwort
+vergessen“ neu. Ist das Projekt gelöscht, kann firebase_passwort() mit FIREBASE_WEB_SCHLUESSEL weg.
 """
 
 import hashlib
@@ -501,35 +502,3 @@ def _von_firebase(email: str, passwort: str, k: Konto | None) -> Konto | None:
             if k is None:
                 return None
     return aendern(k.uid, passwort=passwort, email_bestaetigt=k.email_bestaetigt or fb["verified"])
-
-
-def firebase_konten_uebernehmen() -> int:
-    """Firebase-Konten, die in `konten` noch fehlen, anlegen (ohne Passwort). Läuft beim Start (main.py); ohne
-    Firebase-Zugang oder ohne Datenbank passiert nichts. Rückgabe: wie viele neu sind."""
-    from app.libs import datenbank
-
-    if not datenbank.database_url():
-        return 0
-    try:
-        from firebase_admin import auth
-
-        from app.apis.firebase_utils import get_firebase_app
-
-        alle = list(auth.list_users(app=get_firebase_app()).iterate_all())
-    except Exception as e:
-        print(f"Anmeldung: Firebase-Konten nicht gelesen ({e.__class__.__name__}: {e})")
-        return 0
-    vorhanden = {k.uid for k in alle_konten()}
-    neu = 0
-    for nutzer in alle:
-        if nutzer.uid in vorhanden or not nutzer.email:
-            continue
-        erstellt = nutzer.user_metadata.creation_timestamp if nutzer.user_metadata else None
-        try:
-            anlegen(nutzer.email, None, uid=nutzer.uid, bestaetigt=bool(nutzer.email_verified), gesperrt=bool(nutzer.disabled),
-                    name=nutzer.display_name or None, herkunft="firebase",
-                    angelegt=datetime.fromtimestamp(erstellt / 1000, UTC) if erstellt else None)
-            neu += 1
-        except AnmeldeFehler:
-            print(f"Anmeldung: Firebase-Konto {nutzer.uid} nicht übernommen, die Adresse hat schon ein anderes Konto")
-    return neu
