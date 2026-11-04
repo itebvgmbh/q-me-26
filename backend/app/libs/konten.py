@@ -151,10 +151,11 @@ def overview(fs, accounts: list, admin_emails: set = frozenset(), admin_uids: se
     month_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_end = (month_start + timedelta(days=32)).replace(day=1)
     shop_rows = {}
-    from app.libs.shop_privat import stripe_ids
+    from app.libs.shop_privat import stripe_link
 
     for sid, s in shops.items():
-        billing = {**(s.get("billing") or {}), **stripe_ids(fs, sid, s)}
+        stripe_mode, ids = stripe_link(fs, sid, s)
+        billing = {**(s.get("billing") or {}), **ids}
         grant = s.get("grant") or {}
         suspended = s.get("suspended") or {}
         shop_rows[sid] = {
@@ -169,7 +170,7 @@ def overview(fs, accounts: list, admin_emails: set = frozenset(), admin_uids: se
             "suspended": utc(suspended.get("at")) or now if suspended else None,
             "interval": billing.get("interval") or "", "cancelAtPeriodEnd": bool(billing.get("cancelAtPeriodEnd")),
             "currentPeriodEnd": utc(billing.get("currentPeriodEnd")), "customerId": billing.get("customerId") or "",
-            "subscriptionId": billing.get("subscriptionId") or "",
+            "subscriptionId": billing.get("subscriptionId") or "", "stripeMode": stripe_mode,
             "onboarding": sorted(k for k, v in (s.get("onboarding") or {}).items() if v),
             "thisMonth": 0, "last30": 0, "lastAppointment": None, "staffAccounts": [],
         }
@@ -255,10 +256,10 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
         shop = snap.to_dict() or {}
         if sid == ITEBV_SHOP:
             problems.append(f"„{shop.get('name')}“ ist der Laden der ITEBV GmbH, gegen den seiten.cjs und durchlauf-*.cjs laufen – den löscht dieses Skript nicht.")
-        if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING:
-            from app.libs.shop_privat import stripe_ids
+        from app.libs.shop_privat import LIVE, stripe_link
 
-            ids = stripe_ids(fs, sid, shop)
+        stripe_mode, ids = stripe_link(fs, sid, shop)
+        if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING and stripe_mode == LIVE:  # Sandbox-Abos kosten nichts
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {ids.get('customerId') or '?'}, Abo {ids.get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}

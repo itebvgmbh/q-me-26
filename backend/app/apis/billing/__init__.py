@@ -4,7 +4,6 @@ Nur Inhaber des Ladens. Der Stand des Abos kommt über den Webhook (app/apis/str
 """
 
 import functools
-import os
 from datetime import datetime, timedelta, timezone
 
 import stripe
@@ -19,8 +18,8 @@ from app.auth.access import require_shop_of_owner
 from app.i18n import merke
 from app.libs.links import public_origin
 from app.libs.plans import FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, trial_end
-from app.libs.shop_privat import clear_stripe_ids, save_stripe_ids, stripe_ids
-from app.libs.stripe_billing import INTERVALS, client, lookup_key, price_id, stripe_configured
+from app.libs.shop_privat import LIVE, clear_stripe_ids, save_stripe_ids, stripe_ids, stripe_link, stripe_mode
+from app.libs.stripe_billing import INTERVALS, client, lookup_key, portal_config, price_id, stripe_configured, test_key
 
 router = APIRouter()
 
@@ -40,6 +39,17 @@ def _shop(shop_id: str) -> dict:
     return doc.to_dict() or {}
 
 
+def _test_mode_of_request(kwargs: dict) -> bool:
+    """Probe-Zahlungen? Dann darf Stripes eigene Meldung zum Inhaber (hilft beim Einrichten und Testen)."""
+    if test_key(LIVE):
+        return True
+    shop_id = getattr(kwargs.get("body"), "shop_id", None) or kwargs.get("shop_id")
+    try:
+        return bool(shop_id) and stripe_mode(get_firestore_db(), shop_id) != LIVE
+    except Exception:
+        return False
+
+
 def stripe_errors(fn):
     """Fehler von Stripe verständlich melden. Im Testmodus mit Stripes eigener Meldung (hilft beim Einrichten)."""
 
@@ -49,7 +59,7 @@ def stripe_errors(fn):
             return fn(*args, **kwargs)
         except stripe.StripeError as e:
             print(f"Stripe-Fehler in {fn.__name__}: {e}")
-            test_mode = "_test_" in os.environ.get("STRIPE_SECRET_KEY", "")
+            test_mode = _test_mode_of_request(kwargs)
             detail = (
                 merke("Stripe meldet: {grund}", grund=e.user_message or str(e))
                 if test_mode
@@ -63,10 +73,10 @@ def stripe_errors(fn):
     return wrapper
 
 
-def known_customer(c, db, shop_id: str, shop: dict) -> str | None:
+def known_customer(c, db, shop_id: str, shop: dict, mode: str = LIVE) -> str | None:
     """Stripe-Kunde des Ladens, wenn es ihn im aktuellen Stripe-Modus gibt. Nach dem Wechsel vom Test- in den Live-Modus
     kennt Stripe die Test-Kunden nicht: dann Verknüpfung und Abo-Stand vergessen, beim Abschließen entsteht ein neuer."""
-    customer_id = stripe_ids(db, shop_id, shop).get("customerId")
+    customer_id = stripe_ids(db, shop_id, shop, mode).get("customerId")
     if not customer_id:
         return None
     try:
@@ -76,13 +86,13 @@ def known_customer(c, db, shop_id: str, shop: dict) -> str | None:
         if getattr(e, "code", None) != "resource_missing":
             raise
     print(f"Stripe: Kunde {customer_id} von Laden {shop_id} gibt es hier nicht (anderer Modus?) – Verknüpfung gelöst")
-    clear_stripe_ids(db, shop_id)
+    clear_stripe_ids(db, shop_id, mode)
     db.collection("shops").document(shop_id).update({"billing": None, "plan": "gratis"})
     return None
 
 
-def _require_stripe() -> None:
-    if not stripe_configured():
+def _require_stripe(mode: str = LIVE) -> None:
+    if not stripe_configured(mode):
         raise HTTPException(status_code=503, detail="Die Bezahlung ist noch nicht eingerichtet. Schreib uns, wir schalten dich frei.")
 
 
@@ -99,16 +109,17 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
     require_shop_of_owner(user, body.shop_id)
     if body.plan not in PAID_PLANS or body.interval not in INTERVALS:
         raise HTTPException(status_code=400, detail="Unbekannter Tarif.")
-    _require_stripe()
     shop = _shop(body.shop_id)
     billing = shop.get("billing") or {}
     base = _origin(request)
-    c = client()
     db = get_firestore_db()
-    customer_id = known_customer(c, db, body.shop_id, shop)
+    mode = stripe_link(db, body.shop_id, shop)[0]  # Testmodus: Sandbox (Betreiber-Bereich)
+    _require_stripe(mode)
+    c = client(mode)
+    customer_id = known_customer(c, db, body.shop_id, shop, mode)
 
     if billing.get("status") in ACTIVE and customer_id:
-        return {"url": _portal_url(c, customer_id, base)}
+        return {"url": _portal_url(c, customer_id, base, mode)}
 
     if not customer_id:
         customer = c.v1.customers.create(
@@ -120,7 +131,7 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
             }
         )
         customer_id = customer.id
-        save_stripe_ids(db, body.shop_id, customer_id=customer_id)
+        save_stripe_ids(db, body.shop_id, customer_id=customer_id, mode=mode)
 
     founder = bool(shop.get("founder"))
     subscription_data: dict = {"metadata": {"shopId": body.shop_id}}
@@ -134,7 +145,7 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
             "mode": "subscription",
             "customer": customer_id,
             "client_reference_id": body.shop_id,
-            "line_items": [{"price": price_id(c, lookup_key(body.plan, body.interval, founder)), "quantity": 1}],
+            "line_items": [{"price": price_id(c, lookup_key(body.plan, body.interval, founder), mode), "quantity": 1}],
             "subscription_data": subscription_data,
             "metadata": {"shopId": body.shop_id},
             "automatic_tax": {"enabled": True},
@@ -150,9 +161,9 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
     return {"url": session.url}
 
 
-def _portal_url(c, customer_id: str, base: str) -> str:
+def _portal_url(c, customer_id: str, base: str, mode: str = LIVE) -> str:
     params = {"customer": customer_id, "return_url": f"{base}/tarif", "locale": "de"}
-    config = os.environ.get("STRIPE_PORTAL_CONFIG", "").strip()
+    config = portal_config(mode)
     if config:
         params["configuration"] = config
     return c.v1.billing_portal.sessions.create(params=params).url
@@ -167,12 +178,21 @@ class ShopRequest(BaseModel):
 def portal(body: ShopRequest, user: AuthorizedUser, request: Request) -> dict:
     """Kundenportal: Tarif wechseln, Zahlungsart ändern, Rechnungen, kündigen."""
     require_shop_of_owner(user, body.shop_id)
-    _require_stripe()
-    c = client()
-    customer_id = known_customer(c, get_firestore_db(), body.shop_id, _shop(body.shop_id))
+    db, shop = get_firestore_db(), _shop(body.shop_id)
+    mode = stripe_link(db, body.shop_id, shop)[0]
+    _require_stripe(mode)
+    c = client(mode)
+    customer_id = known_customer(c, db, body.shop_id, shop, mode)
     if not customer_id:
         raise HTTPException(status_code=409, detail="Für diesen Laden gibt es noch kein Abo.")
-    return {"url": _portal_url(c, customer_id, _origin(request))}
+    return {"url": _portal_url(c, customer_id, _origin(request), mode)}
+
+
+@router.get("/billing/modus")
+def billing_mode(shop_id: str, user: AuthorizedUser) -> dict:
+    """Bucht der Laden in der Stripe-Sandbox? (Testmodus aus dem Betreiber-Bereich; Mein Tarif zeigt dann einen Hinweis)"""
+    require_shop_of_owner(user, shop_id)
+    return {"test": stripe_mode(get_firestore_db(), shop_id) != LIVE}
 
 
 def founders_left() -> int:

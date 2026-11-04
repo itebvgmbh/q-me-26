@@ -37,6 +37,13 @@ export function Betrieb({ data }: { data: Overview }) {
           <Row ok={s.stripePortal} warn title="Stripe-Kundenportal">
             {s.stripePortal ? 'Eigene Einstellung hinterlegt.' : 'Standard-Portal von Stripe.'}
           </Row>
+          <Row ok={s.stripeSandbox && s.stripeSandboxWebhook} warn title="Stripe-Sandbox (Testmodus je Laden)">
+            {!s.stripeSandbox
+              ? 'STRIPE_TEST_SECRET_KEY fehlt – Läden lassen sich nicht auf die Sandbox umstellen.'
+              : !s.stripeSandboxWebhook
+                ? 'Schlüssel da, aber STRIPE_TEST_WEBHOOK_SECRET fehlt – stripe-setup.py --test ausführen.'
+                : `Bereit. Im Testmodus: ${data.shops.filter((x) => x.stripeMode === 'test').length} Läden.`}
+          </Row>
           <Row ok={s.resend} title="Mailversand (Resend)">
             {s.resend ? `Absender ${s.mailFrom}.` : 'RESEND_API_KEY fehlt: keine Bestätigungs-, Start- und Benachrichtigungs-Mails.'}
           </Row>

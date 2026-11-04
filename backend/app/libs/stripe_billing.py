@@ -5,6 +5,10 @@ Einstellungen in /etc/q-me.env (setzt Stefan selbst, deploy/README.md "Abo-Abrec
     STRIPE_WEBHOOK_SECRET=whsec_...         schreibt deploy/stripe-setup.py beim Anlegen des Webhooks
     STRIPE_PORTAL_CONFIG=bpc_...            schreibt deploy/stripe-setup.py (kein Geheimnis)
 
+Testmodus je Laden (Betreiber-Bereich, app/libs/shop_privat.py): Solche Läden buchen in der Stripe-Sandbox, mit
+    STRIPE_TEST_SECRET_KEY=sk_test_...      nur ein Testschlüssel wird angenommen
+    STRIPE_TEST_WEBHOOK_SECRET, STRIPE_TEST_PORTAL_CONFIG   schreibt deploy/stripe-setup.py --test
+
 Produkte und Preise legt deploy/stripe-setup.py an; gefunden werden sie über ihren lookup_key.
 Preise sind netto (tax_behavior "exclusive"), die Mehrwertsteuer rechnet Stripe Tax dazu.
 """
@@ -41,27 +45,65 @@ def parse_lookup_key(key: str | None) -> tuple[str | None, str | None]:
     return plan, interval
 
 
-def stripe_configured() -> bool:
-    return bool(os.environ.get("STRIPE_SECRET_KEY", "").strip())
+LIVE, TEST = "live", "test"  # gleich wie app/libs/shop_privat.py
+KEY_ENV = {LIVE: "STRIPE_SECRET_KEY", TEST: "STRIPE_TEST_SECRET_KEY"}
+WEBHOOK_ENV = {LIVE: "STRIPE_WEBHOOK_SECRET", TEST: "STRIPE_TEST_WEBHOOK_SECRET"}
+PORTAL_ENV = {LIVE: "STRIPE_PORTAL_CONFIG", TEST: "STRIPE_TEST_PORTAL_CONFIG"}
 
 
-def client() -> stripe.StripeClient:
-    key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
-    if not key:
-        raise RuntimeError("STRIPE_SECRET_KEY fehlt")
-    return stripe.StripeClient(key)
+def _key(mode: str) -> str:
+    return os.environ.get(KEY_ENV[mode], "").strip()
 
 
-_price_cache: dict[str, str] = {}
+def stripe_configured(mode: str = LIVE) -> bool:
+    """Schlüssel für den Modus da? Für die Sandbox zählt nur ein Testschlüssel – nie echte Zahlungen im Testmodus."""
+    key = _key(mode)
+    return bool(key) and (mode == LIVE or "_test_" in key)
 
 
-def price_id(c: stripe.StripeClient, key: str) -> str:
-    if key not in _price_cache:
+def test_key(mode: str = LIVE) -> bool:
+    """Probe-Zahlungen in diesem Modus (Sandbox, oder vor dem Live-Start auch der Hauptschlüssel)"""
+    return "_test_" in _key(mode)
+
+
+def client(mode: str = LIVE) -> stripe.StripeClient:
+    if not stripe_configured(mode):
+        raise RuntimeError(f"{KEY_ENV[mode]} fehlt")
+    return stripe.StripeClient(_key(mode))
+
+
+def portal_config(mode: str = LIVE) -> str:
+    return os.environ.get(PORTAL_ENV[mode], "").strip()
+
+
+_price_cache: dict[tuple[str, str], str] = {}
+
+
+def price_id(c: stripe.StripeClient, key: str, mode: str = LIVE) -> str:
+    if (mode, key) not in _price_cache:
         prices = c.v1.prices.list(params={"lookup_keys": [key], "active": True, "limit": 1})
         if not prices.data:
-            raise RuntimeError(f"Preis {key} fehlt in Stripe – deploy/stripe-setup.py ausführen")
-        _price_cache[key] = prices.data[0].id
-    return _price_cache[key]
+            raise RuntimeError(f"Preis {key} fehlt in Stripe ({mode}) – deploy/stripe-setup.py ausführen")
+        _price_cache[(mode, key)] = prices.data[0].id
+    return _price_cache[(mode, key)]
+
+
+_accounts: dict[str, str] = {}
+
+
+def dashboard_url(mode: str, customer_id: str) -> str:
+    """Link auf den Kunden im Stripe-Dashboard, im richtigen Konto (die Organisation hat mehrere) und Modus"""
+    key = _key(mode)
+    if not key or not customer_id:
+        return ""
+    if key not in _accounts:
+        try:
+            _accounts[key] = stripe.StripeClient(key, max_network_retries=0).v1.accounts.retrieve_current().id
+        except Exception as e:  # eingeschränkter Schlüssel darf das Konto nicht lesen: Link ohne Konto
+            print(f"Stripe-Konto ({mode}) nicht ermittelt: {e}")
+            _accounts[key] = ""
+    account = f"{_accounts[key]}/" if _accounts[key] else ""
+    return f"https://dashboard.stripe.com/{account}{'test/' if '_test_' in key else ''}customers/{customer_id}"
 
 
 def billing_fields(subscription) -> dict:

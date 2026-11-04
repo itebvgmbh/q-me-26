@@ -1,8 +1,12 @@
 """Stripe für Dranzeit einrichten: Produkte, Preise, Webhook und Kundenportal. Mehrfach ausführbar.
 
 Auf dem Server als root (Block "Abo-Abrechnung" in deploy/README.md):
-    cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://q-me.spielmacherei.de
+    cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de
 Den Schlüssel liest das Skript selbst aus /etc/q-me.env.
+
+Mit --test dasselbe in der Stripe-Sandbox für den Testmodus je Laden (Betreiber-Bereich): Schlüssel aus
+STRIPE_TEST_SECRET_KEY, Webhook-Geheimnis und Portal nach STRIPE_TEST_WEBHOOK_SECRET und STRIPE_TEST_PORTAL_CONFIG.
+Der Sandbox-Webhook zeigt auf dieselbe Adresse wie der echte.
 
 - Preise netto (tax_behavior exclusive), gefunden über lookup_key (app/libs/stripe_billing.py).
 - Webhook-Geheimnis und Portal-Einstellung schreibt das Skript selbst nach /etc/q-me.env.
@@ -15,7 +19,9 @@ import sys
 sys.path.insert(0, "/opt/q-me/backend")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
 
-from app.libs.stripe_billing import CATALOG, FOUNDER_PRICES, INTERVALS, client, lookup_key  # noqa: E402
+from app.libs.stripe_billing import (  # noqa: E402
+    CATALOG, FOUNDER_PRICES, INTERVALS, KEY_ENV, LIVE, PORTAL_ENV, TEST, WEBHOOK_ENV, client, lookup_key, stripe_configured,
+)
 
 ENV_FILE = os.environ.get("QME_ENV_FILE", "/etc/q-me.env")
 
@@ -90,11 +96,17 @@ def ensure_price(c, product_id: str, key: str, amount: int, interval: str, nickn
 
 
 def main() -> None:
-    if len(sys.argv) != 2 or not sys.argv[1].startswith("https://"):
-        sys.exit("Aufruf: stripe-setup.py https://<adresse der app>")
-    base = sys.argv[1].rstrip("/")
+    args = [a for a in sys.argv[1:] if a != "--test"]
+    mode = TEST if "--test" in sys.argv[1:] else LIVE
+    if len(args) != 1 or not args[0].startswith("https://"):
+        sys.exit("Aufruf: stripe-setup.py https://<adresse der app> [--test]")
+    base = args[0].rstrip("/")
     load_env()
-    c = client()
+    if not stripe_configured(mode):
+        sys.exit(f"{KEY_ENV[mode]} fehlt in {ENV_FILE}" + (" oder ist kein Testschlüssel (sk_test_/rk_test_)" if mode == TEST else ""))
+    webhook_env, portal_env = WEBHOOK_ENV[mode], PORTAL_ENV[mode]
+    print("Stripe-Sandbox (Testmodus je Laden)" if mode == TEST else "Stripe")
+    c = client(mode)
 
     products = ensure_products(c)
     standard_prices: dict[str, list[str]] = {}
@@ -112,7 +124,7 @@ def main() -> None:
             c.v1.webhook_endpoints.delete(e.id)
             print(f"Alten Webhook entfernt: {e.url}")
     endpoints = [e for e in all_endpoints if e.url == url]
-    have_secret = bool(os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip())
+    have_secret = bool(os.environ.get(webhook_env, "").strip())
     if endpoints and have_secret:
         c.v1.webhook_endpoints.update(endpoints[0].id, params={"enabled_events": EVENTS})
         print(f"Webhook vorhanden: {url}")
@@ -120,10 +132,10 @@ def main() -> None:
         for e in endpoints:  # Geheimnis lässt sich nicht erneut abrufen: alten löschen, neu anlegen
             c.v1.webhook_endpoints.delete(e.id)
         endpoint = c.v1.webhook_endpoints.create(params={"url": url, "enabled_events": EVENTS, "description": "Dranzeit Abos"})
-        set_env("STRIPE_WEBHOOK_SECRET", endpoint.secret)
+        set_env(webhook_env, endpoint.secret)
         print(f"Webhook angelegt: {url} (Geheimnis in {ENV_FILE} eingetragen)")
 
-    existing_portal = os.environ.get("STRIPE_PORTAL_CONFIG", "").strip()
+    existing_portal = os.environ.get(portal_env, "").strip()
     if existing_portal:  # nach einem Umzug: Links im Kundenportal auf die neue Adresse
         c.v1.billing_portal.configurations.update(
             existing_portal,
@@ -156,7 +168,7 @@ def main() -> None:
                 "default_return_url": f"{base}/tarif",
             }
         )
-        set_env("STRIPE_PORTAL_CONFIG", config.id)
+        set_env(portal_env, config.id)
         print("Kundenportal eingerichtet")
     print("Fertig. Jetzt das Backend neu starten: systemctl restart q-me")
 

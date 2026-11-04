@@ -36,6 +36,15 @@ export const startCheckout = async (shopId: string, plan: PlanId, interval: Inte
   window.location.assign(url);
 };
 
+/** Bucht der Laden in der Stripe-Sandbox? (Testmodus, schaltet der Betreiber) */
+export const getBillingTestMode = async (shopId: string): Promise<boolean> => {
+  try {
+    return (await request<{ test: boolean }>(`/routes/billing/modus?shop_id=${encodeURIComponent(shopId)}`)).test;
+  } catch {
+    return false;
+  }
+};
+
 export const openPortal = async (shopId: string) => {
   const { url } = await request<{ url: string }>('/routes/billing/portal', { shop_id: shopId });
   window.location.assign(url);

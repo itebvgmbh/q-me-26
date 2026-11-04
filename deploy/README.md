@@ -568,6 +568,59 @@ Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorhe
 `STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
 Die Rechnungseinstellungen aus dem Abschnitt „Rechnungen“ im Livemodus noch einmal kontrollieren.
 
+### Testmodus je Laden (Stripe-Sandbox)
+
+Im Betreiber-Bereich lässt sich jeder Laden einzeln auf die Stripe-Sandbox umstellen (Laden → „Abo bei Stripe“ →
+„Auf Sandbox umstellen …“). Abo abschließen, Kundenportal, Rechnungen und Kündigung laufen dann mit Testkarten,
+alle anderen Läden zahlen weiter echt. Der Laden fängt ohne Abo an, der Inhaber sieht unter „Mein Tarif“ einen
+Hinweis. „Zurück auf echte Zahlungen“ beendet das Sandbox-Abo und holt den Stand eines echten Abos von Stripe zurück.
+Sandbox-Abos zählen nicht zum Umsatz und halten das Löschen eines Ladens nicht auf. Gespeichert in
+`shops/{id}/privat/stripe_test` (`backend/app/libs/shop_privat.py`); der Webhook erkennt am Geheimnis, aus welchem
+Modus eine Meldung kommt, und ändert nur Läden im selben Modus.
+
+Einmal einrichten: den Geheimschlüssel (`sk_test_…`) der Dranzeit-Sandbox (Stripe-Dashboard → Sandbox → Entwickler →
+API-Schlüssel) mit dem Block unten eintragen. Er legt dort Produkte, Preise, den Webhook (gleiche Adresse wie der
+echte) und das Kundenportal an; Geheimnis und Portal landen als `STRIPE_TEST_…` in `/etc/q-me.env`. Ein Live-Schlüssel
+wird an dieser Stelle nie angenommen. Mehrfach ausführbar; nur Enter behält den vorhandenen Schlüssel.
+
+Zum Testen: Karte `4242 4242 4242 4242`, beliebiges Ablaufdatum in der Zukunft, beliebige Prüfnummer;
+SEPA-Lastschrift mit der IBAN `DE89 3704 0044 0532 0130 00`.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $neu = ssh -o BatchMode=yes $server 'grep -c STRIPE_TEST_SECRET_KEY /opt/q-me/deploy/set-secret.sh' 2>&1 | Out-String
+  if ($neu -notmatch '^\s*[1-9]') { Write-Host 'Abbruch: Der Server ist noch nicht auf dem Stand mit Testmodus je Laden. Erst ausrollen, dann diesen Block noch einmal.' -ForegroundColor Red; return }
+  $vorhanden = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_TEST_SECRET_KEY=.k_test_ /etc/q-me.env' 2>&1 | Out-String
+  $frage = 'Stripe-SANDBOX-Schluessel einfuegen (sk_test_..., Strg+V, wird nicht angezeigt), dann Enter'
+  if ($vorhanden -match '^\s*1') { $frage = $frage + ' - nur Enter behaelt den vorhandenen' }
+  $geheim = Read-Host $frage -AsSecureString
+  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($geheim)
+  try { $wert = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+  if (-not $wert -and $vorhanden -match '^\s*1') { Write-Host '1/3 Der vorhandene Sandbox-Schluessel bleibt.' -ForegroundColor Cyan }
+  elseif ($wert -notmatch '^(sk|rk)_test_[0-9A-Za-z]{20,}$') { $wert = $null; Write-Host 'Abbruch: Das ist kein Sandbox-Schluessel (er beginnt mit sk_test_ oder rk_test_). Nichts geaendert.' -ForegroundColor Red; return }
+  else {
+    Write-Host '1/3 Sandbox-Schluessel auf den Server schreiben ...' -ForegroundColor Cyan
+    $wert | ssh -o BatchMode=yes $server 'bash /opt/q-me/deploy/set-secret.sh STRIPE_TEST_SECRET_KEY'
+    $ergebnis = $LASTEXITCODE
+    $wert = $null
+    if ($ergebnis -ne 0) { Write-Host 'Abbruch: Schluessel konnte nicht gesetzt werden, Meldung oben.' -ForegroundColor Red; return }
+  }
+  $wert = $null
+  Write-Host '2/3 Produkte, Preise, Webhook und Kundenportal in der Sandbox einrichten ...' -ForegroundColor Cyan
+  $ausgabe = ssh -o BatchMode=yes $server 'cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de --test && systemctl restart q-me' 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $ausgabe
+  if ($ergebnis -ne 0 -or $ausgabe -notmatch 'Fertig') { Write-Host 'Abbruch: Einrichtung in der Sandbox fehlgeschlagen, Meldung oben. Echte Zahlungen laufen weiter.' -ForegroundColor Red; return }
+  Write-Host '3/3 Pruefen ...' -ForegroundColor Cyan
+  Start-Sleep -Seconds 4
+  $pruefung = ssh -o BatchMode=yes $server 'grep -c ^STRIPE_TEST_SECRET_KEY=.k_test_ /etc/q-me.env; grep -c ^STRIPE_TEST_WEBHOOK_SECRET= /etc/q-me.env; grep -c ^STRIPE_SECRET_KEY=.k_live_ /etc/q-me.env; systemctl is-active q-me' 2>&1 | Out-String
+  if ($pruefung -match '^\s*1\s+1\s+1\s+active') { Write-Host 'Fertig: Die Sandbox ist eingerichtet. Im Betreiber-Bereich lassen sich Laeden jetzt auf die Sandbox umstellen, echte Zahlungen laufen weiter.' -ForegroundColor Green } else { Write-Host 'Eingerichtet, aber etwas fehlt. Ausgabe vom Server (erwartet: 1, 1, 1, active):' -ForegroundColor Yellow; Write-Host $pruefung }
+}
+```
+
 ## Rechnungen (PDF und E-Rechnung)
 
 Läden laden ihre Rechnungen unter „Mein Tarif“ → „Rechnungen“ herunter: das **PDF**, so wie Stripe es per

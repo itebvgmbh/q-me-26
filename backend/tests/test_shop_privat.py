@@ -65,6 +65,53 @@ def test_speichern_raeumt_den_laden_auf():
     assert shop_privat.stripe_ids(db, "l1", data["shops"]["l1"]) == {}
 
 
+def test_testmodus_hat_eigene_ids_und_laesst_die_echten_in_ruhe():
+    data = {"shops": {"l1": {"billing": {"status": "canceled"}}}}
+    db = FakeDb(data)
+    shop_privat.save_stripe_ids(db, "l1", customer_id="cus_live", subscription_id="sub_live")
+    assert shop_privat.stripe_link(db, "l1") == ("live", {"customerId": "cus_live", "subscriptionId": "sub_live"})
+
+    shop_privat.start_test_mode(db, "l1")
+    assert shop_privat.stripe_link(db, "l1") == ("test", {})  # jeder Testmodus fängt ohne Abo an
+    shop_privat.save_stripe_ids(db, "l1", customer_id="cus_sb", subscription_id="sub_sb", mode="test")
+    assert shop_privat.stripe_ids(db, "l1") == {"customerId": "cus_sb", "subscriptionId": "sub_sb"}
+    assert shop_privat.stripe_ids(db, "l1", mode="live") == {"customerId": "cus_live", "subscriptionId": "sub_live"}
+
+    shop_privat.clear_stripe_ids(db, "l1", "test")  # Verknüpfung lösen im Testmodus: bleibt im Testmodus
+    assert shop_privat.stripe_link(db, "l1") == ("test", {})
+    shop_privat.save_stripe_ids(db, "l1", customer_id="cus_sb2", mode="test")
+
+    shop_privat.end_test_mode(db, "l1")
+    assert shop_privat.stripe_link(db, "l1") == ("live", {"customerId": "cus_live", "subscriptionId": "sub_live"})
+    shop_privat.start_test_mode(db, "l1")
+    assert shop_privat.stripe_ids(db, "l1") == {}  # alter Test vergessen
+
+
+def test_sandbox_nur_mit_testschluessel(monkeypatch=None):
+    import os
+
+    from app.libs import stripe_billing
+
+    saved = {k: os.environ.pop(k, None) for k in ("STRIPE_SECRET_KEY", "STRIPE_TEST_SECRET_KEY")}
+    try:
+        os.environ["STRIPE_SECRET_KEY"] = "sk_live_" + "x" * 24
+        assert stripe_billing.stripe_configured("live") and not stripe_billing.stripe_configured("test")
+        os.environ["STRIPE_TEST_SECRET_KEY"] = "sk_live_" + "y" * 24  # Live-Schlüssel im Sandbox-Platz: nie benutzen
+        assert not stripe_billing.stripe_configured("test")
+        try:
+            stripe_billing.client("test")
+            raise AssertionError("Live-Schlüssel als Sandbox angenommen")
+        except RuntimeError:
+            pass
+        os.environ["STRIPE_TEST_SECRET_KEY"] = "sk_test_" + "z" * 24
+        assert stripe_billing.stripe_configured("test") and stripe_billing.test_key("test") and not stripe_billing.test_key("live")
+    finally:
+        for k, v in saved.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+
 class FakeCustomers:
     def __init__(self, known):
         self.known = known

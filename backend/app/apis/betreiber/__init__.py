@@ -10,6 +10,7 @@ Was am Laden gespeichert wird (sieht auch der Laden, Firestore ist ohne Anmeldun
     suspended {at}               gesperrt: nicht buchbar, nicht auffindbar; die dabei gesperrten Konten in privat/sperre
     unlisted                     nicht in Ladenliste, Karte und Stadtseiten (Test- und Vorführläden); per Link buchbar
     billing                      Stand des Abos aus Stripe neu holen oder die Verknüpfung lösen (IDs in privat/stripe)
+                                 Testmodus: Laden bucht in der Stripe-Sandbox (privat/stripe_test, app/libs/shop_privat.py)
 Gründe, vorher/nachher und Sicherungen stehen im Protokoll auf dem Server (app/libs/protokoll.py).
 Konten und Läden löschen wie deploy/konten-aufraeumen.py (app/libs/konten.py): Probelauf, Sicherung, Löschen, Nachprüfung.
 """
@@ -29,7 +30,8 @@ from app.auth import AuthorizedUser
 from app.auth.access import admin_lists, is_admin, is_admin_account, require_admin
 from app.libs import konten, protokoll
 from app.libs.konten import BERLIN, ITEBV_SHOP, utc
-from app.libs.shop_privat import clear_locked_accounts, clear_stripe_ids, locked_accounts, save_locked_accounts, save_stripe_ids, stripe_ids
+from app.libs.shop_privat import (LIVE, TEST, clear_locked_accounts, clear_stripe_ids, end_test_mode, locked_accounts,
+                                  save_locked_accounts, save_stripe_ids, start_test_mode, stripe_ids, stripe_link)
 from app.libs.plans import ACTIVE_BILLING, FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, PLANS, effective_plan, trial_end
 from app.libs.staff_contacts import contacts_of_shop
 from app.libs import telefon_laeden
@@ -136,7 +138,8 @@ def kennzahlen(ov: dict, founders_taken: int, now: datetime) -> dict:
     plans = {p: 0 for p in PLANS}
     for s in shops:
         plans[s["effectivePlan"]] += 1
-    paying = [s for s in shops if s["billing"] in ACTIVE_BILLING]
+    real = [s for s in shops if s.get("stripeMode") != TEST]  # Abos aus der Sandbox sind kein Umsatz
+    paying = [s for s in real if s["billing"] in ACTIVE_BILLING]
     soon = now + timedelta(days=7)
     roles: dict = {}
     for a in accounts:
@@ -151,8 +154,8 @@ def kennzahlen(ov: dict, founders_taken: int, now: datetime) -> dict:
         "inTrial": sum(1 for s in shops if s["source"] == "test"),
         "paying": len(paying),
         "granted": sum(1 for s in shops if s["source"] == "freischaltung"),
-        "mrr": round(sum(monthly_net(s) for s in shops), 2),
-        "pastDue": sum(1 for s in shops if s["billing"] == "past_due"),
+        "mrr": round(sum(monthly_net(s) for s in real), 2),
+        "pastDue": sum(1 for s in real if s["billing"] == "past_due"),
         "cancelling": sum(1 for s in paying if s["cancelAtPeriodEnd"]),
         "trialEndingSoon": sum(1 for s in shops if s["source"] == "test" and now < s["trialEnd"] <= soon),
         "suspended": sum(1 for s in shops if s["suspended"]),
@@ -189,6 +192,7 @@ def system_status() -> dict:
     """Was eingerichtet ist – nur ja/nein, nie die Werte der Schlüssel"""
     from app.apis import schedulers
     from app.libs.mail import DEFAULT_FROM, mail_configured
+    from app.libs.stripe_billing import stripe_configured
 
     key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     emails, uids = admin_lists()
@@ -196,6 +200,9 @@ def system_status() -> dict:
         "stripe": "" if not key else ("test" if "_test_" in key else "live"),
         "stripeWebhook": bool(os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()),
         "stripePortal": bool(os.environ.get("STRIPE_PORTAL_CONFIG", "").strip()),
+        # Testmodus je Laden: Sandbox-Schlüssel (nur ein Testschlüssel zählt) und ihr Webhook
+        "stripeSandbox": stripe_configured(TEST),
+        "stripeSandboxWebhook": bool(os.environ.get("STRIPE_TEST_WEBHOOK_SECRET", "").strip()),
         "resend": mail_configured(),
         "mailFrom": os.environ.get("MAIL_FROM", "").strip() or DEFAULT_FROM,
         "publicUrl": os.environ.get("PUBLIC_URL", "").strip(),
@@ -263,9 +270,14 @@ def laden(shop_id: str) -> dict:
     keep = ("name", "street", "postalCode", "city", "phone", "email", "website", "industry", "ownerName", "owner",
             "createdAt", "updatedAt", "trialEndsAt", "founder", "founderSince", "billing", "grant", "suspended", "unlisted",
             "onboarding")
+    from app.libs.stripe_billing import dashboard_url
+
+    mode, ids = stripe_link(get_firestore_db(), shop_id, shop)
     return _plain({
         "id": shop_id,
         "shop": {k: shop.get(k) for k in keep if k in shop},
+        "stripeMode": mode,
+        "stripeUrl": dashboard_url(mode, ids.get("customerId") or ""),
         "effectivePlan": effective_plan(shop),
         "trialEnd": trial_end(shop),
         "staff": staff,
@@ -398,12 +410,12 @@ def ladenliste(shop_id: str, body: ListedRequest, user: AuthorizedUser) -> dict:
     return {"changed": True, "unlisted": unlisted}
 
 
-def _stripe_call(fn):
+def _stripe_call(fn, mode: str = LIVE):
     """Stripe-Fehler für den Betreiber im Wortlaut melden"""
-    from app.libs.stripe_billing import stripe_configured
+    from app.libs.stripe_billing import KEY_ENV, stripe_configured
 
-    if not stripe_configured():
-        raise HTTPException(status_code=503, detail="Stripe ist auf dem Server nicht eingerichtet (STRIPE_SECRET_KEY fehlt).")
+    if not stripe_configured(mode):
+        raise HTTPException(status_code=503, detail=f"Stripe ist auf dem Server nicht eingerichtet ({KEY_ENV[mode]} fehlt).")
     try:
         return fn()
     except stripe.StripeError as e:
@@ -417,26 +429,28 @@ def stripe_abgleich(shop_id: str, user: AuthorizedUser) -> dict:
 
     ref, shop = _shop(shop_id)
     billing = shop.get("billing") or {}
-    ids = stripe_ids(get_firestore_db(), shop_id, shop)
+    mode, ids = stripe_link(get_firestore_db(), shop_id, shop)
     if not ids.get("subscriptionId") and not ids.get("customerId"):
-        raise HTTPException(status_code=409, detail="Dieser Laden hatte nie ein Abo bei Stripe.")
+        raise HTTPException(status_code=409, detail="Dieser Laden hatte nie ein Abo bei Stripe."
+                            + (" (Sandbox)" if mode == TEST else ""))
 
-    def fetch():
-        c = client()
-        if ids.get("subscriptionId"):
-            return c.v1.subscriptions.retrieve(ids["subscriptionId"]).to_dict()
-        subs = c.v1.subscriptions.list(params={"customer": ids["customerId"], "status": "all", "limit": 1})
-        return subs.data[0].to_dict() if subs.data else None
-
-    subscription = _stripe_call(fetch)
+    subscription = _stripe_call(lambda: _fetch_subscription(client(mode), ids), mode)
     if subscription is None:
         return {"changed": False, "message": "Bei Stripe gibt es zu diesem Kunden kein Abo."}
     update = shop_update_from_subscription(subscription)
     ref.update(update)
-    save_stripe_ids(get_firestore_db(), shop_id, subscription.get("customer"), subscription.get("id"))
-    protokoll.write(user, "Stripe-Abgleich", {"shopId": shop_id, "name": shop.get("name")}, before={"billing": {**billing, **ids}},
-                    after={k.removeprefix("billing."): v for k, v in update.items()})
+    save_stripe_ids(get_firestore_db(), shop_id, subscription.get("customer"), subscription.get("id"), mode)
+    protokoll.write(user, "Stripe-Abgleich" + (" (Sandbox)" if mode == TEST else ""), {"shopId": shop_id, "name": shop.get("name")},
+                    before={"billing": {**billing, **ids}}, after={k.removeprefix("billing."): v for k, v in update.items()})
     return _plain({"changed": True, "billing": update})
+
+
+def _fetch_subscription(c, ids: dict) -> dict | None:
+    """Aktueller Stand des Abos zu den gespeicherten IDs (ohne Abo-ID das neueste des Kunden)"""
+    if ids.get("subscriptionId"):
+        return c.v1.subscriptions.retrieve(ids["subscriptionId"]).to_dict()
+    subs = c.v1.subscriptions.list(params={"customer": ids["customerId"], "status": "all", "limit": 1})
+    return subs.data[0].to_dict() if subs.data else None
 
 
 @admin.post("/betreiber/laden/{shop_id}/stripe-loesen")
@@ -444,15 +458,70 @@ def stripe_loesen(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
     """Verknüpfung mit Stripe entfernen (z. B. Test-Kunden beim Wechsel in den Live-Modus). Bei Stripe ändert sich nichts."""
     ref, shop = _shop(shop_id)
     reason = _reason(body.reason)
-    ids = stripe_ids(get_firestore_db(), shop_id, shop)
+    mode, ids = stripe_link(get_firestore_db(), shop_id, shop)
     billing = {**(shop.get("billing") or {}), **ids}
     if not billing:
         return {"changed": False}
     ref.update({"billing": None, "plan": "gratis", "updatedAt": _now()})
-    clear_stripe_ids(get_firestore_db(), shop_id)
-    protokoll.write(user, "Stripe gelöst", {"shopId": shop_id, "name": shop.get("name")}, reason,
-                    {"billing": billing})
+    clear_stripe_ids(get_firestore_db(), shop_id, mode)
+    protokoll.write(user, "Stripe gelöst" + (" (Sandbox)" if mode == TEST else ""), {"shopId": shop_id, "name": shop.get("name")},
+                    reason, {"billing": billing})
     return {"changed": True}
+
+
+class ModeRequest(BaseModel):
+    test: bool
+    reason: str = ""
+
+
+def _billing_map(update: dict) -> dict:
+    """Update aus shop_update_from_subscription (billing.status …) als ganzes Feld billing"""
+    return {k.removeprefix("billing."): v for k, v in update.items() if k.startswith("billing.")}
+
+
+@admin.post("/betreiber/laden/{shop_id}/stripe-modus")
+def stripe_modus(shop_id: str, body: ModeRequest, user: AuthorizedUser) -> dict:
+    """Testmodus: Der Laden schließt sein Abo in der Stripe-Sandbox ab (Testkarten, nichts wird abgebucht) – zum
+    Durchspielen von Abschluss, Kundenportal, Rechnungen und Kündigung. Jeder Testmodus fängt ohne Abo an.
+    Zurück: Das Sandbox-Abo wird beendet, der Stand eines echten Abos kommt wieder von Stripe."""
+    from app.libs.stripe_billing import client, shop_update_from_subscription, stripe_configured
+
+    ref, shop = _shop(shop_id)
+    reason = _reason(body.reason)
+    db = get_firestore_db()
+    mode, ids = stripe_link(db, shop_id, shop)
+    target = TEST if body.test else LIVE
+    if mode == target:
+        return {"changed": False, "mode": mode}
+    billing = shop.get("billing") or {}
+    cancelled = ""
+    if target == TEST:
+        if not stripe_configured(TEST):
+            raise HTTPException(status_code=503, detail="Der Sandbox-Schlüssel fehlt auf dem Server (STRIPE_TEST_SECRET_KEY, deploy/README.md).")
+        if billing.get("status") in ACTIVE_BILLING:
+            raise HTTPException(status_code=409, detail=f"Der Laden hat ein laufendes Abo ({billing['status']}). Den Testmodus gibt es nur "
+                                "für Läden ohne laufendes Abo – erst kündigen oder die Verknüpfung lösen.")
+        start_test_mode(db, shop_id)
+        update = {"billing": None, "plan": "gratis"}
+    else:
+        live_ids = stripe_ids(db, shop_id, shop, LIVE)
+        update = {"billing": None, "plan": "gratis"}
+        if live_ids:  # Stand des echten Abos wieder holen, bevor sich etwas ändert (Fehler: alles bleibt, wie es ist)
+            subscription = _stripe_call(lambda: _fetch_subscription(client(LIVE), live_ids))
+            if subscription:
+                fields = shop_update_from_subscription(subscription)
+                update = {"billing": _billing_map(fields), "plan": fields["plan"]}
+        end_test_mode(db, shop_id)  # zuerst: die Meldung zum Beenden unten ändert den Laden dann nicht mehr
+        if ids.get("subscriptionId") and stripe_configured(TEST):
+            try:  # Sandbox-Abo beenden, damit von dort nichts mehr kommt – klappt das nicht, schadet es auch nicht
+                client(TEST).v1.subscriptions.cancel(ids["subscriptionId"])
+                cancelled = ids["subscriptionId"]
+            except stripe.StripeError as e:
+                print(f"Sandbox-Abo {ids['subscriptionId']} von Laden {shop_id} nicht beendet: {e}")
+    ref.update({**update, "updatedAt": _now()})
+    protokoll.write(user, "Stripe-Testmodus an" if target == TEST else "Stripe-Testmodus aus", {"shopId": shop_id, "name": shop.get("name")},
+                    reason, {"mode": mode, "billing": {**billing, **ids}}, {"mode": target, "billing": update["billing"], "beendet": cancelled})
+    return _plain({"changed": True, "mode": target})
 
 
 def _telefon_nummern(shop_id: str) -> list:

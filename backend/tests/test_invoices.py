@@ -272,7 +272,7 @@ def client_with(shops, invoices, user_uid="owner1", pdf=b"%PDF-1.7 Stripe-Rechnu
 
     fu.get_firestore_db = lambda: db
     access.is_admin = lambda _u: False
-    api.client = lambda: stripe_client
+    api.client = lambda mode="live": stripe_client
     api.get_firestore_db = lambda: db
     api.fetch_pdf = lambda url: pdf
     app = FastAPI()

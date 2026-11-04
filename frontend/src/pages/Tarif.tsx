@@ -12,7 +12,7 @@ import { firestore } from '../utils/firestore-client';
 import { getShopsByOwnerId, getStaffByShopId, type Shop } from '../utils/firestore';
 import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
 import { safelyConvertToDate } from '../utils/datetime';
-import { claimFounder, getFoundersLeft, openPortal, startCheckout, type Interval } from '../utils/billing';
+import { claimFounder, getBillingTestMode, getFoundersLeft, openPortal, startCheckout, type Interval } from '../utils/billing';
 import { countCustomersThisMonth } from '../utils/plan-usage';
 import { effectivePlan, type PlanId } from '../utils/plans';
 import { datumsLocale, t, tn, tTeile } from '@/i18n';
@@ -33,6 +33,7 @@ export default function Tarif() {
   const [customers, setCustomers] = useState<number | null>(null);
   const [staffCount, setStaffCount] = useState<number | null>(null);
   const [foundersLeft, setFoundersLeft] = useState<number | null>(null);
+  const [testmodus, setTestmodus] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -45,6 +46,17 @@ export default function Tarif() {
 
   useEffect(() => {
     if (shopId) merkeLaden(shopId);
+  }, [shopId]);
+
+  // Testmodus aus dem Betreiber-Bereich: Abo läuft über die Stripe-Sandbox
+  useEffect(() => {
+    setTestmodus(false);
+    if (!shopId) return;
+    let aktuell = true;
+    getBillingTestMode(shopId).then((test) => aktuell && setTestmodus(test));
+    return () => {
+      aktuell = false;
+    };
   }, [shopId]);
 
   // Live: nach der Bezahlung schreibt der Stripe-Webhook den neuen Stand an den Laden
@@ -154,6 +166,13 @@ export default function Tarif() {
           </select>
         )}
       </header>
+
+      {testmodus && (
+        <p role="status" className="rounded-2xl border-2 border-dashed border-signal bg-signal/10 px-4 py-3">
+          <strong>{t('Testmodus:')}</strong>{' '}
+          {t('Hier wird nichts abgebucht. Zum Bezahlen die Testkarte 4242 4242 4242 4242 nehmen, mit einem beliebigen Ablaufdatum in der Zukunft und einer beliebigen Prüfnummer.')}
+        </p>
+      )}
 
       <section className="grid gap-4 md:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-3 rounded-3xl bg-foreground p-6 text-background">

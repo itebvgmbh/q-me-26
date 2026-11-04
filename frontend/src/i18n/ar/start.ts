@@ -128,6 +128,8 @@ const texte: Texte = {
   "Testphase": "الفترة التجريبية",
   "Gründer": "مؤسس",
   "Wird geöffnet …": "جارٍ الفتح …",
+  "Testmodus:": "وضع الاختبار:",
+  "Hier wird nichts abgebucht. Zum Bezahlen die Testkarte 4242 4242 4242 4242 nehmen, mit einem beliebigen Ablaufdatum in der Zukunft und einer beliebigen Prüfnummer.": "لا يُخصم أي مبلغ هنا. للدفع استخدم بطاقة الاختبار 4242 4242 4242 4242 مع أي تاريخ انتهاء في المستقبل وأي رمز تحقق.",
   "Abo verwalten, Zahlungsart, kündigen": "إدارة الاشتراك وطريقة الدفع والإلغاء",
   "Kunden diesen Monat": "العملاء هذا الشهر",
   "Personen im Team": "أعضاء الفريق",
