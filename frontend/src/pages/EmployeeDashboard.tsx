@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useUserGuardContext } from 'app';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getAppointmentsInRange } from '../utils/firestore';
 import { t } from '@/i18n';
 
 // Import utility hooks
@@ -22,13 +21,6 @@ import { DashboardTimeline } from '../components/DashboardTimeline';
 import { DashboardDialogs } from '../components/DashboardDialogs';
 import { TeamPushSchalter } from '../components/TeamPushSchalter';
 
-// Declare global variable for unsubscribing from Firestore listeners
-declare global {
-  interface Window {
-    employeeAppointmentsUnsubscribe?: () => void;
-  }
-}
-
 /**
  * Employee dashboard component showing the employee's appointments and schedule
  */
@@ -46,27 +38,12 @@ const EmployeeDashboard = () => {
   // Use custom hooks to load data
   const { employee, entries, selectEntry, services, loading, setEmployee } = useEmployeeData(user);
   const { recurringBreaks } = useRecurringBreaks(employee);
-  const { appointments, setAppointments } = useAppointments(employee, startDate, numDays);
+  const { appointments, setAppointments, neuLaden } = useAppointments(employee, startDate, numDays);
 
-  // Callback for appointment creation (fallback in case the listener fails)
+  // Neuer Termin: gleich nachfragen statt auf das Ereignis vom Backend zu warten (utils/live.ts)
   const handleAppointmentCreate = useCallback(async () => {
-    if (employee) {
-      console.log('Appointment created, manual refresh as fallback');
-      const endDate = new Date(startDate.getTime() + numDays * 24 * 60 * 60 * 1000);
-      try {
-        // Load appointments directly if the listener doesn't capture it
-        const appointmentsData = await getAppointmentsInRange(
-          employee.shopId, 
-          startDate, 
-          endDate, 
-          employee.id
-        );
-        setAppointments(appointmentsData);
-      } catch (error) {
-        console.error('Error refreshing appointments:', error);
-      }
-    }
-  }, [employee, startDate, numDays, setAppointments]);
+    neuLaden();
+  }, [neuLaden]);
 
   // Render loading state
   if (loading) {
