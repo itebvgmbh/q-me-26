@@ -283,4 +283,8 @@ TEXTE: dict = {
     "Das darf nur der Inhaber des Ladens.": "Bunu yalnızca salon sahibi yapabilir.",
     "Ungültige Angaben zur Leistung.": "Hizmet bilgileri geçersiz.",
     "Diese Leistung gibt es nicht mehr.": "Bu hizmet artık yok.",
+    # Pausen (app/apis/pausen)
+    "Ungültige Zeitangabe für die Pause.": "Mola için geçersiz saat.",
+    "Das Ende der Pause muss nach dem Beginn liegen.": "Molanın bitişi başlangıcından sonra olmalı.",
+    "Diese Pause gibt es nicht mehr.": "Bu mola artık yok.",
 }

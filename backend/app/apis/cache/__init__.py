@@ -108,6 +108,25 @@ def _cleanup(names: list) -> None:
         print(f"Zwischenspeicher: {removed} alte Einträge gelöscht")
 
 
+def invalidate_shop_cache(shop_id: str, verbose: bool = True) -> int:
+    """Löscht alle Einträge des Ladens, für jeden Tag (z. B. nach einer Änderung an festen Pausen). Gibt die Anzahl zurück."""
+    try:
+        names = [entry.name for entry in db.storage.json.list()]
+        _cleanup(names)
+        prefix = f"{PREFIX}{_short(shop_id)}_"
+        deleted_count = 0
+        for name in names:
+            if name.startswith(prefix):
+                db.storage.json.delete(name)
+                deleted_count += 1
+        if verbose:
+            print(f"Zwischenspeicher geleert: shop={shop_id}, alle Tage, {deleted_count} Einträge")
+        return deleted_count
+    except Exception as e:
+        print(f"Error during cache invalidation: {str(e)}")
+        return 0
+
+
 def invalidate_shop_date_cache(shop_id: str, date: str, staff_id: Optional[str] = None, verbose: bool = True) -> int:
     """Löscht alle Einträge für Laden und Tag (mit staff_id nur die dieser Person). Gibt die Anzahl zurück.
 
