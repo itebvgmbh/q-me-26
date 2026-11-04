@@ -96,9 +96,20 @@ def get_firebase_app() -> firebase_admin.App:
     
     return _firebase_app
 
-def get_firestore_db() -> firestore.Client:
+def get_firestore_db():
+    """Der Datenbank-Client des eingestellten Speichers (app/store: Firestore oder PostgreSQL, Schalter QME_SPEICHER).
+
+    Der Name ist historisch: Fast alle Module holen ihren Client hier. Deshalb muss diese Funktion dem Schalter folgen,
+    sonst schriebe nach dem Umzug ein Teil des Backends weiter nach Firestore (tests/test_speicher_gebuendelt.py)."""
+    from app import store
+
+    return store.db()
+
+
+def google_firestore_db() -> firestore.Client:
     """
-    Get the Firestore database client.
+    Firestore selbst, unabhängig vom Schalter: nur für app/store (Umsetzung „firestore“) und deploy/datenumzug.py
+    (liest beim Umzug die Quelle). Alle anderen nehmen get_firestore_db() oder store.db().
     Initializes the Firebase app if necessary.
     Uses a cached client to avoid creating multiple clients.
     """

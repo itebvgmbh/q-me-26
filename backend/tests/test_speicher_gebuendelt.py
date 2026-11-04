@@ -77,6 +77,49 @@ def test_waechter_erkennt_die_ueblichen_formen():
     assert not verstoesse("from app import store\nfrom app.store import Conflict")
 
 
+def test_get_firestore_db_folgt_dem_schalter():
+    """Fast alle Module holen ihren Client über get_firestore_db(). Mit QME_SPEICHER=postgres muss das PostgreSQL sein,
+    sonst schriebe nach dem Umzug ein Teil des Backends weiter nach Firestore."""
+    from app import store
+    from app.apis import firebase_utils as fu
+    from app.store import postgres
+
+    class Attrappe:
+        pass
+
+    vorher = os.environ.get("QME_SPEICHER"), postgres.Client, store._pg_client, fu.google_firestore_db
+    google = object()
+    postgres.Client, store._pg_client, fu.google_firestore_db = Attrappe, None, lambda: google
+    try:
+        os.environ["QME_SPEICHER"] = "postgres"
+        assert isinstance(fu.get_firestore_db(), Attrappe)
+        assert fu.get_firestore_db() is store.db()
+        os.environ.pop("QME_SPEICHER")
+        assert fu.get_firestore_db() is google
+    finally:
+        if vorher[0] is None:
+            os.environ.pop("QME_SPEICHER", None)
+        else:
+            os.environ["QME_SPEICHER"] = vorher[0]
+        postgres.Client, store._pg_client, fu.google_firestore_db = vorher[1:]
+
+
+def test_firestore_selbst_nur_im_speicher():
+    """google_firestore_db() (Firestore ohne Rücksicht auf den Schalter) nutzen nur app/store und der Umzug"""
+    fehler = []
+    for pfad in _dateien():
+        relativ = os.path.relpath(pfad, BACKEND)
+        if relativ in ERLAUBT:
+            continue
+        with open(pfad, encoding="utf-8") as f:
+            baum = ast.parse(f.read())
+        for knoten in ast.walk(baum):
+            name = getattr(knoten, "id", None) or getattr(knoten, "attr", None) or getattr(knoten, "name", None)
+            if name == "google_firestore_db":
+                fehler.append(f"{relativ}, Zeile {knoten.lineno}")
+    assert not fehler, "Firestore am Schalter vorbei:\n  " + "\n  ".join(fehler)
+
+
 def test_speicher_bietet_was_der_code_braucht():
     from app import store
 

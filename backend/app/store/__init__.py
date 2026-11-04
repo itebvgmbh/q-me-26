@@ -63,9 +63,9 @@ def db():
 
                 _pg_client = Client()
             return _pg_client
-    from app.apis.firebase_utils import get_firestore_db
+    from app.apis.firebase_utils import google_firestore_db
 
-    return get_firestore_db()
+    return google_firestore_db()
 
 
 def transactional(fn):
