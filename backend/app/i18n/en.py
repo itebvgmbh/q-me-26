@@ -267,4 +267,7 @@ TEXTE: dict = {
     "Unbekannter Laden.": "Unknown shop.",
     "Die freien Zeiten konnten nicht berechnet werden.": "The free times could not be calculated.",
     "Das geht heute gerade nicht. Trag die Angaben bitte von Hand ein.": "That's not possible today. Please enter the details by hand.",
+    # Live-Daten (app/apis/live)
+    "Kein gültiger Kanal": "No valid channel",
+    "Tag als JJJJ-MM-TT": "Day as YYYY-MM-DD",
 }
