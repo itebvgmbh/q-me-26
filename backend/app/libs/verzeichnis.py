@@ -293,9 +293,9 @@ class FirestoreStore:
         self._col().document(entry_id).delete()
 
     def wunsch(self, entry_id: str) -> None:
-        from google.cloud import firestore as gcf
+        from app.store import Increment
 
-        self._col().document(entry_id).update({"wuensche": gcf.Increment(1)})
+        self._col().document(entry_id).update({"wuensche": Increment(1)})
 
     def per_code(self, code_hash: str) -> Optional[dict]:
         """Eintrag zum Übernahme-Code (app/libs/uebernahme.py)"""

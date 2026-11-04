@@ -15,8 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
 
-from google.cloud import firestore
-
+from app import store
 SCHEDULES = "schedules"
 BERLIN = zoneinfo.ZoneInfo("Europe/Berlin")
 
@@ -131,7 +130,7 @@ def read_placement(transaction, db, appointment_id: str, shop_id: str,
             if occupy and occupy.staff_id == staff_id and day in occupy_days:
                 slots[appointment_id] = {"start": occupy.start, "end": occupy.end}
             transaction.set(ref, {"shopId": shop_id, "staffId": staff_id, "day": day, "slots": slots,
-                                  "updatedAt": firestore.SERVER_TIMESTAMP})
+                                  "updatedAt": store.SERVER_TIMESTAMP})
 
     return PlacementChange(conflict, write)
 

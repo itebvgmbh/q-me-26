@@ -168,7 +168,7 @@ def nummer_client(store, uid=None):
 
     db = Db(store)
     api.get_firestore_db = lambda: db
-    api.firestore.transactional = transactional
+    api.store.transactional = transactional
     store.setdefault("_checks", [])
     cs.trigger_check_in_background = lambda shop_id=None, staff_id=None: store["_checks"].append((shop_id, staff_id))
     app = FastAPI()

@@ -15,7 +15,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from google.cloud import firestore as gcf
+from app import store
 from pydantic import BaseModel
 
 from app.apis.firebase_utils import get_firestore_db
@@ -129,15 +129,15 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
     ref.update(
         {
             "inviteTokenHash": token_hash(token),
-            "inviteCreatedAt": gcf.SERVER_TIMESTAMP,
+            "inviteCreatedAt": store.SERVER_TIMESTAMP,
             "inviteExpires": expires,
-            "inviteEmailSentAt": gcf.DELETE_FIELD,
-            "inviteEmailTo": gcf.DELETE_FIELD,
-            "updatedAt": gcf.SERVER_TIMESTAMP,
+            "inviteEmailSentAt": store.DELETE_FIELD,
+            "inviteEmailTo": store.DELETE_FIELD,
+            "updatedAt": store.SERVER_TIMESTAMP,
         }
     )
     contacts = contact_ref(db, staff.get("shopId", ""), body.staff_id)
-    contacts.set({"inviteEmailTo": gcf.DELETE_FIELD}, merge=True)
+    contacts.set({"inviteEmailTo": store.DELETE_FIELD}, merge=True)
 
     email_sent, email_problem = False, ""
     sprache = aus_anfrage(request)
@@ -155,8 +155,8 @@ def create_invitation(body: InviteRequest, request: Request, user: AuthorizedUse
             print(f"Team-Einladung an {email} nicht verschickt: {e}")
             email_problem = t("Die E-Mail konnte nicht verschickt werden.", sprache)
         if email_sent:
-            ref.update({"inviteEmailSentAt": gcf.SERVER_TIMESTAMP})
-            contacts.set({"inviteEmailTo": email, "updatedAt": gcf.SERVER_TIMESTAMP}, merge=True)
+            ref.update({"inviteEmailSentAt": store.SERVER_TIMESTAMP})
+            contacts.set({"inviteEmailTo": email, "updatedAt": store.SERVER_TIMESTAMP}, merge=True)
 
     return {"link": link, "expires": expires.isoformat(), "email_sent": email_sent, "email_problem": email_problem}
 
@@ -212,16 +212,16 @@ def accept_invitation(token: str, request: Request, user: AuthorizedUser) -> dic
     email = (getattr(user, "email", None) or "").strip()
     if not profile.exists:
         users.set(
-            {"uid": user.sub, "email": email, "role": "employee", "language": sprache, "createdAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP}
+            {"uid": user.sub, "email": email, "role": "employee", "language": sprache, "createdAt": store.SERVER_TIMESTAMP, "updatedAt": store.SERVER_TIMESTAMP}
         )
     elif (profile.to_dict() or {}).get("role") not in ("employee", "shopOwner"):
         # Kundenkonto: wird Mitarbeiterkonto, "Meine Termine" bleibt erreichbar
-        users.update({"role": "employee", "updatedAt": gcf.SERVER_TIMESTAMP})
+        users.update({"role": "employee", "updatedAt": store.SERVER_TIMESTAMP})
 
     if email and not email_of(db, doc.id, data):
         # Leere Adresse beim Eintrag: die des Kontos (steht bei den Kontaktdaten, die nur der Inhaber liest)
-        contact_ref(db, shop_id, doc.id).set({"email": email, "updatedAt": gcf.SERVER_TIMESTAMP}, merge=True)
-    doc.reference.update({"userId": user.sub, "inviteAcceptedAt": gcf.SERVER_TIMESTAMP, "updatedAt": gcf.SERVER_TIMESTAMP})
+        contact_ref(db, shop_id, doc.id).set({"email": email, "updatedAt": store.SERVER_TIMESTAMP}, merge=True)
+    doc.reference.update({"userId": user.sub, "inviteAcceptedAt": store.SERVER_TIMESTAMP, "updatedAt": store.SERVER_TIMESTAMP})
     # Team-Vermerk für die Firestore-Regeln (Kundenliste, Termine im Laden), app/libs/team.py
     set_member(db, shop_id, user.sub, doc.id)
     return result

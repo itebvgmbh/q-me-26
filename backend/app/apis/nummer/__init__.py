@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from google.cloud import firestore
+from app import store
 from pydantic import BaseModel, Field, field_validator
 
 from app.apis.cache import invalidate_shop_date_cache
@@ -89,7 +89,7 @@ def cancel_ticket(body: AbsagenRequest, request: Request) -> dict:
     ref = db.collection("appointments").document(body.appointment_id)
     uid = request_uid(request)
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> dict:
         appt = _ticket(tx, ref, body.key, uid)
         if appt.get("status") == "cancelled":
@@ -138,7 +138,7 @@ def claim_ticket(body: TicketRequest, request: Request, user: AuthorizedUser) ->
     ref = db.collection("appointments").document(body.appointment_id)
     name = _display_name(db, user.sub, getattr(user, "email", None))
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> None:
         appt = _ticket(tx, ref, body.key)
         update = {"customerId": user.sub, "customerName": name, "isAnonymous": False, "updatedAt": datetime.now(timezone.utc)}
@@ -391,7 +391,7 @@ def move_ticket(body: VerschiebenRequest, request: Request) -> dict:
     new_code = bool(appt.get("referenceCode")) and (not isinstance(old_start, datetime) or day_key(old_start) != new_day)
     earlier = reference_codes_of_day(db, shop_id, aware(plaetze[0].start).astimezone(BERLIN).date()) if new_code else []
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> dict:
         current_snap = ref.get(transaction=tx)
         current = (current_snap.to_dict() or {}) if current_snap.exists else None

@@ -4,8 +4,15 @@
 - **Stand:** 04.11.2026
 - **Status:** Entwurf zur Abstimmung mit Stefan. Entschieden am 04.11.2026: PostgreSQL auf dem vorhandenen Server
   `spielmacherei`, kein eigener Server; eigene Anmeldung statt Firebase Authentication. Offen: siehe „Offen“.
-- **Fortschritt:** Stufe 0 live seit 04.11.2026: Datenbank `q_me`, Alembic, nächtliche Sicherung, Workflow
-  „Datenbank“. Anleitung in `deploy/README.md`, Abschnitt „Datenbank (PostgreSQL)“.
+- **Fortschritt:**
+  - Stufe 0 live seit 04.11.2026: Datenbank `q_me`, Alembic, nächtliche Sicherung, Workflow „Datenbank“. Anleitung in
+    `deploy/README.md`, Abschnitt „Datenbank (PostgreSQL)“.
+  - Stufe 1 live seit 04.11.2026: Speicher-Schicht `backend/app/store`, Wächter-Test und Vertrag gegen den
+    Firestore-Emulator.
+- **Geändert am 04.11.2026 (Stufe 1):** Das Backend nutzt nur einen kleinen Teil von Firestore. Statt jeden der rund
+  200 Zugriffe in eigene fachliche Funktionen umzuschreiben, bekommt PostgreSQL in Stufe 3 genau diese Schnittstelle.
+  Die Geschäftslogik bleibt dadurch unverändert und getestet. Tabellen, Stufe 1 und Stufe 3 sind entsprechend
+  angepasst.
 
 ## Worum es geht
 
@@ -55,7 +62,9 @@ Möglichst nichts:
 - **Backend:**
   - SQLAlchemy 2 (Core) mit psycopg 3, Schema-Änderungen über Alembic.
   - `deploy/update.sh` spielt Schema-Änderungen bei jedem Ausrollen selbst ein.
-  - Aller Datenzugriff läuft über eine Speicher-Schicht (`backend/app/store/`), siehe Stufe 1.
+  - Aller Datenzugriff läuft über die Speicher-Schicht `backend/app/store/`. Ihre Schnittstelle ist der kleine Teil von
+    Firestore, den das Backend nutzt (beschrieben in `app/store/__init__.py`, festgehalten in
+    `tests/test_speicher_vertrag.py`). In Stufe 3 bekommt sie eine zweite Umsetzung auf PostgreSQL.
 - **Frontend:**
   - Kein Firebase-SDK mehr. Die Datenschicht `frontend/src/utils/firestore/` ruft das Backend auf, ihre Funktionen
     behalten ihre Namen.
@@ -71,10 +80,13 @@ Möglichst nichts:
     60 Sekunden neu.
   - Betroffen sind: Bildschirm, Nummer, Tresen, Kalender, Mein Tag und Tarif.
 - **Doppelbuchungen:**
-  - Ein Ausschluss-Constraint auf den Terminen: gleiche Person und überlappende belegte Zeit (einschließlich Puffer)
-    wird abgelehnt, solange der Termin nicht abgesagt ist.
-  - Tagesnummern sind je Laden und Tag eindeutig (Unique-Constraint).
-  - Damit entfallen `schedules` und `shop_days`.
+  - Bis zum Umzug schützt wie heute die Belegung je Person und Tag (`schedules`, `shop_days`) in Transaktionen.
+    PostgreSQL führt diese Transaktionen streng nacheinander aus (SERIALIZABLE) und wiederholt sie bei Konflikten.
+  - Später zusätzlich ein Ausschluss-Constraint auf den Terminen: gleiche Person und überlappende belegte Zeit
+    (einschließlich Puffer) lehnt die Datenbank selbst ab, solange der Termin nicht abgesagt ist. Die Probe dafür
+    steht schon in `tests/test_datenbank.py`.
+  - Das geht erst, wenn alte, sich überschneidende Termine aus der Zeit vor der Belegung (vor dem 20.10.2026)
+    bereinigt sind. Sonst scheitert der Umzug an ihnen.
 - **Anmeldung:**
   - Konten, Sitzungen und Einmal-Links liegen in PostgreSQL. Passwörter werden mit Argon2id gehasht.
   - Die Sitzung steckt in einem Cookie: HttpOnly, Secure, SameSite=Lax.
@@ -87,33 +99,23 @@ Möglichst nichts:
 - **Ein Prozess:** Das Backend bleibt bei einem uvicorn-Prozess, denn Sperren, Zwischenspeicher und Hintergrundaufgaben
   setzen das voraus. Die Live-Endpunkte sind `async`, damit offene Verbindungen keine Threads belegen.
 
-### Tabellen (Entwurf)
+### Speichern in PostgreSQL
 
-Es gilt:
-
-- IDs bleiben die bisherigen Firestore-IDs (Text). Neue IDs werden im selben Format erzeugt.
-- Felder, nach denen gesucht oder sortiert wird, werden eigene Spalten.
-- Verschachteltes, das nur als Ganzes gelesen wird, kommt als `jsonb` mit. Das sind zum Beispiel Öffnungszeiten,
-  Arbeitszeiten, Abo-Stand und Vorschläge im Verzeichnis.
-
-| Tabelle | Aus Firestore | Bemerkung |
-|---|---|---|
-| `shops` | `shops`, `shops/*/privat/*` | Stripe-Kennungen und Sperren als Spalten, die die Schnittstelle nie ausgibt |
-| `staff` | `staff`, `shops/*/staff_contacts` | Kontaktdaten als Spalten; `members` entfällt (Abfrage über `staff`) |
-| `services`, `breaks`, `recurring_breaks` | gleichnamig | |
-| `appointments` | `appointments` | Spalte `belegt` (tstzrange) für den Ausschluss-Constraint; `public_appointments` wird eine Abfrage |
-| `day_numbers` | `shop_days` | eine Zeile je vergebener Nummer, eindeutig je Laden und Tag |
-| `earlier_slot_offers` | `earlier_slot_notifications` | |
-| `customers` | `customers` | |
-| `users` | `users` + Firebase-Konten | Profil und Konto in einer Zeile, ID bleibt die bisherige Konto-ID |
-| `sessions`, `auth_tokens` | neu | Sitzungen; Einmal-Links nur als Hash |
-| `push_subscriptions`, `team_push_subscriptions` | gleichnamig | |
-| `verzeichnis` | `verzeichnis` | |
-| `telefon_leitungen`, `telefon_laeden`, `telefon_anrufe` | gleichnamig | |
-| `deleted_shops`, `meta` | gleichnamig | `meta` als Schlüssel-Wert-Tabelle (Gründerzähler usw.) |
-
-Entfallen: `schedules`, `shop_days`, `public_appointments`, `members`, `staff_contacts`, die Merker in `meta` für den
-Abgleich, außerdem die alten Sammlungen `queue` und `staff-invitations`.
+- **Dokumente:** Jedes Firestore-Dokument wird eine Zeile in der Tabelle `dokumente`. Sie hat diese Spalten:
+  - `sammlung`: Pfad der Sammlung, auch für Unter-Sammlungen, z. B. `shops/<id>/members`.
+  - `id`: die bisherige Firestore-ID.
+  - `daten`: der Inhalt als `jsonb`.
+  - `geaendert`: Zeitpunkt der letzten Änderung.
+- **Zeitpunkte:** Sie stehen als UTC-Zeit im festen Format im `jsonb`. So sortieren und vergleichen sie sich richtig,
+  und eine Text-Zeit wie `"10:00"` bleibt davon getrennt, genau wie in Firestore.
+- **Indizes:** Ausdrucks-Indizes nur für die häufigen Abfragen, z. B. Termine nach Laden oder Person und Startzeit.
+- **IDs:** Alle IDs bleiben, neue entstehen im selben Format (20 Zeichen). Alte Links funktionieren deshalb weiter.
+- **Feinschliff:** Eigene Tabellen und Spalten für einzelne Bereiche, wo es sich lohnt, kommen später und Schritt für
+  Schritt. Zuerst wohl Termine mit dem Ausschluss-Constraint. Der Code merkt davon nichts, solange die Verträge
+  grün bleiben.
+- **Was mit der Zeit wegfallen kann:** `public_appointments`, `members` und `staff_contacts` gibt es nur wegen der
+  Firestore-Regeln. Sobald der Browser nicht mehr direkt liest (Stufe 2), braucht sie niemand mehr. Weg können auch die
+  alten Sammlungen `queue` und `staff-invitations`.
 
 `.local_data` bleibt vorerst, wie es ist: Zwischenspeicher der freien Zeiten, Betreiber-Protokoll, Sicherungen.
 
@@ -139,15 +141,23 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
   - PostgreSQL 16 auf Stefans Rechner erst, wenn Stufe 1 es für schnelle Tests braucht. Dafür gibt es dann einen
     fertigen Befehl. Bis dahin laufen die Datenbank-Tests auf GitHub.
 
-### Stufe 1 – Datenzugriff im Backend bündeln (2–3 Tage)
+### Stufe 1 – Datenzugriff im Backend bündeln (erledigt 04.11.2026)
 
-- **Speicher-Schicht:** In `backend/app/store/` entsteht je Bereich ein Modul: Läden, Team, Termine, Nummern, Angebote,
-  Kunden, Konten-Profil, Push, Verzeichnis, Telefon, Meta.
-- **Fachliche Schritte statt Einzelabfragen:** Die Schicht bietet Funktionen wie `termin_anlegen`, `nummer_ziehen`,
-  `termin_verschieben` und `gruender_vergeben`. Die neun Transaktionen stecken jeweils in einer dieser Funktionen.
-- **Erste Umsetzung auf Firestore:** Der vorhandene Code zieht dorthin um, ohne dass sich etwas ändert. Die rund
-  200 Zugriffe aus etwa 45 Dateien laufen dann alle durch die Schicht.
-- **Gleiche Tests für beide Umsetzungen:** Die Tests der Schicht laufen später unverändert auch gegen PostgreSQL.
+- **Speicher-Schicht `backend/app/store/`:**
+  - Sie liefert den Client (`store.db()`) und alles, was der Code sonst direkt aus Firestore holte: `SERVER_TIMESTAMP`,
+    `DELETE_FIELD`, `Increment`, `FieldFilter`, `transactional`, `DESCENDING` und die Fehler `Conflict`, `Aborted`,
+    `NotFound`.
+  - 20 Dateien holen das jetzt von dort, ohne dass sich ihr Verhalten ändert.
+- **Wächter** `tests/test_speicher_gebuendelt.py`: Kein Code greift an der Schicht vorbei auf Firestore zu.
+  Ausgenommen sind Anmeldung und Push, die erst Stufe 4 und 5 ersetzen.
+- **Vertrag** `tests/test_speicher_vertrag.py`:
+  - 23 Prüfungen halten fest, wie sich der genutzte Teil von Firestore verhält: Lesen, Schreiben, Zusammenführen,
+    Punkt-Pfade, Sonderwerte, Abfragen, Sortierung, Transaktionen (auch gleichzeitig), Sammel-Schreiben und
+    Live-Abfragen.
+  - Sie laufen auf GitHub gegen den Firestore-Emulator. In Stufe 3 muss PostgreSQL sie genauso bestehen.
+- **Warum so statt fachlicher Einzelfunktionen:** Das Backend nutzt nur einen kleinen, klar umrissenen Teil von
+  Firestore. Ihn einmal auf PostgreSQL nachzubauen ist weniger Arbeit und weniger Risiko, als rund 200 Zugriffe
+  einzeln umzuschreiben.
 
 ### Stufe 2 – Browser nur noch über das Backend (5–7 Tage, in Teilen ausrollbar)
 
@@ -172,16 +182,17 @@ Konflikte. Und ein großer Umschalttag ließe sich kaum zurücknehmen.
   - Die Firestore-Regeln werden auf „kein Zugriff aus dem Browser“ gestellt. Stefan spielt sie ein.
   - Die Anmeldung läuft in dieser Stufe noch über Firebase.
 
-### Stufe 3 – Umzug auf PostgreSQL (4–6 Tage)
+### Stufe 3 – Umzug auf PostgreSQL (3–4 Tage)
 
-- **Schema und Speicher-Schicht:** Tabellen-Schema per Alembic und die Speicher-Schicht in einer zweiten Umsetzung auf
-  PostgreSQL. Die Tests aus Stufe 1 laufen gegen beide.
-- **Ersatz für die Firestore-Listener:**
-  - Live-Kanäle laufen über `NOTIFY`.
-  - Der Wecker im notify_worker hört auf `NOTIFY`.
-  - Der Termin-Zwischenspeicher (`appointment_window`) entfällt oder wird zu einer einfachen Abfrage.
+- **Speicher-Schicht auf PostgreSQL:**
+  - Die Tabelle `dokumente` entsteht per Alembic.
+  - Ein Client mit derselben Schnittstelle wie der genutzte Teil von Firestore besteht alle Verträge aus Stufe 1.
+  - Transaktionen laufen als SERIALIZABLE und werden bei Konflikten wiederholt.
+- **Ersatz für die Firestore-Listener:** `on_snapshot` meldet Änderungen über `NOTIFY`. Davon leben die Live-Kanäle, der
+  Wecker im notify_worker und der Termin-Zwischenspeicher (`appointment_window`).
 - **Umzugsskript** `deploy/datenumzug.py`:
-  - Liest alle Sammlungen und schreibt sie in einer einzigen Transaktion nach PostgreSQL.
+  - Liest alle Sammlungen samt Unter-Sammlungen und schreibt sie unverändert in einer einzigen Transaktion nach
+    PostgreSQL.
   - Vergleicht danach Anzahlen und Stichproben.
   - Kann beliebig oft wiederholt werden und hat einen Probelauf gegen eine Kopie.
 - **Umschalten:**
@@ -269,9 +280,9 @@ Schema-Änderungen spielt ab Stufe 0 `update.sh` beim Ausrollen selbst ein.
   `firebaseio.com`, `firebasestorage.app` oder `firebaseapp.com`. Ausgenommen ist der Push-Dienst des Browsers.
 - **Kein Firebase im Backend:** Weder `firebase-admin` noch `google-cloud-firestore` werden geladen.
 - **Doppelbuchungen sind ausgeschlossen:**
-  - Sie sind technisch unmöglich: Ein Test, der zwei überlappende Termine derselben Person schreiben will, scheitert
-    an der Datenbank.
   - `gleichzeitig.cjs` (viele ziehen gleichzeitig) vergibt keine Nummer doppelt.
+  - Der Vertrag „gleichzeitige Transaktionen verlieren nichts“ ist auch gegen PostgreSQL grün.
+  - Den Ausschluss-Constraint in der Datenbank gibt es erst nach der Bereinigung alter Termine (siehe Zielbild).
 - **Schnell genug:**
   - `/routes/nummer/ziehen` hat im Caddy-Log ein p90 unter 300 ms, auch im Lasttest.
   - Bildschirm und Nummer zeigen Änderungen innerhalb von 2 Sekunden, auch auf dem iPhone unter Safari.
@@ -307,7 +318,8 @@ Schema-Änderungen spielt ab Stufe 0 `update.sh` beim Ausrollen selbst ein.
 
 ## Aufwand
 
-Zusammen etwa 17 bis 24 Arbeitstage, also drei bis fünf Wochen. Den größten Teil machen Stufe 2 und 3 aus.
+Ursprünglich etwa 17 bis 24 Arbeitstage. Durch den geänderten Weg (Stufe 1 an einem Tag erledigt, Stufe 3 statt 4–6 nur
+noch 3–4 Tage) sind es noch etwa 13 bis 19 Arbeitstage. Den größten Teil macht jetzt Stufe 2 aus.
 
 Stufe 4 berührt andere Dateien als Stufe 2 (Anmeldung statt Datenschicht). Sie kann deshalb in einer eigenen Sitzung
 parallel entstehen und direkt nach Stufe 3 live gehen.

@@ -16,8 +16,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
-from google.cloud import firestore
-
+from app import store
 from app.libs.schedule import BERLIN, day_key
 
 PUBLIC = "public_appointments"
@@ -82,7 +81,7 @@ def reconcile(db, appointment_id: str) -> str | None:
     appt_ref = db.collection(APPOINTMENTS).document(appointment_id)
     ref = public_ref(db, appointment_id)
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> str | None:
         appt = appt_ref.get(transaction=tx)
         current = ref.get(transaction=tx)

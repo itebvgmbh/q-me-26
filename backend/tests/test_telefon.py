@@ -120,7 +120,7 @@ def setup(store=None):
     tel._jetzt = lambda: JETZT
     tel.invalidate_shop_date_cache = lambda *a, **k: 0
     tel._frueher_dran = lambda *a: None
-    buchung.firestore.transactional = transactional
+    buchung.store.transactional = transactional
     buchung.random = random.Random(7)
     return db, store
 

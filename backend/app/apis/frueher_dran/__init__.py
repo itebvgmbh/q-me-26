@@ -13,7 +13,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-from google.cloud import firestore as gcf
+from app import store
 from pydantic import BaseModel
 
 from app.apis.check_slots import trigger_check_in_background
@@ -57,12 +57,12 @@ def set_frueher_dran(appointment_id: str, body: FrueherDranRequest, user: Author
         shop = db.collection("shops").document(appt.get("shopId") or "-").get()
         if not shop.exists or not has_feature(shop.to_dict() or {}, "frueherDran"):
             raise HTTPException(status_code=403, detail="Dieser Laden bietet „Früher dran“ gerade nicht an.")
-        changes = {"checkEarlierOptions": True, "checkEarlierOptionsCreatedAt": gcf.SERVER_TIMESTAMP}
+        changes = {"checkEarlierOptions": True, "checkEarlierOptionsCreatedAt": store.SERVER_TIMESTAMP}
     else:
         # Ausschalten geht immer – auch wenn der Laden den Tarif inzwischen gewechselt hat
-        changes = {"checkEarlierOptions": False, "checkEarlierOptionsCreatedAt": gcf.DELETE_FIELD}
+        changes = {"checkEarlierOptions": False, "checkEarlierOptionsCreatedAt": store.DELETE_FIELD}
 
-    snap.reference.update({**changes, "updatedAt": gcf.SERVER_TIMESTAMP})
+    snap.reference.update({**changes, "updatedAt": store.SERVER_TIMESTAMP})
     # Gleich prüfen: Einschalten kann sofort ein Angebot bringen, Ausschalten gibt ein reserviertes Angebot frei
     trigger_check_in_background(appt.get("shopId"), appt.get("staffId"))
     return {"checkEarlierOptions": body.an}

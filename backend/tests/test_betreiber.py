@@ -131,7 +131,7 @@ def setup(uid="chef", email="chef@dranzeit.de", store=None, users=None):
     api.get_firestore_db = lambda: db
     api.get_firebase_app = lambda: None
     api._auth = lambda: auth
-    api.gcf = SimpleNamespace(transactional=lambda fn: fn)
+    api.store = SimpleNamespace(transactional=lambda fn: fn)
     konten.auth_accounts = lambda app: [konten.account_row(auth.get_user(u)) for u in list(auth.users)]
     app = FastAPI()
     app.include_router(api.router, prefix="/routes")

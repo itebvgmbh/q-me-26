@@ -16,9 +16,8 @@ import time as clock
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, List, Optional
 
-from google.api_core.exceptions import Aborted
-from google.cloud import firestore
-
+from app.store import Aborted
+from app import store
 from app.libs.public_appointments import write_public
 from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, placement_of, read_placement
 from app.libs.team_notify import notice_fields
@@ -82,7 +81,7 @@ def create_appointment(db, data: dict, candidates: List[Placement], needs_code: 
     ref = db.collection("appointments").document()
     earlier = reference_codes_of_day(db, shop_id, code_day.astimezone(BERLIN).date()) if needs_code else []
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> dict:
         chosen, change, conflict = None, None, None
         for place in candidates:
@@ -120,7 +119,7 @@ def cancel_appointment(db, appointment_id: str, check: Callable[[Optional[dict]]
     """
     ref = db.collection("appointments").document(appointment_id)
 
-    @firestore.transactional
+    @store.transactional
     def run(tx) -> dict:
         snap = ref.get(transaction=tx)
         appt = (snap.to_dict() or {}) if snap.exists else None
