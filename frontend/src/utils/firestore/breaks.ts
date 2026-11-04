@@ -1,7 +1,12 @@
-import { collection, doc, getDoc, getDocs, query, where, Timestamp, setDoc, deleteDoc, addDoc, DocumentData } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
+import type { Timestamp } from 'firebase/firestore';
+import { backendSenden, liveLesen } from '../live';
+import type { RecurringBreak } from './recurring-breaks';
 
+/**
+ * Einzelne Pausen über das Backend (requirements/eigene-datenbank.md, Stufe 2; backend/app/apis/pausen,
+ * backend/app/libs/pausen.py). Lesen ist öffentlich (freie Plätze), pflegen darf nur der Inhaber – wie bisher in
+ * firestore.rules. Nach jeder Änderung rechnet das Backend die freien Zeiten des Tages neu.
+ */
 export interface Break {
   id: string;
   shopId: string;
@@ -14,133 +19,70 @@ export interface Break {
   updatedAt: Timestamp;
 }
 
-// Funktion zum Abrufen aller Pausen eines Mitarbeiters für einen bestimmten Tag
+/** Einzelne und feste Pausen einer Person in einem Abruf (Pausenverwaltung, Kalender, booking-rules.ts) */
+export const getStaffBreaks = (staffId: string) =>
+  liveLesen<{ einzeln: Break[]; fest: RecurringBreak[] }>(`live/person/${encodeURIComponent(staffId)}/pausen`);
+
+const alsDatum = (wert: unknown): Date | null =>
+  wert && typeof (wert as { toDate?: () => Date }).toDate === 'function' ? (wert as { toDate: () => Date }).toDate() : wert instanceof Date ? wert : null;
+
+// Alle Pausen eines Mitarbeiters für einen bestimmten Tag
 export const getBreaksByStaffAndDate = async (staffId: string, date: Date): Promise<Break[]> => {
   try {
-    const db = getFirestore(firebaseApp);
-    const breaksRef = collection(db, 'breaks');
-    
-    // Datum auf den Beginn des Tages setzen
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
-    // Datum auf das Ende des Tages setzen
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-    
-    // Abfrage erstellen
-    const q = query(
-      breaksRef,
-      where('staffId', '==', staffId),
-      where('date', '>=', Timestamp.fromDate(startOfDay)),
-      where('date', '<=', Timestamp.fromDate(endOfDay))
-    );
-    
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Break[];
+    const { einzeln } = await getStaffBreaks(staffId);
+    // Wie die frühere Abfrage auf date: nur Einträge mit einem Zeitpunkt an diesem Tag
+    return einzeln.filter((b) => {
+      const tag = alsDatum(b.date);
+      return tag !== null && tag >= startOfDay && tag <= endOfDay;
+    });
   } catch (error) {
     console.error('Error getting breaks:', error);
     return [];
   }
 };
 
-// Funktion zum Erstellen einer neuen Pause
-export const createBreak = async (breakData: Omit<Break, 'id' | 'createdAt' | 'updatedAt'>): Promise<Break> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const breakRef = doc(collection(db, 'breaks'));
-    
-    const now = Timestamp.now();
-    const newBreakData = {
-      id: breakRef.id,
-      ...breakData,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    await setDoc(breakRef, newBreakData);
-    return newBreakData as Break;
-  } catch (error) {
-    console.error('Error creating break:', error);
-    throw error;
-  }
-};
+export const createBreak = async (breakData: Omit<Break, 'id' | 'createdAt' | 'updatedAt'>): Promise<Break> =>
+  (await backendSenden<{ pause: Break }>('team/pausen', { pause: breakData })).pause;
 
-// Funktion zum Aktualisieren einer Pause
-export const updateBreak = async (
-  breakId: string, 
-  breakData: Partial<Omit<Break, 'id' | 'createdAt' | 'updatedAt'>>
-): Promise<Break> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const breakRef = doc(db, 'breaks', breakId);
-    
-    const updateData = {
-      ...breakData,
-      updatedAt: Timestamp.now()
-    };
-    
-    await setDoc(breakRef, updateData, { merge: true });
-    
-    // Holen des aktualisierten Dokuments
-    const updatedDoc = await getDoc(breakRef);
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Break;
-  } catch (error) {
-    console.error('Error updating break:', error);
-    throw error;
-  }
-};
+export const updateBreak = async (breakId: string, breakData: Partial<Omit<Break, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Break> =>
+  (await backendSenden<{ pause: Break }>(`team/pausen/${encodeURIComponent(breakId)}`, { aenderung: breakData })).pause;
 
-// Funktion zum Löschen einer Pause
 export const deleteBreak = async (breakId: string): Promise<void> => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const breakRef = doc(db, 'breaks', breakId);
-    await deleteDoc(breakRef);
-  } catch (error) {
-    console.error('Error deleting break:', error);
-    throw error;
-  }
+  await backendSenden(`team/pausen/${encodeURIComponent(breakId)}/loeschen`, {});
 };
 
-// Funktion zum Überprüfen von Pausenüberschneidungen
+// Überschneidet sich eine neue Pause mit einer anderen am selben Tag?
 export const checkBreakConflicts = async (
-  staffId: string, 
-  startTime: Timestamp | Date, 
+  staffId: string,
+  startTime: Timestamp | Date,
   endTime: Timestamp | Date,
-  excludeBreakId?: string
+  excludeBreakId?: string,
 ): Promise<boolean> => {
   try {
-    // Konvertieren zu Date, falls Timestamp
-    const startDate = startTime instanceof Timestamp ? startTime.toDate() : startTime;
-    const endDate = endTime instanceof Timestamp ? endTime.toDate() : endTime;
-    
-    // Datum für die Abfrage (nur das Datum, ohne Uhrzeit)
+    const startDate = alsDatum(startTime);
+    const endDate = alsDatum(endTime);
+    if (!startDate || !endDate) return true;
     const date = new Date(startDate);
     date.setHours(0, 0, 0, 0);
-    
-    // Alle Pausen des Mitarbeiters für diesen Tag abrufen
     const breaks = await getBreaksByStaffAndDate(staffId, date);
-    
-    // Überprüfen auf Überschneidungen
     for (const breakItem of breaks) {
-      // Aktuelle Pause ausschließen, wenn eine ID angegeben wurde
       if (excludeBreakId && breakItem.id === excludeBreakId) continue;
-      
-      const breakStart = breakItem.startTime.toDate();
-      const breakEnd = breakItem.endTime.toDate();
-      
-      // Prüfen auf Überschneidung
+      const breakStart = alsDatum(breakItem.startTime);
+      const breakEnd = alsDatum(breakItem.endTime);
+      if (!breakStart || !breakEnd) continue; // alte Einträge mit Zeiten als Text
       if (
         (startDate >= breakStart && startDate < breakEnd) || // Neue Pause beginnt während bestehender Pause
         (endDate > breakStart && endDate <= breakEnd) || // Neue Pause endet während bestehender Pause
         (startDate <= breakStart && endDate >= breakEnd) // Neue Pause umfasst bestehende Pause vollständig
       ) {
-        return true; // Überschneidung gefunden
+        return true;
       }
     }
-    
-    return false; // Keine Überschneidung gefunden
+    return false;
   } catch (error) {
     console.error('Error checking break conflicts:', error);
     return true; // Im Fehlerfall sicherheitshalber als Konflikt behandeln

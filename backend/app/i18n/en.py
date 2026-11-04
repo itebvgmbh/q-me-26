@@ -285,4 +285,8 @@ TEXTE: dict = {
     "Das darf nur der Inhaber des Ladens.": "Only the shop owner can do that.",
     "Ungültige Angaben zur Leistung.": "Invalid details for this service.",
     "Diese Leistung gibt es nicht mehr.": "This service no longer exists.",
+    # Pausen (app/apis/pausen)
+    "Ungültige Zeitangabe für die Pause.": "Invalid time for the break.",
+    "Das Ende der Pause muss nach dem Beginn liegen.": "The break must end after it starts.",
+    "Diese Pause gibt es nicht mehr.": "This break no longer exists.",
 }
