@@ -104,8 +104,15 @@ def link_gilt(entry: Optional[dict], token: str, now: Optional[datetime] = None)
 
 
 def offline_nehmen(entry: dict, st=None, now: Optional[datetime] = None) -> None:
+    """Offline und keine Post mehr (Sperrliste, app/libs/briefaktion.py): Wer seinen Eintrag entfernt, will auch keine Briefe."""
+    from app.libs import briefaktion
+
     now = now or vz.now()
     (st or vz.store()).aendere(entry["id"], {"status": "entfernt", "entferntAm": now, "geaendertAm": now, "entfernen": None})
+    try:
+        briefaktion.sperren(entry, briefaktion.GRUND_ENTFERNT, now, st)
+    except Exception as e:  # Das Entfernen zählt mehr; die Sperre fehlt dann nur in der Sperrliste
+        print(f"Verzeichnis: Sperre für {entry['id']} nicht gespeichert: {e}")
 
 
 def _salon_zeilen(entry: dict) -> tuple:

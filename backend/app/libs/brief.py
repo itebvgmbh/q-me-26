@@ -68,11 +68,14 @@ def hindernis(entry: dict) -> str:
     return ""
 
 
-def texte(entry: dict, basis: str, plaetze_frei: int) -> dict:
-    """Wortlaut des Briefs; Name und Adresse sind schon für Paragraph maskiert"""
+def texte(entry: dict, basis: str, plaetze_frei: int, art: str = "brief") -> dict:
+    """Wortlaut des Briefs; Name und Adresse sind schon für Paragraph maskiert.
+
+    art „erinnerung“: der zweite Brief einer Welle (app/libs/briefaktion.py), kürzer, mit neuem Code.
+    """
     host = basis.split("//")[-1]
     name = escape((entry.get("name") or "").strip())
-    art = vz.KATEGORIEN.get(entry.get("kategorie") or "", "Friseur")
+    salon_art = vz.KATEGORIEN.get(entry.get("kategorie") or "", "Friseur")
     quelle = "von deiner Webseite" if (entry.get("quelle") or {}).get("website") else "aus öffentlichen Quellen"
     wuensche = int(entry.get("wuensche") or 0)
     if plaetze_frei > 0:
@@ -81,11 +84,17 @@ def texte(entry: dict, basis: str, plaetze_frei: int) -> dict:
                    f"solange dein Abo durchläuft. {rest} ")
     else:
         angebot = "<b>Zum Ausprobieren:</b> 30 Tage alles kostenlos, danach ab 19 € im Monat (zzgl. USt.). "
+    seite = escape(host + vz.pfad(entry))
+    erinnerung = art == "erinnerung"
     return {
-        "betreff": f"{name} hat bei Dranzeit schon eine Seite.",
+        "betreff": f"Noch einmal: {name} hat bei Dranzeit eine Seite." if erinnerung else f"{name} hat bei Dranzeit schon eine Seite.",
         "anrede": "Hallo,",
-        "einstieg": (f"wer in {escape(vz.ortsname(entry))} einen {art} sucht, findet bei Dranzeit auch deinen Salon: "
-                     f"<b>{escape(host + vz.pfad(entry))}</b>. Die Angaben stammen {quelle}. Bisher ist das nur eine Infoseite. "
+        "einstieg": (f"vor ein paar Wochen haben wir dir geschrieben: Wer in {escape(vz.ortsname(entry))} einen {salon_art} sucht, "
+                     f"findet bei Dranzeit auch deinen Salon unter <b>{seite}</b>. Mit dem neuen Code unten gehört die Seite dir, und "
+                     "deine Kunden ziehen dort online eine Nummer. Der Code aus dem ersten Brief gilt nicht mehr."
+                     if erinnerung else
+                     f"wer in {escape(vz.ortsname(entry))} einen {salon_art} sucht, findet bei Dranzeit auch deinen Salon: "
+                     f"<b>{seite}</b>. Die Angaben stammen {quelle}. Bisher ist das nur eine Infoseite. "
                      "Mit dem Code unten gehört sie dir, und deine Kunden ziehen dort online eine Nummer oder buchen einen Termin."),
         "wuensche": f"{wuensche} Leute wünschen sich auf deiner Seite schon, bei dir online eine Nummer zu ziehen." if wuensche >= AB_WUENSCHE else "",
         "schritte": [
@@ -93,15 +102,15 @@ def texte(entry: dict, basis: str, plaetze_frei: int) -> dict:
             "Konto anlegen. Was auf deiner Seite steht, ist schon eingetragen.",
             "Prüfen und „Laden eröffnen“. Deine Seite bleibt unter derselben Adresse.",
         ],
-        "was": "Dranzeit ist die digitale Warteschlange für Friseure und Barbershops.",
-        "vorteile": [
+        "was": "" if erinnerung else "Dranzeit ist die digitale Warteschlange für Friseure und Barbershops.",
+        "vorteile": [] if erinnerung else [
             "<b>Weniger Gedränge im Laden.</b> Kunden ziehen am Handy eine Nummer, warten, wo sie wollen, und bekommen Bescheid, kurz bevor sie dran sind.",
             "<b>Ein Plan für alles.</b> Termine und Laufkundschaft stehen in derselben Schlange.",
             "<b>Keine Provision.</b> Keine Kosten pro Kunde, keine App für deine Kunden, monatlich kündbar.",
         ],
         "angebot": angebot + "Zum Start brauchst du keine Zahlungsdaten. Ohne Abo läuft dein Laden danach im kostenlosen Tarif weiter.",
-        "widerspruch": (f"Du möchtest das nicht? Ganz unten auf deiner Seite kannst du mit „Eintrag entfernen“ die Seite offline nehmen. "
-                        f"Keine Post mehr von uns: kurz an {HILFE} oder an die Absenderadresse schreiben. Mehr dazu: {escape(host)}/datenschutz."),
+        "widerspruch": (f"Du möchtest das nicht? Unten auf deiner Seite nimmst du sie mit „Eintrag entfernen“ offline. Mit „Keine Post mehr“ "
+                        f"dort, per Mail an {HILFE} oder an die Absenderadresse stoppst du unsere Briefe. Mehr dazu: {escape(host)}/datenschutz."),
     }
 
 
@@ -210,9 +219,10 @@ def _marke(c: canvas.Canvas, schritte: list, code: str, gueltig: str, link: str,
     return unten
 
 
-def zeichnen(c: canvas.Canvas, entry: dict, code: str, gueltig_bis: datetime, basis: str, plaetze_frei: int, heute: datetime) -> dict:
+def zeichnen(c: canvas.Canvas, entry: dict, code: str, gueltig_bis: datetime, basis: str, plaetze_frei: int, heute: datetime,
+             art: str = "brief") -> dict:
     """Das Blatt auf den Canvas zeichnen; gibt zurück, wie weit Text und Marke reichen (mm von oben), für die Tests"""
-    t = texte(entry, basis, plaetze_frei)
+    t = texte(entry, basis, plaetze_frei, art)
     host = basis.split("//")[-1]
 
     c.setStrokeColor(MUTED)
@@ -257,7 +267,8 @@ def zeichnen(c: canvas.Canvas, entry: dict, code: str, gueltig_bis: datetime, ba
     y = _marke(c, t["schritte"], ue.anzeigen(code), gueltig_bis.astimezone(BERLIN).strftime("%d.%m.%Y"), ue.link(basis, code), _y(MARKE_MM))
     marke_unten = _mm(y)
 
-    y = _absatz(c, t["was"], LINKS, y - 3.5 * mm, BREITE, ZWISCHEN) - 0.5 * mm
+    if t["was"]:
+        y = _absatz(c, t["was"], LINKS, y - 3.5 * mm, BREITE, ZWISCHEN) - 0.5 * mm
     for vorteil in t["vorteile"]:
         y = _absatz(c, vorteil, LINKS, y, BREITE, KOERPER) - 0.5 * mm
     y = _absatz(c, t["angebot"], LINKS, y - 2 * mm, BREITE, KOERPER) - 3 * mm
@@ -285,5 +296,21 @@ def pdf(entry: dict, code: str, gueltig_bis: datetime, basis: str, plaetze_frei:
     c.setAuthor(f"Dranzeit ({SELLER['name']})")
     zeichnen(c, entry, code, gueltig_bis, basis, plaetze_frei, heute or vz.now())
     c.showPage()
+    c.save()
+    return puffer.getvalue()
+
+
+def serie(items: list, art: str, basis: str, plaetze_frei: int, heute: datetime) -> bytes:
+    """Sammel-PDF einer Welle: eine Seite je Brief in der Reihenfolge von items [(Eintrag, Code, gültig bis)].
+
+    Der Dienstleister teilt es nach je einer Seite auf und liest die Anschrift aus dem Fenster.
+    """
+    puffer = io.BytesIO()
+    c = canvas.Canvas(puffer, pagesize=A4, initialFontName="Text")
+    c.setTitle(f"{'Erinnerungen' if art == 'erinnerung' else 'Briefe'} an {len(items)} Salons")
+    c.setAuthor(f"Dranzeit ({SELLER['name']})")
+    for entry, code, gueltig_bis in items:
+        zeichnen(c, entry, code, gueltig_bis, basis, plaetze_frei, heute, art)
+        c.showPage()
     c.save()
     return puffer.getvalue()
