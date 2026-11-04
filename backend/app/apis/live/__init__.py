@@ -170,3 +170,40 @@ async def ereignisse(request: Request, kanal: list[str] = Query(default=[])) -> 
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
+
+
+# --- Personen und Leistungen eines Ladens, öffentlich (Buchen, Nummer ziehen, Ladenseite; Stufe 2, Bereich 4) ---------
+# Ohne Konto-ID, Einladung und Kontaktdaten (app/libs/team_laden.person_oeffentlich). Inhaber und Team lesen über
+# /team/laden/{id}/personen (app/apis/team_laden).
+
+
+@router.get("/live/laden/{shop_id}/personen")
+def laden_personen(shop_id: str, response: Response) -> dict:
+    from app.libs import team_laden as tl
+
+    _keine_ablage(response)
+    if not ID.match(shop_id):
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht.")
+    personen = [tl.person_oeffentlich(pid, d) for pid, d in tl.personen_des_ladens(store.db(), shop_id)]
+    return live.json_wert({"personen": personen})
+
+
+@router.get("/live/laden/{shop_id}/leistungen")
+def laden_leistungen(shop_id: str, response: Response) -> dict:
+    from app.libs import team_laden as tl
+
+    _keine_ablage(response)
+    if not ID.match(shop_id):
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht.")
+    return live.json_wert({"leistungen": tl.leistungen_des_ladens(store.db(), shop_id)})
+
+
+@router.get("/live/leistung/{service_id}")
+def eine_leistung(service_id: str, response: Response) -> dict:
+    from app.libs import team_laden as tl
+
+    _keine_ablage(response)
+    gefunden = tl.leistung(store.db(), service_id) if ID.match(service_id) else None
+    if gefunden is None:
+        raise HTTPException(status_code=404, detail="Diese Leistung gibt es nicht mehr.")
+    return live.json_wert({"leistung": gefunden})
