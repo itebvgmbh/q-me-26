@@ -170,3 +170,101 @@ def kommende(service_id: str, user: AuthorizedUser, response: Response) -> dict:
     gefunden = _leistung_und_laden(db, service_id)
     require_shop_member(user, gefunden.get("shopId", ""))
     return {"anzahl": tl.kommende_termine_mit_leistung(db, gefunden["shopId"], service_id)}
+
+
+# --- Läden, Bilder, Startklar, Kundenliste (Stufe 2, Bereiche „Einrichtung und Laden“ und „Kunden“) -------------------
+# Logik und Rechte: app/libs/laeden.py. Öffentlich lesen: /live/laden/{id}, /live/laeden, /live/dateien/{id}/{name}.
+
+from fastapi import File, Form, UploadFile  # noqa: E402
+
+from app import seo  # noqa: E402
+from app.libs import laeden as ld  # noqa: E402
+
+
+class LadenAnlegen(BaseModel):
+    laden: dict
+
+
+class KundeAnlegen(BaseModel):
+    kunde: dict
+
+
+def _laden_fehler(e: ld.LadenFehler) -> HTTPException:
+    return HTTPException(status_code=e.status, detail=e.text)
+
+
+@router.get("/team/ich/laeden")
+def eigene_laeden(user: AuthorizedUser, response: Response) -> dict:
+    _keine_ablage(response)
+    return live.json_wert({"laeden": ld.eigene_laeden(store.db(), user.sub)})
+
+
+@router.get("/team/laeden/{shop_id}")
+def laden_fuers_team(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
+    """Ganzer Laden für Inhaber und Team (Tarif, Startklar); ohne Anmeldung gibt es /live/laden/{id}"""
+    _keine_ablage(response)
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_member(user, shop_id)
+    daten = ld.laden_roh(store.db(), shop_id)
+    if daten is None:
+        raise HTTPException(status_code=404, detail=merke("Diesen Laden gibt es nicht."))
+    return live.json_wert({"laden": {"id": shop_id, **daten}})
+
+
+@router.post("/team/laeden")
+def laden_anlegen(body: LadenAnlegen, user: AuthorizedUser) -> dict:
+    try:
+        return live.json_wert({"laden": ld.laden_anlegen(store.db(), user.sub, _daten(body.laden))})
+    except ld.LadenFehler as e:
+        raise _laden_fehler(e)
+
+
+@router.post("/team/laeden/{shop_id}")
+def laden_aendern(shop_id: str, body: Aenderung, user: AuthorizedUser) -> dict:
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_of_owner(user, shop_id)
+    try:
+        return live.json_wert({"laden": ld.laden_aendern(store.db(), shop_id, _daten(body.aenderung))})
+    except ld.LadenFehler as e:
+        raise _laden_fehler(e)
+
+
+@router.post("/team/laeden/{shop_id}/bild")
+async def bild_hochladen(shop_id: str, user: AuthorizedUser, datei: UploadFile = File(...), art: str = Form("logo")) -> dict:
+    """Logo oder Foto einer Person; gibt die Adresse zurück, die in logoUrl bzw. profileImageUrl gehört"""
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_of_owner(user, shop_id)
+    inhalt = await datei.read(ld.MAX_BILD + 1)
+    try:
+        name = ld.bild_speichern(shop_id, inhalt)
+    except ld.LadenFehler as e:
+        raise _laden_fehler(e)
+    print(f"Bild ({art}) für {shop_id} gespeichert: {name} ({len(inhalt)} Bytes)")
+    return {"url": f"{seo.public_url()}/routes/live/dateien/{shop_id}/{name}"}
+
+
+@router.get("/team/laeden/{shop_id}/startklar")
+def startklar(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
+    _keine_ablage(response)
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_member(user, shop_id)
+    return {"bedient": ld.startklar_bedient(store.db(), shop_id)}
+
+
+@router.get("/team/laeden/{shop_id}/kunden")
+def kunden(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
+    _keine_ablage(response)
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_member(user, shop_id)
+    return live.json_wert({"kunden": ld.kunden(store.db(), shop_id)})
+
+
+@router.post("/team/kunden")
+def kunde_anlegen(body: KundeAnlegen, user: AuthorizedUser) -> dict:
+    daten = _daten(body.kunde)
+    shop_id = _id(daten.get("shopId"), merke("Diesen Laden gibt es nicht."))
+    require_shop_member(user, shop_id)
+    try:
+        return live.json_wert({"kunde": ld.kunde_anlegen(store.db(), daten)})
+    except ld.LadenFehler as e:
+        raise _laden_fehler(e)

@@ -218,3 +218,80 @@ def person_pausen(staff_id: str, response: Response) -> dict:
     if not ID.match(staff_id):
         raise HTTPException(status_code=404, detail="Diese Person gibt es nicht mehr.")
     return live.json_wert(pausen.pausen_der_person(store.db(), staff_id))
+
+
+# --- Läden, Personen, belegte Zeiten, Bilder: öffentlich (Läden finden, Buchen, Nummer ziehen; Stufe 2) -----------------
+
+
+@router.get("/live/laeden")
+def alle_laeden(response: Response) -> dict:
+    """Alle Läden in der öffentlichen Fassung (Läden finden, Karte); ohne Inhaber und Startklar-Merker"""
+    from app.libs import laeden as ld
+
+    _keine_ablage(response)
+    return live.json_wert({"laeden": ld.alle_laeden(store.db())})
+
+
+@router.get("/live/laden/{shop_id}")
+def ein_laden(shop_id: str, response: Response) -> dict:
+    from app.libs import laeden as ld
+
+    _keine_ablage(response)
+    daten = ld.laden_roh(store.db(), shop_id) if ID.match(shop_id) else None
+    if daten is None:
+        raise HTTPException(status_code=404, detail="Diesen Laden gibt es nicht.")
+    return live.json_wert({"laden": ld.laden_oeffentlich(shop_id, daten)})
+
+
+@router.get("/live/person/{staff_id}")
+def eine_person(staff_id: str, response: Response) -> dict:
+    from app.libs import team_laden as tl
+
+    _keine_ablage(response)
+    snap = store.db().collection(tl.STAFF).document(staff_id).get() if ID.match(staff_id) else None
+    if snap is None or not snap.exists:
+        raise HTTPException(status_code=404, detail="Diese Person gibt es nicht mehr.")
+    return live.json_wert({"person": tl.person_oeffentlich(staff_id, snap.to_dict() or {})})
+
+
+@router.get("/live/person/{staff_id}/belegt")
+def person_belegt(staff_id: str, von: str, bis: str, response: Response) -> dict:
+    """Kurzfassungen der Termine einer Person an den Tagen in [von, bis) (freie Plätze, booking-rules.ts). Höchstens
+    62 Tage; je 30 Tage eine Abfrage wie bisher im Browser (publicOfStaffBetween)."""
+    from datetime import timedelta
+
+    from app.libs.schedule import BERLIN
+
+    _keine_ablage(response)
+    if not ID.match(staff_id):
+        raise HTTPException(status_code=404, detail="Diese Person gibt es nicht mehr.")
+    try:
+        anfang, ende = live.aus_json({"__zeit": von}), live.aus_json({"__zeit": bis})
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Tag als JJJJ-MM-TT")
+    if not (anfang < ende <= anfang + timedelta(days=62)):
+        raise HTTPException(status_code=400, detail="Tag als JJJJ-MM-TT")
+    tage, tag = [], anfang.astimezone(BERLIN).date()
+    letzter = (ende - timedelta(microseconds=1)).astimezone(BERLIN).date()
+    while tag <= letzter:
+        tage.append(f"{staff_id}_{tag.isoformat()}")
+        tag += timedelta(days=1)
+    termine = []
+    for i in range(0, len(tage), 30):
+        abfrage = store.db().collection(live.PUBLIC).where(filter=store.FieldFilter("staffDay", "in", tage[i:i + 30]))
+        termine.extend(kurzfassung(d) for d in abfrage.stream())
+    return live.json_wert({"termine": termine})
+
+
+@router.get("/live/dateien/{shop_id}/{name}")
+def datei(shop_id: str, name: str):
+    """Logos und Fotos (app/libs/laeden.bild_speichern); Name zufällig, daher ein Jahr zwischenspeicherbar"""
+    from fastapi.responses import FileResponse
+
+    from app.libs import laeden as ld
+
+    pfad = ld.bild_pfad(shop_id, name) if ID.match(shop_id) else None
+    if pfad is None:
+        raise HTTPException(status_code=404, detail="Diese Datei gibt es nicht.")
+    art = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}[name.rsplit(".", 1)[1]]
+    return FileResponse(pfad, media_type=art, headers={"Cache-Control": "public, max-age=31536000, immutable"})

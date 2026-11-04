@@ -287,4 +287,9 @@ TEXTE: dict = {
     "Ungültige Zeitangabe für die Pause.": "Mola için geçersiz saat.",
     "Das Ende der Pause muss nach dem Beginn liegen.": "Molanın bitişi başlangıcından sonra olmalı.",
     "Diese Pause gibt es nicht mehr.": "Bu mola artık yok.",
+    # Läden, Bilder, Konto (app/apis/team_laden, app/apis/konto)
+    "Dieses Angebot gibt es nicht mehr.": "Bu teklif artık yok.",
+    "Das Bild ist zu groß (höchstens 5 MB).": "Görsel çok büyük (en fazla 5 MB).",
+    "Bitte ein Bild als PNG, JPEG oder WebP.": "Lütfen PNG, JPEG veya WebP görsel kullan.",
+    "Diese Datei gibt es nicht.": "Bu dosya mevcut değil.",
 }
