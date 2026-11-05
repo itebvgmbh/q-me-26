@@ -13,6 +13,7 @@ Was am Laden gespeichert wird (sieht auch der Laden, Firestore ist ohne Anmeldun
                                  Testmodus: Laden bucht in der Stripe-Sandbox (privat/stripe_test, app/libs/shop_privat.py)
 Gründe, vorher/nachher und Sicherungen stehen im Protokoll auf dem Server (app/libs/protokoll.py).
 Konten und Läden löschen wie deploy/konten-aufraeumen.py (app/libs/konten.py): Probelauf, Sicherung, Löschen, Nachprüfung.
+„Testkonten aufräumen“ (/betreiber/testkonten): alle Konten mit Testadresse samt ihren Läden auf einmal, genauso.
 """
 
 import os
@@ -847,12 +848,17 @@ def loeschen(body: DeleteRequest, user: AuthorizedUser) -> dict:
     word = _confirm_word(plan)
     if (body.confirm or "").strip().lower() != word.lower():
         raise HTTPException(status_code=400, detail=f"Zur Bestätigung genau „{word}“ eintippen.")
+    return _ausfuehren(plan, user, "Gelöscht", "Betreiber-Bereich")
+
+
+def _ausfuehren(plan: dict, user, action: str, source: str) -> dict:
+    """Sicherung auf dem Server, löschen, nachprüfen, ins Protokoll – für einzeln und für „Testkonten aufräumen“"""
     if any(s["id"] == ITEBV_SHOP for s in plan["shops"]):  # plan_deletion meldet das schon; doppelt hält besser
         raise HTTPException(status_code=409, detail="Den Laden der ITEBV GmbH löscht der Betreiber-Bereich nicht.")
 
     summary = _summary(plan)
     selection = ", ".join([f"Laden {s['name']} ({s['id']})" for s in plan["shops"]] + [f"Konto {u['email'] or u['uid']}" for u in plan["users"]])
-    backup = protokoll.save_backup(konten.backup_data(plan, selection, "Betreiber-Bereich"), plan["now"])
+    backup = protokoll.save_backup(konten.backup_data(plan, selection, source), plan["now"])
     auth, app = _auth(), None
 
     def delete_auth_user(uid):
@@ -873,9 +879,63 @@ def loeschen(body: DeleteRequest, user: AuthorizedUser) -> dict:
     _verzeichnis._vergessen()  # die Seite des Ladens ist mit weg
     for u in plan["users"]:
         protokoll.set_blocked(u["uid"], False)
-    protokoll.write(user, "Gelöscht", {"shopIds": [s["id"] for s in plan["shops"]], "uids": [u["uid"] for u in plan["users"]],
-                                       "name": selection}, after={**summary, "ergebnis": result, "sicherung": backup.name, "reste": left})
+    protokoll.write(user, action, {"shopIds": [s["id"] for s in plan["shops"]], "uids": [u["uid"] for u in plan["users"]],
+                                   "name": selection}, after={**summary, "ergebnis": result, "sicherung": backup.name, "reste": left})
     return {"result": result, "left": left, "backup": backup.name}
+
+
+# --- Testkonten aufräumen -------------------------------------------------------------------------------------------
+# Alle Konten mit Testadresse samt ihren Läden in einem Rutsch (app/libs/konten.py test_cleanup): Probelauf zeigt die
+# Liste, gelöscht wird genau diese Liste – nur was beim Löschen immer noch als Testkonto gilt.
+
+TEST_CONFIRM = "löschen"
+
+
+class TestCleanupRequest(BaseModel):
+    uids: List[str] = []
+    shopIds: List[str] = []
+    confirm: Optional[str] = None
+
+
+def _test_cleanup() -> tuple:
+    fs, now = get_firestore_db(), _now()
+    emails, admin_uids = admin_lists()
+    ov = konten.overview(fs, konten.auth_accounts(None), emails, admin_uids, now)
+    accounts = {a["uid"]: a for a in ov["accounts"]}
+    owners = {s["id"]: (accounts.get(s["owner"]) or {}).get("email") or "" for s in ov["shops"]}
+    return fs, now, emails, admin_uids, accounts, owners, konten.test_cleanup(ov)
+
+
+@admin.post("/betreiber/testkonten/probe")
+def testkonten_probe() -> dict:
+    """Probelauf: welche Testkonten und Testläden weggingen, was bleibt und warum. Ändert nichts."""
+    fs, now, emails, admin_uids, accounts, owners, sel = _test_cleanup()
+    plan = konten.plan_deletion(fs, sel["uids"], sel["shopIds"], accounts, emails, admin_uids, now)
+    return _plain({
+        **_summary(plan),
+        "uids": sel["uids"], "shopIds": sel["shopIds"], "skipped": sel["skipped"],
+        "owners": {sid: owners.get(sid, "") for sid in sel["shopIds"]},
+        "confirmWord": TEST_CONFIRM,
+    })
+
+
+@admin.post("/betreiber/testkonten")
+def testkonten_loeschen(body: TestCleanupRequest, user: AuthorizedUser) -> dict:
+    """Die Liste aus dem Probelauf löschen – wie einzeln: Sicherung, löschen, nachprüfen, Protokoll"""
+    if (body.confirm or "").strip().lower() != TEST_CONFIRM:
+        raise HTTPException(status_code=400, detail=f"Zur Bestätigung genau „{TEST_CONFIRM}“ eintippen.")
+    if not (body.uids or body.shopIds):
+        raise HTTPException(status_code=400, detail="Es gibt keine Testkonten zum Aufräumen.")
+    for value in body.uids + body.shopIds:
+        _check_id(value, "Das")
+    fs, now, emails, admin_uids, accounts, _, sel = _test_cleanup()
+    fremd = [v for v in body.uids if v not in sel["uids"]] + [v for v in body.shopIds if v not in sel["shopIds"]]
+    if fremd:
+        raise HTTPException(status_code=409, detail=f"{len(fremd)} Einträge gelten nicht (mehr) als Test. Bitte den Probelauf neu starten.")
+    plan = konten.plan_deletion(fs, body.uids, body.shopIds, accounts, emails, admin_uids, now)
+    if plan["problems"]:
+        raise HTTPException(status_code=409, detail=" ".join(plan["problems"]))
+    return _ausfuehren(plan, user, "Testkonten aufgeräumt", "Betreiber-Bereich: Testkonten aufräumen")
 
 
 # Reiter Verzeichnis (Salons ohne Dranzeit, Seiten der Läden): eigene Datei, gleiche Prüfung

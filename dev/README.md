@@ -41,6 +41,7 @@ node dev/e2e/tarife.cjs                     # Preisseite, AGB, Mein Tarif, Sperr
 node dev/e2e/laden-extras.cjs               # Wartezimmer-Bildschirm, Auswertung, QR-Plakat, Tagesnummern
 node dev/e2e/abo-checkout.cjs               # Mein Tarif bis Stripe Checkout (Testschlüssel auf dem Server): Preis, Testphase, Steuer, SEPA
 node dev/e2e/rechnungen.cjs                 # Mein Tarif → Rechnungen: Liste, Status, Beträge, PDF und E-Rechnung laden (Liste nachgebildet; QME_RECHNUNGEN=echt fragt das Backend)
+node dev/e2e/testkonten-aufraeumen.cjs      # Betreiber-Bereich → „Testkonten aufräumen …“: Probelauf mit Konten, Läden und was bleibt, löschen erst nach „löschen“, Handy (Backend und Anmeldung nachgebildet, löscht nichts)
 node dev/e2e/betreiber.cjs                  # Betreiber-Bereich: Übersicht, Filter, Sperren, Freischalten, Löschen, Konto (Backend nachgebildet; QME_BETREIBER=echt: Testkonto wird abgewiesen)
 node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis (suchen, anlegen, bearbeiten, veröffentlichen, Übernahme) und graue Salons auf der Karte (Backend und Anmeldung nachgebildet, keine Testdaten nötig)
 node dev/e2e/briefe.cjs                     # Betreiber-Bereich → Briefe: Auswahl, Filter, Welle als PDF, Hochgeladen, Erinnerung, Versand über PIN (Testmodus, Fortschritt, Fehler), Einstellungen; Keine Post/Unzustellbar am Eintrag (Backend nachgebildet, kein Brief, keine Testdaten nötig)

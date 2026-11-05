@@ -230,6 +230,20 @@ export const sendPasswordMail = async (uid: string) => {
   return email;
 };
 
+/** „Testkonten aufräumen“: Konten mit Testadresse samt ihren Läden, verwaiste Testläden (backend/app/libs/konten.py test_cleanup) */
+export interface TestCleanupProbe extends DeletionProbe {
+  uids: string[];
+  shopIds: string[];
+  /** E-Mail des Inhabers je Laden; leer bei verwaisten Testläden */
+  owners: Record<string, string>;
+  /** Testkonten, die bleiben, mit Grund (Betreiber, ITEBV, laufendes Abo) */
+  skipped: { label: string; why: string }[];
+}
+
+export const probeTestCleanup = () => send<TestCleanupProbe>(`${BASE}/testkonten/probe`, {});
+export const runTestCleanup = (uids: string[], shopIds: string[], confirm: string) =>
+  send<{ result: Record<string, number>; left: string[]; backup: string }>(`${BASE}/testkonten`, { uids, shopIds, confirm });
+
 export const probeDeletion = (shopIds: string[], uids: string[]) => send<DeletionProbe>(`${BASE}/loeschen/probe`, { shopIds, uids });
 export const runDeletion = (shopIds: string[], uids: string[], confirm: string) =>
   send<{ result: Record<string, number>; left: string[]; backup: string }>(`${BASE}/loeschen`, { shopIds, uids, confirm });
