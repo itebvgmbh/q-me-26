@@ -240,6 +240,59 @@ def overview(fs, accounts: list, admin_emails: set = frozenset(), admin_uids: se
     }
 
 
+TEST_ACCOUNT_MARKS = ("FIXTURE", "LASTTEST", "E2E", "TESTADRESSE")
+
+
+def test_cleanup(ov: dict) -> dict:
+    """Was „Testkonten aufräumen“ im Betreiber-Bereich löscht, aus overview(). Liest nur.
+
+    - Konten mit Testadresse (Testskripte, @example.com u. ä.) samt allen ihren Läden
+    - verwaiste Testläden („Testladen (wird gleich gelöscht)“ …), deren Inhaber-Konto fehlt
+    Nie: Betreiber, Konten im Laden der ITEBV GmbH, Läden mit laufendem Abo (dann bleibt auch das Konto) – diese stehen
+    mit Grund unter skipped. Wer nach dem Probelauf dazukommt, ist nicht dabei (der Betreiber-Bereich prüft das).
+    """
+    from app.libs.plans import ACTIVE_BILLING
+    from app.libs.shop_privat import LIVE
+
+    shops = {s["id"]: s for s in ov["shops"]}
+
+    def protected(shop: dict) -> str:
+        if shop["id"] == ITEBV_SHOP:
+            return "der Laden der ITEBV GmbH"
+        if shop.get("billing") in ACTIVE_BILLING and shop.get("stripeMode") == LIVE:  # Sandbox-Abos kosten nichts
+            return f"„{shop['name']}“ hat ein laufendes Abo"
+        return ""
+
+    uids, shop_ids, skipped = [], [], []
+    for acc in ov["accounts"]:
+        marks = set(acc.get("markers") or [])
+        if not marks & set(TEST_ACCOUNT_MARKS):
+            continue
+        label = acc.get("email") or acc["uid"]
+        if "BETREIBER" in marks:
+            skipped.append({"label": label, "why": "Betreiber der App"})
+            continue
+        if "ITEBV" in marks:
+            skipped.append({"label": label, "why": "Inhaber oder im Team der ITEBV GmbH – bei Bedarf einzeln löschen"})
+            continue
+        owned = [shops[sid] for sid in acc.get("shops") or [] if sid in shops]
+        reason = next((r for r in map(protected, owned) if r), "")
+        if reason:
+            skipped.append({"label": label, "why": f"Inhaber, {reason}"})
+            continue
+        uids.append(acc["uid"])
+        shop_ids += [s["id"] for s in owned]
+    for shop in ov["shops"]:
+        if shop["id"] in shop_ids or shop["name"] not in TEST_SHOP_NAMES or "INHABER-KONTO FEHLT" not in shop.get("markers", []):
+            continue
+        reason = protected(shop)
+        if reason:
+            skipped.append({"label": shop["name"], "why": reason})
+        else:
+            shop_ids.append(shop["id"])
+    return {"uids": uids, "shopIds": shop_ids, "skipped": skipped}
+
+
 def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: set = frozenset(),
                   admin_uids: set = frozenset(), now=None) -> dict:
     """Was beim Löschen passiert. Liest nur. Bricht ab, wenn etwas nicht sicher ist."""

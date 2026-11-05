@@ -808,6 +808,11 @@ Eintragen der Webhook-Adresse durch den Support.
 
 ## Konten aufräumen
 
+**Nur die Wegwerf-Konten der Testskripte?** Dafür reicht der Betreiber-Bereich: Reiter „Läden“ oder „Konten“ →
+**„Testkonten aufräumen …“**. Er zeigt im Probelauf alle Konten mit Testadresse (`@example.com` u. ä.) samt ihren Läden
+und verwaiste Testläden, und löscht genau diese Liste nach dem Eintippen von „löschen“ – mit derselben Sicherung und
+Nachprüfung wie unten. Betreiber, Konten bei der ITEBV GmbH und Läden mit laufendem Abo bleiben (stehen mit Grund im Dialog).
+
 `deploy/konten-aufraeumen.py` (Erklärung im Kopf der Datei): erst eine Liste aller Konten und Läden, dann wird nur
 gelöscht, was ausdrücklich genannt ist. Ein Konto löschen heißt dasselbe wie „Konto löschen“ im Profil; Läden gehen
 nur mit, wenn sie selbst genannt sind. Der Laden ITEBV GmbH, Betreiber-Konten und Läden mit laufendem Abo sind

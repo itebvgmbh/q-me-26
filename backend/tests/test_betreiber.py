@@ -494,6 +494,85 @@ def test_kunden_konto_loeschen_wie_im_profil():
     assert store["appointments"]["a1"]["customerName"] != "Kunde"  # Termin bleibt im Laden, ohne Namen
 
 
+# --- Testkonten aufräumen -----------------------------------------------------------------------------------------
+
+
+def testkonten_daten():
+    """Zu daten(): Wegwerf-Konto aus dev/e2e (tempShop) mit zwei Läden, Testkonto im Team der ITEBV GmbH, Testkonto mit
+    laufendem Abo, verwaister Testladen ohne Inhaber-Konto"""
+    store, users = daten(), konten_daten()
+    store["users"].update({
+        "wegwerf": {"role": "shopOwner", "email": "q-me-test-1793901010996-75vz@example.com"},
+        "kimtest": {"role": "employee", "email": "kim-1793901010996@example.com"},
+        "abotest": {"role": "shopOwner", "email": "abo@example.com"},
+    })
+    store["shops"].update({
+        "la": {"name": "Laden A (Test Ladenwahl)", "owner": "wegwerf", "createdAt": days_ago(0)},
+        "lb": {"name": "Laden B (Test Ladenwahl)", "owner": "wegwerf", "createdAt": days_ago(0)},
+        "abo": {"name": "Abo-Test", "owner": "abotest", "createdAt": days_ago(5), "billing": {"plan": "laden", "status": "active"}},
+        "verwaist": {"name": "Testladen (wird gleich gelöscht)", "owner": "weg", "createdAt": days_ago(9)},
+    })
+    store["staff"].update({
+        "s4": {"shopId": ITEBV, "userId": "kimtest", "name": "Kim Test", "isActive": True},
+        "s5": {"shopId": "la", "userId": "", "name": "Robin"},
+    })
+    store["services"]["sv2"] = {"shopId": "lb"}
+    users.update({
+        "wegwerf": {"email": "q-me-test-1793901010996-75vz@example.com"},
+        "kimtest": {"email": "kim-1793901010996@example.com"},
+        "abotest": {"email": "abo@example.com"},
+    })
+    return store, users
+
+
+def test_testkonten_probelauf_nennt_genau_die_testkonten():
+    store, users = testkonten_daten()
+    client, store, auth = setup(store=store, users=users)
+    probe = client.post("/routes/betreiber/testkonten/probe", json={}).json()
+    assert sorted(probe["uids"]) == ["fixture", "wegwerf"], probe["uids"]
+    assert sorted(probe["shopIds"]) == ["la", "lb", "test", "verwaist"], probe["shopIds"]
+    assert probe["problems"] == [] and probe["confirmWord"] == "löschen"
+    assert probe["owners"]["la"] == "q-me-test-1793901010996-75vz@example.com" and probe["owners"]["verwaist"] == ""
+    why = {s["label"]: s["why"] for s in probe["skipped"]}
+    assert "ITEBV" in why["kim-1793901010996@example.com"] and "Abo" in why["abo@example.com"], why
+    # Echte Konten und Läden, Betreiber und ITEBV tauchen nicht auf
+    assert not {"inhaber", "kunde", "neuling", "mitarbeiter", "chef"} & set(probe["uids"])
+    assert not {"laden", "neu", ITEBV, "abo"} & set(probe["shopIds"])
+    assert {"la", "lb", "test", "verwaist"} <= set(store["shops"]) and "wegwerf" in auth.users  # Probelauf ändert nichts
+
+
+def test_testkonten_loeschen_nur_mit_wort_und_nur_testkonten():
+    store, users = testkonten_daten()
+    client, store, auth = setup(store=store, users=users)
+    probe = client.post("/routes/betreiber/testkonten/probe", json={}).json()
+    body = {"uids": probe["uids"], "shopIds": probe["shopIds"]}
+    assert client.post("/routes/betreiber/testkonten", json={**body, "confirm": "ja"}).status_code == 400
+    # Ein echtes Konto oder ein echter Laden in der Liste: nichts geht
+    for extra in ({"uids": probe["uids"] + ["inhaber"]}, {"shopIds": probe["shopIds"] + ["neu"]}):
+        r = client.post("/routes/betreiber/testkonten", json={**body, **extra, "confirm": "löschen"})
+        assert r.status_code == 409, r.text
+    assert "wegwerf" in auth.users and "la" in store["shops"]
+
+    r = client.post("/routes/betreiber/testkonten", json={**body, "confirm": " Löschen "})
+    assert r.status_code == 200, r.text
+    res = r.json()
+    assert res["left"] == [] and res["result"]["shops"] == 4 and res["result"]["accounts"] == 2
+    assert not {"la", "lb", "test", "verwaist"} & set(store["shops"])
+    assert not {"wegwerf", "fixture"} & set(auth.users)
+    assert "s5" not in store["staff"] and "sv2" not in store["services"]
+    # Was bleibt
+    assert {"laden", "neu", ITEBV, "abo"} <= set(store["shops"])
+    assert {"inhaber", "kunde", "neuling", "mitarbeiter", "chef", "kimtest", "abotest"} <= set(auth.users)
+    saved = json.loads((Path(os.environ["QME_BETREIBER_DIR"]) / "sicherungen" / res["backup"]).read_text(encoding="utf-8"))
+    assert {"shops/la", "shops/lb", "shops/verwaist", "services/sv2"} <= set(saved["dokumente"])
+    last = protokoll_zeilen()[-1]
+    assert last["action"] == "Testkonten aufgeräumt" and sorted(last["target"]["uids"]) == ["fixture", "wegwerf"]
+    # Danach ist nichts mehr zu tun
+    again = client.post("/routes/betreiber/testkonten/probe", json={}).json()
+    assert again["uids"] == [] and again["shopIds"] == []
+    assert client.post("/routes/betreiber/testkonten", json={"uids": [], "shopIds": [], "confirm": "löschen"}).status_code == 400
+
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:

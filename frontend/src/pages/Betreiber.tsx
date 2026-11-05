@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { RefreshCw, Search } from 'lucide-react';
+import { RefreshCw, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -12,6 +12,7 @@ import { Betrieb } from '../components/betreiber/Betrieb';
 import { Protokoll } from '../components/betreiber/Protokoll';
 import { Verzeichnis } from '../components/betreiber/Verzeichnis';
 import { Briefe } from '../components/betreiber/Briefe';
+import { TestkontenDialog } from '../components/betreiber/TestkontenDialog';
 import { BILLING_LABEL, ROLE_LABEL, daysUntil, euro, fmtDate, fmtDateTime, planLine } from '../components/betreiber/format';
 
 type Tab = 'uebersicht' | 'laeden' | 'konten' | 'verzeichnis' | 'briefe' | 'betrieb' | 'protokoll';
@@ -106,6 +107,7 @@ export default function Betreiber() {
   const [accountFilter, setAccountFilter] = useState('alle');
   // Verwalten heißt alle sehen; ausblenden nur auf Wunsch. Die Kennzahlen zählen Test- und eigene nie mit.
   const [hideTests, setHideTests] = useState(false);
+  const [aufraeumen, setAufraeumen] = useState(false);
   const [log, setLog] = useState<LogEntry[] | null>(null);
 
   const reload = useCallback(async () => {
@@ -327,6 +329,13 @@ export default function Betreiber() {
               <input type="checkbox" className="h-4 w-4" checked={hideTests} onChange={(e) => setHideTests(e.target.checked)} />
               Test- und eigene {tab === 'laeden' ? 'Läden' : 'Konten'} ausblenden
             </label>
+            {/* Alle Wegwerf-Konten der Testskripte samt Läden auf einmal (components/betreiber/TestkontenDialog.tsx) */}
+            {(data.accounts.some((a) => a.kind === 'test') || data.shops.some((s) => s.kind === 'test')) && (
+              <Button variant="outline" size="sm" className="sm:ms-auto" onClick={() => setAufraeumen(true)}>
+                <Trash2 className="me-2 h-4 w-4" aria-hidden="true" />
+                Testkonten aufräumen …
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {tab === 'laeden'
@@ -378,6 +387,7 @@ export default function Betreiber() {
           )}
         </SheetContent>
       </Sheet>
+      <TestkontenDialog open={aufraeumen} onClose={() => setAufraeumen(false)} onDone={reload} />
     </div>
   );
 }
