@@ -7,6 +7,7 @@ import { FOUNDER_LIMIT } from '../utils/plans';
 import { HILFE_MAIL } from '../components/HilfeLink';
 import { merke, t, tn, tTeile } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
+import { useTelefonOffen } from '../utils/telefon-hinweis';
 
 const FAQ: [string, string][] = [
   [merke('Nehmt ihr Provision?'), merke('Nein. Du zahlst den festen Monatspreis, egal wie viele Kunden über Dranzeit kommen. Auch nicht für Neukunden.')],
@@ -25,6 +26,7 @@ export default function Preise() {
 function PreiseSeite() {
   const [interval, setInterval] = useState<Interval>('monat');
   const [foundersLeft, setFoundersLeft] = useState<number | null>(null);
+  const telefonOffen = useTelefonOffen();
 
   useEffect(() => {
     getFoundersLeft().then(setFoundersLeft);
@@ -54,15 +56,18 @@ function PreiseSeite() {
           <p className="text-muted-foreground">
             {t('Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.')}
           </p>
-          <p className="font-semibold">{t('Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.')}</p>
+          <p className="font-semibold">{t('29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute, sekundengenau gezählt. Freiwilliger Zusatz ab Solo, monatlich kündbar.')}</p>
+          <p className="text-muted-foreground">{t('30 Minuten kostenlos testen. Mit Kostendeckel: Ohne eigene Angabe kostet er höchstens 59 € im Monat.')}</p>
           <p className="text-muted-foreground">
-            {tTeile('Im Testbetrieb auf Anfrage: <mail/>', {
-              mail: () => (
-                <a href={`mailto:${HILFE_MAIL}`} dir="ltr" className="underline underline-offset-4">
-                  {HILFE_MAIL}
-                </a>
-              ),
-            })}
+            {telefonOffen
+              ? t('Testen und zubuchen kannst du nach der Anmeldung unter „Laden“, „Telefon-Assistent“.')
+              : tTeile('Im Testbetrieb auf Anfrage: <mail/>', {
+                  mail: () => (
+                    <a href={`mailto:${HILFE_MAIL}`} dir="ltr" className="underline underline-offset-4">
+                      {HILFE_MAIL}
+                    </a>
+                  ),
+                })}
           </p>
           <a href="/hilfe/telefon-assistent" className="w-fit text-sm font-semibold underline underline-offset-4">
             {t('So funktioniert der Telefon-Assistent')}

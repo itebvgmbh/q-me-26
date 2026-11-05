@@ -6,7 +6,8 @@ import { GeraetWahl } from './GeraetWahl';
 import { TeamPushSchalter } from './TeamPushSchalter';
 import { inStoreApp } from '../utils/app-shell';
 import { ROLLEN, gespeichertesGeraet, merkeGeraet, type GeraetRolle } from '../utils/geraet';
-import { useTelefonFreigegeben } from '../utils/telefon-assistent';
+import { TelefonHinweis } from './TelefonHinweis';
+import { useTelefonStand } from '../utils/telefon-assistent';
 import { merke, t } from '@/i18n';
 
 type Kachel = { to: string; icon: typeof Users; titel: string; text: string; verkauf?: boolean };
@@ -28,7 +29,9 @@ export function LadenUebersicht({ shopId }: { shopId: string }) {
   const [geraet, setGeraet] = useState(gespeichertesGeraet);
   const [fragen, setFragen] = useState(false);
   const rolle = ROLLEN.find((r) => r.rolle === geraet?.rolle);
-  const telefon = useTelefonFreigegeben(shopId);
+  // Kachel für alle, sobald der Betreiber den Assistenten geöffnet hat; vorher nur für freigegebene Läden
+  const telefonStand = useTelefonStand(shopId);
+  const telefon = Boolean(telefonStand?.sichtbar);
 
   const waehle = (neu: GeraetRolle) => {
     const gewaehlt = { rolle: neu, shopId };
@@ -42,6 +45,7 @@ export function LadenUebersicht({ shopId }: { shopId: string }) {
 
   return (
     <>
+      <TelefonHinweis stand={telefonStand} />
       <section className="flex flex-col gap-3" aria-labelledby="verwalten">
         <h2 id="verwalten" className="font-display text-2xl font-bold">
           {t('Verwalten')}

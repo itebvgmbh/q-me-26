@@ -7,7 +7,7 @@ import base64
 import hashlib
 import hmac
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Sequence, Tuple
 from xml.sax.saxutils import escape
 
@@ -22,9 +22,26 @@ LEITUNGEN = "telefon_leitungen"
 # Stand je Laden und laufende Anrufe: app/libs/telefon_laeden.py
 LAEDEN = "telefon_laeden"
 ANRUFE = "telefon_anrufe"
-FREIMINUTEN = 30  # so viele Minuten hat ein freigegebener Laden, solange es noch keinen bezahlten Zusatz gibt
+FREIMINUTEN = 30  # Testminuten: so viel hat ein Laden frei, bevor er den Zusatz bucht
 ANRUF_ZU_ENDE = ("completed", "busy", "failed", "no-answer", "canceled")
 ANNEHMEN, ANSAGE = "annehmen", "ansage"
+
+# Zusatz (Stefan, 02.11.2026): 29 € netto im Monat mit 100 Minuten, danach 0,20 € je Minute. Gezählt wird sekundengenau,
+# die Summe des Abrechnungsmonats wird auf volle Minuten aufgerundet. Kostendeckel je Laden, ohne Angabe 59 €.
+# Gleich wie frontend/src/utils/telefon-assistent.ts und deploy/stripe-setup.py (Preise bei Stripe).
+GRUNDPREIS_CENT = 2900
+INKLUSIV_MINUTEN = 100
+MINUTENPREIS_CENT = 20
+DECKEL_STANDARD = 59  # Euro netto im Monat, Grundpreis eingerechnet
+DECKEL_MIN, DECKEL_MAX = 29, 500
+WARNSTUFEN = (80, 100)  # Prozent: Mail an den Inhaber und Hinweis auf seinen Seiten
+# Stand des Stripe-Abos für den Zusatz (zusatz.status in telefon_laeden)
+GEBUCHT = ("active", "trialing")
+ZAHLUNG_OFFEN = ("past_due", "unpaid", "incomplete")
+# Warum der Assistent nicht abnimmt. Der Anrufer hört immer dieselbe Ansage, der Grund ist für den Inhaber.
+GESPERRT, AUS, NICHT_FREI, TEST_VERBRAUCHT, DECKEL, GEKUENDIGT, ZAHLUNG = (
+    "gesperrt", "aus", "nicht_frei", "test_verbraucht", "deckel", "gekuendigt", "zahlung",
+)
 MAX_GENANNT = 3  # so viele Leistungen nennt die Begrüßung, mehr hört am Telefon niemand zu Ende
 STOERUNG = "Das ist eine automatische Ansage. Gerade ist niemand erreichbar. Bitte versuchen Sie es später noch einmal. Auf Wiederhören."
 
@@ -60,13 +77,103 @@ def twilio_signatur_ok(url: str, felder: dict, signatur: Optional[str], token: s
     return hmac.compare_digest(erwartet, signatur)
 
 
-def entscheiden(daten: dict, gesperrt: bool) -> str:
-    """Nimmt die KI ab oder hört der Anrufer nur eine kurze Ansage? daten: Eintrag des Ladens aus telefon_laeden"""
-    if gesperrt or not daten.get("freigegeben") or not daten.get("aktiv"):
-        return ANSAGE
+def minuten(sekunden) -> int:
+    """Gesprächszeit in Minuten, aufgerundet: 61 Sekunden sind 2 Minuten"""
+    return max(0, -(-int(sekunden or 0) // 60))
+
+
+def deckel_von(daten: dict) -> int:
+    """Kostendeckel des Ladens in Euro netto im Monat"""
+    try:
+        deckel = int(daten.get("deckel") or DECKEL_STANDARD)
+    except (TypeError, ValueError):
+        deckel = DECKEL_STANDARD
+    return min(DECKEL_MAX, max(DECKEL_MIN, deckel))
+
+
+def deckel_minuten(deckel: int) -> int:
+    """So viele Minuten im Monat passen unter den Deckel: 59 € → 100 + 30 € / 0,20 € = 250"""
+    return INKLUSIV_MINUTEN + max(0, int(deckel) * 100 - GRUNDPREIS_CENT) // MINUTENPREIS_CENT
+
+
+def kosten_cent(minuten_im_monat: int) -> int:
+    """Netto für einen Monat mit dem Zusatz"""
+    return GRUNDPREIS_CENT + max(0, int(minuten_im_monat) - INKLUSIV_MINUTEN) * MINUTENPREIS_CENT
+
+
+def zusatz(daten: dict) -> dict:
+    """Stand des gebuchten Zusatzes (Stripe-Abo), leer, wenn nie gebucht"""
+    return daten.get("zusatz") or {}
+
+
+def gebucht(daten: dict) -> bool:
+    return zusatz(daten).get("status") in GEBUCHT
+
+
+def _zeitstempel(jetzt: Optional[datetime]) -> int:
+    return int((jetzt or datetime.now(timezone.utc)).timestamp())
+
+
+def periode_sekunden(daten: dict, jetzt: Optional[datetime] = None) -> int:
+    """Gesprächszeit im laufenden Abrechnungsmonat des Zusatzes. Der Zähler gehört zu dem Monat, der in periode steht;
+    hat Stripe schon den nächsten gemeldet (oder ist der Monat vorbei), fängt es bei 0 an."""
+    z = zusatz(daten)
+    start, ende = z.get("periodeStart"), z.get("periodeEnde")
+    if not start or daten.get("periode") != start or (ende and _zeitstempel(jetzt) >= int(ende)):
+        return 0
+    return int(daten.get("periodeSekunden") or 0)
+
+
+def abzurechnen(daten: dict, jetzt: Optional[datetime] = None) -> int:
+    """Minuten, die Stripe für diesen Monat bekommt: aufgerundet, höchstens bis zum Deckel. Was ein Gespräch über den
+    Deckel hinaus dauert, zahlt der Laden nicht."""
+    return min(minuten(periode_sekunden(daten, jetzt)), deckel_minuten(deckel_von(daten)))
+
+
+def testminuten(daten: dict) -> int:
     frei = daten.get("freiminuten")
-    frei = FREIMINUTEN if frei is None else int(frei)
-    return ANNEHMEN if int(daten.get("sekunden") or 0) < frei * 60 else ANSAGE
+    return FREIMINUTEN if frei is None else int(frei)
+
+
+def grund(daten: dict, gesperrt: bool, jetzt: Optional[datetime] = None) -> Optional[str]:
+    """Warum der Assistent nicht abnimmt, oder None, wenn er abnimmt. daten: Eintrag des Ladens aus telefon_laeden,
+    gesperrt: der ganze Laden ist gesperrt (Betreiber-Bereich)."""
+    if gesperrt or daten.get("gesperrt"):
+        return GESPERRT
+    if not daten.get("aktiv"):
+        return AUS
+    status = zusatz(daten).get("status")
+    if status in GEBUCHT:
+        return DECKEL if periode_sekunden(daten, jetzt) >= deckel_minuten(deckel_von(daten)) * 60 else None
+    if status in ZAHLUNG_OFFEN:
+        return ZAHLUNG
+    if status:  # canceled, incomplete_expired, paused: gebucht war er, jetzt nicht mehr
+        return GEKUENDIGT
+    if not daten.get("freigegeben"):
+        return NICHT_FREI
+    return TEST_VERBRAUCHT if int(daten.get("sekunden") or 0) >= testminuten(daten) * 60 else None
+
+
+def entscheiden(daten: dict, gesperrt: bool, jetzt: Optional[datetime] = None) -> str:
+    """Nimmt die KI ab oder hört der Anrufer nur eine kurze Ansage?"""
+    return ANNEHMEN if grund(daten, gesperrt, jetzt) is None else ANSAGE
+
+
+def verbrauch(daten: dict, jetzt: Optional[datetime] = None) -> dict:
+    """Was der Inhaber sieht und wann er gewarnt wird: Testminuten oder Minuten des Monats bis zum Deckel"""
+    if zusatz(daten).get("status"):
+        sekunden = periode_sekunden(daten, jetzt)
+        grenze = deckel_minuten(deckel_von(daten))
+        return {"art": "zusatz", "minuten": minuten(sekunden), "grenze": grenze, "anteil": sekunden / (grenze * 60),
+                "kostenCent": kosten_cent(abzurechnen(daten, jetzt)), "deckel": deckel_von(daten)}
+    grenze = testminuten(daten)
+    sekunden = int(daten.get("sekunden") or 0)
+    return {"art": "test", "minuten": minuten(sekunden), "grenze": grenze, "anteil": sekunden / (grenze * 60) if grenze else 1.0}
+
+
+def warnstufe(anteil: float) -> int:
+    """0, 80 oder 100 (Prozent): ab welcher Stufe der Inhaber Bescheid bekommt"""
+    return next((stufe for stufe in reversed(WARNSTUFEN) if anteil >= stufe / 100), 0)
 
 
 def begruessung(name: str, leistungen: Sequence[str] = (), termine: bool = True) -> str:

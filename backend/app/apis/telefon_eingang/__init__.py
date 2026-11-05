@@ -2,7 +2,8 @@
 Eingang des Telefon-Assistenten: Twilio fragt hier bei jedem Anruf, was passieren soll, bevor jemand abnimmt.
 
     POST /telefon-eingang          Antwort als TwiML: Assistent, kurze Ansage oder abweisen (kostet nichts)
-    POST /telefon-eingang/status   Twilio meldet das Ende eines Anrufs, die Gesprächszeit zählt beim Laden
+    POST /telefon-eingang/status   Twilio meldet das Ende eines Anrufs, die Gesprächszeit zählt beim Laden; ist der
+                                   Zusatz gebucht, gehen die Minuten an Stripe (app/libs/telefon_abrechnung.py)
 
 Welcher Laden: Bei einer Umleitung ist "From" der Anrufer, die Nummer des Ladens steht in "ForwardedFrom". Hat ein
 Laden eine eigene Nummer (telefon_leitungen), gilt die gewählte Nummer "To". Die Regeln stehen in app/libs/telefon.py,
@@ -26,6 +27,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.telefon import laden_daten
 from app.libs import telefon as t
+from app.libs import telefon_abrechnung
 from app.libs import telefon_laeden as tl
 from app.libs.plans import has_feature, is_suspended
 
@@ -120,10 +122,17 @@ async def eingang(request: Request, x_twilio_signature: Optional[str] = Header(d
 
 
 def _ende(felder: dict) -> None:
+    db = get_firestore_db()
     try:
-        tl.anruf_ende(get_firestore_db(), felder.get("CallSid", ""), int(felder.get("CallDuration") or 0))
+        shop_id = tl.anruf_ende(db, felder.get("CallSid", ""), int(felder.get("CallDuration") or 0))
     except Exception:
         log.exception("Telefon-Eingang: Ende von Anruf %s nicht gezählt", felder.get("CallSid"))
+        return
+    if shop_id:
+        try:
+            telefon_abrechnung.nach_anruf(db, shop_id)
+        except Exception:
+            log.exception("Telefon-Eingang: Minuten von Anruf %s nicht gemeldet", felder.get("CallSid"))
 
 
 @router.post("/telefon-eingang/status", include_in_schema=False)

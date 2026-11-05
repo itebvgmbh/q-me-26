@@ -144,6 +144,26 @@ export interface Overview {
   accounts: AdminAccount[];
   orphans: { staff: number; customers: number; appointmentsInMissingShops: number };
   system: SystemStatus;
+  /** Telefon-Assistent: für alle geöffnet? Wer testet, wer hat ihn gebucht (backend/app/apis/betreiber _telefon_uebersicht) */
+  telefon?: { offen: boolean; laeden: TelefonZeile[] };
+}
+
+export interface TelefonZeile {
+  id: string;
+  name: string;
+  aktiv: boolean;
+  gesperrt: boolean;
+  freigegeben: boolean;
+  /** Stand des Stripe-Abos für den Zusatz, leer: nie gebucht */
+  zusatz: string;
+  modus: string;
+  kuendigt: boolean;
+  art: 'test' | 'zusatz';
+  minuten: number;
+  grenze: number;
+  /** Minuten, die Stripe für den laufenden Monat schon kennt */
+  gemeldet: number;
+  grund: string;
 }
 
 export interface LogEntry {
@@ -216,6 +236,10 @@ export const setPhoneLine = (id: string, nummer: string, reason = '') => send<{ 
 
 /** Laden zum Telefon-Assistenten zulassen und festlegen, wie viele Minuten er frei hat */
 export const setPhoneAccess = (id: string, freigegeben: boolean, freiminuten: number) => send<TelefonStand>(shopPath(id, 'telefon-freigabe'), { freigegeben, freiminuten });
+/** Assistent für einen Laden sperren: nur noch die Ansage, kein Testen und Zubuchen */
+export const setPhoneBlocked = (id: string, gesperrt: boolean, reason = '') => send<TelefonStand>(shopPath(id, 'telefon-sperre'), { gesperrt, reason });
+/** Telefon-Assistent für alle Läden öffnen (Kachel, Testminuten selbst starten, zubuchen) */
+export const setPhoneOpen = (offen: boolean, reason = '') => send<{ offen: boolean }>(`${BASE}/telefon-offen`, { offen, reason });
 
 export const blockAccount = (uid: string, reason: string) => send(accountPath(uid, 'sperren'), { reason });
 export const unblockAccount = (uid: string, reason = '') => send(accountPath(uid, 'entsperren'), { reason });

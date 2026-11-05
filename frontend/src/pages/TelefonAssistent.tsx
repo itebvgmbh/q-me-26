@@ -1,15 +1,33 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import { useInhaberLaden } from '../utils/laden-kontext';
-import { ladeTelefon, nummerFuerKunden, speichereTelefon, zumWaehlen, type TelefonStand } from '../utils/telefon-assistent';
-import { merke, t } from '@/i18n';
+import {
+  TELEFON_PREIS,
+  bucheZusatz,
+  kuendigeZusatz,
+  ladeTelefon,
+  nummerFuerKunden,
+  speichereDeckel,
+  speichereTelefon,
+  starteTest,
+  zumWaehlen,
+  type TelefonStand,
+} from '../utils/telefon-assistent';
+import { openPortal } from '../utils/billing';
+import { euro } from '../utils/plans';
+import { inStoreApp } from '../utils/app-shell';
+import { datumsLocale, merke, t, tTeile } from '@/i18n';
 
 const HILFE = 'hilfe@dranzeit.de';
 const NEU_PRUEFEN_MS = 5000; // so oft schaut die Seite nach dem Probeanruf
+const NACH_ZAHLUNG_MS = 4000; // nach Stripe Checkout: bis der Webhook den Zusatz meldet
+const LAEUFT = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete']; // Zusatz gebucht, auch mit offener Zahlung
 
 const WEGE = [
   { id: 'handy', titel: merke('Handy') },
@@ -156,12 +174,248 @@ const Weitersagen = ({
   );
 };
 
+const Balken = ({ anteil, label }: { anteil: number; label: string }) => (
+  <div
+    className="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+    role="progressbar"
+    aria-label={label}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={Math.min(100, Math.round(anteil * 100))}
+  >
+    <div className={cn('h-full rounded-full', anteil >= 1 ? 'bg-destructive' : anteil >= 0.8 ? 'bg-signal' : 'bg-foreground')} style={{ width: `${Math.min(100, anteil * 100)}%` }} />
+  </div>
+);
+
+const preisText = () =>
+  t('{grundpreis} netto im Monat mit {inklusiv} Minuten, danach {minute} je Minute, sekundengenau gezählt.', {
+    grundpreis: euro(TELEFON_PREIS.grundpreis),
+    inklusiv: TELEFON_PREIS.inklusiv,
+    minute: euro(TELEFON_PREIS.minute),
+  });
+
+const datum = (iso: string | null) => (iso ? format(new Date(iso), t('d. MMMM yyyy'), { locale: datumsLocale() }) : '');
+
 /**
- * Telefon-Assistent: Der Inhaber trägt die Nummer seines Ladens ein, richtet die Umleitung ein und macht einen
- * Probeanruf. Erkannt wird der Anruf im Backend (backend/app/apis/telefon_eingang), die Seite schaut alle paar Sekunden nach.
+ * Testen, Zubuchen, Verbrauch, Kostendeckel, Kündigen. Abgerechnet wird über ein eigenes Stripe-Abo neben dem Tarif
+ * (backend/app/libs/telefon_abrechnung.py). In der App aus dem Store wird nichts verkauft (utils/app-shell.ts).
+ */
+function Zusatz({ stand, shopId, setStand }: { stand: TelefonStand; shopId: string; setStand: (s: TelefonStand) => void }) {
+  const [busy, setBusy] = useState('');
+  const [deckel, setDeckel] = useState(String(stand.deckel));
+  const [kuendigenFragen, setKuendigenFragen] = useState(false);
+  useEffect(() => setDeckel(String(stand.deckel)), [stand.deckel]);
+  const app = inStoreApp();
+  const v = stand.verbrauch;
+  const z = stand.zusatz;
+  const gebucht = Boolean(z && LAEUFT.includes(z.status));
+
+  const run = async (key: string, fn: () => Promise<TelefonStand | void>, meldung = '') => {
+    setBusy(key);
+    try {
+      const neu = await fn();
+      if (neu) setStand(neu);
+      if (meldung) toast.success(meldung);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('Das hat nicht geklappt.'));
+      return false;
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const karte = (titel: string, inhalt: ReactNode) => (
+    <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5" aria-label={titel}>
+      <h2 className="font-display text-xl font-bold">{titel}</h2>
+      {stand.testmodus && (
+        <p role="status" className="rounded-2xl border-2 border-dashed border-signal bg-signal/10 px-4 py-3 text-sm">
+          <strong>{t('Testmodus:')}</strong>{' '}
+          {t('Hier wird nichts abgebucht. Zum Bezahlen die Testkarte 4242 4242 4242 4242 nehmen, mit einem beliebigen Ablaufdatum in der Zukunft und einer beliebigen Prüfnummer.')}
+        </p>
+      )}
+      {inhalt}
+    </section>
+  );
+
+  const zubuchen = app ? (
+    <p className="text-sm text-muted-foreground">{t('Zubuchen kannst du auf dranzeit.de im Browser.')}</p>
+  ) : stand.kannBuchen ? (
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-sm">
+        {preisText()} {t('Kostendeckel einstellbar, ohne Angabe {deckel} im Monat. Monatlich kündbar.', { deckel: euro(TELEFON_PREIS.deckel) })}
+      </p>
+      <Button onClick={() => run('buchen', () => bucheZusatz(shopId))} disabled={busy !== ''}>
+        {busy === 'buchen' ? t('Wird geöffnet …') : t('Zubuchen')}
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        {tTeile('Bezahlt wird über Stripe wie dein Tarif, mit eigener Monatsrechnung. Mit „Zubuchen“ akzeptierst du die <agb>AGB</agb>.', {
+          agb: (inhalt) => (
+            <Link to="/agb" className="underline underline-offset-2">
+              {inhalt}
+            </Link>
+          ),
+        })}
+      </p>
+    </div>
+  ) : !stand.abo ? (
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-sm">{t('Zum Zubuchen brauchst du ein Abo ab Solo.')}</p>
+      <Button variant="outline" size="sm" asChild>
+        <Link to="/tarif">{t('Tarif wählen')}</Link>
+      </Button>
+    </div>
+  ) : null;
+
+  if (stand.gesperrt) {
+    return karte(t('Gesperrt'), <p>{t('Der Telefon-Assistent ist für deinen Laden gesperrt. Schreib uns an {mail}.', { mail: HILFE })}</p>);
+  }
+
+  if (!stand.freigegeben && !z) {
+    if (!stand.tarif) {
+      return karte(
+        t('Ab Tarif Solo'),
+        <>
+          <p>{t('Den Telefon-Assistenten gibt es ab dem Tarif Solo.')}</p>
+          <p className="text-sm text-muted-foreground">{preisText()}</p>
+          {!app && (
+            <Button variant="outline" className="w-fit" asChild>
+              <Link to="/tarif">{t('Tarife ansehen')}</Link>
+            </Button>
+          )}
+        </>,
+      );
+    }
+    return karte(
+      t('{n} Minuten kostenlos testen', { n: TELEFON_PREIS.testminuten }),
+      <>
+        <p>{t('Probier ihn mit echten Anrufen aus. Das Testen kostet nichts und endet von selbst.')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t('Danach kannst du ihn zubuchen:')} {preisText()}
+        </p>
+        <Button className="w-fit" onClick={() => run('testen', () => starteTest(shopId), t('Los geht’s. Trag jetzt die Nummer deines Ladens ein.'))} disabled={busy !== '' || !stand.kannTesten}>
+          {t('Kostenlos testen')}
+        </Button>
+      </>,
+    );
+  }
+
+  if (!gebucht) {
+    return karte(
+      z ? t('Zusatz beendet') : t('Testminuten'),
+      <>
+        {z ? (
+          <p>{t('Der Zusatz ist beendet. Anrufer hören nur eine kurze Ansage.')}</p>
+        ) : (
+          <>
+            <p>{t('{minuten} von {grenze} Testminuten verbraucht.', { minuten: v.minuten, grenze: v.grenze })}</p>
+            <Balken anteil={v.anteil} label={t('Testminuten')} />
+            {stand.grund === 'test_verbraucht' && <p className="font-semibold">{t('Die Testminuten sind aufgebraucht. Anrufer hören nur eine kurze Ansage, bis du den Zusatz buchst.')}</p>}
+          </>
+        )}
+        {zubuchen}
+      </>,
+    );
+  }
+
+  return karte(
+    t('Gebucht'),
+    <>
+      <p className="text-sm text-muted-foreground">{preisText()}</p>
+      {stand.grund === 'zahlung' && (
+        <div className="flex flex-col items-start gap-2 rounded-2xl bg-destructive/10 p-4">
+          <p className="font-semibold">{t('Die letzte Zahlung ist offen. Bis sie da ist, hören Anrufer nur eine kurze Ansage.')}</p>
+          {!app && (
+            <Button size="sm" variant="outline" onClick={() => run('portal', () => openPortal(shopId))} disabled={busy !== ''}>
+              {t('Zahlungsart prüfen')}
+            </Button>
+          )}
+        </div>
+      )}
+      <p>
+        {t('Diesen Monat: {minuten} Minuten, bisher {betrag} netto.', { minuten: v.minuten, betrag: euro((v.kostenCent ?? 0) / 100) })}
+        {z?.periodeEnde && <> {t('Der Monat läuft bis zum {datum}.', { datum: datum(z.periodeEnde) })}</>}
+      </p>
+      <Balken anteil={v.anteil} label={t('Minuten bis zum Kostendeckel')} />
+      <p className="text-sm text-muted-foreground">
+        {t('Kostendeckel {deckel} im Monat: Bei {grenze} Minuten hört er bis zum Monatsende auf, mehr zahlst du nie.', { deckel: euro(stand.deckel), grenze: v.grenze })}
+      </p>
+      {stand.grund === 'deckel' && <p className="font-semibold">{t('Dein Kostendeckel ist erreicht. Anrufer hören bis zum Monatsende nur eine kurze Ansage.')}</p>}
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run('deckel', () => speichereDeckel(shopId, Number(deckel)), t('Gespeichert.'));
+        }}
+      >
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="telefon-deckel">{t('Kostendeckel je Monat in Euro, netto')}</Label>
+          <Input
+            id="telefon-deckel"
+            type="number"
+            inputMode="numeric"
+            min={TELEFON_PREIS.deckelMin}
+            max={TELEFON_PREIS.deckelMax}
+            step={1}
+            className="w-32"
+            value={deckel}
+            onChange={(e) => setDeckel(e.target.value)}
+            required
+          />
+        </div>
+        <Button type="submit" variant="outline" disabled={busy !== '' || Number(deckel) === stand.deckel}>
+          {t('Deckel speichern')}
+        </Button>
+      </form>
+      {z?.kuendigtZum ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="font-semibold">{t('Gekündigt zum {datum}. Bis dahin nimmt er ab.', { datum: datum(z.kuendigtZum) })}</p>
+          <Button size="sm" variant="outline" onClick={() => run('kuendigen', () => kuendigeZusatz(shopId, true), t('Kündigung zurückgenommen.'))} disabled={busy !== ''}>
+            {t('Kündigung zurücknehmen')}
+          </Button>
+        </div>
+      ) : kuendigenFragen ? (
+        <div className="flex flex-col items-start gap-2 rounded-2xl bg-muted p-4">
+          <p className="text-sm">{t('Bis zum Monatsende nimmt er weiter ab, danach hören Anrufer nur eine kurze Ansage. Nimm dann auch die Umleitung bei deinem Anbieter raus.')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                if (await run('kuendigen', () => kuendigeZusatz(shopId), t('Gekündigt.'))) setKuendigenFragen(false);
+              }}
+              disabled={busy !== ''}
+            >
+              {t('Ja, zum Monatsende kündigen')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setKuendigenFragen(false)}>
+              {t('Abbrechen')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => setKuendigenFragen(true)} disabled={busy !== ''}>
+            {t('Zum Monatsende kündigen')}
+          </Button>
+          {!app && (
+            <Button size="sm" variant="ghost" onClick={() => run('portal', () => openPortal(shopId))} disabled={busy !== ''}>
+              {t('Rechnungen und Zahlungsart')}
+            </Button>
+          )}
+        </div>
+      )}
+    </>,
+  );
+}
+
+/**
+ * Telefon-Assistent: Der Inhaber testet ihn oder bucht ihn zu, trägt die Nummer seines Ladens ein, richtet die
+ * Umleitung ein und macht einen Probeanruf. Erkannt wird der Anruf im Backend (backend/app/apis/telefon_eingang), die Seite schaut alle paar Sekunden nach.
  * Welcher Laden: oben in der Kopfzeile (utils/laden-kontext.tsx).
  */
 export default function TelefonAssistent() {
+  const [params, setParams] = useSearchParams();
   const { laeden: shops, laden, fehler: ladenFehler } = useInhaberLaden();
   const shopId = laden?.id ?? '';
   const [stand, setStand] = useState<TelefonStand | null>(null);
@@ -181,6 +435,23 @@ export default function TelefonAssistent() {
       })
       .catch((e) => setFehler(e instanceof Error ? e.message : t('Das hat nicht geklappt.')));
   }, [shopId]);
+
+  // Zurück von Stripe Checkout: Der Webhook meldet den Zusatz nach wenigen Sekunden, so lange nachsehen
+  const gebuchtZurueck = params.get('gebucht') === '1';
+  useEffect(() => {
+    if (gebuchtZurueck) toast.success(t('Danke! Der Telefon-Assistent ist gebucht. Der Stand erscheint hier in wenigen Sekunden.'));
+  }, [gebuchtZurueck]);
+  const zusatzFehlt = gebuchtZurueck && !(stand?.zusatz && LAEUFT.includes(stand.zusatz.status));
+  useEffect(() => {
+    if (!zusatzFehlt || !shopId) return;
+    let versuche = 0;
+    const timer = window.setInterval(() => {
+      versuche += 1;
+      ladeTelefon(shopId).then(setStand).catch(() => undefined);
+      if (versuche >= 15) setParams({}, { replace: true });
+    }, NACH_ZAHLUNG_MS);
+    return () => window.clearInterval(timer);
+  }, [zusatzFehlt, shopId, setParams]);
 
   const wartet = stand?.aktiv && stand.status === 'wartet';
   useEffect(() => {
@@ -226,7 +497,7 @@ export default function TelefonAssistent() {
   if (fehler) return seite(<p role="alert">{fehler}</p>);
   if (shops && !shops.length) return seite(<p>{t('Richte zuerst deinen Laden ein.')}</p>);
   if (!stand) return seite(<p className="text-muted-foreground">{t('Wird geladen')}</p>);
-  if (!stand.freigegeben) {
+  if (!stand.sichtbar) {
     return seite(
       <p className="rounded-3xl border border-border bg-card p-5">
         {t('Der Telefon-Assistent ist für deinen Laden noch nicht freigeschaltet. Schreib uns an {mail}, wenn du ihn ausprobieren möchtest.', { mail: HILFE })}
@@ -234,12 +505,15 @@ export default function TelefonAssistent() {
     );
   }
 
+  const zusatz = <Zusatz stand={stand} shopId={shopId} setStand={setStand} />;
+  if (!stand.freigegeben) return seite(zusatz);
+
   const ziel = zumWaehlen(stand.zielnummer);
-  const aufgebraucht = stand.minuten >= stand.freiminuten;
   const kundenNummer = stand.aktiv && stand.weitersagen ? nummerFuerKunden(stand, laden?.phone) : '';
 
   return seite(
     <>
+      {zusatz}
       <Schritt nummer={1} titel={stand.eigeneNummer ? t('Einschalten') : t('Nummer deines Ladens')}>
         <form
           className="flex flex-col gap-3"
@@ -322,10 +596,6 @@ export default function TelefonAssistent() {
         </>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        {t('{minuten} von {frei} freien Minuten verbraucht.', { minuten: stand.minuten, frei: stand.freiminuten })}{' '}
-        {aufgebraucht && t('Anrufer hören jetzt nur noch eine kurze Ansage. Schreib uns an {mail}.', { mail: HILFE })}
-      </p>
     </>,
   );
 }

@@ -5,7 +5,8 @@ import { safelyConvertToDate } from './datetime';
 import { intlSprache, merke } from '@/i18n';
 
 export type PlanId = 'gratis' | 'solo' | 'laden' | 'team';
-export type Feature = 'termine' | 'frueherDran' | 'benachrichtigung' | 'erinnerung' | 'team' | 'bildschirm' | 'auswertung';
+/** telefon: Telefon-Assistent testen und zubuchen (eigenes Abo, backend/app/libs/telefon_abrechnung.py) */
+export type Feature = 'termine' | 'frueherDran' | 'benachrichtigung' | 'erinnerung' | 'team' | 'bildschirm' | 'auswertung' | 'telefon';
 
 export interface PlanInfo {
   id: PlanId;
@@ -21,7 +22,7 @@ export interface PlanInfo {
   features: Feature[];
 }
 
-const SOLO_FEATURES: Feature[] = ['termine', 'frueherDran', 'benachrichtigung', 'erinnerung'];
+const SOLO_FEATURES: Feature[] = ['termine', 'frueherDran', 'benachrichtigung', 'erinnerung', 'telefon'];
 const LADEN_FEATURES: Feature[] = [...SOLO_FEATURES, 'team', 'bildschirm', 'auswertung'];
 
 export const PLANS: Record<PlanId, PlanInfo> = {

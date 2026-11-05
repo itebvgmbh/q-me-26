@@ -245,7 +245,28 @@ def uebersicht() -> dict:
         "accounts": ov["accounts"],
         "orphans": ov["orphans"],
         "system": system_status(),
+        "telefon": _telefon_uebersicht(fs, {r["id"]: r["name"] for r in ov["shops"]}),
     })
+
+
+def _telefon_uebersicht(fs, namen: dict) -> dict:
+    """Für den Reiter Betrieb: Ist der Assistent für alle offen, und wer testet oder hat ihn gebucht?"""
+    from app.libs import telefon as t
+
+    laeden = []
+    for snap in fs.collection(t.LAEDEN).stream():
+        daten = snap.to_dict() or {}
+        z = t.zusatz(daten)
+        v = t.verbrauch(daten)
+        laeden.append({
+            "id": snap.id, "name": namen.get(snap.id) or snap.id, "aktiv": bool(daten.get("aktiv")),
+            "gesperrt": bool(daten.get("gesperrt")), "freigegeben": bool(daten.get("freigegeben")),
+            "zusatz": z.get("status") or "", "modus": z.get("modus") or "", "kuendigt": bool(z.get("cancelAtPeriodEnd")),
+            "art": v["art"], "minuten": v["minuten"], "grenze": v["grenze"], "gemeldet": int(daten.get("gemeldet") or 0),
+            "grund": t.grund(daten, False) or "",
+        })
+    laeden.sort(key=lambda r: (not r["zusatz"], r["name"].casefold()))
+    return {"offen": telefon_laeden.offen(fs), "laeden": laeden}
 
 
 @admin.get("/betreiber/laden/{shop_id}")
@@ -436,6 +457,13 @@ def stripe_abgleich(shop_id: str, user: AuthorizedUser) -> dict:
         raise HTTPException(status_code=409, detail="Dieser Laden hatte nie ein Abo bei Stripe."
                             + (" (Sandbox)" if mode == TEST else ""))
 
+    from app.libs import telefon_abrechnung
+    from app.libs.telefon import zusatz
+
+    tz = zusatz(telefon_laeden.eintrag(get_firestore_db(), shop_id))
+    if tz.get("subscriptionId") and (tz.get("modus") or LIVE) == mode:  # Telefon-Zusatz gleich mit
+        telefon_sub = _stripe_call(lambda: client(mode).v1.subscriptions.retrieve(tz["subscriptionId"]).to_dict(), mode)
+        telefon_abrechnung.uebernehmen(get_firestore_db(), telefon_sub, mode)
     subscription = _stripe_call(lambda: _fetch_subscription(client(mode), ids), mode)
     if subscription is None:
         return {"changed": False, "message": "Bei Stripe gibt es zu diesem Kunden kein Abo."}
@@ -448,11 +476,14 @@ def stripe_abgleich(shop_id: str, user: AuthorizedUser) -> dict:
 
 
 def _fetch_subscription(c, ids: dict) -> dict | None:
-    """Aktueller Stand des Abos zu den gespeicherten IDs (ohne Abo-ID das neueste des Kunden)"""
+    """Aktueller Stand des Tarif-Abos zu den gespeicherten IDs (ohne Abo-ID das neueste des Kunden, das nicht zum
+    Telefon-Assistenten gehört)"""
+    from app.libs.telefon_abrechnung import ist_telefon
+
     if ids.get("subscriptionId"):
         return c.v1.subscriptions.retrieve(ids["subscriptionId"]).to_dict()
-    subs = c.v1.subscriptions.list(params={"customer": ids["customerId"], "status": "all", "limit": 1})
-    return subs.data[0].to_dict() if subs.data else None
+    subs = c.v1.subscriptions.list(params={"customer": ids["customerId"], "status": "all", "limit": 10})
+    return next((s.to_dict() for s in subs.data if not ist_telefon(s.to_dict())), None)
 
 
 @admin.post("/betreiber/laden/{shop_id}/stripe-loesen")
@@ -466,8 +497,11 @@ def stripe_loesen(shop_id: str, body: ReasonRequest, user: AuthorizedUser) -> di
         return {"changed": False}
     ref.update({"billing": None, "plan": "gratis", "updatedAt": _now()})
     clear_stripe_ids(get_firestore_db(), shop_id, mode)
+    from app.libs.telefon_abrechnung import vergessen
+
+    telefon = vergessen(get_firestore_db(), shop_id, mode)  # Zusatz beim selben Kunden: ohne Verknüpfung auch weg
     protokoll.write(user, "Stripe gelöst" + (" (Sandbox)" if mode == TEST else ""), {"shopId": shop_id, "name": shop.get("name")},
-                    reason, {"billing": billing})
+                    reason, {"billing": billing, "telefon": telefon})
     return {"changed": True}
 
 
@@ -503,6 +537,11 @@ def stripe_modus(shop_id: str, body: ModeRequest, user: AuthorizedUser) -> dict:
         if billing.get("status") in ACTIVE_BILLING:
             raise HTTPException(status_code=409, detail=f"Der Laden hat ein laufendes Abo ({billing['status']}). Den Testmodus gibt es nur "
                                 "für Läden ohne laufendes Abo – erst kündigen oder die Verknüpfung lösen.")
+        from app.libs.telefon import ZAHLUNG_OFFEN, GEBUCHT, zusatz
+
+        if zusatz(telefon_laeden.eintrag(db, shop_id)).get("status") in (*GEBUCHT, *ZAHLUNG_OFFEN):
+            raise HTTPException(status_code=409, detail="Der Laden hat den Telefon-Assistenten gebucht. Den Testmodus gibt es nur "
+                                "ohne laufendes Abo – erst kündigen oder die Verknüpfung lösen.")
         start_test_mode(db, shop_id)
         update = {"billing": None, "plan": "gratis"}
     else:
@@ -520,6 +559,10 @@ def stripe_modus(shop_id: str, body: ModeRequest, user: AuthorizedUser) -> dict:
                 cancelled = ids["subscriptionId"]
             except stripe.StripeError as e:
                 print(f"Sandbox-Abo {ids['subscriptionId']} von Laden {shop_id} nicht beendet: {e}")
+        from app.libs.telefon_abrechnung import vergessen
+
+        telefon = vergessen(db, shop_id, TEST, beenden=stripe_configured(TEST))  # Telefon-Zusatz aus der Sandbox auch
+        cancelled = ", ".join(x for x in (cancelled, telefon) if x)
     ref.update({**update, "updatedAt": _now()})
     protokoll.write(user, "Stripe-Testmodus an" if target == TEST else "Stripe-Testmodus aus", {"shopId": shop_id, "name": shop.get("name")},
                     reason, {"mode": mode, "billing": {**billing, **ids}}, {"mode": target, "billing": update["billing"], "beendet": cancelled})
@@ -584,6 +627,42 @@ def telefon_freigeben(shop_id: str, body: TelefonFreigabe, user: AuthorizedUser)
                     {"freigegeben": vorher["freigegeben"], "freiminuten": vorher["freiminuten"]},
                     {"freigegeben": body.freigegeben, "freiminuten": body.freiminuten})
     return telefon_laeden.stand(fs, shop_id, shop)
+
+
+class TelefonSperre(BaseModel):
+    gesperrt: bool
+    reason: str = ""
+
+
+@admin.post("/betreiber/laden/{shop_id}/telefon-sperre")
+def telefon_sperren(shop_id: str, body: TelefonSperre, user: AuthorizedUser) -> dict:
+    """Assistent für einen Laden sperren: nur noch die Ansage, kein Testen und Zubuchen. Ein gebuchtes Abo läuft bei
+    Stripe weiter – dort kündigen, wenn es enden soll."""
+    _, shop = _shop(shop_id)
+    fs = get_firestore_db()
+    vorher = telefon_laeden.stand(fs, shop_id, shop)
+    telefon_laeden.sperren(fs, shop_id, body.gesperrt)
+    protokoll.write(user, "Telefon-Assistent gesperrt" if body.gesperrt else "Telefon-Assistent entsperrt",
+                    {"shopId": shop_id, "name": shop.get("name")}, _reason(body.reason) if body.gesperrt else body.reason.strip(),
+                    {"gesperrt": vorher["gesperrt"]}, {"gesperrt": body.gesperrt})
+    return telefon_laeden.stand(fs, shop_id, shop)
+
+
+class TelefonOffen(BaseModel):
+    offen: bool
+    reason: str = ""
+
+
+@admin.post("/betreiber/telefon-offen")
+def telefon_oeffnen(body: TelefonOffen, user: AuthorizedUser) -> dict:
+    """Telefon-Assistent für alle Läden öffnen: Kachel für alle Inhaber, Testminuten selbst starten, zubuchen.
+    Vorher nötig: Datenschutzerklärung und AGB ergänzt, AV-Vertrag mit Vapi, Twilio-Kundenprofil genehmigt."""
+    fs = get_firestore_db()
+    vorher = telefon_laeden.offen(fs)
+    telefon_laeden.oeffnen(fs, body.offen)
+    protokoll.write(user, "Telefon-Assistent für alle geöffnet" if body.offen else "Telefon-Assistent nicht mehr für alle",
+                    {"name": "alle Läden"}, body.reason.strip(), {"offen": vorher}, {"offen": body.offen})
+    return {"offen": body.offen}
 
 
 def _shop_accounts(shop_id: str, shop: dict) -> list:

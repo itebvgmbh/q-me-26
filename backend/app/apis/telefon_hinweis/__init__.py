@@ -1,7 +1,8 @@
 """
 Telefon-Assistent, öffentlich: Bei welchen Läden kann man per Telefon buchen?
 
-    GET /telefon-hinweis   {"laeden": ["Laden-ID", …]}
+    GET /telefon-hinweis   {"laeden": ["Laden-ID", …], "offen": true|false}
+                           offen: Der Betreiber hat den Assistenten für alle Läden geöffnet (Preise-Seite)
 
 Nur die IDs: Freigabe, Minuten und Nummern bleiben beim Backend (firestore.rules). Die Regel steht in
 app/libs/telefon_laeden.py. Im Zweifel keiner, eine fehlende Option schadet weniger als eine falsche.
@@ -23,7 +24,8 @@ router = APIRouter()
 def hinweis(response: Response) -> dict:
     response.headers["Cache-Control"] = f"public, max-age={seo.CACHE_SECONDS}"
     try:
-        return {"laeden": seo._cached("telefon-hinweis", lambda: tl.nehmen_an(get_firestore_db()))}
+        db = get_firestore_db()
+        return {"laeden": seo._cached("telefon-hinweis", lambda: tl.nehmen_an(db)), "offen": seo._cached("telefon-offen", lambda: tl.offen(db))}
     except Exception:
         log.exception("Telefon-Hinweis: Läden nicht lesbar")
-        return {"laeden": []}
+        return {"laeden": [], "offen": False}

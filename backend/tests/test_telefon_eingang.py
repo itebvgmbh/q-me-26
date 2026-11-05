@@ -240,7 +240,7 @@ def test_ende_zaehlt_die_gespraechszeit():
     felder = {"CallSid": "CA1", "CallStatus": "completed", "CallDuration": "65"}
     antwort = client.post("/routes/telefon-eingang/status", data=felder, headers={"X-Twilio-Signature": signiert("/telefon-eingang/status", felder)})
     assert antwort.status_code == 204
-    assert d.data[t.LAEDEN]["salon"]["sekunden"].value == 65
+    assert d.data[t.LAEDEN]["salon"]["sekunden"] == 65
     assert not d.data[t.ANRUFE]
 
 
@@ -407,13 +407,19 @@ def test_schnittstelle_nennt_nur_die_laeden_die_abnehmen():
         "andere-nummer": aktiv(anschluss="+493033333333"),
     })
     antwort = hinweis_app(lambda: d.db).get("/routes/telefon-hinweis")
-    assert antwort.status_code == 200 and antwort.json() == {"laeden": ["salon"]}
+    assert antwort.status_code == 200 and antwort.json() == {"laeden": ["salon"], "offen": False}
     assert "max-age" in antwort.headers["cache-control"]
 
 
 def test_schnittstelle_ohne_laeden():
     d = Db(shop=MIT_TERMINEN)
-    assert hinweis_app(lambda: d.db).get("/routes/telefon-hinweis").json() == {"laeden": []}
+    assert hinweis_app(lambda: d.db).get("/routes/telefon-hinweis").json() == {"laeden": [], "offen": False}
+
+
+def test_schnittstelle_sagt_ob_er_fuer_alle_offen_ist():
+    d = Db(shop=MIT_TERMINEN)
+    d.data["meta"] = {"telefon": {"offen": True}}
+    assert hinweis_app(lambda: d.db).get("/routes/telefon-hinweis").json() == {"laeden": [], "offen": True}
 
 
 def test_schnittstelle_schweigt_bei_einer_stoerung():
@@ -421,7 +427,7 @@ def test_schnittstelle_schweigt_bei_einer_stoerung():
         raise RuntimeError("Datenbank weg")
 
     antwort = hinweis_app(kaputt).get("/routes/telefon-hinweis")
-    assert antwort.status_code == 200 and antwort.json() == {"laeden": []}
+    assert antwort.status_code == 200 and antwort.json() == {"laeden": [], "offen": False}
 
 
 def test_schnittstelle_braucht_keine_anmeldung():
