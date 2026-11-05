@@ -12,6 +12,7 @@ import {
   loadShop,
   setFounder,
   setPhoneAccess,
+  setPhoneBlocked,
   setListed,
   setPhoneLine,
   setStripeMode,
@@ -44,6 +45,16 @@ export const Fact = ({ label, children }: { label: string; children: ReactNode }
     <dd className="font-medium">{children}</dd>
   </div>
 );
+
+const TELEFON_GRUND: Record<string, string> = {
+  gesperrt: 'gesperrt',
+  aus: 'vom Inhaber ausgeschaltet',
+  nicht_frei: 'nicht freigegeben, nicht gebucht',
+  test_verbraucht: 'Testminuten verbraucht',
+  deckel: 'Kostendeckel erreicht',
+  gekuendigt: 'Zusatz beendet',
+  zahlung: 'Zahlung offen',
+};
 
 const ONBOARDING_LABEL: Record<string, string> = { testlaufAt: 'Testlauf', plakatAt: 'Plakat', dismissedAt: 'Liste ausgeblendet' };
 
@@ -378,10 +389,53 @@ export function LadenDetail({
               <span className="font-mono">{telefon.anschluss || '–'}</span>
             </Fact>
             <Fact label="Stand">{!telefon.aktiv ? 'ausgeschaltet' : telefon.status === 'aktiv' ? 'aktiv' : 'wartet auf Probeanruf'}</Fact>
-            <Fact label="Minuten">
+            <Fact label="Testminuten">
               {telefon.minuten} von {telefon.freiminuten}
             </Fact>
+            <Fact label="Zusatz">
+              {telefon.zusatz
+                ? `${telefon.zusatz.status}${telefon.zusatz.kuendigtZum ? `, gekündigt zum ${fmtDate(telefon.zusatz.kuendigtZum)}` : ''}${telefon.testmodus ? ' (Sandbox)' : ''}`
+                : 'nicht gebucht'}
+            </Fact>
+            {telefon.zusatz && (
+              <Fact label="Dieser Monat">
+                {telefon.verbrauch.minuten} von {telefon.verbrauch.grenze} Min., {((telefon.verbrauch.kostenCent ?? 0) / 100).toFixed(2).replace('.', ',')} € netto, Deckel {telefon.deckel} €
+              </Fact>
+            )}
+            <Fact label="Nimmt ab">{telefon.grund ? `nein: ${TELEFON_GRUND[telefon.grund] ?? telefon.grund}` : 'ja'}</Fact>
           </dl>
+        )}
+        {telefon && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant={telefon.gesperrt ? 'outline' : 'destructive'}
+              disabled={busy !== ''}
+              onClick={() =>
+                setAction(
+                  telefon.gesperrt
+                    ? {
+                        title: 'Telefon-Assistent entsperren?',
+                        text: 'Der Laden kann ihn danach wieder einrichten, testen und zubuchen.',
+                        confirm: 'Entsperren',
+                        run: (reason) => setPhoneBlocked(shop.id, false, reason),
+                        done: 'Telefon-Assistent entsperrt.',
+                      }
+                    : {
+                        title: 'Telefon-Assistent für diesen Laden sperren?',
+                        text: 'Anrufer hören nur noch die Ansage, der Laden kann nicht testen und nicht zubuchen. Ein gebuchtes Abo läuft bei Stripe weiter: dort kündigen, wenn es enden soll.',
+                        confirm: 'Sperren',
+                        reason: 'pflicht',
+                        run: (reason) => setPhoneBlocked(shop.id, true, reason),
+                        done: 'Telefon-Assistent gesperrt.',
+                      },
+                )
+              }
+            >
+              {telefon.gesperrt ? 'Entsperren' : 'Telefon-Assistent sperren'}
+            </Button>
+            {telefon.gesperrt && <span className="text-sm font-semibold text-destructive">Gesperrt</span>}
+          </div>
         )}
         <form
           className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end"
@@ -392,10 +446,10 @@ export function LadenDetail({
         >
           <label className="flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={telefonFrei.freigegeben} onChange={(e) => setTelefonFrei({ ...telefonFrei, freigegeben: e.target.checked })} />
-            Für diesen Laden freigegeben
+            Testminuten freigegeben
           </label>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="telefon-minuten">Freie Minuten</Label>
+            <Label htmlFor="telefon-minuten">Testminuten</Label>
             <Input
               id="telefon-minuten"
               type="number"
@@ -411,8 +465,9 @@ export function LadenDetail({
           </Button>
         </form>
         <p className="text-sm text-muted-foreground">
-          Der Inhaber richtet den Rest unter „Laden“, „Telefon-Assistent“ selbst ein. Eine eigene Nummer braucht ein Laden nur, wenn seine Nummer bei der
-          Umleitung nicht ankommt. Einrichtung der Sprach-KI: deploy/telefon-assistent.md.
+          Der Inhaber richtet den Rest unter „Laden“, „Telefon-Assistent“ selbst ein und bucht ihn dort zu (eigenes Stripe-Abo). Solange der Assistent
+          nicht für alle geöffnet ist (Reiter Betrieb), geht das nur mit dieser Freigabe. Eine eigene Nummer braucht ein Laden nur, wenn seine Nummer
+          bei der Umleitung nicht ankommt. Einrichtung der Sprach-KI: deploy/telefon-assistent.md.
         </p>
         <p className="text-sm">
           {phoneLines.length ? (

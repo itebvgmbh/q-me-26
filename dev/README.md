@@ -47,6 +47,7 @@ node dev/e2e/verzeichnis.cjs                # Betreiber-Bereich → Verzeichnis 
 node dev/e2e/briefe.cjs                     # Betreiber-Bereich → Briefe: Auswahl, Filter, Welle als PDF, Hochgeladen, Erinnerung, Versand über PIN (Testmodus, Fortschritt, Fehler), Einstellungen; Keine Post/Unzustellbar am Eintrag (Backend nachgebildet, kein Brief, keine Testdaten nötig)
 node dev/e2e/uebernahme.cjs                 # Seite übernehmen ohne Code: Anfrage an den Betreiber, Nachweis per E-Mail (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig, keine Mail)
 node dev/e2e/telefon-hinweis.cjs            # Telefon-Assistent: „Per Telefon buchen“ auf Ladenseite, in der Ladenliste und beim Buchen, Kasten, QR-Plakat, Preis (Anmeldung, Inhaber und Backend nachgebildet, keine Testdaten nötig)
+node dev/e2e/telefon-zusatz.cjs             # Telefon-Assistent als Zusatz: Testen, Zubuchen, Verbrauch, Deckel, Kündigen, Hinweis unter „Laden“, Tarif, Preise, Betreiber (alles nachgebildet, keine Testdaten nötig)
 node dev/e2e/laden-gesperrt.cjs             # gesperrter Wegwerf-Laden: nicht auffindbar, QR-Link und Buchen abgelehnt, Hinweis am Tresen
 node dev/e2e/rechte-live.cjs                # Rechte an der Schnittstelle von dranzeit.de: ohne Konto 401, öffentlich ohne Konto-IDs/Kontakte, Anmeldung (ohne Konto, ändert nichts)
 node dev/e2e/regeln-live.cjs                # Firestore der alten Kopie für den Browser zu (bis das Firebase-Projekt gelöscht ist)

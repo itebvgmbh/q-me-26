@@ -1,8 +1,8 @@
 # Anforderung: Telefon-Assistent
 
 - **ID:** telefon-assistent
-- **Stand:** 02.11.2026, mit Stefan abgestimmt
-- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und freie Minuten im Betreiber-Bereich. Zubuchen im Tarif, Abrechnung und Anrufliste fehlen noch. Anleitung in `deploy/telefon-assistent.md`
+- **Stand:** 05.11.2026, mit Stefan abgestimmt
+- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026, Abrechnung am 05.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und Testminuten im Betreiber-Bereich, Testen und Zubuchen durch den Inhaber, Abrechnung über Stripe, Kostendeckel, Warnungen, Schalter „für alle öffnen“. Anrufliste fehlt noch. Anleitung in `deploy/telefon-assistent.md`
 
 ## Worum es geht
 
@@ -18,7 +18,7 @@ Beteiligt sind:
 
 ## Ablauf für den Laden
 
-1. **Zubuchen:** Unter „Tarif“ ab Solo. In der Testphase sind 30 Minuten frei, danach braucht es den Zusatz.
+1. **Testen und zubuchen:** Unter „Laden“, „Telefon-Assistent“ startet der Inhaber 30 Testminuten selbst (Stefan, 05.11.2026), danach bucht er den Zusatz ab Solo dort zu. „Tarif“ verweist dorthin. Bis der Betreiber den Assistenten im Betreiber-Bereich für alle öffnet, geht das nur mit seiner Freigabe.
 2. **Nummer des Ladens:** Der Laden trägt seine Nummer ein und sieht die Rufnummer, auf die er umleitet. Die Anrufer sehen sie nie, sie wählen weiter die Nummer des Ladens.
 3. **Rufumleitung:** Der Laden richtet bei seinem Telefonanbieter eine Umleitung auf diese Nummer ein. Empfohlen: bei Nichtmelden nach etwa 20 Sekunden und bei besetzt. „Immer“ geht auch.
    - Dranzeit zeigt Anleitungen für die gängigen Fälle: Telekom, Vodafone, O2/Telefónica, 1&1, Fritzbox und die Codes fürs Handy.
@@ -85,13 +85,16 @@ Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Eins
 
 ## Abrechnung
 
-- **Posten im Abo:** Ab Solo zubuchbar, als eigener Posten im bestehenden Abo, monatlich.
+- **Eigenes Abo (Stefan, 05.11.2026):** Ab Solo zubuchbar, als eigenes Monatsabo neben dem Tarif, mit demselben Stripe-Kunden und derselben Zahlungsart. Nicht im Tarif-Abo, weil das Kundenportal Abos mit mehreren Produkten oder Nutzungspreisen nicht mehr umstellen kann, ein Jahrestarif keinen Monatsposten verträgt und die Minuten in der Testphase des Tarif-Abos frei wären. Zubuchen setzt ein laufendes Tarif-Abo voraus. Endet das Tarif-Abo, wird der Zusatz zum Ende seines Monats gekündigt.
 - **Preismodell:** 29 € netto im Monat mit 100 Minuten inklusive, danach 0,20 € pro Minute. Gleich in jedem Tarif, nicht im Gründerpreis enthalten. Abgerechnet wird erst, wenn Zubuchen, Kostendeckel und Anrufliste gebaut sind.
-- **Zählung:** Gezählt wird die Gesprächszeit vom Annehmen bis zum Auflegen, sekundengenau. Die Monatssumme wird auf volle Minuten aufgerundet. Durchgestellte Gespräche zählen mit. Ansagen ohne KI (Deckel, gesperrt, gekündigt) kosten den Laden nichts.
+- **Zählung:** Gezählt wird die Gesprächszeit vom Annehmen bis zum Auflegen, sekundengenau. Die Monatssumme wird auf volle Minuten aufgerundet. Durchgestellte Gespräche zählen mit. Ansagen ohne KI (Deckel, gesperrt, gekündigt) kosten den Laden nichts. Der Monat ist der Abrechnungszeitraum des Zusatz-Abos.
+- **Bei Stripe:** Grundpreis 29 € im Voraus, Minuten als Nutzungspreis mit Stufen (1–100 für 0 €, ab der 101. je 0,20 €) an einem Billing Meter mit der Formel „last“. Nach jedem Anruf geht die aufgerundete Monatssumme an Stripe, höchstens bis zum Deckel. Ein Abgleich im Hintergrund holt verpasste Meldungen nach.
+- **Zahlung offen:** Ist eine Zahlung des Zusatzes offen, kommt die Ansage, bis sie da ist.
 - **Testphase:** 30 Minuten frei. Danach kommt die Ansage, bis der Zusatz gebucht ist.
 - **Kostendeckel:** Der Laden legt einen Höchstbetrag je Monat fest, ohne eigene Angabe gelten 59 € insgesamt (250 Minuten). Bei 80 % und bei 100 % bekommt er eine Mail und einen Hinweis im Dashboard. Ab 100 % kommt bis zum Monatsende die Ansage. Die Warnung gilt auch für die Testminuten und muss stehen, bevor fremde Läden freigegeben werden. Sonst hören Anrufer nur noch die Ansage, ohne dass der Laden es erfährt.
 - **Rechnung:** Die Monatsrechnung zeigt die Minuten als eigenen Posten. Der Betreiber-Bereich zeigt die Minuten je Laden und Monat.
-- **Kündigung:** Zum Monatsende. Bis die Nummer freigegeben wird, kommt die Ansage.
+- **Kündigung:** Zum Monatsende, auf der Seite des Assistenten oder im Kundenportal. Bis dahin nimmt er ab, danach kommt die Ansage, bis die Umleitung entfernt ist.
+- **Öffnung für alle (Stefan, 05.11.2026):** Ein Schalter im Betreiber-Bereich, zunächst aus. Umlegen erst, wenn Datenschutzerklärung und AGB ergänzt sind, der Vertrag zur Auftragsverarbeitung mit Vapi steht und das Twilio-Kundenprofil genehmigt ist.
 
 ## Hinweise für Kunden
 

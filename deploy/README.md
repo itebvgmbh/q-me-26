@@ -535,6 +535,55 @@ SEPA-Lastschrift mit der IBAN `DE89 3704 0044 0532 0130 00`.
 }
 ```
 
+### Telefon-Assistent als Zusatz (eigenes Abo)
+
+Der Telefon-Assistent hat ein eigenes Monatsabo neben dem Tarif, mit demselben Stripe-Kunden (Entscheidung
+05.11.2026, `backend/app/libs/telefon_abrechnung.py`). Auf der Rechnung stehen zwei Posten: der Grundpreis von 29 €
+im Voraus und die Minuten nach Nutzung, gestaffelt (Minute 1–100 für 0 €, ab der 101. je 0,20 €). Die Minuten laufen
+über den Billing Meter `dranzeit_telefon_minuten` mit der Formel „last“: Nach jedem Anruf meldet das Backend die
+aufgerundeten Minuten des Monats, höchstens bis zum Kostendeckel des Ladens. Der Hintergrunddienst holt verpasste
+Meldungen alle 5 Minuten nach. Der Webhook braucht dafür keine neuen Ereignisse.
+
+`stripe-setup.py` legt Meter, die beiden Produkte und die Preise an: in der Sandbox bei jedem Lauf mit `--test`
+(Block oben), im Live-Konto nur mit `--telefon` (Block unten). Ob Stripe in der Sandbox richtig rechnet, prüft
+`deploy/telefon-stripe-probe.py`: Es legt einen Wegwerf-Kunden mit Testkarte an, meldet 120 und dann 148 Minuten,
+erwartet in der Vorschau der Rechnung 9,60 € für die Minuten und löscht den Kunden wieder.
+
+Zum Durchspielen im Testmodus: Laden im Betreiber-Bereich auf die Sandbox umstellen, als Inhaber unter „Tarif“ ein
+Abo mit der Testkarte abschließen, dann unter „Laden“ → „Telefon-Assistent“ auf „Zubuchen“. Vor der Öffnung für alle
+braucht der Laden dafür die Freigabe im Betreiber-Bereich (Laden → „Telefon-Assistent“).
+
+**Live einrichten** (erst nach Stefans Freigabe): Der Block fragt nach und legt den Zusatz im Live-Konto an. Er
+ändert nichts an den Tarifen, am Webhook und am Kundenportal.
+
+```powershell
+& {
+  $server = 'root@195.201.26.108'
+  $verbindung = ssh -o BatchMode=yes -o ConnectTimeout=10 $server 'echo q-me-ok' 2>&1 | Out-String
+  if ($verbindung -notmatch 'q-me-ok') { Write-Host 'Abbruch: Anmeldung am Server ohne Passwort klappt in diesem Fenster nicht. Erst den Block "Verbindung pruefen" ausfuehren.' -ForegroundColor Red; return }
+  $stand = ssh -o BatchMode=yes $server 'grep -c ensure_telefon /opt/q-me/deploy/stripe-setup.py; grep -c ^STRIPE_SECRET_KEY=.k_live_ /etc/q-me.env' 2>&1 | Out-String
+  if ($stand -notmatch '^\s*[1-9]') { Write-Host 'Abbruch: Der Server ist noch nicht auf dem Stand mit dem Telefon-Assistenten als Zusatz. Erst ausrollen.' -ForegroundColor Red; return }
+  if ($stand -notmatch '^\s*[1-9]\s+1') { Write-Host 'Abbruch: Auf dem Server steht kein Live-Schluessel (sk_live_ oder rk_live_). Nichts angelegt.' -ForegroundColor Red; return }
+  $ok = Read-Host 'Telefon-Assistent im LIVE-Stripe anlegen: 29 EUR netto im Monat mit 100 Minuten, danach 0,20 EUR je Minute? (ja/nein)'
+  if ($ok.Trim().Trim('"').ToLower() -ne 'ja') { Write-Host 'Abgebrochen, im Live-Stripe wurde nichts angelegt.' -ForegroundColor Yellow; return }
+  Write-Host 'Meter, Produkte und Preise im Live-Stripe anlegen ...' -ForegroundColor Cyan
+  $ausgabe = ssh -o BatchMode=yes $server 'cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de --telefon && systemctl restart q-me' 2>&1 | Out-String
+  $ergebnis = $LASTEXITCODE
+  Write-Host $ausgabe
+  if ($ergebnis -ne 0 -or $ausgabe -notmatch 'Fertig') { Write-Host 'Abbruch: Einrichtung fehlgeschlagen, Meldung oben. Tarife und Abos laufen weiter.' -ForegroundColor Red; return }
+  if ($ausgabe -match 'ACHTUNG') { Write-Host 'Angelegt, aber Stripe hat abweichende Preise. Siehe ACHTUNG oben.' -ForegroundColor Yellow; return }
+  Start-Sleep -Seconds 4
+  $dienst = ssh -o BatchMode=yes $server 'systemctl is-active q-me' 2>&1 | Out-String
+  if ($dienst -match 'active') { Write-Host 'Fertig: Der Telefon-Assistent laesst sich jetzt auch mit echten Zahlungen zubuchen.' -ForegroundColor Green } else { Write-Host "Angelegt, aber das Backend laeuft nicht: $dienst" -ForegroundColor Yellow }
+}
+```
+
+**Für alle öffnen:** Betreiber-Bereich → Reiter „Betrieb“ → „Für alle Läden öffnen“. Bis dahin sehen nur Läden mit
+Freigabe die Kachel. Vorher erledigen: Datenschutzerklärung und AGB um den Zusatz ergänzen, Vertrag zur
+Auftragsverarbeitung mit Vapi, Twilio-Kundenprofil genehmigt (sonst nur 2 Anrufe gleichzeitig), Zusatz im
+Live-Stripe angelegt (Block oben), im Hilfe-Artikel `backend/app/hilfe/artikel/telefon-assistent.md` den Satz
+„Im Moment schalten wir den Assistenten noch einzeln frei …“ streichen.
+
 ## Rechnungen (PDF und E-Rechnung)
 
 Läden laden ihre Rechnungen unter „Mein Tarif“ → „Rechnungen“ herunter: das **PDF**, so wie Stripe es per

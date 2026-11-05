@@ -13,6 +13,7 @@ import { CreateAppointmentForm } from '../components/CreateAppointmentForm';
 import { CounterLane } from '../components/counter/CounterLane';
 import { CounterCalendar } from '../components/counter/CounterCalendar';
 import { Startklar } from '../components/onboarding/Startklar';
+import { TelefonHinweisLaden } from '../components/TelefonHinweis';
 import { GeraetWahl } from '../components/GeraetWahl';
 import { TeamPushSchalter } from '../components/TeamPushSchalter';
 import { gespeichertesGeraet, jetztFragen, merkeGeraet, spaeterFragen, type GeraetRolle } from '../utils/geraet';
@@ -314,6 +315,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <PlanBanner shop={shop} />
+      {heute && <TelefonHinweisLaden shopId={shop.id} />}
       {!kundenDa && startklar}
 
       {/* Kopf: Bereich, Laden, (Kalender: Tag und Ansicht), Aktionen */}

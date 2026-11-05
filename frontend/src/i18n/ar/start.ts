@@ -269,7 +269,6 @@ const texte: Texte = {
   // Telefon-Assistent auf Preise, Für Läden und Startseite
   "Geht niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Auf Anfrage.": "إذا لم يرد أحد، يرد ذكاء اصطناعي على المكالمة. يذكر المواعيد المتاحة ويحجزها ويخبر بمدة الانتظار ويصدر الأرقام. عند الطلب.",
   "Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit, zieht Nummern und beantwortet Fragen zum Laden.": "إذا لم يرد أحد في المحل، يرد ذكاء اصطناعي على المكالمة. يذكر المواعيد المتاحة ويحجزها ويخبر بمدة الانتظار ويصدر الأرقام ويجيب عن الأسئلة حول المحل.",
-  "Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.": "المخطط له: 29 يورو صافية شهريًا مع 100 دقيقة، ثم 0,20 يورو للدقيقة. إضافة اختيارية ابتداءً من باقة «فردي».",
   "Im Testbetrieb auf Anfrage: <mail/>": "قيد التجربة، عند الطلب: <mail/>",
   "So funktioniert der Telefon-Assistent": "كيف يعمل مساعد الهاتف",
   "Und wenn gerade niemand ans Telefon kann, nimmt der Telefon-Assistent den Anruf an.": "وإذا لم يتمكن أحد من الرد على الهاتف، يرد مساعد الهاتف على المكالمة.",

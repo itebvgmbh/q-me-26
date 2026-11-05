@@ -1,16 +1,31 @@
 import { useEffect, useState } from 'react';
 
-let laeden: Promise<Set<string>> | null = null;
+let hinweis: Promise<{ laeden: Set<string>; offen: boolean }> | null = null;
 
-/** Läden, bei denen man per Telefon buchen kann: Nur die IDs, einmal je Seitenaufruf (backend/app/apis/telefon_hinweis) */
-const ladeLaeden = () => {
-  if (!laeden) {
-    laeden = fetch('/routes/telefon-hinweis')
-      .then((res) => (res.ok ? (res.json() as Promise<{ laeden?: string[] }>) : { laeden: [] }))
-      .then((daten) => new Set<string>(daten.laeden ?? []))
-      .catch(() => new Set<string>());
+/** Läden, bei denen man per Telefon buchen kann (nur die IDs), und ob der Assistent für alle Läden offen ist.
+ *  Einmal je Seitenaufruf (backend/app/apis/telefon_hinweis) */
+const ladeHinweis = () => {
+  if (!hinweis) {
+    hinweis = fetch('/routes/telefon-hinweis')
+      .then((res) => (res.ok ? (res.json() as Promise<{ laeden?: string[]; offen?: boolean }>) : {}))
+      .then((daten: { laeden?: string[]; offen?: boolean }) => ({ laeden: new Set<string>(daten.laeden ?? []), offen: Boolean(daten.offen) }))
+      .catch(() => ({ laeden: new Set<string>(), offen: false }));
   }
-  return laeden;
+  return hinweis;
+};
+const ladeLaeden = () => ladeHinweis().then((h) => h.laeden);
+
+/** Kann jeder Laden den Assistenten selbst testen und zubuchen? (Preise-Seite) */
+export const useTelefonOffen = (): boolean => {
+  const [offen, setOffen] = useState(false);
+  useEffect(() => {
+    let aktuell = true;
+    ladeHinweis().then((h) => aktuell && setOffen(h.offen));
+    return () => {
+      aktuell = false;
+    };
+  }, []);
+  return offen;
 };
 
 /** Landet ein Anruf auf die Nummer dieses Ladens beim Telefon-Assistenten, und kann er dort buchen? */

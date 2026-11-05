@@ -6,7 +6,9 @@ const { BASE, OUT, SHOP_ID, launch, newPage, shot, collectErrors, mockAuth, sign
 
 const LADEN = { id: 'laden-test', name: 'Studio Kamm', phone: '030 555 555', owner: 'x', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin' };
 const AKTIV = {
-  freigegeben: true, aktiv: true, weitersagen: true, status: 'aktiv', anschluss: '+49305555555', vorschlag: '+49305555555', zielnummer: '+493082694105',
+  sichtbar: true, offen: false, freigegeben: true, gesperrt: false, tarif: true, abo: false, kannTesten: false, kannBuchen: false, testmodus: false,
+  zusatz: null, grund: null, verbrauch: { art: 'test', minuten: 3, grenze: 30, anteil: 0.1 }, warnung: 0, deckel: 59,
+  aktiv: true, weitersagen: true, status: 'aktiv', anschluss: '+49305555555', vorschlag: '+49305555555', zielnummer: '+493082694105',
   eigeneNummer: false, minuten: 3, freiminuten: 30,
 };
 const GOOGLE = 'Geht bei uns gerade niemand ans Telefon, nimmt unser KI-Assistent deinen Anruf an.';
@@ -118,9 +120,9 @@ run(async () => {
 
   // --- Preise ---
   await kunde.goto(`${BASE}/preise`, { waitUntil: 'domcontentloaded' });
-  const geplant = kunde.getByText('Geplant: 29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute. Freiwilliger Zusatz ab Solo.');
-  await geplant.waitFor({ timeout: 60000 });
-  check('Preise: nennt den geplanten Preis', await geplant.isVisible());
+  const preis = kunde.getByText('29 € netto im Monat mit 100 Minuten, danach 0,20 € pro Minute, sekundengenau gezählt.', { exact: false });
+  await preis.waitFor({ timeout: 60000 });
+  check('Preise: nennt den Preis', await preis.isVisible());
   check('Preise: bleibt im Testbetrieb auf Anfrage', await kunde.getByText('Im Testbetrieb auf Anfrage:').isVisible());
   check('Ladenseite und Preise: keine JavaScript-Fehler', kundeFehler.length === 0, kundeFehler.join(' | '));
 
@@ -131,6 +133,15 @@ run(async () => {
   await mockAuth(page);
   await inhaberSeite(page, 'TelefonAssistent.tsx');
   await inhaberSeite(page, 'Plakat.tsx');
+  // Seit der Ladenauswahl in der Kopfzeile kommen Profil und Läden des Inhabers übers Backend (utils/laden-kontext.tsx)
+  await page.route('**/routes/{konto,team}/**', (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const antwort = (daten) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(daten) });
+    if (p === '/routes/konto/profil') return antwort({ profil: { uid: 'betreiber-test', email: 'chef@example.com', role: 'shopOwner', displayName: 'Chef' } });
+    if (p === '/routes/team/ich/laeden') return antwort({ laeden: [LADEN] });
+    if (p === `/routes/team/laeden/${LADEN.id}`) return antwort({ laden: LADEN, kanaele: [] });
+    return route.continue();
+  });
   await page.route(`**/routes/telefon-einrichtung/${LADEN.id}`, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stand) }),
   );
@@ -163,7 +174,7 @@ run(async () => {
   stand = { ...AKTIV, status: 'wartet', weitersagen: false };
   await einrichtung();
   check('Kasten: nicht vor dem Probeanruf', !(await kasten().isVisible()));
-  stand = { ...AKTIV, minuten: 30, weitersagen: false };
+  stand = { ...AKTIV, minuten: 30, weitersagen: false, grund: 'test_verbraucht', verbrauch: { art: 'test', minuten: 30, grenze: 30, anteil: 1 } };
   await einrichtung();
   check('Kasten: nicht, wenn die Minuten verbraucht sind', !(await kasten().isVisible()));
   stand = { ...AKTIV, anschluss: '+49170000000', weitersagen: true };

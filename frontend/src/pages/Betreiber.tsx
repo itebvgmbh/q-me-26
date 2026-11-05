@@ -360,7 +360,7 @@ export default function Betreiber() {
 
       {tab === 'briefe' && <Briefe />}
 
-      {tab === 'betrieb' && <Betrieb data={data} />}
+      {tab === 'betrieb' && <Betrieb data={data} onChanged={reload} />}
 
       {tab === 'protokoll' && (
         <section className="rounded-3xl border border-border bg-card p-5">

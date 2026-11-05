@@ -15,6 +15,8 @@ import { countCustomersThisMonth } from '../utils/plan-usage';
 import { effectivePlan, type PlanId } from '../utils/plans';
 import { datumsLocale, t, tn, tTeile } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
+import { TELEFON_PREIS, useTelefonStand } from '../utils/telefon-assistent';
+import { euro } from '../utils/plans';
 
 /**
  * Mein Tarif: Stand, Verbrauch, Rechnungen, Abo abschließen oder verwalten, Gründerangebot.
@@ -31,6 +33,7 @@ export default function Tarif() {
   const [staffCount, setStaffCount] = useState<number | null>(null);
   const [foundersLeft, setFoundersLeft] = useState<number | null>(null);
   const [testmodus, setTestmodus] = useState(false);
+  const telefon = useTelefonStand(shopId);
 
   useEffect(() => {
     getFoundersLeft().then(setFoundersLeft);
@@ -186,6 +189,24 @@ export default function Tarif() {
 
       {(billing?.status || billing?.customerId) && (
         <InvoiceList shopId={shop.id} refreshKey={`${billing.status ?? ''}-${billing.currentPeriodEnd?.seconds ?? ''}`} />
+      )}
+
+      {telefon?.sichtbar && (
+        <section className="flex flex-col items-start gap-2 rounded-3xl border border-border bg-card p-6">
+          <h2 className="font-display text-2xl font-extrabold">{t('Zusatz: Telefon-Assistent')}</h2>
+          <p className="text-muted-foreground">
+            {telefon.zusatz && ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'].includes(telefon.zusatz.status)
+              ? t('Gebucht. Er hat ein eigenes Monatsabo mit eigener Rechnung, dein Tarif bleibt, wie er ist.')
+              : t('Nimmt Anrufe an, wenn im Laden niemand rangeht. {grundpreis} netto im Monat mit {inklusiv} Minuten, danach {minute} je Minute.', {
+                  grundpreis: euro(TELEFON_PREIS.grundpreis),
+                  inklusiv: TELEFON_PREIS.inklusiv,
+                  minute: euro(TELEFON_PREIS.minute),
+                })}
+          </p>
+          <Button variant="outline" asChild>
+            <Link to="/telefon-assistent">{t('Zum Telefon-Assistenten')}</Link>
+          </Button>
+        </section>
       )}
 
       {!app && !shop.founder && !hasAbo && foundersLeft !== null && foundersLeft > 0 && (
