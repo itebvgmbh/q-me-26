@@ -63,7 +63,7 @@ node dev/e2e/webseite-einbau.cjs            # Mein Laden → Auf deiner Webseite
 node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach frontend/public/img/hilfe (danach committen), prüft die Startklar-Liste
 node dev/e2e/platz-aendern.cjs              # Termin ohne Konto buchen → „Platz ändern“ → absagen (Backend /nummer/termin und /verschieben, geht auch mit QME_URL=https://dranzeit.de)
 node dev/e2e/kunden-wege.cjs                # Kunden übers Backend: Nummer ohne/mit Konto ziehen und zurückgeben, Termin mit Konto buchen und absagen (Wegwerf-Konto)
-node dev/e2e/laden-wahl.cjs                 # zwei Läden: Heute, Kalender, Laden, Leistungen, Team, Tarif, Auswertung zeigen denselben (Wegwerf-Konto)
+node dev/e2e/laden-wahl.cjs                 # Ladenauswahl in der Kopfzeile: ein Laden keine, zwei Läden genau eine oben, alle Seiten folgen, Handy/Tablet ohne Überlauf, Bilder in dev/out (Wegwerf-Konto mit zwei Läden)
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen
@@ -134,7 +134,7 @@ Schlägt `regeln.cjs` nach einem abgebrochenen Lauf fehl, liegen meist Reste im 
 | `QME_URL` | `http://localhost:5173` | Adresse der App. Für echte Ladezeiten den Build messen: `npm run build`, `npm run preview`, dann `http://localhost:4173` |
 | `QME_SHOP_ID` | ITEBV GmbH | Laden für Durchläufe, Seiten, Ladezeit, WLAN |
 | `QME_BROWSER_ARGS` | leer | Zusätzliche Chromium-Argumente, z. B. hinter einem Firmen-Proxy |
-| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://dranzeit.de` testet das lokale Frontend gegen das Backend auf dem Server – ohne lokalen Firebase-Schlüssel |
+| `QME_BACKEND` | `http://127.0.0.1:8000` | Ziel für `/routes` im Entwicklungsserver (`frontend/vite.config.ts`). `https://dranzeit.de` testet das lokale Frontend gegen das Backend auf dem Server; der Proxy schickt dann dessen Adresse als `Origin`, sonst lehnt die Anmeldung ab („Diese Anfrage kam nicht von Dranzeit.“) |
 
 Die Regel- und Speichertests laden Module der App direkt (`import('/src/...')`) und brauchen deshalb den
 Entwicklungsserver, nicht den Build.

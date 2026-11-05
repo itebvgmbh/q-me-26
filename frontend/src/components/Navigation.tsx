@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { anmeldung } from 'app';
@@ -14,6 +14,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { Logo } from './brand/Logo';
+import { useKopfLadenWahl } from '../utils/laden-kontext';
 import { useUserProfile } from '../utils/hooks/useUserProfile';
 import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
@@ -30,6 +31,10 @@ type NavItem = { to: string; label: string; server?: boolean; also?: string[]; a
 
 // In der App aus dem Store wird nichts verkauft (utils/app-shell.ts)
 const VERKAUF = ['/preise', '/tarif'];
+
+// Nur für Inhaber mehrerer Läden – Gäste laden das Auswahlfeld nicht mit. Fehlt der Baustein (alte Fassung nach dem
+// Ausrollen), bleibt die Kopfzeile ohne Auswahl statt auf der Fehlerseite zu landen.
+const LadenWahlKopf = lazy(() => import('./LadenWahlKopf').catch(() => ({ default: () => null })));
 
 const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   guest: [
@@ -88,6 +93,7 @@ export function Navigation() {
   const { pathname } = useLocation();
   const { user, profile, loading } = useUserProfile();
   const betreiber = useIsBetreiber();
+  const ladenWahl = useKopfLadenWahl();
   const [open, setOpen] = useState(false);
 
   const role: UserRole | 'guest' = user && profile ? profile.role : 'guest';
@@ -107,7 +113,15 @@ export function Navigation() {
   return (
     <header className="sticky top-0 z-40 border-b border-border print:hidden bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Logo />
+        {/* Bei mehreren Läden: welcher Laden – gilt für alle Seiten darunter (utils/laden-kontext.tsx) */}
+        <div className="flex min-w-0 items-center gap-3">
+          <Logo kompakt={!!ladenWahl} />
+          {ladenWahl && (
+            <Suspense fallback={null}>
+              <LadenWahlKopf wahl={ladenWahl} />
+            </Suspense>
+          )}
+        </div>
 
         <nav aria-label={t('Hauptnavigation')} className={cn('hidden items-center gap-1', guest ? 'lg:flex' : 'md:flex')}>
           {links.map((item) =>

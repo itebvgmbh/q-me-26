@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
 import { useUserGuardContext } from 'app';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { t } from '@/i18n';
 
 // Import utility hooks
 import { useEmployeeData } from '../utils/hooks/useEmployeeData';
@@ -36,7 +34,8 @@ const EmployeeDashboard = () => {
   } = useDashboardState();
   
   // Use custom hooks to load data
-  const { employee, entries, selectEntry, services, loading, setEmployee } = useEmployeeData(user);
+  // Im Team mehrerer Läden: gewählt wird oben in der Kopfzeile
+  const { employee, services, loading, setEmployee } = useEmployeeData(user);
   const { recurringBreaks } = useRecurringBreaks(employee);
   const { appointments, setAppointments, neuLaden } = useAppointments(employee, startDate, numDays);
 
@@ -71,22 +70,6 @@ const EmployeeDashboard = () => {
       />
       
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-        {/* Im Team mehrerer Läden: hier umschalten */}
-        {entries.length > 1 && (
-          <Select value={employee.id} onValueChange={selectEntry}>
-            <SelectTrigger className="sm:w-72" aria-label={t('Laden wählen')}>
-              <SelectValue placeholder={t('Laden wählen')} />
-            </SelectTrigger>
-            <SelectContent>
-              {entries.map((entry) => (
-                <SelectItem key={entry.id} value={entry.id}>
-                  {entry.shopName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
         {/* Dashboard header with date selector and action buttons */}
         <DashboardHeader
           employee={employee}

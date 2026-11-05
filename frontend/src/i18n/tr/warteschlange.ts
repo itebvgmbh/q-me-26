@@ -112,7 +112,6 @@ const texte: Texte = {
   "Telefon-Hinweis aufs Plakat": "Afişe telefon notu ekle",
   "Lieber anrufen?": "Aramayı mı tercih edersin?",
   "Geht keiner ran, nimmt unser KI-Assistent ab und bucht deinen Termin.": "Kimse açmazsa yapay zekâ asistanımız Almanca yanıtlar ve randevunu alır.",
-  "Laden wählen": "Salon seç",
   "Drucken": "Yazdır",
   "Nummer ziehen.": "Sıra numarası alın.",
   "Ohne App.": "Uygulama gerekmez.",

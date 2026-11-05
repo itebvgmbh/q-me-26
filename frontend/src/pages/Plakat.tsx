@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer } from 'lucide-react';
-import { APP_BASE_PATH, useCurrentUser } from 'app';
+import { APP_BASE_PATH } from 'app';
 import { Button } from '@/components/ui/button';
 import { BrandMark } from '../components/brand/Logo';
-import { getShopsByOwnerId, type Shop } from '../utils/firestore';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { ladeTelefon, nummerFuerKunden, type TelefonStand } from '../utils/telefon-assistent';
 import { HilfeLink } from '../components/HilfeLink';
 import { markOnboarding } from '../components/onboarding/Startklar';
@@ -17,26 +16,12 @@ const STEPS = [
   merke('Draußen warten. Auf dem Handy siehst du, wann du dran bist.'),
 ];
 
-/** QR-Plakat für Tür und Tresen, A4 hoch. Gedruckt wird über den Browser (Strg+P). */
+/** QR-Plakat für Tür und Tresen, A4 hoch. Gedruckt wird über den Browser (Strg+P). Welcher Laden: oben in der Kopfzeile. */
 export default function Plakat() {
-  const { user } = useCurrentUser();
-  const [shops, setShops] = useState<Shop[] | null>(null);
-  const [shopId, setShopId] = useState('');
+  const { laeden: shops, laden: shop } = useInhaberLaden();
+  const shopId = shop?.id ?? '';
   const [telefon, setTelefon] = useState<TelefonStand | null>(null);
   const [mitTelefon, setMitTelefon] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    getShopsByOwnerId(user.uid).then((list) => {
-      setShops(list);
-      // ?shopId= vom Tresen oder von „Laden“, sonst der zuletzt gezeigte Laden
-      setShopId((current) => current || waehleLaden(list)?.id || '');
-    });
-  }, [user]);
-
-  useEffect(() => {
-    if (shopId) merkeLaden(shopId);
-  }, [shopId]);
 
   useEffect(() => {
     setTelefon(null);
@@ -50,7 +35,6 @@ export default function Plakat() {
     };
   }, [shopId]);
 
-  const shop = shops?.find((s) => s.id === shopId);
   if (shops === null) return <div className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">{t('Plakat wird vorbereitet …')}</div>;
   if (!shop) return <div className="mx-auto max-w-3xl px-4 py-16">{t('Richte zuerst deinen Laden ein.')}</div>;
 
@@ -76,15 +60,6 @@ export default function Plakat() {
               <input type="checkbox" checked={mitTelefon} onChange={(e) => setMitTelefon(e.target.checked)} />
               {t('Telefon-Hinweis aufs Plakat')}
             </label>
-          )}
-          {shops.length > 1 && (
-            <select aria-label={t('Laden wählen')} className="rounded-xl border border-border bg-card px-3 py-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
           )}
           <Button
             onClick={() => {

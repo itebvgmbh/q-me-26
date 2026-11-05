@@ -6,6 +6,8 @@ interface Props {
   to?: string;
   className?: string;
   inverted?: boolean;
+  /** Auf dem Handy nur das Zeichen – z. B. wenn daneben die Ladenauswahl steht */
+  kompakt?: boolean;
 }
 
 /** Wartemarke mit Kerben und Perforation – das Zeichen von Dranzeit (gleiche Form wie favicon.svg) */
@@ -34,10 +36,10 @@ export const BrandMark = ({ inverted = false, className }: { inverted?: boolean;
 );
 
 /** Wortmarke "Dranzeit" mit Wartemarke */
-export const Logo = ({ to = '/', className, inverted = false }: Props) => (
+export const Logo = ({ to = '/', className, inverted = false, kompakt = false }: Props) => (
   <Link to={to} className={cn('flex min-h-11 items-center gap-2.5 rounded-lg', className)} aria-label={t('Dranzeit – zur Startseite')}>
     <BrandMark inverted={inverted} />
-    <span className={cn('font-display text-[22px] font-extrabold leading-none tracking-[-0.03em]', inverted && 'text-background')}>
+    <span className={cn('font-display text-[22px] font-extrabold leading-none tracking-[-0.03em]', inverted && 'text-background', kompakt && 'hidden sm:inline')}>
       Dranzeit
     </span>
   </Link>

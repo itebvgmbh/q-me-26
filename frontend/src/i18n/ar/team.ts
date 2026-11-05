@@ -17,7 +17,6 @@ const texte: Texte = {
     other: "تشمل باقة {tarif} {n} شخص.",
   },
   "Tarif wechseln": "تغيير الباقة",
-  "Laden wählen": "اختر المحل",
   "Team wird geladen": "جارٍ تحميل الفريق",
   "Richte zuerst deinen Laden ein.": "قم بإعداد محلّك أولًا.",
   "Laden einrichten": "إعداد المحل",

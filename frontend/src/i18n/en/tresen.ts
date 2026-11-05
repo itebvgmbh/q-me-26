@@ -96,9 +96,6 @@ const texte: Texte = {
   "Zum Team": "Go to team",
   "Zur Startseite": "Go to home page",
 
-  // components/ShopSwitcher.tsx, pages/EmployeeDashboard.tsx
-  "Laden wählen": "Choose shop",
-
   // components/TimePicker.tsx
   "Std": "hr",
   "Min": "min",

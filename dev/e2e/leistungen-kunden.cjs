@@ -117,18 +117,21 @@ run(async () => {
     await owner.goto(`${BASE}/service-management?shopId=${second.shopId}`, { waitUntil: 'domcontentloaded' });
     const secondShown = await owner.getByText('Nur im Zweitladen', { exact: true }).waitFor({ timeout: 15000 }).then(() => true, () => false);
     const secondHasSchnitt = await owner.getByText('Schnitt', { exact: true }).count();
-    await owner.getByRole('combobox', { name: 'Laden wählen' }).click();
+    // Ladenauswahl oben in der Kopfzeile (components/LadenWahlKopf.tsx)
+    await owner.locator('header').getByRole('combobox', { name: 'Laden wechseln' }).click();
     await owner.getByRole('option', { name: TESTLADEN }).click();
     const switched = await owner.getByText('Schnitt', { exact: true }).first().waitFor({ timeout: 15000 }).then(() => true, () => false);
     const switchedUrl = owner.url();
     await owner.goto(`${BASE}/shop-profile?shopId=${second.shopId}`, { waitUntil: 'domcontentloaded' });
     const profileSecond = await owner.getByRole('heading', { level: 1, name: 'Zweitladen (Test)' }).waitFor({ timeout: 15000 }).then(() => true, () => false);
-    await owner.getByRole('combobox', { name: 'Laden wählen' }).click();
+    // Ladenauswahl oben in der Kopfzeile (components/LadenWahlKopf.tsx)
+    await owner.locator('header').getByRole('combobox', { name: 'Laden wechseln' }).click();
     await owner.getByRole('option', { name: TESTLADEN }).click();
     const profileSwitched = await owner.getByRole('heading', { level: 1, name: TESTLADEN }).waitFor({ timeout: 10000 }).then(() => true, () => false);
     rows.push(
       { name: 'Leistungen: zweiter Laden über ?shopId=', pass: secondShown && secondHasSchnitt === 0 },
-      { name: 'Leistungen: Laden umschalten', pass: switched && switchedUrl.includes(`shopId=${fx.shopId}`), detail: switchedUrl.replace(BASE, '') },
+      // Nach dem Wechsel oben ist ?shopId= weg (sonst hielte es den alten Laden fest)
+      { name: 'Leistungen: Laden umschalten', pass: switched && !switchedUrl.includes('shopId='), detail: switchedUrl.replace(BASE, '') },
       { name: 'Mein Laden: zweiter Laden und umschalten', pass: profileSecond && profileSwitched },
     );
   } finally {

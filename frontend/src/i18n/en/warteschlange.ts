@@ -113,7 +113,6 @@ const texte: Texte = {
   "Telefon-Hinweis aufs Plakat": "Add phone note to the poster",
   "Lieber anrufen?": "Prefer to call?",
   "Geht keiner ran, nimmt unser KI-Assistent ab und bucht deinen Termin.": "If no one picks up, our AI assistant answers in German and books your appointment.",
-  "Laden wählen": "Choose shop",
   "Drucken": "Print",
   "Nummer ziehen.": "Take a number.",
   "Ohne App.": "No app needed.",

@@ -109,7 +109,6 @@ const texte: Texte = {
   "Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.": "Free plan. For appointments, notifications and a team, choose a subscription.",
   "Gratis-Tarif.": "Free plan.",
   "Mein Tarif": "My plan",
-  "Laden wählen": "Choose shop",
   "Testphase": "Trial",
   "Gründer": "Founder",
   "Wird geöffnet …": "Opening …",

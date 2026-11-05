@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCurrentUser } from 'app';
-import { getAppointmentsInRange, getShopsByOwnerId, type Appointment, type Shop } from '../utils/firestore';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { getAppointmentsInRange, type Appointment } from '../utils/firestore';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { hasFeature, euro } from '../utils/plans';
 import { computeStats } from '../utils/stats';
 import { merke, t, tn } from '@/i18n';
@@ -13,25 +12,12 @@ const RANGES = [
   { days: 30, label: merke('30 Tage') },
 ];
 
-/** Auswertung für Inhaber: Kunden, Anteil Nummer/Termin, Wartezeit, Stoßzeiten. Ab Tarif Laden. */
+/** Auswertung für Inhaber: Kunden, Anteil Nummer/Termin, Wartezeit, Stoßzeiten. Ab Tarif Laden. Welcher Laden: oben in der Kopfzeile. */
 export default function Auswertung() {
-  const { user } = useCurrentUser();
-  const [shops, setShops] = useState<Shop[] | null>(null);
-  const [shopId, setShopId] = useState('');
+  const { laeden: shops, laden: shop } = useInhaberLaden();
+  const shopId = shop?.id ?? '';
   const [range, setRange] = useState(7);
   const [appts, setAppts] = useState<Appointment[] | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    getShopsByOwnerId(user.uid).then((list) => {
-      setShops(list);
-      setShopId((current) => current || waehleLaden(list)?.id || '');
-    });
-  }, [user]);
-
-  useEffect(() => {
-    if (shopId) merkeLaden(shopId);
-  }, [shopId]);
 
   const { from, to } = useMemo(() => {
     const end = new Date();
@@ -48,7 +34,6 @@ export default function Auswertung() {
     getAppointmentsInRange(shopId, from, to).then(setAppts).catch(() => setAppts([]));
   }, [shopId, from, to]);
 
-  const shop = shops?.find((s) => s.id === shopId) ?? null;
   const stats = useMemo(() => (appts ? computeStats(appts, from, to) : null), [appts, from, to]);
 
   if (shops === null) return <div className="mx-auto max-w-6xl px-4 py-16 text-muted-foreground sm:px-6">{t('Auswertung wird geladen …')}</div>;
@@ -76,17 +61,7 @@ export default function Auswertung() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Auswertung')}</h1>
-          {shops.length > 1 ? (
-            <select aria-label={t('Laden wählen')} className="w-fit rounded-xl border border-border bg-card px-3 py-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <p className="text-muted-foreground">{shop.name}</p>
-          )}
+          <p className="text-muted-foreground">{shop.name}</p>
         </div>
         <div role="radiogroup" aria-label={t('Zeitraum')} className="inline-flex rounded-full border border-border bg-card p-1">
           {RANGES.map((r) => (

@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useUserGuardContext } from 'app';
 import { ShopLogo } from '../components/brand/ShopLogo';
 import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
-import { ShopSwitcher } from '../components/ShopSwitcher';
 import { WebseiteEinbau } from '../components/WebseiteEinbau';
 import { LadenUebersicht } from '../components/LadenUebersicht';
-import { useOwnedShops } from '../utils/hooks/useOwnedShops';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { merke, t } from '@/i18n';
@@ -27,11 +25,10 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
 
 /**
  * „Laden“ im Menü: Verwalten (Team, Leistungen, Auswertung, Tarif …), was auf diesem Gerät gilt, so sehen Kunden den
- * Laden, QR-Code mit Plakat und Wartezimmer-Bildschirm, Einbau auf der eigenen Webseite; bei mehreren Läden mit Ladenauswahl
+ * Laden, QR-Code mit Plakat und Wartezimmer-Bildschirm, Einbau auf der eigenen Webseite. Welcher Laden: oben in der Kopfzeile.
  */
 const ShopProfile = () => {
-  const { user } = useUserGuardContext();
-  const { shops, shop, selectShop, replaceShop, failed } = useOwnedShops(user.uid);
+  const { laeden: shops, laden: shop, ersetze: replaceShop, fehler: failed } = useInhaberLaden();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   if (shops === null) {
@@ -85,8 +82,6 @@ const ShopProfile = () => {
           </Button>
         </div>
       </div>
-
-      <ShopSwitcher shops={shops} shopId={shop.id} onChange={selectShop} />
 
       <LadenUebersicht shopId={shop.id} />
 

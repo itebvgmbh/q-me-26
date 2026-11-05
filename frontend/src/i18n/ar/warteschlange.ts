@@ -128,7 +128,6 @@ const texte: Texte = {
   "Telefon-Hinweis aufs Plakat": "أضف إشارة الهاتف إلى الملصق",
   "Lieber anrufen?": "تفضل الاتصال؟",
   "Geht keiner ran, nimmt unser KI-Assistent ab und bucht deinen Termin.": "إذا لم يرد أحد، يجيب مساعدنا بالذكاء الاصطناعي باللغة الألمانية ويحجز موعدك.",
-  "Laden wählen": "اختر المحل",
   "Drucken": "طباعة",
   "Nummer ziehen.": "خذ رقم انتظار.",
   "Ohne App.": "بدون تطبيق.",

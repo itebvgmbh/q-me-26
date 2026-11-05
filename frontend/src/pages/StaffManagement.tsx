@@ -1,68 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useCurrentUser } from 'app';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Staff, Shop, Service, getStaffWithContacts, getShopsByOwnerId, getServicesByShopId, offeredServices, reactivateStaff } from '../utils/firestore';
+import { Staff, Service, getStaffWithContacts, getServicesByShopId, offeredServices, reactivateStaff } from '../utils/firestore';
 import { AddStaffDialog } from '../components/AddStaffDialog';
 import { InviteStaffDialog } from '../components/InviteStaffDialog';
 import { StaffCard } from '../components/StaffCard';
 import { effectivePlan } from '../utils/plans';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { t, tn, tTeile } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
 
-/** Team: Personen anlegen, einladen, Leistungen und Arbeitszeiten pflegen */
+/** Team: Personen anlegen, einladen, Leistungen und Arbeitszeiten pflegen; welcher Laden: oben in der Kopfzeile */
 const StaffManagement = () => {
-  const { user } = useCurrentUser();
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { laeden, laden: selectedShop, fehler } = useInhaberLaden();
+  // Für welchen Laden das Team gerade dasteht – beim Umschalten bis dahin „wird geladen“
+  const [geladenFuer, setGeladenFuer] = useState<string | null>(null);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [inactive, setInactive] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const gewuenscht = useRef<string | null>(null);
 
   const loadShopData = async (shopId: string) => {
+    gewuenscht.current = shopId;
     try {
       const [staffList, servicesList] = await Promise.all([getStaffWithContacts(shopId), getServicesByShopId(shopId)]);
+      if (gewuenscht.current !== shopId) return;
       setStaff(staffList.filter((s) => s.isActive !== false));
       setInactive(staffList.filter((s) => s.isActive === false));
       setServices(offeredServices(servicesList));
     } catch (error) {
       console.error('Error loading staff:', error);
-      toast.error(t('Das Team konnte nicht geladen werden.'));
+      if (gewuenscht.current === shopId) toast.error(t('Das Team konnte nicht geladen werden.'));
+    } finally {
+      if (gewuenscht.current === shopId) setGeladenFuer(shopId);
     }
   };
+
+  const shopId = selectedShop?.id;
+  useEffect(() => {
+    if (shopId) void loadShopData(shopId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId]);
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const userShops = await getShopsByOwnerId(user.uid);
-        setShops(userShops);
-        const first = waehleLaden(userShops);
-        if (first) {
-          setSelectedShop(first);
-          await loadShopData(first.id);
-        }
-      } catch (error) {
-        console.error('Error loading shops:', error);
-        toast.error(t('Deine Läden konnten nicht geladen werden.'));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user]);
+    if (fehler) toast.error(t('Deine Läden konnten nicht geladen werden.'));
+  }, [fehler]);
 
-  const handleShopChange = async (shopId: string) => {
-    const shop = shops.find((s) => s.id === shopId);
-    if (shop) {
-      setSelectedShop(shop);
-      merkeLaden(shop.id);
-      await loadShopData(shop.id);
-    }
-  };
+  const loading = laeden === null || (!!selectedShop && geladenFuer !== selectedShop.id);
 
   const reload = async () => {
     if (selectedShop) await loadShopData(selectedShop.id);
@@ -109,21 +94,6 @@ const StaffManagement = () => {
           </div>
         )}
       </div>
-
-      {shops.length > 1 && (
-        <Select value={selectedShop?.id} onValueChange={handleShopChange}>
-          <SelectTrigger className="sm:w-72" aria-label={t('Laden wählen')}>
-            <SelectValue placeholder={t('Laden wählen')} />
-          </SelectTrigger>
-          <SelectContent>
-            {shops.map((shop) => (
-              <SelectItem key={shop.id} value={shop.id}>
-                {shop.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
 
       {loading ? (
         <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Team wird geladen')}>

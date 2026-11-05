@@ -1,16 +1,13 @@
 import { Link } from 'react-router-dom';
-import { useCurrentUser } from 'app';
-import { useOwnedShops } from '../utils/hooks/useOwnedShops';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { useServiceManagement } from '../utils/hooks/useServiceManagement';
 import { AddServiceDialog } from '../components/ServiceDialogs';
 import { ServicesList } from '../components/ServicesList';
-import { ShopSwitcher } from '../components/ShopSwitcher';
 import { t } from '@/i18n';
 
-/** Leistungen des Ladens anlegen, bearbeiten und löschen; bei mehreren Läden mit Ladenauswahl */
+/** Leistungen des Ladens anlegen, bearbeiten und löschen; welcher Laden: oben in der Kopfzeile */
 const ServiceManagement = () => {
-  const { user } = useCurrentUser();
-  const { shops, shop, selectShop, failed } = useOwnedShops(user?.uid);
+  const { laeden: shops, laden: shop, fehler: failed } = useInhaberLaden();
   const shopLoading = shops === null;
 
   const { services, loading: servicesLoading, loadServices } = useServiceManagement(shop);
@@ -33,8 +30,6 @@ const ServiceManagement = () => {
         </div>
         {shop && <AddServiceDialog shop={shop} onServiceAdded={refresh} />}
       </div>
-
-      {shops && <ShopSwitcher shops={shops} shopId={shop?.id} onChange={selectShop} />}
 
       {shopLoading || servicesLoading ? (
         <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Leistungen werden geladen')}>

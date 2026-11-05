@@ -257,14 +257,16 @@ run(async () => {
     await kimPage.goto(`${BASE}/staff-registration?token=${tokenOf(second.link)}`, { waitUntil: 'domcontentloaded' });
     await kimPage.getByRole('button', { name: 'Einladung annehmen' }).click();
     await kimPage.getByRole('button', { name: 'Meine Arbeitszeiten' }).waitFor({ timeout: 20000 });
-    const picker = kimPage.getByRole('combobox', { name: 'Laden wählen' });
+    // Ladenauswahl oben in der Kopfzeile (components/LadenWahlKopf.tsx)
+    const picker = kimPage.locator('header').getByRole('combobox', { name: 'Laden wechseln' });
     const hasPicker = await ok(picker.waitFor({ timeout: 15000 }));
     const urlSecond = kimPage.url();
     let switched = false;
     if (hasPicker) {
       await picker.click();
       await kimPage.getByRole('option', { name: TESTLADEN }).click();
-      switched = await ok(kimPage.waitForURL((u) => u.searchParams.get('staffId') === kimAfter.id, { timeout: 10000 }));
+      // Wechsel oben: ?staffId= verschwindet, oben steht der andere Laden
+      switched = await ok(kimPage.waitForURL((u) => !u.searchParams.has('staffId'), { timeout: 10000 })) && (await picker.innerText()).includes(TESTLADEN);
       await shot(kimPage, 'mein-tag-zwei-laeden', false);
     }
     rows.push(

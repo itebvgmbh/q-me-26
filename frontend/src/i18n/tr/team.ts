@@ -10,7 +10,6 @@ const texte: Texte = {
   "Wer arbeitet wann und bietet was an. Nur so entstehen freie Zeiten.": "Kim ne zaman çalışıyor, hangi hizmeti sunuyor? Boş saatler ancak böyle oluşur.",
   "Im Tarif {tarif} sind {n} Personen dabei.": { one: "{tarif} paketine bir kişi dahildir.", other: "{tarif} paketine {n} kişi dahildir." },
   "Tarif wechseln": "Paketi değiştir",
-  "Laden wählen": "Salon seç",
   "Team wird geladen": "Ekip yükleniyor",
   "Richte zuerst deinen Laden ein.": "Önce salonunuzu kurun.",
   "Laden einrichten": "Salonu kur",
