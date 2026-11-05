@@ -315,6 +315,12 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
         if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING and stripe_mode == LIVE:  # Sandbox-Abos kosten nichts
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {ids.get('customerId') or '?'}, Abo {ids.get('subscriptionId') or '?'}, „sofort“).")
+        from app.libs import telefon as tel
+
+        tz = tel.zusatz((fs.collection(tel.LAEDEN).document(sid).get().to_dict() or {}))
+        if tz.get("status") in (*tel.GEBUCHT, *tel.ZAHLUNG_OFFEN) and (tz.get("modus") or LIVE) == LIVE:
+            problems.append(f"„{shop.get('name')}“ hat den Telefon-Assistenten gebucht ({tz['status']}) – erst in Stripe kündigen "
+                            f"(Abo {tz.get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
         seite = fs.collection(VERZEICHNIS).document(f"laden-{sid}").get()
         if seite.exists:

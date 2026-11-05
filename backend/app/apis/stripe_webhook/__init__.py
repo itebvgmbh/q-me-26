@@ -5,6 +5,9 @@ Stand des Abos, daher schadet es nicht, wenn Stripe ein Ereignis doppelt oder in
 
 Live-Konto und Sandbox schicken an dieselbe Adresse; welches Geheimnis die Signatur bestätigt, sagt den Modus.
 Ein Ereignis zählt nur für Läden im selben Modus (Testmodus je Laden, app/libs/shop_privat.py).
+
+Der Telefon-Assistent hat ein eigenes Abo (metadata zusatz=telefon, app/libs/telefon_abrechnung.py): Dessen Ereignisse
+gehen an telefon_laeden, nie an billing und plan des Ladens.
 """
 
 import json
@@ -14,6 +17,7 @@ import stripe
 from fastapi import APIRouter, HTTPException, Request
 
 from app.apis.firebase_utils import get_firestore_db
+from app.libs import telefon_abrechnung
 from app.libs.shop_privat import LIVE, TEST, save_stripe_ids, stripe_link
 from app.libs.stripe_billing import WEBHOOK_ENV, client, shop_update_from_subscription
 
@@ -53,7 +57,9 @@ async def stripe_webhook(request: Request) -> dict:
         if sub_id:
             subscription = client(mode).v1.subscriptions.retrieve(sub_id).to_dict()
 
-    if subscription is not None:
+    if subscription is not None and telefon_abrechnung.ist_telefon(subscription):
+        telefon_abrechnung.uebernehmen(get_firestore_db(), subscription, mode)
+    elif subscription is not None:
         _apply(subscription, mode)
     return {"received": True}
 
@@ -95,3 +101,5 @@ def _apply(subscription, mode: str = LIVE) -> None:
     # Kunde und Abo nur dort, wo Browser nicht hinkommen (app/libs/shop_privat.py)
     save_stripe_ids(db, shop_id, subscription.get("customer"), subscription.get("id"), mode)
     print(f"Stripe: Laden {shop_id}, Abo {subscription.get('status')}" + (" (Sandbox)" if mode == TEST else ""))
+    if subscription.get("status") in ("canceled", "incomplete_expired"):  # ohne Tarif kein Zusatz (ab Solo)
+        telefon_abrechnung.tarif_beendet(db, shop_id, mode)

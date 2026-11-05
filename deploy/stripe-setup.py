@@ -8,6 +8,9 @@ Mit --test dasselbe in der Stripe-Sandbox für den Testmodus je Laden (Betreiber
 STRIPE_TEST_SECRET_KEY, Webhook-Geheimnis und Portal nach STRIPE_TEST_WEBHOOK_SECRET und STRIPE_TEST_PORTAL_CONFIG.
 Der Sandbox-Webhook zeigt auf dieselbe Adresse wie der echte.
 
+Telefon-Assistent (eigenes Abo, app/libs/telefon_abrechnung.py): Meter, zwei Produkte und ihre Preise. In der Sandbox
+immer, im Live-Konto nur mit --telefon (erst nach Stefans Freigabe der Preise).
+
 - Preise netto (tax_behavior exclusive), gefunden über lookup_key (app/libs/stripe_billing.py).
 - Webhook-Geheimnis und Portal-Einstellung schreibt das Skript selbst nach /etc/q-me.env.
   Das Geheimnis erscheint nirgends auf dem Bildschirm.
@@ -22,6 +25,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from app.libs.stripe_billing import (  # noqa: E402
     CATALOG, FOUNDER_PRICES, INTERVALS, KEY_ENV, LIVE, PORTAL_ENV, TEST, WEBHOOK_ENV, client, lookup_key, stripe_configured,
 )
+from app.libs import telefon as tel  # noqa: E402
+from app.libs.telefon_abrechnung import GRUNDPREIS_KEY, METER_EVENT, MINUTEN_KEY  # noqa: E402
 
 ENV_FILE = os.environ.get("QME_ENV_FILE", "/etc/q-me.env")
 
@@ -95,11 +100,65 @@ def ensure_price(c, product_id: str, key: str, amount: int, interval: str, nickn
     return price.id
 
 
+TELEFON_PRODUKTE = {
+    # Name steht so auf der Rechnung: zwei Posten, Grundpreis und Minuten
+    "telefon_grundpreis": "Telefon-Assistent, Grundpreis mit 100 Minuten",
+    "telefon_minuten": "Telefon-Assistent, Minuten",
+}
+
+
+def ensure_telefon(c) -> None:
+    """Meter (Formel last: letzter Wert im Monat), Grundpreis 29 € im Voraus, Minuten gestaffelt nach Nutzung"""
+    meter = next((m for m in c.v1.billing.meters.list(params={"status": "active", "limit": 100}).auto_paging_iter() if m.event_name == METER_EVENT), None)
+    if meter is None:
+        meter = c.v1.billing.meters.create(params={
+            "display_name": "Dranzeit Telefon-Minuten",
+            "event_name": METER_EVENT,
+            "default_aggregation": {"formula": "last"},
+            "customer_mapping": {"type": "by_id", "event_payload_key": "stripe_customer_id"},
+            "value_settings": {"event_payload_key": "value"},
+        })
+        print(f"Meter angelegt: {METER_EVENT}")
+    elif meter.default_aggregation.formula != "last":
+        print(f"ACHTUNG: Meter {METER_EVENT} rechnet mit {meter.default_aggregation.formula}, erwartet last")
+    existing = {}
+    for p in c.v1.products.list(params={"active": True, "limit": 100}).auto_paging_iter():
+        art = (p.metadata.to_dict() if p.metadata else {}).get("dranzeit_zusatz")
+        if art:
+            existing[art] = p.id
+    ids = {}
+    for art, name in TELEFON_PRODUKTE.items():
+        ids[art] = existing.get(art) or c.v1.products.create(params={"name": name, "tax_code": SAAS_TAX_CODE, "metadata": {"dranzeit_zusatz": art}}).id
+        if art not in existing:
+            print(f"Produkt angelegt: {name}")
+    ensure_price(c, ids["telefon_grundpreis"], GRUNDPREIS_KEY, tel.GRUNDPREIS_CENT, "monat", "Telefon-Assistent Grundpreis")
+    tiers = [{"up_to": tel.INKLUSIV_MINUTEN, "unit_amount": 0}, {"up_to": "inf", "unit_amount": tel.MINUTENPREIS_CENT}]
+    found = c.v1.prices.list(params={"lookup_keys": [MINUTEN_KEY], "active": True, "limit": 1, "expand": ["data.tiers"]}).data
+    if found:
+        have = [(t.up_to, t.unit_amount) for t in (found[0].tiers or [])]
+        if have != [(tel.INKLUSIV_MINUTEN, 0), (None, tel.MINUTENPREIS_CENT)]:
+            print(f"ACHTUNG: {MINUTEN_KEY} hat bei Stripe die Stufen {have}, erwartet 1–{tel.INKLUSIV_MINUTEN} für 0, danach {tel.MINUTENPREIS_CENT} Cent")
+        return
+    c.v1.prices.create(params={
+        "product": ids["telefon_minuten"],
+        "currency": "eur",
+        "billing_scheme": "tiered",
+        "tiers_mode": "graduated",
+        "tiers": tiers,
+        "recurring": {"interval": "month", "usage_type": "metered", "meter": meter.id},
+        "tax_behavior": "exclusive",
+        "lookup_key": MINUTEN_KEY,
+        "nickname": "Telefon-Assistent Minuten",
+    })
+    print(f"Preis angelegt: {MINUTEN_KEY} (bis {tel.INKLUSIV_MINUTEN} Minuten 0 €, danach {tel.MINUTENPREIS_CENT / 100:.2f} € netto)")
+
+
 def main() -> None:
-    args = [a for a in sys.argv[1:] if a != "--test"]
+    flags = {"--test", "--telefon"}
+    args = [a for a in sys.argv[1:] if a not in flags]
     mode = TEST if "--test" in sys.argv[1:] else LIVE
     if len(args) != 1 or not args[0].startswith("https://"):
-        sys.exit("Aufruf: stripe-setup.py https://<adresse der app> [--test]")
+        sys.exit("Aufruf: stripe-setup.py https://<adresse der app> [--test] [--telefon]")
     base = args[0].rstrip("/")
     load_env()
     if not stripe_configured(mode):
@@ -116,6 +175,10 @@ def main() -> None:
             standard_prices.setdefault(plan, []).append(pid)
     for interval, amount in FOUNDER_PRICES.items():
         ensure_price(c, products["laden"], lookup_key("laden", interval, founder=True), amount, interval, f"Dranzeit Laden Gründerpreis ({interval})")
+    if mode == TEST or "--telefon" in sys.argv[1:]:
+        ensure_telefon(c)
+    else:
+        print("Telefon-Assistent: im Live-Konto nur mit --telefon")
 
     url = f"{base}/routes/stripe/webhook"
     all_endpoints = list(c.v1.webhook_endpoints.list(params={"limit": 100}).auto_paging_iter())

@@ -240,7 +240,7 @@ def test_ende_zaehlt_die_gespraechszeit():
     felder = {"CallSid": "CA1", "CallStatus": "completed", "CallDuration": "65"}
     antwort = client.post("/routes/telefon-eingang/status", data=felder, headers={"X-Twilio-Signature": signiert("/telefon-eingang/status", felder)})
     assert antwort.status_code == 204
-    assert d.data[t.LAEDEN]["salon"]["sekunden"].value == 65
+    assert d.data[t.LAEDEN]["salon"]["sekunden"] == 65
     assert not d.data[t.ANRUFE]
 
 

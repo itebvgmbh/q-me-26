@@ -79,6 +79,19 @@ def _briefe_abgleichen() -> None:
         print(f"Briefe: Abgleich mit PIN fehlgeschlagen: {e}")
 
 
+def _telefon_minuten_abgleichen() -> None:
+    """Minuten des Telefon-Assistenten, die nach einem Anruf nicht bei Stripe ankamen, nachmelden (app/libs/telefon_abrechnung.py)"""
+    try:
+        from app.apis.firebase_utils import get_firestore_db
+        from app.libs import telefon_abrechnung
+
+        gemeldet = telefon_abrechnung.abgleich(get_firestore_db())
+        if gemeldet:
+            print(f"Telefon: Minuten von {gemeldet} Läden an Stripe nachgemeldet")
+    except Exception as e:  # nie den Scheduler deswegen anhalten
+        print(f"Telefon: Abgleich mit Stripe fehlgeschlagen: {e}")
+
+
 # Define models (if needed)
 
 def scheduler_task():
@@ -105,6 +118,7 @@ def scheduler_task():
             last_run_time = datetime.now()
             _daily_privacy_cleanup()
             _briefe_abgleichen()
+            _telefon_minuten_abgleichen()
             
             # Wait for the next interval
             time.sleep(run_interval)
