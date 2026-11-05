@@ -4,6 +4,8 @@
 //  - Falsches Passwort: die übersetzte Meldung zum Code aus X-Anmeldung-Fehler.
 //  - Nach dem Neuladen weiß die Seite sofort, wer angemeldet ist (gemerkter Stand), und fragt /ich nach.
 //  - Meldet das Backend 401 (Sitzung abgelaufen), gilt man als abgemeldet.
+//  - Endet die Sitzung bei offenem Tab: Nach einer 401 eines Backend-Aufrufs oder wenn der Tab wieder nach vorn kommt,
+//    fragt die Seite /ich nach und schickt zum Anmelden (statt weiter „angemeldet“ und „Not authenticated“).
 //  - Abmelden schickt /abmelden; kein Aufruf an Google.
 // Braucht: Entwicklungsserver (npm run dev).
 const { BASE, launch, newPage, collectErrors, report, run } = require('./lib.cjs');
@@ -44,6 +46,26 @@ run(async () => {
   await page.route('**/routes/konto/profil', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ profil: { id: 'kontoKim', email: EMAIL, role: 'customer' } }) }),
   );
+  // Irgendein geschützter Aufruf: 401, sobald die Sitzung weg ist
+  await page.route('**/routes/konto/termine*', (route) =>
+    route.fulfill(sitzung
+      ? { status: 200, contentType: 'application/json', body: JSON.stringify({ termine: [] }) }
+      : { status: 401, contentType: 'application/json', body: '{"detail":"Not authenticated"}' }),
+  );
+  const anmeldenUndOeffnen = async () => {
+    await page.evaluate(async () => {
+      const { signInWithEmailAndPassword, anmeldung } = await import('/src/app/auth/konto.ts');
+      await signInWithEmailAndPassword(anmeldung, 'kim@salon-kaya.de', 'richtig123');
+    });
+    await page.goto(`${BASE}/profile`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+    return new URL(page.url()).pathname === '/profile';
+  };
+  const zumAnmelden = async () => {
+    await page.waitForURL((url) => url.pathname === '/login', { timeout: 12000 }).catch(() => {});
+    const url = new URL(page.url());
+    return { pass: url.pathname === '/login' && url.searchParams.get('next') === '/profile', detail: page.url() };
+  };
 
   await page.goto(`${BASE}/login?next=/profile`, { waitUntil: 'domcontentloaded' });
   await page.getByLabel('E-Mail').fill(EMAIL);
@@ -79,6 +101,32 @@ run(async () => {
   }));
   rows.push({ name: '401: abgemeldet, nichts mehr gemerkt', pass: danach.uid === null && danach.gemerkt === null, detail: JSON.stringify(danach) });
   rows.push({ name: 'Geschützte Seite: weiter zum Anmelden', pass: new URL(page.url()).pathname === '/login', detail: page.url() });
+
+  // Sitzung endet bei offenem Tab: die nächste 401 eines Backend-Aufrufs schickt zum Anmelden
+  const offen = await anmeldenUndOeffnen();
+  sitzung = false;
+  await page.evaluate(() => fetch('/routes/konto/termine').then((r) => r.status).catch(() => null));
+  const nach401 = await zumAnmelden();
+  rows.push({ name: 'Offener Tab, Sitzung weg: 401 → zum Anmelden', pass: offen && nach401.pass, detail: nach401.detail });
+
+  // … oder wenn der Tab wieder nach vorn kommt
+  const offen2 = await anmeldenUndOeffnen();
+  sitzung = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  const nachVorn = await zumAnmelden();
+  rows.push({ name: 'Tab wieder vorn, Sitzung weg: zum Anmelden', pass: offen2 && nachVorn.pass, detail: nachVorn.detail });
+
+  // Sitzung gilt noch: eine 401 ändert nichts (nur nachgefragt)
+  const offen3 = await anmeldenUndOeffnen();
+  const ichVorher = anfragen.filter((a) => a.pfad === 'ich').length;
+  await page.route('**/routes/team/ich/laeden', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{"detail":"Not authenticated"}' }));
+  await page.evaluate(() => fetch('/routes/team/ich/laeden').catch(() => null));
+  await page.waitForTimeout(6000);
+  rows.push({
+    name: 'Sitzung gilt: 401 fragt nach, bleibt angemeldet',
+    pass: offen3 && new URL(page.url()).pathname === '/profile' && anfragen.filter((a) => a.pfad === 'ich').length > ichVorher,
+    detail: page.url(),
+  });
 
   // Wieder an, dann abmelden
   await page.evaluate(async () => {

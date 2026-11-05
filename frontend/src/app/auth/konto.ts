@@ -10,6 +10,11 @@
  *
  * Der letzte bekannte Stand liegt in localStorage. So weiß die Seite beim Öffnen sofort, wer angemeldet ist (auch ohne
  * Netz), und prüft es dann beim Backend nach. Meldet ein anderer Tab ab oder an, ziehen die übrigen mit.
+ *
+ * Endet die Sitzung, während ein Tab offen ist (abgelaufen, Passwort anderswo geändert, Konto gesperrt, Cookie gelöscht),
+ * fragt der Tab bei /ich nach, sobald ein Aufruf ans Backend mit 401 abgelehnt wird oder der Tab wieder nach vorn kommt.
+ * Sonst zeigte er weiter „angemeldet“, und jede Seite scheiterte mit „Not authenticated“. Dafür ist fetch unten
+ * umwickelt; es ändert an keiner Anfrage etwas, es schaut nur auf die Antwort.
  */
 
 export interface User {
@@ -182,6 +187,55 @@ if (typeof window !== 'undefined') {
       aktuell = neu;
       melden();
     }
+  });
+}
+
+// --- Sitzung nachprüfen, solange der Tab offen ist -------------------------------------------------------------------
+
+const ABSTAND_MS = 5_000;
+let zuletztGeprueft = 0;
+let geplant = false;
+
+/** Fragt bei /ich nach, ob die Sitzung noch gilt: höchstens alle 5 s, mehrere Anlässe kurz hintereinander zählen einmal. */
+const nachpruefen = (netz: typeof fetch) => {
+  if (geplant || !aktuell) return;
+  geplant = true;
+  setTimeout(async () => {
+    geplant = false;
+    zuletztGeprueft = Date.now();
+    try {
+      const res = await netz(`${PFAD}/ich`, { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) setzen(null);
+      else if (res.ok) {
+        const d = (await res.json()) as Ich;
+        setzen(angemeldet(d) ? d : null);
+      }
+    } catch {
+      // Kein Netz: den Stand behalten
+    }
+  }, Math.max(0, zuletztGeprueft + ABSTAND_MS - Date.now()));
+};
+
+/** Ein Aufruf an das eigene Backend, aber nicht an die Anmeldung selbst (deren 401 heißt „falsches Passwort“) */
+const backendAufruf = (eingabe: RequestInfo | URL): boolean => {
+  try {
+    const roh = typeof eingabe === 'string' ? eingabe : eingabe instanceof URL ? eingabe.href : eingabe.url;
+    const url = new URL(roh, window.location.href);
+    return url.origin === window.location.origin && url.pathname.startsWith('/routes/') && !url.pathname.startsWith(`${PFAD}/`);
+  } catch {
+    return false;
+  }
+};
+
+if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+  const netz = window.fetch.bind(window);
+  window.fetch = async (eingabe: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const res = await netz(eingabe, init);
+    if (res.status === 401 && aktuell && backendAufruf(eingabe)) nachpruefen(netz);
+    return res;
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') nachpruefen(netz);
   });
 }
 
