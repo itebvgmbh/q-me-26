@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { InvoiceList } from '../components/pricing/InvoiceList';
 import { IntervalSwitch, PlanCards } from '../components/pricing/PlanCards';
 import { HilfeLink } from '../components/HilfeLink';
 import { useLive } from '../utils/live';
-import { getShopsByOwnerId, getStaffByShopId, type Shop } from '../utils/firestore';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { getStaffByShopId, type Shop } from '../utils/firestore';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { safelyConvertToDate } from '../utils/datetime';
 import { claimFounder, getBillingTestMode, getFoundersLeft, openPortal, startCheckout, type Interval } from '../utils/billing';
 import { countCustomersThisMonth } from '../utils/plan-usage';
@@ -20,12 +19,12 @@ import { inStoreApp } from '../utils/app-shell';
 /**
  * Mein Tarif: Stand, Verbrauch, Rechnungen, Abo abschließen oder verwalten, Gründerangebot.
  * In der App aus dem Store nur Stand, Verbrauch und Rechnungen – dort wird nichts verkauft (utils/app-shell.ts).
+ * Welcher Laden: oben in der Kopfzeile (utils/laden-kontext.tsx).
  */
 export default function Tarif() {
-  const { user } = useCurrentUser();
   const [params] = useSearchParams();
-  const [shops, setShops] = useState<Shop[] | null>(null);
-  const [shopId, setShopId] = useState<string>('');
+  const { laeden: shops, laden } = useInhaberLaden();
+  const shopId = laden?.id ?? '';
   const [interval, setInterval] = useState<Interval>('monat');
   const [busy, setBusy] = useState<string>('');
   const [customers, setCustomers] = useState<number | null>(null);
@@ -34,17 +33,8 @@ export default function Tarif() {
   const [testmodus, setTestmodus] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    getShopsByOwnerId(user.uid).then((list) => {
-      setShops(list);
-      setShopId((current) => current || waehleLaden(list)?.id || '');
-    });
     getFoundersLeft().then(setFoundersLeft);
-  }, [user]);
-
-  useEffect(() => {
-    if (shopId) merkeLaden(shopId);
-  }, [shopId]);
+  }, []);
 
   // Testmodus aus dem Betreiber-Bereich: Abo läuft über die Stripe-Sandbox
   useEffect(() => {
@@ -151,20 +141,6 @@ export default function Tarif() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Mein Tarif')}</h1>
-        {shops.length > 1 && (
-          <select
-            aria-label={t('Laden wählen')}
-            className="w-full max-w-xs rounded-xl border border-border bg-card px-3 py-2"
-            value={shopId}
-            onChange={(e) => setShopId(e.target.value)}
-          >
-            {shops.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
       </header>
 
       {testmodus && (

@@ -1,6 +1,6 @@
 ---
 titel: Mehrere Läden verwalten
-kurz: Einen weiteren Laden einrichten, am Tresen zwischen deinen Läden wechseln und wissen, was für jeden Laden einzeln gilt.
+kurz: Einen weiteren Laden einrichten, oben in der Kopfzeile zwischen deinen Läden wechseln und wissen, was für jeden Laden einzeln gilt.
 thema: laden
 reihenfolge: 4
 stichworte: filiale, filialen, zweiter laden, weiterer laden, mehrere läden, standort, standorte, wechseln, laden wechseln
@@ -15,9 +15,9 @@ Mit einem Konto kannst du mehrere Läden führen. Jeder Laden hat eigene Öffnun
 
 ## Zwischen Läden wechseln
 
-Unter **„Heute“** und **„Kalender“** steht oben der Name des Ladens. Tipp darauf und wähl einen anderen Laden. Der Tresen startet immer mit demselben Laden, wechsle also bei Bedarf oben.
+Hast du mehrere Läden, steht oben in der Kopfzeile neben dem Logo der Name des gewählten Ladens. Tipp darauf und wähl einen anderen Laden. Alles darunter zeigt dann diesen Laden: **„Heute“**, **„Kalender“** und **„Laden“** mit Team, Leistungen, Auswertung, Tarif, Plakat und Telefon-Assistent. **„Bearbeiten“**, der QR-Code und **„Wartezimmer-Bildschirm öffnen“** gelten ebenfalls für diesen Laden.
 
-Unter **„Laden“** wählst du oben ebenfalls den Laden. **„Bearbeiten“**, der QR-Code, **„Plakat drucken“** und **„Wartezimmer-Bildschirm öffnen“** gelten dann für diesen Laden. Team, Leistungen, Auswertung und Tarif haben oben eine eigene Auswahl für den Laden.
+Das Gerät merkt sich den zuletzt gewählten Laden. Der Tresen startet also mit dem Laden, den du zuletzt hattest. Steht ein Tablet fest in einem Laden, wähl dort einmal oben diesen Laden.
 
 ## Was für jeden Laden einzeln gilt
 
@@ -25,6 +25,6 @@ Unter **„Laden“** wählst du oben ebenfalls den Laden. **„Bearbeiten“**,
 - **Team:** Jede Person gehört zu genau einem Laden. Mit derselben E-Mail-Adresse lässt sich niemand in einem zweiten Laden anlegen, außer dir selbst.
 - **QR-Code und Link:** Jeder Laden hat einen eigenen. Häng in jedem Laden sein eigenes [QR-Plakat](/hilfe/plakat) auf.
 
-> **Achtung:** Arbeitest du in mehreren Läden selbst mit, zeigt „Mein Tag“ nur einen davon.
+Arbeitest du in mehreren Läden selbst mit, zeigt [„Mein Tag“](/hilfe/mein-tag) deinen Tag in dem Laden, der oben gewählt ist.
 
 [Laden öffnen](/shop-profile){knopf}

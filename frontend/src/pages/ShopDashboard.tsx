@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PlanBanner } from '../components/pricing/PlanBanner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay } from 'date-fns';
@@ -16,11 +16,10 @@ import { Startklar } from '../components/onboarding/Startklar';
 import { GeraetWahl } from '../components/GeraetWahl';
 import { TeamPushSchalter } from '../components/TeamPushSchalter';
 import { gespeichertesGeraet, jetztFragen, merkeGeraet, spaeterFragen, type GeraetRolle } from '../utils/geraet';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { weekDays } from '../utils/calendar-layout';
 import { useKeepScreenOn } from '../utils/native-app';
 import {
-  listShopsOfOwner,
   getTeamShop,
   getTeamStaff,
   createAppointment,
@@ -38,7 +37,6 @@ import { getUserProfile } from '../utils/user-profile-service';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { datumsLocale, intlSprache, merke, t, tn } from '@/i18n';
 
@@ -86,7 +84,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   const [searchParams] = useSearchParams();
   const heute = bereich === 'heute';
   const { user, loading: userLoading } = useCurrentUser();
-  const [shops, setShops] = useState<Shop[]>([]);
+  // Welcher Laden: oben in der Kopfzeile gewählt (utils/laden-kontext.tsx)
+  const { laeden, laden, fehler: ladenFehler, ersetze } = useInhaberLaden();
   const [shop, setShop] = useState<Shop | null>(null);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -96,7 +95,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   const [now, setNow] = useState(new Date());
   const [showEditShop, setShowEditShop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const loadFailed = ladenFehler;
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentType, setAppointmentType] = useState<'booked' | 'queue'>('queue');
   const [view, setView] = useState<View>(rememberedView);
@@ -145,59 +144,63 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
     return () => clearInterval(timer);
   }, [heute]);
 
+  // Beim schnellen Umschalten zählt nur die Antwort für den zuletzt gewählten Laden
+  const geladenFuer = useRef<string | null>(null);
   const loadShopData = async (shopId: string) => {
+    geladenFuer.current = shopId;
+    const aktuell = () => geladenFuer.current === shopId;
     setIsLoading(true);
     try {
       const shopData = await getTeamShop(shopId);
+      if (!aktuell()) return;
       if (!shopData) {
         toast.error(t('Der Laden konnte nicht geladen werden.'));
         return;
       }
-      setShop(shopData);
-      merkeLaden(shopData.id);
       const [staffData, servicesData, customersData] = await Promise.all([
         getTeamStaff(shopData.id),
         getServicesByShopId(shopData.id),
         getCustomersByShopId(shopData.id),
       ]);
+      if (!aktuell()) return;
+      setShop(shopData);
       setStaff(staffData.filter((s) => s.isActive !== false));
       setServices(servicesData);
       setCustomers(getUniqueCustomers(customersData));
     } catch (error) {
       console.error('Fehler beim Laden der Shop-Daten:', error);
-      toast.error(t('Die Daten des Ladens konnten nicht geladen werden.'));
+      if (aktuell()) toast.error(t('Die Daten des Ladens konnten nicht geladen werden.'));
     } finally {
-      setIsLoading(false);
+      if (aktuell()) setIsLoading(false);
     }
   };
 
+  // Nur für Inhaber: alle anderen zur Startseite
   useEffect(() => {
     if (userLoading) return;
     if (!user) {
       navigate('/login');
       return;
     }
-    (async () => {
-      const profile = await getUserProfile(user.uid);
-      if (!profile || profile.role !== 'shopOwner') {
-        navigate('/');
-        return;
-      }
-      try {
-        const userShops = await listShopsOfOwner(user.uid);
-        setShops(userShops);
-        // ?shopId= z. B. direkt nach dem Einrichten eines weiteren Ladens; sonst der zuletzt gezeigte, sonst einer, der nicht gesperrt ist
-        const wanted = waehleLaden(userShops, searchParams.get('shopId'));
-        if (wanted) await loadShopData(wanted.id);
-        else setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading shops:', error);
-        setLoadFailed(true); // nicht "kein Laden" anzeigen – das würde zum Anlegen eines zweiten verleiten
-        setIsLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    getUserProfile(user.uid).then((profile) => {
+      if (!profile || profile.role !== 'shopOwner') navigate('/');
+    });
   }, [user, userLoading, navigate]);
+
+  // Daten des oben gewählten Ladens; ohne Laden die Einladung zum Einrichten
+  const ladenGeladen = laeden !== null;
+  const ladenId = laden?.id;
+  useEffect(() => {
+    if (!ladenGeladen) return;
+    if (!ladenId) {
+      geladenFuer.current = null;
+      setShop(null);
+      setIsLoading(false);
+      return;
+    }
+    void loadShopData(ladenId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ladenGeladen, ladenId]);
 
   // Termine des gewählten Tages live vom Backend (utils/live.ts, backend/app/apis/team_termine); eigene Änderungen
   // erscheinen sofort (onAppointmentUpdate unten), die nächste Antwort des Backends gilt dann
@@ -319,22 +322,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {heute ? `${t('Heute')} · ${format(selectedDate, t('EEEE, d. MMMM'), { locale: datumsLocale() })}` : t('Kalender')}
           </p>
-          {shops.length > 1 ? (
-            <Select value={shop.id} onValueChange={loadShopData}>
-              <SelectTrigger className="h-auto w-auto gap-3 border-none bg-transparent p-0 font-display text-3xl font-extrabold sm:text-4xl" aria-label={t('Laden wechseln')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {shops.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{shop.name}</h1>
-          )}
+          {/* Gewählt wird oben in der Kopfzeile; hier steht der Name zur Orientierung, auch am Tresen-Tablet */}
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{shop.name}</h1>
           {heute ? (
             <p className="font-semibold" aria-live="polite">
               {[
@@ -519,6 +508,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
             shop={shop}
             onUpdate={(updatedShop) => {
               setShop(updatedShop);
+              ersetze(updatedShop);
               setShowEditShop(false);
             }}
             onCancel={() => setShowEditShop(false)}

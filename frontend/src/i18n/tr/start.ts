@@ -103,7 +103,6 @@ const texte: Texte = {
   "Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.": "Ücretsiz paket. Randevular, bildirimler ve ekip için bir abonelik seçin.",
   "Gratis-Tarif.": "Ücretsiz paket.",
   "Mein Tarif": "Paketim",
-  "Laden wählen": "Salon seç",
   "Testphase": "Deneme süresi",
   "Gründer": "Kurucu",
   "Wird geöffnet …": "Açılıyor …",

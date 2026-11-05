@@ -8,6 +8,7 @@ import { AppProvider } from "./components/AppProvider";
 import { Navigation } from "./components/Navigation";
 import { SiteFooter } from "./components/brand/SiteFooter";
 import { SeitenKopf } from "./components/SeitenKopf";
+import { LadenProvider } from "./utils/laden-kontext";
 import { t } from "@/i18n";
 
 export const SuspenseWrapper = ({ children }: { children: ReactNode }) => {
@@ -51,17 +52,20 @@ export const router = createBrowserRouter(
     {
       element: (
         <AppProvider>
-          <SeitenKopf />
-          <NachObenBeiSeitenwechsel />
-          <div className="flex min-h-screen flex-col">
-            <Navigation />
-            <main id="inhalt" className="flex-1">
-              <SuspenseWrapper>
-                <Outlet />
-              </SuspenseWrapper>
-            </main>
-            <SiteFooter />
-          </div>
+          {/* Gewählter Laden für Kopfzeile und Seiten (utils/laden-kontext.tsx) */}
+          <LadenProvider>
+            <SeitenKopf />
+            <NachObenBeiSeitenwechsel />
+            <div className="flex min-h-screen flex-col">
+              <Navigation />
+              <main id="inhalt" className="flex-1">
+                <SuspenseWrapper>
+                  <Outlet />
+                </SuspenseWrapper>
+              </main>
+              <SiteFooter />
+            </div>
+          </LadenProvider>
         </AppProvider>
       ),
       errorElement: <RouteError />,

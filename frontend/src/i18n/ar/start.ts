@@ -124,7 +124,6 @@ const texte: Texte = {
   "Gratis-Tarif. Für Termine, Benachrichtigungen und Team wähl ein Abo.": "الباقة المجانية. للمواعيد والإشعارات والفريق اختر اشتراكًا.",
   "Gratis-Tarif.": "الباقة المجانية.",
   "Mein Tarif": "باقتي",
-  "Laden wählen": "اختر المحل",
   "Testphase": "الفترة التجريبية",
   "Gründer": "مؤسس",
   "Wird geöffnet …": "جارٍ الفتح …",

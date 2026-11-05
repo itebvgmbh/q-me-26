@@ -110,9 +110,6 @@ const texte: Texte = {
   "Zum Team": "إلى الفريق",
   "Zur Startseite": "إلى الصفحة الرئيسية",
 
-  // components/ShopSwitcher.tsx, pages/EmployeeDashboard.tsx
-  "Laden wählen": "اختر المحل",
-
   // components/TimePicker.tsx
   "Std": "س",
   "Min": "د",

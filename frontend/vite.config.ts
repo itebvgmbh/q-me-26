@@ -85,6 +85,9 @@ export default defineConfig({
 			"/routes": {
 				target: process.env.QME_BACKEND || "http://127.0.0.1:8000",
 				changeOrigin: true,
+				// Anmelden prüft den Origin-Kopf (backend/app/apis/anmeldung, ursprung_pruefen): über diesen Proxy kommt
+				// die Anfrage dort an, als käme sie von der Adresse des Backends – nur beim Entwickeln, der Server bleibt streng
+				...(process.env.QME_BACKEND ? { headers: { origin: process.env.QME_BACKEND.replace(/\/$/, "") } } : {}),
 			},
 		},
 	},

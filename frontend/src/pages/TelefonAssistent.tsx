@@ -1,12 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useCurrentUser } from 'app';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getShopsByOwnerId, type Shop } from '../utils/firestore';
-import { merkeLaden, waehleLaden } from '../utils/laden-wahl';
+import { useInhaberLaden } from '../utils/laden-kontext';
 import { ladeTelefon, nummerFuerKunden, speichereTelefon, zumWaehlen, type TelefonStand } from '../utils/telefon-assistent';
 import { merke, t } from '@/i18n';
 
@@ -161,11 +159,11 @@ const Weitersagen = ({
 /**
  * Telefon-Assistent: Der Inhaber trägt die Nummer seines Ladens ein, richtet die Umleitung ein und macht einen
  * Probeanruf. Erkannt wird der Anruf im Backend (backend/app/apis/telefon_eingang), die Seite schaut alle paar Sekunden nach.
+ * Welcher Laden: oben in der Kopfzeile (utils/laden-kontext.tsx).
  */
 export default function TelefonAssistent() {
-  const { user } = useCurrentUser();
-  const [shops, setShops] = useState<Shop[] | null>(null);
-  const [shopId, setShopId] = useState('');
+  const { laeden: shops, laden, fehler: ladenFehler } = useInhaberLaden();
+  const shopId = laden?.id ?? '';
   const [stand, setStand] = useState<TelefonStand | null>(null);
   const [fehler, setFehler] = useState('');
   const [nummer, setNummer] = useState('');
@@ -173,18 +171,7 @@ export default function TelefonAssistent() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    getShopsByOwnerId(user.uid)
-      .then((list) => {
-        setShops(list);
-        setShopId((current) => current || waehleLaden(list)?.id || '');
-      })
-      .catch(() => setFehler(t('Die Daten des Ladens konnten nicht geladen werden.')));
-  }, [user]);
-
-  useEffect(() => {
     if (!shopId) return;
-    merkeLaden(shopId);
     setStand(null);
     setFehler('');
     ladeTelefon(shopId)
@@ -230,25 +217,12 @@ export default function TelefonAssistent() {
       <header className="flex flex-col gap-2">
         <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Telefon-Assistent')}</h1>
         <p className="text-muted-foreground">{t('Geht im Laden niemand ran, nimmt eine KI den Anruf an. Sie nennt freie Termine, bucht sie, sagt die Wartezeit und zieht Nummern. Im ersten Satz sagt sie, dass sie eine KI ist.')}</p>
-        {shops && shops.length > 1 && (
-          <select
-            aria-label={t('Laden wählen')}
-            className="w-full max-w-xs rounded-xl border border-border bg-card px-3 py-2"
-            value={shopId}
-            onChange={(e) => setShopId(e.target.value)}
-          >
-            {shops.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
       </header>
       {inhalt}
     </div>
   );
 
+  if (ladenFehler) return seite(<p role="alert">{t('Die Daten des Ladens konnten nicht geladen werden.')}</p>);
   if (fehler) return seite(<p role="alert">{fehler}</p>);
   if (shops && !shops.length) return seite(<p>{t('Richte zuerst deinen Laden ein.')}</p>);
   if (!stand) return seite(<p className="text-muted-foreground">{t('Wird geladen')}</p>);
@@ -262,7 +236,7 @@ export default function TelefonAssistent() {
 
   const ziel = zumWaehlen(stand.zielnummer);
   const aufgebraucht = stand.minuten >= stand.freiminuten;
-  const kundenNummer = stand.aktiv && stand.weitersagen ? nummerFuerKunden(stand, shops?.find((s) => s.id === shopId)?.phone) : '';
+  const kundenNummer = stand.aktiv && stand.weitersagen ? nummerFuerKunden(stand, laden?.phone) : '';
 
   return seite(
     <>

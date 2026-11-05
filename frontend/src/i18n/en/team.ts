@@ -10,7 +10,6 @@ const texte: Texte = {
   "Wer arbeitet wann und bietet was an. Nur so entstehen freie Zeiten.": "Who works when and offers what. That's the only way free slots appear.",
   "Im Tarif {tarif} sind {n} Personen dabei.": { one: "The {tarif} plan includes one person.", other: "The {tarif} plan includes {n} people." },
   "Tarif wechseln": "Change plan",
-  "Laden wählen": "Choose shop",
   "Team wird geladen": "Loading team",
   "Richte zuerst deinen Laden ein.": "Set up your shop first.",
   "Laden einrichten": "Set up shop",

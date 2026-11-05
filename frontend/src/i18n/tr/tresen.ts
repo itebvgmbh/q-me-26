@@ -96,9 +96,6 @@ const texte: Texte = {
   "Zum Team": "Ekibe git",
   "Zur Startseite": "Ana sayfaya git",
 
-  // components/ShopSwitcher.tsx, pages/EmployeeDashboard.tsx
-  "Laden wählen": "Salon seç",
-
   // components/TimePicker.tsx
   "Std": "sa",
   "Min": "dk",
