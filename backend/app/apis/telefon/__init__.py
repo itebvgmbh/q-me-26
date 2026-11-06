@@ -453,7 +453,7 @@ def buchen(anfrage: BuchenAnfrage) -> dict:
     code = termin.get("referenceCode")
     print(f"Telefon {shop_id}: Termin {termin['id']} gebucht, {start:%d.%m. %H:%M} bei {person_id}")
     return {"ok": True, "termin_id": termin["id"], "nummer": code, "zeit": zeit, "person": person["rufname"], "leistung": leistung["name"],
-            "ansage": f"Gebucht: {zeit} bei {person['rufname']}, {leistung['name']}." + (f" Die Nummer für den Aufruf ist {code}." if code else "")}
+            "ansage": f"Gebucht: {zeit} bei {person['rufname']}, {leistung['name']}." + (f" Nummer {code} für den Aufruf." if code else "")}
 
 
 @router.post("/telefon/wartezeit")
@@ -480,7 +480,7 @@ def wartezeit(anfrage: WartezeitAnfrage) -> dict:
     person, start, _ = plaetze[0]
     minuten = t.minuten_bis(start, jetzt)
     if minuten <= 5:
-        ansage = f"Für {leistung['name']} ist gerade frei, bei {person['rufname']} ab {t.uhrzeit(start)}."
+        ansage = f"Für {leistung['name']} ist ab {t.uhrzeit(start)} bei {person['rufname']} gerade frei."
     else:
         ansage = f"Für {leistung['name']} ist der nächste Platz heute gegen {t.uhrzeit(start)} bei {person['rufname']}, also in etwa {t.minuten_text(minuten)}."
     return {"ok": True, "frei": True, "minuten": minuten, "zeit": f"heute gegen {t.uhrzeit(start)}", "person": person["rufname"],
@@ -518,7 +518,7 @@ def nummer(anfrage: NummerAnfrage) -> dict:
     print(f"Telefon {shop_id}: Nummer {code} gezogen, {start:%H:%M} bei {termin['staffId']}")
     return {"ok": True, "termin_id": termin["id"], "nummer": code, "zeit": f"heute gegen {t.uhrzeit(start)}", "minuten": minuten,
             "person": person["rufname"], "leistung": leistung["name"],
-            "ansage": f"Die Nummer ist {code}. Dran heute gegen {t.uhrzeit(start)} bei {person['rufname']}, "
+            "ansage": f"Gezogen: Nummer {code}, dran heute gegen {t.uhrzeit(start)} bei {person['rufname']}, "
                       + ("also gleich." if minuten <= 5 else f"in etwa {t.minuten_text(minuten)}.")}
 
 
