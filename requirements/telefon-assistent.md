@@ -36,7 +36,7 @@ Beteiligt sind:
 ### Begrüßung und Sprache
 
 - Der Assistent meldet sich mit dem Namen des Ladens. Im ersten Satz sagt er, dass er ein KI-Assistent ist (Art. 50 Abs. 1 KI-Verordnung).
-- Er begrüßt auf Deutsch und wechselt von selbst in die Sprache des Anrufers.
+- Er begrüßt auf Deutsch. Spricht der Anrufer eine andere Sprache, fragt er gleich in dieser Sprache, ob es so weitergeht, und bleibt danach bis zum Ende dabei. Öffentlich steht weiter „auf Deutsch“, bis Türkisch und Arabisch am Telefon geprüft sind.
 
 ### Termin buchen
 

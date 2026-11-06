@@ -9,6 +9,7 @@ Die Zeit steht fest: "jetzt" ist ein Mittwoch in einer Woche um 10:07 Uhr, der L
 import itertools
 import os
 import random
+import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 
@@ -27,6 +28,11 @@ _today = datetime.now(BERLIN).date()
 TAG = _today + timedelta(days=7 + (2 - _today.weekday()) % 7)  # ein Mittwoch, mindestens eine Woche voraus
 JETZT = datetime.combine(TAG, datetime.min.time()).replace(hour=10, minute=7)
 NUMMER = "+493012345678"
+
+
+def assert_keine_ordnungszahl(ansage: str) -> None:
+    """Eine Zahl mit Punkt am Satzende liest die deutsche Stimme als Ordnungszahl: „36.“ klingt wie „sechsunddreißigste“ (Testanruf 06.11.2026)"""
+    assert not re.search(r"\d\.(\s|$)", ansage), ansage
 
 
 def at(hhmm: str, day: date = TAG) -> datetime:
@@ -343,7 +349,8 @@ def test_buchen_wie_ohne_konto_mit_tagesnummer_und_belegung():
     kurz = store["public_appointments"][r["termin_id"]]
     assert kurz["referenceCode"] == code and kurz["shopDay"] == f"laden_{TAG}" and kurz["startTime"] == at("10:30"), kurz
     assert "customerName" not in kurz and "customerPhone" not in kurz, "Name und Nummer nicht öffentlich"
-    assert r["ansage"] == f"Gebucht: heute um 10 Uhr 30 bei Robin, Herrenschnitt. Die Nummer für den Aufruf ist {code}."
+    assert r["ansage"] == f"Gebucht: heute um 10 Uhr 30 bei Robin, Herrenschnitt. Nummer {code} für den Aufruf.", r["ansage"]
+    assert_keine_ordnungszahl(r["ansage"])
 
 
 def test_platz_weg_bietet_die_naechsten_an():
@@ -459,7 +466,8 @@ def test_nummer_kommt_hinter_die_wartenden():
     # 10:30 wäre nach Plan frei, aber Robin hängt hinterher: Die Wartende von 10:00 ist erst bis ca. 10:50 dran
     assert termin["startTime"] == at("11:00") and termin["type"] == "queue" and "customerPhone" not in termin, termin
     assert r["zeit"] == "heute gegen 11 Uhr" and r["minuten"] == 53
-    assert r["ansage"] == f"Die Nummer ist {r['nummer']}. Dran heute gegen 11 Uhr bei Robin, in etwa 53 Minuten."
+    assert r["ansage"] == f"Gezogen: Nummer {r['nummer']}, dran heute gegen 11 Uhr bei Robin, in etwa 53 Minuten.", r["ansage"]
+    assert_keine_ordnungszahl(r["ansage"])
     gleich = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", person="egal", name="Sam"))
     assert gleich["ansage"].endswith("bei Kim, in etwa 8 Minuten."), gleich
 

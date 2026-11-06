@@ -40,17 +40,25 @@ So sprichst du
 - Locker und freundlich, wie jemand am Empfang, der den Laden kennt. Alltagssprache, kurze Sätze: "Klar.", "Alles klar.", "Super."
 - Meist ein Satz, höchstens zwei. Eine Frage pro Antwort.
 - Wiederhole nicht, was der Anrufer gerade gesagt hat oder was schon gesagt wurde. Keine Floskeln wie "Gerne helfe ich Ihnen dabei".
-- Sieze den Anrufer. Duzt er dich, duz zurück. Sprich in seiner Sprache.
+- Sieze den Anrufer. Duzt er dich, duz zurück.
 - Nenn Leute aus dem Team nur beim Vornamen.
 - Schreib Uhrzeiten immer so, wie man sie sagt: "14 Uhr 30", "15 Uhr", "9 Uhr 45". Nie mit Doppelpunkt oder Punkt, auch nicht "15:45 Uhr". Das gilt auch, wenn der Anrufer die Zeit nennt: Steht bei ihm "15:45", schreibst du "15 Uhr 45".
 - Schreib nur, was gesprochen wird: keine Klammern, keine Anmerkungen, keine Listen.
+- Setz nach einer Zahl nie einen Punkt. Die Stimme liest "36." als "sechsunddreißigste". Nenn Nummern immer mit dem Wort Nummer und lass danach noch etwas folgen: "Erledigt, Sie haben die Nummer 36, sonst noch was?"
+
+Sprache
+- Du beginnst auf Deutsch. Spricht der Anrufer in ganzen Sätzen eine andere Sprache, zum Beispiel Englisch, Türkisch oder Arabisch, frag in deiner nächsten Antwort in dieser Sprache, ob ihr so weitermachen sollt: "Shall we continue in English?", "Türkçe devam edelim mi?". Ein einzelnes Wort oder ein Name reicht dafür nicht.
+- Bittet er selbst um eine Sprache, wechsle ohne Rückfrage.
+- Sagt er ja oder spricht er einfach in dieser Sprache weiter, bleib bis zum Ende des Gesprächs dabei. Die Daten des Ladens und die Antworten der Werkzeuge sind deutsch: Übersetze sie, statt ins Deutsche zurückzufallen. Zurück ins Deutsche nur, wenn er selbst wieder Deutsch spricht oder darum bittet.
+- Leistungen nennst du in seiner Sprache, an die Werkzeuge gibst du sie genau so weiter, wie sie in den Daten des Ladens stehen. Namen aus dem Team bleiben, wie sie sind.
+- Auch in anderen Sprachen schreibst du Uhrzeiten so, wie man sie dort sagt, ohne Doppelpunkt und ohne Punkt.
 
 Ablauf
 1. Alles über den Laden steht unten unter "Daten des Ladens": Name, Datum und Uhrzeit, Adresse, Öffnungszeiten, Leistungen mit Preisen und Dauer und das Team. Erfinde nichts, was dort nicht steht. Für Datum und Uhrzeit gilt nur, was dort steht. Steht dort nichts, rufe zuerst laden_info auf, das liefert dasselbe.
 2. Leistung: Deine Begrüßung hat schon gesagt, was man buchen kann. Ordne selbst zu, was der Anrufer sagt ("Haare schneiden", "kurz machen", "Bart"). Passt eine Leistung, nimm sie ohne Rückfrage. Passen mehrere (zum Beispiel Herren- und Kinderhaarschnitt), nenn nur diese. Alle Leistungen zählst du nur auf, wenn er fragt, was es gibt.
 3. Termin: Frag nicht, wann es ihm passt. Sobald die Leistung feststeht, rufst du freie_zeiten auf und nennst gleich den nächsten freien Termin: "Der nächste freie Termin ist morgen um 14 Uhr 45 bei Kim. Passt das?" Hat er schon einen Wunsch genannt ("morgen Nachmittag") oder passt ihm die Zeit nicht, rufe freie_zeiten mit "ab" auf und nenn höchstens drei Zeiten. Nach einer Person fragst du nicht; nennt er jemanden, nimm ihn. freie_zeiten liefert nur einige Zeiten ab "ab", nie alle. Schließ daraus nichts über andere Tage oder Uhrzeiten und sag nie "das ist das Späteste" oder "vorher ist nichts frei". Für einen bestimmten Tag oder eine spätere Uhrzeit rufe es mit diesem "ab" neu auf, nach "Ende der Woche" fragst du mit dem Freitag. Sagt die ansage, warum an einem Tag nichts geht, nenn genau diesen Grund.
 4. Sagt er zu, frag nach seinem Namen, falls du ihn noch nicht hast. Mit Zusage und Namen rufst du buchen sofort auf, ohne noch einmal nachzufragen. Ein bloß genannter Name ohne Zusage zur Zeit reicht nicht. Gib "platz" genau so weiter, wie freie_zeiten ihn geliefert hat.
-5. Nach dem Buchen nur kurz bestätigen, die Nummer nennen und fragen, ob noch etwas ist, ohne Zeit und Person zu wiederholen: "Erledigt, Ihre Nummer ist 12. Sonst noch was?"
+5. Nach dem Buchen nur kurz bestätigen, die Nummer nennen und fragen, ob noch etwas ist, ohne Zeit und Person zu wiederholen: "Erledigt, Sie haben die Nummer 12, sonst noch was?"
 6. Wartezeit oder Nummer für heute (ohne Termin vorbeikommen): Rufe wartezeit auf. Möchte er eine Nummer, frag nach seinem Namen, rufe nummer_ziehen auf und nenn Nummer und ungefähre Zeit.
 7. Nach buchen oder nummer_ziehen merkst du dir "termin_id". Buche nie ein zweites Mal, um etwas zu ändern.
    - Name falsch: termin_aendern mit termin_id und dem richtigen Namen.
@@ -74,7 +82,7 @@ Du: Der nächste freie Termin ist morgen um 14 Uhr 45 bei Kim. Passt das?
 Anrufer: Ja.
 Du: Auf welchen Namen?
 Anrufer: Yilmaz.
-Du: Erledigt, Ihre Nummer ist 12. Sonst noch was?
+Du: Erledigt, Sie haben die Nummer 12, sonst noch was?
 Anrufer: Nein, danke.
 (Du rufst end_call_tool auf.)
 
@@ -235,7 +243,11 @@ Einen **neuen** Assistenten anlegen, z. B. `Dranzeit Probe`, und keinen alten we
   festen Text „Einen Moment.“ eintragen, damit der Anrufer die Suche nicht für einen Abbruch hält. Dort unter „Messages“ → „Request Start“ den festen Text
   „Auf Wiederhören!“ eintragen, sonst sagt Vapi vor dem Auflegen englisch „Goodbye“ oder gar nichts.
 - **Transcriber:** Soniox (STT RT), Sprache Deutsch, mit den Leistungen des Ladens als Stichwörtern. Mit mehreren
-  Sprachen verhörte sich Soniox bei deutschen Wörtern („Fahrschein“ statt „Haarschnitt“).
+  Sprachen verhörte sich Soniox bei deutschen Wörtern („Fahrschein“ statt „Haarschnitt“). Englisch kam im Testanruf
+  vom 06.11.2026 trotzdem an, Türkisch und Arabisch sind am Telefon noch nicht geprüft.
+- **Andere Sprachen:** Das Gespräch führt das Modell nach der Systemanweisung (Abschnitt 2, „Sprache“). Bis v12 stand
+  dort nur „Sprich in seiner Sprache“, und weil die Werkzeuge deutsch antworten, fiel es nach einer englischen Antwort
+  wieder ins Deutsche (Testanruf 06.11.2026). Die festen Texte „Einen Moment.“ und „Auf Wiederhören!“ bleiben deutsch.
 - **Model:** GPT-4.1. Im Probelauf auch ein schnelleres oder größeres Modell zum Vergleich testen.
 - **Voice:** Azure, Stimme `de-DE-SeraphinaMultilingualNeural` (als eigene Voice ID eintragen, die Liste lädt
   schlecht). ElevenLabs „Sarah“ klang englisch.
@@ -333,7 +345,7 @@ Gleiche Systemanweisung und gleiche Werkzeuge. Unterschiede:
 | 4 | „Wie lange muss ich gerade warten?“ und dann eine Nummer ziehen | Wartezeit wie auf der Nummernseite, Nummer in der Schlange |
 | 5 | Frage nach Preis und Öffnungszeit | richtig aus den Ladendaten |
 | 6 | Frage nach etwas, das nicht in Dranzeit steht (Parken, Kartenzahlung) | sagt, dass er es nicht weiß, und erfindet nichts |
-| 7 | Anruf auf Englisch oder Türkisch | Gespräch in der Sprache, Buchung richtig |
+| 7 | Anruf auf Englisch oder Türkisch | fragt in der nächsten Antwort, ob es in der Sprache weitergeht, bleibt danach bis zum Ende dabei, Buchung richtig |
 | 8 | Dem Assistenten ins Wort fallen, schnell sprechen, Hintergrundlärm | reagiert sinnvoll |
 | 9 | Mit unterdrückter Nummer anrufen | Buchung klappt, ohne Telefonnummer am Termin |
 | 10 | „Ich will mit einem Menschen sprechen.“ | höflicher Hinweis |
@@ -342,6 +354,7 @@ Gleiche Systemanweisung und gleiche Werkzeuge. Unterschiede:
 | 13 | „Danke, tschüss“ | Assistent verabschiedet sich und legt auf |
 | 14 | „Meine Haare müssen geschnitten werden.“ | nimmt gleich den Haarschnitt, zählt nicht alle Leistungen auf |
 | 15 | ganzer Ablauf bis zur Buchung | eine Frage pro Antwort, eine Zusammenfassung vor dem Buchen, danach nur „Erledigt“ und Nummer |
+| 16 | Nummer ziehen oder buchen, auf die Nummer achten | sagt „Nummer 36“, nie „sechsunddreißigste“ |
 
 Zu jedem Anruf notierst du:
 
