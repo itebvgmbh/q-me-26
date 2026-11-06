@@ -1,7 +1,8 @@
-import type { User } from "firebase/auth";
+import type { User } from "./konto";
 import * as React from "react";
 import { createContext, useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { t } from "@/i18n";
 import { useCurrentUser } from "./useCurrentUser";
 
 type UserGuardContextType = {
@@ -38,7 +39,7 @@ export const UserGuard = (props: {
     return (
       <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
         <span className="h-8 w-8 animate-spin rounded-full border-4 border-foreground/15 border-t-foreground" aria-hidden="true" />
-        <span className="sr-only">Wird geladen …</span>
+        <span className="sr-only">{t("Wird geladen …")}</span>
       </div>
     );
   }

@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 /**
  * Checks if a given time slot is available (not in the past)
  * @param startTime - The start time of the slot (can be Date, Timestamp or ISO string)

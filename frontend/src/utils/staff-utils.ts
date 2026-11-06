@@ -1,16 +1,16 @@
 /**
  * Utility functions for staff management
  */
+import { merke, t } from '@/i18n';
+
+const DAY_NAMES = [merke('Sonntag'), merke('Montag'), merke('Dienstag'), merke('Mittwoch'), merke('Donnerstag'), merke('Freitag'), merke('Samstag')];
 
 /**
  * Returns the name of the day for a given day of week number
  * @param dayOfWeek - 0-6, where 0 is Sunday
- * @returns The localized day name in German
+ * @returns The day name in the current language (only for display)
  */
-export const getDayName = (dayOfWeek: number): string => {
-  const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-  return days[dayOfWeek];
-};
+export const getDayName = (dayOfWeek: number): string => t(DAY_NAMES[dayOfWeek]);
 
 /**
  * Default working hours for new staff members

@@ -1,4 +1,4 @@
-import { User } from 'firebase/auth';
+import { User } from 'app';
 import { Staff } from '../utils/firestore';
 
 interface Props {

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Staff, WorkingHours, updateStaffWorkingHours } from '../utils/firestore';
+import { merke, t } from '@/i18n';
 
 interface Props {
   employee: Staff;
@@ -13,13 +14,13 @@ interface Props {
 }
 
 const DAYS_OF_WEEK = [
-  { name: 'Sonntag', value: 0 },
-  { name: 'Montag', value: 1 },
-  { name: 'Dienstag', value: 2 },
-  { name: 'Mittwoch', value: 3 },
-  { name: 'Donnerstag', value: 4 },
-  { name: 'Freitag', value: 5 },
-  { name: 'Samstag', value: 6 },
+  { name: merke('Sonntag'), value: 0 },
+  { name: merke('Montag'), value: 1 },
+  { name: merke('Dienstag'), value: 2 },
+  { name: merke('Mittwoch'), value: 3 },
+  { name: merke('Donnerstag'), value: 4 },
+  { name: merke('Freitag'), value: 5 },
+  { name: merke('Samstag'), value: 6 },
 ];
 
 export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
@@ -65,10 +66,10 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
     try {
       const updatedEmployee = await updateStaffWorkingHours(employee.id, workingHours);
       onUpdate(updatedEmployee);
-      toast.success('Arbeitszeiten erfolgreich aktualisiert');
+      toast.success(t('Arbeitszeiten erfolgreich aktualisiert'));
     } catch (error: any) {
       console.error('Error updating working hours:', error);
-      toast.error('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'));
+      toast.error(t('Fehler beim Aktualisieren: {fehler}', { fehler: error.message || t('Unbekannter Fehler') }));
     } finally {
       setIsSubmitting(false);
     }
@@ -82,21 +83,21 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
         if (!dayHours) return null;
 
         return (
-          <div key={day.value} className="flex items-center space-x-4">
+          <div key={day.value} className="flex items-center space-x-4 rtl:space-x-reverse">
             <div className="w-32">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <Switch
                   checked={dayHours.isWorking}
                   onCheckedChange={() => handleWorkingDayToggle(day.value)}
                 />
-                <Label>{day.name}</Label>
+                <Label>{t(day.name)}</Label>
               </div>
             </div>
 
             {dayHours.isWorking && (
               <div className="flex-1 grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`start-${day.value}`}>Von</Label>
+                  <Label htmlFor={`start-${day.value}`}>{t('Von')}</Label>
                   <Input
                     id={`start-${day.value}`}
                     type="time"
@@ -106,7 +107,7 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor={`end-${day.value}`}>Bis</Label>
+                  <Label htmlFor={`end-${day.value}`}>{t('Bis')}</Label>
                   <Input
                     id={`end-${day.value}`}
                     type="time"
@@ -122,17 +123,17 @@ export const WorkingHoursForm = ({ employee, onUpdate, onCancel }: Props) => {
       })}
 
       </div>
-      <div className="flex justify-end space-x-2 pt-6 border-t">
+      <div className="flex justify-end space-x-2 pt-6 border-t rtl:space-x-reverse">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={isSubmitting}
         >
-          Abbrechen
+          {t('Abbrechen')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Speichern...' : 'Änderungen speichern'}
+          {isSubmitting ? t('Speichern...') : t('Änderungen speichern')}
         </Button>
       </div>
     </form>

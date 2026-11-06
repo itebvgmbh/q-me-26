@@ -6,7 +6,7 @@ from fastapi import FastAPI, APIRouter, Depends
 
 dotenv.load_dotenv()
 
-from databutton_app.mw.auth_mw import AuthConfig, get_authorized_user
+from databutton_app.mw.auth_mw import get_authorized_user
 
 
 def get_router_config() -> dict:
@@ -63,61 +63,98 @@ def import_api_routers() -> APIRouter:
     return routes
 
 
-def get_firebase_config() -> dict | None:
-    extensions = os.environ.get("DATABUTTON_EXTENSIONS", "[]")
-    extensions = json.loads(extensions)
-
-    for ext in extensions:
-        if ext["name"] == "firebase-auth":
-            return ext["config"]["firebaseConfig"]
-
-    # Outside Databutton: only the project id is needed to validate ID tokens
-    project_id = os.environ.get("FIREBASE_PROJECT_ID")
-    if project_id:
-        return {"projectId": project_id}
-
-    return None
-
-
 def create_app() -> FastAPI:
     """Create the app. This is called by uvicorn with the factory option to construct the app object."""
     app = FastAPI()
     app.include_router(import_api_routers())
+    # Fehlermeldungen (detail) in der Sprache der Anfrage (app/i18n)
+    from app.i18n import uebersetzte_fehler
+
+    uebersetzte_fehler(app)
+
+    # Stadtseiten, sitemap.xml (app/seo.py), Salon-Verzeichnis (app/verzeichnis_seiten.py), Hilfe (app/hilfe) und
+    # Einbau-Kasten (app/einbau.py): unter eigenem Pfad (Caddy leitet ihn weiter) und unter /routes/seo
+    from app import einbau, hilfe, seo, vergleich, verzeichnis_seiten
+
+    app.include_router(seo.router)
+    app.include_router(seo.router, prefix="/routes/seo")
+    app.include_router(verzeichnis_seiten.router)
+    app.include_router(verzeichnis_seiten.router, prefix="/routes/seo")
+    app.include_router(hilfe.router)
+    app.include_router(hilfe.router, prefix="/routes/seo")
+    app.include_router(einbau.router)
+    app.include_router(einbau.router, prefix="/routes/seo")
+    app.include_router(vergleich.router)
+    app.include_router(vergleich.router, prefix="/routes/seo")
 
     for route in app.routes:
         if hasattr(route, "methods"):
             for method in route.methods:
                 print(f"{method} {route.path}")
 
-    firebase_config = get_firebase_config()
+    # Anmeldung über die eigene Sitzung (app/libs/anmeldung.py, databutton_app/mw/auth_mw.py), nicht mehr über Firebase
 
-    if firebase_config is None:
-        print("No firebase config found")
-        app.state.auth_config = None
-    else:
-        print("Firebase config found")
-        auth_config = {
-            "jwks_url": "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
-            "audience": firebase_config["projectId"],
-            "header": "authorization",
-        }
+    @app.on_event("startup")
+    def datenbank_melden() -> None:
+        # PostgreSQL (app/libs/datenbank.py): bis Stufe 3 nur der Befund im Log, die Daten liegen noch in Firestore
+        from app.libs.datenbank import zustand
 
-        app.state.auth_config = AuthConfig(**auth_config)
+        print(f"Datenbank: {zustand()}")
 
     @app.on_event("startup")
     def autostart_scheduler() -> None:
         # "Früher dran" braucht den Hintergrunddienst; vorher musste ihn jemand nach
-        # jedem Neustart von Hand starten. Ohne Dienstkonto-Schlüssel bleibt er aus.
-        key_file = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY_FILE", "")
+        # jedem Neustart von Hand starten. Ohne Datenbank (QME_DATABASE_URL) bleibt er aus.
+        from app.libs.datenbank import database_url
+
         if os.environ.get("QME_SCHEDULER_AUTOSTART", "1") != "1":
             print("Scheduler autostart disabled (QME_SCHEDULER_AUTOSTART)")
-        elif not (key_file and os.path.isfile(key_file)) and not os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY"):
-            print("Scheduler autostart skipped: no Firebase service account key")
+        elif not database_url():
+            print("Scheduler autostart skipped: no database (QME_DATABASE_URL)")
         else:
             from app.apis.schedulers import start_scheduler_thread
 
             start_scheduler_thread()
             print("Scheduler autostarted")
+
+            # "Gleich dran", "Du bist dran" und Termin-Erinnerungen (app/libs/notify_worker.py)
+            from app.libs.notify_worker import start_notify_worker
+
+            start_notify_worker()
+            print("Notify worker autostarted")
+
+            # Team-Vermerke für die Firestore-Regeln an die Personen angleichen (app/libs/team.py), Kontaktdaten der
+            # Personen vom öffentlichen Eintrag zu den Kontaktdaten des Ladens umziehen (app/libs/staff_contacts.py)
+            import threading
+
+            def sync_team() -> None:
+                from app.apis.firebase_utils import get_firestore_db
+
+                try:
+                    from app.libs.team import sync_members
+
+                    print(f"Team-Vermerke abgeglichen: {sync_members(get_firestore_db())}")
+                except Exception as e:  # Start des Dienstes nie daran scheitern lassen
+                    print(f"Team-Vermerke nicht abgeglichen: {e}")
+                try:
+                    from app.libs.staff_contacts import migrate
+
+                    print(f"Kontaktdaten des Teams umgezogen: {migrate(get_firestore_db())} Personen")
+                except Exception as e:
+                    print(f"Kontaktdaten des Teams nicht umgezogen: {e}")
+                try:
+                    from app.libs import shop_privat
+
+                    print(f"Stripe-IDs und Sperr-Konten nach privat umgezogen: {shop_privat.migrate(get_firestore_db())} Läden")
+                except Exception as e:
+                    print(f"Stripe-IDs und Sperr-Konten nicht umgezogen: {e}")
+
+            threading.Thread(target=sync_team, daemon=True).start()
+
+            # Öffentliche Kurzfassung der Termine anlegen und laufend abgleichen (app/libs/public_appointments.py)
+            from app.libs.public_appointments import start_public_sync
+
+            start_public_sync()
 
     return app
 

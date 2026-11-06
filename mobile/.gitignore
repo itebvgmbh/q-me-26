@@ -1,0 +1,4 @@
+node_modules/
+# Firebase-Konfiguration der App: kommt im CI aus dem Secret IOS_GOOGLE_SERVICE_INFO (README.md)
+ios/App/App/GoogleService-Info.plist
+ios/App/.spm/

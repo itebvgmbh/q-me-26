@@ -8,6 +8,5 @@ export * from './shops';
 export * from './staff';
 export * from './services';
 export * from './appointments';
-export * from './queue';
 export * from './customers';
-export * from './storage';
+// Bild-Upload nicht hier: direkt aus './storage' holen

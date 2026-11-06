@@ -1,0 +1,302 @@
+// Betreiber-Bereich (/betreiber): alle Läden und Konten, Eingriffe, Protokoll.
+// Backend: backend/app/apis/betreiber (nur für Betreiber, QME_ADMIN_EMAILS auf dem Server)
+import { useEffect, useState } from 'react';
+import { auth, useCurrentUser } from 'app';
+import type { PlanId } from './plans';
+import type { TelefonStand } from './telefon-assistent';
+
+/** Anfrage mit Anmeldung; Fehler als Error mit dem Text vom Server */
+export const request = async (path: string, body?: unknown): Promise<Response> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: await auth.getAuthHeaderValue() };
+  let res: Response;
+  try {
+    res = await fetch(path, { method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch {
+    throw new Error('Keine Verbindung zum Server. Bitte prüf dein Internet.');
+  }
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = (await res.json())?.detail;
+    } catch {
+      /* keine JSON-Antwort */
+    }
+    throw new Error(typeof detail === 'string' && detail ? detail : `Das hat nicht geklappt (Fehler ${res.status}).`);
+  }
+  return res;
+};
+
+export const send = async <T>(path: string, body?: unknown): Promise<T> => (await (await request(path, body)).json()) as T;
+
+const BASE = '/routes/betreiber';
+const shopPath = (id: string, action: string) => `${BASE}/laden/${encodeURIComponent(id)}/${action}`;
+const accountPath = (uid: string, action: string) => `${BASE}/konto/${encodeURIComponent(uid)}/${action}`;
+
+/** echt | test (aus Testskripten, @example.com) | intern (ITEBV GmbH, Betreiber) */
+export type Kind = 'echt' | 'test' | 'intern';
+export type PlanSource = 'abo' | 'freischaltung' | 'test' | 'gratis';
+
+export interface AdminShop {
+  id: string;
+  nr: string;
+  name: string;
+  owner: string;
+  ownerLabel: string;
+  email: string;
+  city: string;
+  phone: string;
+  created: string | null;
+  founder: boolean;
+  /** Status des Stripe-Abos (active, trialing, past_due, canceled …), leer ohne Abo */
+  billing: string;
+  plan: string;
+  interval: string;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
+  customerId: string;
+  subscriptionId: string;
+  /** test: der Laden bucht in der Stripe-Sandbox (Schalter im Betreiber-Bereich); Kunde und Abo sind dann von dort */
+  stripeMode: StripeMode;
+  effectivePlan: PlanId;
+  source: PlanSource;
+  trialEnd: string;
+  grant: { plan: PlanId; until: string | null; active: boolean } | null;
+  suspended: string | null;
+  onboarding: string[];
+  services: number;
+  staff: number;
+  staffAccounts: string[];
+  customers: number;
+  appointments: number;
+  upcoming: number;
+  thisMonth: number;
+  last30: number;
+  lastAppointment: string | null;
+  markers: string[];
+  kind: Kind;
+}
+
+export interface AdminAccount {
+  uid: string;
+  nr: string;
+  email: string;
+  name: string;
+  role: string;
+  emailVerified: boolean | null;
+  disabled: boolean;
+  blockedByAdmin: boolean;
+  created: string | null;
+  lastSignIn: string | null;
+  providers: string[];
+  auth: boolean;
+  profile: boolean;
+  shops: string[];
+  staff: { shopId: string; role: string; active: boolean }[];
+  customers: string[];
+  appointments: number;
+  upcoming: number;
+  markers: string[];
+  kind: Kind;
+}
+
+export interface Stats {
+  shops: number;
+  shopsTest: number;
+  newShops7: number;
+  newShops30: number;
+  byPlan: Record<PlanId, number>;
+  inTrial: number;
+  paying: number;
+  granted: number;
+  mrr: number;
+  pastDue: number;
+  cancelling: number;
+  trialEndingSoon: number;
+  suspended: number;
+  founders: { taken: number; limit: number };
+  accounts: number;
+  accountsTest: number;
+  accountsByRole: Record<string, number>;
+  accountsUnverified: number;
+  appointments30: number;
+}
+
+export type StripeMode = 'live' | 'test';
+
+export interface SystemStatus {
+  stripe: '' | 'test' | 'live';
+  stripeWebhook: boolean;
+  stripePortal: boolean;
+  /** Sandbox-Schlüssel für den Testmodus je Laden (STRIPE_TEST_SECRET_KEY) und ihr Webhook */
+  stripeSandbox: boolean;
+  stripeSandboxWebhook: boolean;
+  resend: boolean;
+  mailFrom: string;
+  publicUrl: string;
+  scheduler: { running: boolean; lastRun: string | null; intervalSeconds: number };
+  admins: number;
+}
+
+export interface Overview {
+  now: string;
+  stats: Stats;
+  shops: AdminShop[];
+  accounts: AdminAccount[];
+  orphans: { staff: number; customers: number; appointmentsInMissingShops: number };
+  system: SystemStatus;
+  /** Telefon-Assistent: für alle geöffnet? Wer testet, wer hat ihn gebucht (backend/app/apis/betreiber _telefon_uebersicht) */
+  telefon?: { offen: boolean; laeden: TelefonZeile[] };
+}
+
+export interface TelefonZeile {
+  id: string;
+  name: string;
+  aktiv: boolean;
+  gesperrt: boolean;
+  freigegeben: boolean;
+  /** Stand des Stripe-Abos für den Zusatz, leer: nie gebucht */
+  zusatz: string;
+  modus: string;
+  kuendigt: boolean;
+  art: 'test' | 'zusatz';
+  minuten: number;
+  grenze: number;
+  /** Minuten, die Stripe für den laufenden Monat schon kennt */
+  gemeldet: number;
+  grund: string;
+}
+
+export interface LogEntry {
+  at: string;
+  by: string;
+  action: string;
+  target: { shopId?: string; uid?: string; name?: string; email?: string; shopIds?: string[]; uids?: string[] };
+  reason?: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface ShopDetail {
+  id: string;
+  shop: Record<string, unknown> & { name?: string; street?: string; postalCode?: string; city?: string; website?: string; unlisted?: boolean };
+  effectivePlan: PlanId;
+  trialEnd: string;
+  stripeMode: StripeMode;
+  /** Kunde im Stripe-Dashboard, im richtigen Konto und Modus; leer ohne Kunde */
+  stripeUrl: string;
+  staff: { id: string; name: string; email: string; role: string; userId: string; active: boolean }[];
+  owner: { uid: string; email: string; emailVerified: boolean; disabled: boolean; lastSignIn: string | null } | null;
+  /** Eigene Rufnummer des Telefon-Assistenten (höchstens eine) */
+  telefon: string[];
+  telefonLaden?: TelefonStand;
+  protokoll: LogEntry[];
+}
+
+export interface DeletionProbe {
+  shops: { id: string; name: string; related: Record<string, number> }[];
+  users: {
+    uid: string;
+    email: string;
+    auth: boolean;
+    profile: boolean;
+    appointments: number;
+    upcoming: number;
+    push: number;
+    offers: number;
+    queue: number;
+    customers: number;
+    staff: number;
+  }[];
+  foundersFreed: number;
+  problems: string[];
+  confirmWord: string;
+}
+
+export const loadOverview = () => send<Overview>(`${BASE}/uebersicht`);
+export const loadShop = (id: string) => send<ShopDetail>(`${BASE}/laden/${encodeURIComponent(id)}`);
+export const loadLog = (limit = 300) => send<{ entries: LogEntry[] }>(`${BASE}/protokoll?limit=${limit}`);
+
+export const setTrial = (id: string, until: string, reason = '') => send(shopPath(id, 'testphase'), { until, reason });
+export const setFounder = (id: string, founder: boolean, reason = '') => send<{ count: number }>(shopPath(id, 'gruender'), { founder, reason });
+export const grantPlan = (id: string, plan: PlanId, until: string, reason: string) => send(shopPath(id, 'freischaltung'), { plan, until, reason });
+export const endGrant = (id: string, reason = '') => send(shopPath(id, 'freischaltung-beenden'), { reason });
+export const syncStripe = (id: string) => send<{ changed: boolean; message?: string }>(shopPath(id, 'stripe-abgleich'), {});
+export const unlinkStripe = (id: string, reason: string) => send(shopPath(id, 'stripe-loesen'), { reason });
+/** Testmodus: Laden bucht in der Stripe-Sandbox (test) oder wieder echt */
+export const setStripeMode = (id: string, test: boolean, reason: string) =>
+  send<{ changed: boolean; mode: StripeMode }>(shopPath(id, 'stripe-modus'), { test, reason });
+/** In Ladenliste, Karte und Stadtseiten zeigen (listed) oder nicht; per Link bleibt der Laden buchbar */
+export const setListed = (id: string, listed: boolean, reason = '') =>
+  send<{ changed: boolean; unlisted: boolean }>(shopPath(id, 'ladenliste'), { listed, reason });
+export const suspendShop = (id: string, reason: string) =>
+  send<{ changed: boolean; accounts?: number; skipped?: string[] }>(shopPath(id, 'sperren'), { reason });
+export const unsuspendShop = (id: string, reason = '') => send<{ changed: boolean; accounts?: number; kept?: number }>(shopPath(id, 'entsperren'), { reason });
+/** Rufnummer des Telefon-Assistenten zuordnen; leer = Zuordnung aufheben */
+export const setPhoneLine = (id: string, nummer: string, reason = '') => send<{ telefon: string[] }>(shopPath(id, 'telefon'), { nummer, reason });
+
+/** Laden zum Telefon-Assistenten zulassen und festlegen, wie viele Minuten er frei hat */
+export const setPhoneAccess = (id: string, freigegeben: boolean, freiminuten: number) => send<TelefonStand>(shopPath(id, 'telefon-freigabe'), { freigegeben, freiminuten });
+/** Assistent für einen Laden sperren: nur noch die Ansage, kein Testen und Zubuchen */
+export const setPhoneBlocked = (id: string, gesperrt: boolean, reason = '') => send<TelefonStand>(shopPath(id, 'telefon-sperre'), { gesperrt, reason });
+/** Telefon-Assistent für alle Läden öffnen (Kachel, Testminuten selbst starten, zubuchen) */
+export const setPhoneOpen = (offen: boolean, reason = '') => send<{ offen: boolean }>(`${BASE}/telefon-offen`, { offen, reason });
+
+export const blockAccount = (uid: string, reason: string) => send(accountPath(uid, 'sperren'), { reason });
+export const unblockAccount = (uid: string, reason = '') => send(accountPath(uid, 'entsperren'), { reason });
+export const changeEmail = (uid: string, email: string, reason = '') => send<{ email: string; changed: boolean }>(accountPath(uid, 'email'), { email, reason });
+export const markVerified = (uid: string, verified: boolean) => send(accountPath(uid, 'email-bestaetigt'), { verified });
+export const sendVerification = (uid: string) => send<{ status: string }>(accountPath(uid, 'bestaetigungs-mail'), {});
+
+/** Passwort-Mail wie bei "Passwort vergessen": über Resend vom Backend */
+export const sendPasswordMail = async (uid: string) => {
+  const { email, status } = await send<{ email: string; status: 'verschickt' | 'nicht_eingerichtet' }>(accountPath(uid, 'passwort-mail'), {});
+  if (status !== 'verschickt') throw new Error('Ohne Resend-Schlüssel geht keine Passwort-Mail raus.');
+  return email;
+};
+
+/** „Testkonten aufräumen“: Konten mit Testadresse samt ihren Läden, verwaiste Testläden (backend/app/libs/konten.py test_cleanup) */
+export interface TestCleanupProbe extends DeletionProbe {
+  uids: string[];
+  shopIds: string[];
+  /** E-Mail des Inhabers je Laden; leer bei verwaisten Testläden */
+  owners: Record<string, string>;
+  /** Testkonten, die bleiben, mit Grund (Betreiber, ITEBV, laufendes Abo) */
+  skipped: { label: string; why: string }[];
+}
+
+export const probeTestCleanup = () => send<TestCleanupProbe>(`${BASE}/testkonten/probe`, {});
+export const runTestCleanup = (uids: string[], shopIds: string[], confirm: string) =>
+  send<{ result: Record<string, number>; left: string[]; backup: string }>(`${BASE}/testkonten`, { uids, shopIds, confirm });
+
+export const probeDeletion = (shopIds: string[], uids: string[]) => send<DeletionProbe>(`${BASE}/loeschen/probe`, { shopIds, uids });
+export const runDeletion = (shopIds: string[], uids: string[], confirm: string) =>
+  send<{ result: Record<string, number>; left: string[]; backup: string }>(`${BASE}/loeschen`, { shopIds, uids, confirm });
+
+let cached: { uid: string; admin: boolean } | null = null;
+
+/** Ist das angemeldete Konto Betreiber? Für den Menüpunkt; einmal je Anmeldung gefragt. */
+export const useIsBetreiber = (): boolean => {
+  const { user } = useCurrentUser();
+  const [admin, setAdmin] = useState(() => Boolean(user && cached?.uid === user.uid && cached.admin));
+  useEffect(() => {
+    if (!user) {
+      setAdmin(false);
+      return;
+    }
+    if (cached?.uid === user.uid) {
+      setAdmin(cached.admin);
+      return;
+    }
+    let alive = true;
+    send<{ admin: boolean }>(`${BASE}/ich`)
+      .then(({ admin: value }) => {
+        cached = { uid: user.uid, admin: value };
+        if (alive) setAdmin(value);
+      })
+      .catch(() => alive && setAdmin(false));
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+  return admin;
+};

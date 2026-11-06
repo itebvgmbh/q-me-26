@@ -1,6 +1,6 @@
-# Databutton app
+# Dranzeit
 
-This project consists of a FastAPI backend server and a React + TypeScript frontend application exported from Databutton.
+Nummer ziehen und Termine buchen für Läden mit Laufkundschaft (früher q-me). FastAPI-Backend und React-Frontend, ursprünglich aus Databutton exportiert.
 
 ## Stack
 
@@ -44,7 +44,7 @@ ANTHROPIC_API_KEY=...     # read the price list from the shop's website (QME_SET
 ANTHROPIC_WORKSPACE_ID=... # only if the key is valid for several workspaces (sent as anthropic-workspace-id)
 ```
 
-On the server both go into `/etc/q-me.env` – see "Schlüssel für „Laden einrichten“" in [deploy/README.md](deploy/README.md).
+On the server both go into `/etc/q-me.env` – see "Schlüssel eintragen" in [deploy/README.md](deploy/README.md).
 
 ## Deployment
 

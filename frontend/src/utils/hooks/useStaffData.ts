@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Staff, getStaffByShopId } from '../firestore';
+import { t } from '@/i18n';
 
 /**
  * Custom hook for fetching and managing staff data
@@ -35,7 +36,7 @@ export const useStaffData = (shopId: string) => {
         setUseAnyStaff(false);
       } catch (error) {
         console.error('Error loading staff:', error);
-        if (active) toast.error('Fehler beim Laden der Mitarbeiter');
+        if (active) toast.error(t('Fehler beim Laden der Mitarbeiter'));
       } finally {
         if (active) setLoading(false);
       }

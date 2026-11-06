@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { collection, doc, getDocFromServer, getDocsFromServer } from 'firebase/firestore';
 import { Shop } from '../firestore';
-import { firestore as db } from '../firestore-client';
-import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { liveLesen, LiveFehlt } from '../live';
+import { inLadenliste } from '../marketplace';
+import { t } from '@/i18n';
+
+const ladenOderNull = async (id: string): Promise<Shop | null> => {
+  try {
+    return (await liveLesen<{ laden: Shop }>(`live/laden/${encodeURIComponent(id)}`)).laden;
+  } catch (error) {
+    if (error instanceof LiveFehlt) return null;
+    throw error;
+  }
+};
 
 /**
  * Custom hook for fetching and managing shop data
@@ -18,35 +27,46 @@ export const useShopData = (shopIdFromQR: string | null) => {
   const [arrivedFromQR, setArrivedFromQR] = useState(!!shopIdFromQR);
   // Datenbank nicht erreichbar (nicht verwechseln mit "Shop gibt es nicht")
   const [loadError, setLoadError] = useState<unknown>(null);
+  // Laden aus dem QR-Code vom Betreiber gesperrt: eigener Hinweis statt leerer Ladenliste
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadShops = async () => {
       setLoading(true);
       setLoadError(null);
+      setUnavailable(false);
       try {
-        // Vom QR-Code nur diesen einen Shop laden statt aller Shops der Plattform.
-        // "FromServer": ohne Verbindung ein Fehler statt still einer leeren Antwort.
+        // Vom QR-Code nur diesen einen Laden laden statt aller Läden der Plattform (über das Backend, utils/live.ts).
+        // Ohne Verbindung ein Fehler (Meldung „Keine Verbindung“), nicht „Laden nicht gefunden“.
         if (shopIdFromQR) {
-          const snap = await getDocFromServer(doc(db, 'shops', shopIdFromQR));
+          const laden = await ladenOderNull(shopIdFromQR);
           if (!active) return;
-          if (snap.exists()) {
-            setShops([{ id: snap.id, ...snap.data() } as Shop]);
-            setSelectedShop(snap.id);
+          if (laden?.suspended) {
+            // Vom Betreiber gesperrt: PublicJoinQueue zeigt den Hinweis an Stelle der Ladenauswahl
+            setUnavailable(true);
+            setShops([]);
+            setSelectedShop('');
+            setArrivedFromQR(false);
+            return;
+          }
+          if (laden) {
+            setShops([laden]);
+            setSelectedShop(laden.id);
             setArrivedFromQR(true);
             return;
           }
           console.error('Shop from QR code not found:', shopIdFromQR);
-          toast.error('Der Shop aus dem QR-Code wurde nicht gefunden');
+          toast.error(t('Der Laden aus dem QR-Code wurde nicht gefunden'));
           setSelectedShop('');
           setArrivedFromQR(false);
         }
-        const snapshot = await getDocsFromServer(collection(db, 'shops'));
-        if (active) setShops(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Shop));
+        const { laeden } = await liveLesen<{ laeden: Shop[] }>('live/laeden');
+        // Ausgeblendete Läden nur, wenn sie über den Link gewählt sind (inLadenliste, utils/marketplace.ts)
+        if (active) setShops(laeden.filter((s) => inLadenliste(s) || (s.id === shopIdFromQR && !s.suspended)));
       } catch (error) {
         console.error('Error loading shops:', error);
         if (!active) return;
-        if (isConnectionError(error) && retryWithSimpleConnection()) return;
         setLoadError(error);
       } finally {
         if (active) setLoading(false);
@@ -65,6 +85,7 @@ export const useShopData = (shopIdFromQR: string | null) => {
     setSelectedShop,
     loading,
     loadError,
+    unavailable,
     arrivedFromQR,
     setArrivedFromQR
   };

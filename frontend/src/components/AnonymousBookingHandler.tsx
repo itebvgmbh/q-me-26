@@ -14,7 +14,7 @@ export const AnonymousBookingHandler: React.FC = () => {
     // (nicht bei jedem Render) und das Loading abgeschlossen ist
     if (user && !loading) {
       console.log('Benutzer hat sich angemeldet, prüfe auf anonyme Buchungen:', user.uid);
-      linkAnonymousBookingsToUser(user.uid);
+      linkAnonymousBookingsToUser();
     }
   }, [user, loading]);
 

@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { HilfeLink } from './HilfeLink';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { Shop as ShopProfileType, updateShop } from '../utils/firestore';
 import { uploadImage } from '../utils/firestore/storage';
 import { INDUSTRIES } from '../utils/industries';
 import { Loader2, Upload, X } from 'lucide-react';
 import { OpeningHoursEditor } from './OpeningHoursEditor';
 import { defaultHours, hoursFromLegacy, hoursProblem, normalizeHours } from '../utils/opening-hours';
+import { MAX_ONLINE_LEAD_MINUTES, onlineLeadMinutes } from '../utils/booking-rules';
 
 interface Props {
   shop: ShopProfileType;
@@ -33,7 +36,8 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     businessHoursByDay: shop?.businessHoursByDay || [],
     industry: shop?.industry || '',
     logoUrl: shop?.logoUrl || '',
-    timeSlotBuffer: shop?.timeSlotBuffer ?? 60000 // Standard: 1 Minute (60000 ms)
+    // Vorlaufzeit für Online-Termine in ms (utils/booking-rules.ts); ältere Läden haben sie als Text
+    timeSlotBuffer: onlineLeadMinutes(shop) * 60000
   }));
   
   const [isUploading, setIsUploading] = useState(false);
@@ -47,13 +51,13 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     // Dateigröße prüfen - max 1MB
     const MAX_SIZE = 1024 * 1024; // 1MB
     if (file.size > MAX_SIZE) {
-      toast.error(`Datei zu groß. Maximal 1 MB, deine Datei: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+      toast.error(t('Datei zu groß. Maximal 1 MB, deine Datei: {groesse}MB', { groesse: (file.size / (1024 * 1024)).toFixed(2) }));
       return;
     }
     
     // Nur Bilder zulassen
     if (!file.type.startsWith('image/')) {
-      toast.error('Nur Bilddateien erlaubt');
+      toast.error(t('Nur Bilddateien erlaubt'));
       return;
     }
     
@@ -110,7 +114,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
     
     setIsUploading(true);
     // Lade-Toast mit fester ID, damit Erfolg/Fehler ihn ersetzen (vorher blieb er für immer stehen)
-    const toastId = toast.loading('Logo wird hochgeladen …');
+    const toastId = toast.loading(t('Logo wird hochgeladen …'));
     
     try {
       // Vorher fehlte der Pfad – Logos landeten unter "undefined/…"
@@ -122,10 +126,10 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
         logoUrl
       }));
       
-      toast.success('Logo hochgeladen.', { id: toastId });
+      toast.success(t('Logo hochgeladen.'), { id: toastId });
     } catch (error) {
       console.error('Upload fehlgeschlagen:', error);
-      toast.error('Das Logo konnte nicht hochgeladen werden.', { id: toastId });
+      toast.error(t('Das Logo konnte nicht hochgeladen werden.'), { id: toastId });
     } finally {
       setIsUploading(false);
     }
@@ -159,10 +163,10 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       // Shop-Daten direkt aktualisieren
       const updatedShop = await updateShop(shop.id, formData);
       onUpdate(updatedShop);
-      toast.success('Shop-Profil aktualisiert');
+      toast.success(t('Laden-Profil aktualisiert'));
     } catch (error: any) {
       console.error('Error updating shop:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(t('Fehler beim Aktualisieren'));
     } finally {
       setIsSubmitting(false);
     }
@@ -171,7 +175,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
   return (
     <form id="edit-shop-form" onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name des Ladens</Label>
+        <Label htmlFor="name">{t('Name des Ladens')}</Label>
         <Input
           id="name"
           value={formData.name}
@@ -181,20 +185,25 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-4">
-        <p className="text-sm font-medium">Adresse</p>
+        <div>
+          <p className="text-sm font-medium">{t('Adresse')}</p>
+          <p className="text-sm text-muted-foreground">
+            {t('Ohne Ort erscheint dein Laden nicht auf der Karte.')} <HilfeLink hilfe="gefunden-werden" />
+          </p>
+        </div>
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <Label htmlFor="street" className="text-xs">Straße und Hausnummer</Label>
+            <Label htmlFor="street" className="text-xs">{t('Straße und Hausnummer')}</Label>
             <Input
               id="street"
               value={formData.street}
               onChange={(e) => handleInputChange('street', e.target.value)}
-              placeholder="Beispielstraße 123"
+              placeholder={t('Beispielstraße 123')}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="postalCode" className="text-xs">Postleitzahl</Label>
+              <Label htmlFor="postalCode" className="text-xs">{t('Postleitzahl')}</Label>
               <Input
                 id="postalCode"
                 value={formData.postalCode}
@@ -203,7 +212,7 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
               />
             </div>
             <div>
-              <Label htmlFor="city" className="text-xs">Ort</Label>
+              <Label htmlFor="city" className="text-xs">{t('Ort')}</Label>
               <Input
                 id="city"
                 value={formData.city}
@@ -216,27 +225,28 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="ownerName">Name des Inhabers</Label>
+        <Label htmlFor="ownerName">{t('Name des Inhabers')}</Label>
         <Input
           id="ownerName"
           value={formData.ownerName}
           onChange={(e) => handleInputChange('ownerName', e.target.value)}
-          placeholder="Max Mustermann"
+          placeholder={t('Max Mustermann')}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="phone">Telefon</Label>
+        <Label htmlFor="phone">{t('Telefon')}</Label>
         <Input
           id="phone"
           type="tel"
+          dir="ltr"
           value={formData.phone}
           onChange={(e) => handleInputChange('phone', e.target.value)}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">E-Mail</Label>
+        <Label htmlFor="email">{t('E-Mail')}</Label>
         <Input
           id="email"
           type="email"
@@ -247,22 +257,28 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="website">Webseite</Label>
+        <Label htmlFor="website">{t('Webseite')}</Label>
         <Input
           id="website"
           type="text"
           inputMode="url"
+          dir="ltr"
           value={formData.website}
           onChange={(e) => handleInputChange('website', e.target.value)}
-          placeholder="www.dein-laden.de"
+          placeholder={t('www.dein-laden.de')}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Öffnungszeiten</Label>
+        <Label>{t('Öffnungszeiten')}</Label>
+        <p className="text-sm text-muted-foreground">
+          {t('Gelten für den ganzen Laden. Wann jede Person arbeitet, stellst du unter „Team“ ein.')} <HilfeLink hilfe="oeffnungszeiten" />
+        </p>
         {!formData.businessHoursByDay?.length && (
           <p className="text-sm text-muted-foreground">
-            Noch keine Öffnungszeiten je Tag hinterlegt{formData.businessHours ? ` (bisher: ${formData.businessHours} an allen Tagen)` : ''}. Sobald du hier etwas änderst, gelten diese Zeiten.
+            {formData.businessHours
+              ? t('Noch keine Öffnungszeiten je Tag hinterlegt (bisher: {zeiten} an allen Tagen). Sobald du hier etwas änderst, gelten diese Zeiten.', { zeiten: formData.businessHours })
+              : t('Noch keine Öffnungszeiten je Tag hinterlegt. Sobald du hier etwas änderst, gelten diese Zeiten.')}
           </p>
         )}
         <OpeningHoursEditor
@@ -272,66 +288,66 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="industry">Branche</Label>
+        <Label htmlFor="industry">{t('Branche')}</Label>
         <Select 
           value={formData.industry} 
           onValueChange={(value) => handleInputChange('industry', value)}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Branche auswählen" />
+            <SelectValue placeholder={t('Branche auswählen')} />
           </SelectTrigger>
           <SelectContent>
             {INDUSTRIES.map((industry) => (
               <SelectItem key={industry.id} value={industry.id}>
-                {industry.name}
+                {t(industry.name)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground mt-1">
-          Hilft Kunden bei der Suche.
+          {t('Hilft Kunden bei der Suche.')}
         </p>
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="logo">Logo</Label>
+        <Label htmlFor="logo">{t('Logo')}</Label>
         <div className="flex flex-col space-y-3">
           {/* Aktuelles Logo anzeigen */}
           {formData.logoUrl && (
             <div className="relative w-24 h-24 rounded-md overflow-hidden border border-border">
               <img 
                 src={formData.logoUrl} 
-                alt="Logo des Ladens" 
+                alt={t('Logo des Ladens')} 
                 className="w-full h-full object-cover"
               />
               <button 
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
-                className="absolute top-0 right-0 bg-black bg-opacity-50 text-white p-1 rounded-bl-md"
-                aria-label="Logo entfernen"
+                className="absolute top-0 end-0 bg-black bg-opacity-50 text-white p-1 rounded-es-md"
+                aria-label={t('Logo entfernen')}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           )}
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isSubmitting}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 rtl:space-x-reverse"
             >
               {isUploading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Wird hochgeladen...</span>
+                  <span>{t('Wird hochgeladen...')}</span>
                 </>
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  <span>Logo hochladen</span>
+                  <span>{t('Logo hochladen')}</span>
                 </>
               )}
             </Button>
@@ -350,56 +366,57 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
             }}
           />
           <p className="text-sm text-muted-foreground">
-            Maximale Größe: 1MB. Empfohlene Größe: 200x200 Pixel.
-            {isUploading && <span className="block mt-1 text-foreground">Wird hochgeladen …</span>}
+            {t('Maximale Größe: 1MB. Empfohlene Größe: 200x200 Pixel.')}
+            {isUploading && <span className="block mt-1 text-foreground">{t('Wird hochgeladen …')}</span>}
           </p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="timeSlotBuffer">Zeitpuffer für Termine (in Minuten)</Label>
+        <Label htmlFor="timeSlotBuffer">{t('Vorlaufzeit für Online-Termine (Minuten)')}</Label>
         <Input
           id="timeSlotBuffer"
           type="number"
-          min="1"
-          max="120"
-          value={String(Math.round((formData.timeSlotBuffer as number) / 60000))}
+          inputMode="numeric"
+          min="0"
+          max={MAX_ONLINE_LEAD_MINUTES}
+          step="5"
+          className="w-32"
+          value={String(Math.round(Number(formData.timeSlotBuffer || 0) / 60000))}
           onChange={(e) => {
-            // Umrechnung von Minuten in Millisekunden
-            const minutes = parseInt(e.target.value) || 1;
-            const milliseconds = Math.max(1, Math.min(120, minutes)) * 60000;
-            handleInputChange('timeSlotBuffer', String(milliseconds));
+            // In Minuten eingeben, in Millisekunden speichern (als Zahl, nicht als Text)
+            const minutes = Math.max(0, Math.min(MAX_ONLINE_LEAD_MINUTES, parseInt(e.target.value, 10) || 0));
+            setFormData((prev) => ({ ...prev, timeSlotBuffer: minutes * 60000 }));
           }}
+          aria-describedby="timeSlotBuffer-hint"
         />
-        <p className="text-sm text-muted-foreground mt-1">
-          Definiert den minimalen Zeitabstand zwischen jetzt und dem frühestmöglichen Buchungszeitpunkt.
-          Verhindert, dass Kunden Termine für die unmittelbare Zukunft buchen können.
-          Empfohlen: 30-60 Minuten.
+        <p id="timeSlotBuffer-hint" className="text-sm text-muted-foreground mt-1">
+          {t('So weit im Voraus muss online gebucht werden. Bei 30 ist um 10:00 online frühestens 10:30 frei. Nummer ziehen und Termine, die du selbst einträgst, gehen immer sofort. 0 = keine Vorlaufzeit.')}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Beschreibung</Label>
+        <Label htmlFor="description">{t('Beschreibung')}</Label>
         <Textarea
           id="description"
           value={formData.description}
           onChange={(e) => handleInputChange('description', e.target.value)}
-          placeholder="Was macht deinen Laden aus?"
+          placeholder={t('Was macht deinen Laden aus?')}
           className="h-32"
         />
       </div>
 
-      <div className="flex justify-end space-x-2 pt-4 mt-4">
+      <div className="flex justify-end space-x-2 pt-4 mt-4 rtl:space-x-reverse">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={isSubmitting || isUploading}
         >
-          Abbrechen
+          {t('Abbrechen')}
         </Button>
         <Button type="submit" disabled={isSubmitting || isUploading}>
-          {isSubmitting ? 'Speichern...' : 'Änderungen speichern'}
+          {isSubmitting ? t('Speichern...') : t('Änderungen speichern')}
         </Button>
       </div>
     </form>

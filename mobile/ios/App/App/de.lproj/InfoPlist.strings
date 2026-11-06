@@ -1,0 +1,3 @@
+/* Texte, die iOS vor einer Freigabe zeigt (Info.plist). Gleich in en/tr/ar.lproj pflegen. */
+"NSCameraUsageDescription" = "Dranzeit braucht die Kamera nur, wenn du ein Foto für dein Profil oder das Logo deines Ladens aufnimmst.";
+"NSLocationWhenInUseUsageDescription" = "Dranzeit zeigt dir auf der Karte Läden in deiner Nähe. Wir speichern deinen Standort nicht.";

@@ -35,11 +35,41 @@ cd "$APP_DIR/backend"
 uv pip install --quiet --python .venv/bin/python -r requirements.txt
 install -d -o q-me -g q-me .local_data
 
+echo "==> Datenbank"
+# Rolle, Datenbank, QME_DATABASE_URL und nächtliche Sicherung; ändert nichts, wenn alles schon da ist
+bash "$APP_DIR/deploy/datenbank.sh" einrichten
+
+echo "==> Schlüssel für Benachrichtigungen"
+# Einmalig auf dem Server erzeugt; der geheime Teil verlässt den Server nie (app/libs/webpush.py)
+if ! grep -q '^VAPID_PRIVATE_KEY=' "$ENV_FILE"; then
+	.venv/bin/python - >>"$ENV_FILE" <<'PY'
+import base64
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
+key = ec.generate_private_key(ec.SECP256R1())
+b64 = lambda raw: base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+public = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+print(f"VAPID_PUBLIC_KEY={b64(public)}")
+print(f"VAPID_PRIVATE_KEY={b64(key.private_numbers().private_value.to_bytes(32, 'big'))}")
+PY
+	echo "    neu erzeugt"
+else
+	echo "    vorhanden"
+fi
+
 echo "==> Web-App bauen"
 cd "$APP_DIR/frontend"
 npm ci --no-audit --no-fund --loglevel=error
 rm -rf "$WEB_ROOT.new"
 npx vite build --outDir "$WEB_ROOT.new" --emptyOutDir --logLevel warn
+# Bausteine der alten Fassungen noch eine Woche ausliefern: Wer die Seite vor dem Ausrollen
+# geöffnet hat, lädt beim Weiterklicken sonst Dateien nach, die es nicht mehr gibt.
+# Neu Gebautes nicht überschreiben; Zeitstempel behalten, damit Altes nach 7 Tagen wegfällt.
+if [ -d "$WEB_ROOT/assets" ]; then
+	cp -rp --update=none "$WEB_ROOT/assets/." "$WEB_ROOT.new/assets/"
+	find "$WEB_ROOT.new/assets" -type f -mtime +7 -delete
+fi
 # Erst nach erfolgreichem Build austauschen
 rm -rf "$WEB_ROOT.old"
 if [ -d "$WEB_ROOT" ]; then
@@ -47,6 +77,10 @@ if [ -d "$WEB_ROOT" ]; then
 fi
 mv "$WEB_ROOT.new" "$WEB_ROOT"
 rm -rf "$WEB_ROOT.old"
+
+echo "==> Schema der Datenbank"
+# Schema-Änderungen (backend/migrations) vor dem Neustart einspielen; schlägt das fehl, läuft der alte Stand weiter
+bash "$APP_DIR/deploy/datenbank.sh" migrieren
 
 echo "==> Dienst neu starten"
 # Geänderte Dienstdatei (z. B. Zeitzone) mitnehmen – sonst gälte nur die bei der Einrichtung kopierte

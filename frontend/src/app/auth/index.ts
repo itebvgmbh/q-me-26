@@ -1,5 +1,4 @@
 export * from "./auth";
-export * from "./firebase";
-export * from "./SignInOrUpForm";
+export * from "./konto";
 export * from "./useCurrentUser";
 export * from "./UserGuard";

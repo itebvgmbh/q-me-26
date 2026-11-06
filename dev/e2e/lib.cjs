@@ -14,8 +14,18 @@ const FIXTURE = path.join(__dirname, '..', '.local', 'fixture.json');
 const launch = () => chromium.launch({ args: (process.env.QME_BROWSER_ARGS || '').split(' ').filter(Boolean) });
 
 /** Neue Seite in deutscher Zeit; Handygröße, wenn nichts anderes angegeben */
-const newPage = async (browser, options = {}) =>
-  (await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE', ...options })).newPage();
+const newPage = async (browser, options = {}) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE', ...options });
+  // „Wofür nutzt du dieses Gerät?“ (frontend/src/utils/geraet.ts) nicht fragen – sonst liegt der Dialog über dem Tresen
+  await context.addInitScript(() => {
+    try {
+      sessionStorage.setItem('dranzeit-geraet-spaeter', '1');
+    } catch {
+      /* about:blank */
+    }
+  });
+  return context.newPage();
+};
 
 /** "2026-10-19T11:50" als deutsche Ortszeit (Sommer-/Winterzeit richtig), egal in welcher Zeitzone dieser Rechner läuft */
 const berlin = (local) => {
@@ -49,6 +59,114 @@ const fixture = () => {
   return JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 };
 
+/** Im Browser mit E-Mail und Passwort anmelden (app/auth/konto.ts, ohne Formular) */
+const signIn = async (page, account) => {
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2500);
+  await page.evaluate(async (account) => {
+    const { signInWithEmailAndPassword, anmeldung: firebaseAuth } = await import('/src/app/auth/konto.ts');
+    await signInWithEmailAndPassword(firebaseAuth, account.email, account.pw);
+  }, account);
+};
+
+/** Nächster Montag nach heute (deutsche Zeit) als "YYYY-MM-DD" – wie in fixtures.py */
+const nextMonday = () => {
+  const today = new Date(`${new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date())}T12:00:00Z`);
+  const weekday = (today.getUTCDay() + 6) % 7; // Montag = 0
+  today.setUTCDate(today.getUTCDate() + (7 - weekday || 7));
+  return today.toISOString().slice(0, 10);
+};
+
+/**
+ * Wegwerf-Laden mit eigenem Inhaber-Konto, danach in page angemeldet (eigener Browser-Kontext, newPage). Aufbau wie
+ * der Testladen aus fixtures.py: Mo–Fr 9–17 Uhr, Person Robin Mo–Sa 8–18 Uhr, Leistung Schnitt 30 Minuten.
+ * Angelegt wie in der App über das Backend (Stufe 2, requirements/eigene-datenbank.md): immer Gratis mit Testphase.
+ * Andere Tarif-Stände (Testphase vorbei, gesperrt) setzt nur noch das Backend – dafür den Betreiber-Bereich oder
+ * dev/fixtures.py auf dem Server nehmen; state.trialEndsAt/state.suspended gehen hier nicht mehr.
+ * Rückgabe wie fixture(): { email, pw, uid, shopId, staffId, serviceId, monday }. Wieder weg mit removeTempShop.
+ */
+const tempShop = async (page, name, state = {}) => {
+  if (state.trialEndsAt || state.suspended) {
+    throw new Error('tempShop: Testphase vorbei oder gesperrt setzt seit Stufe 2 nur das Backend (Betreiber-Bereich, dev/fixtures.py).');
+  }
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2500);
+  const shop = await page.evaluate(
+    async ({ name }) => {
+      const { registerWithRole } = await import('/src/utils/auth-helpers.ts');
+      const { createShop } = await import('/src/utils/firestore/shops.ts');
+      const { createService } = await import('/src/utils/firestore/services.ts');
+      const { createStaff } = await import('/src/utils/firestore/staff.ts');
+      const email = `q-me-test-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@example.com`;
+      const pw = `Test-${Math.random().toString(36).slice(2)}`;
+      const { uid } = await registerWithRole(email, pw, 'shopOwner');
+      const days = [0, 1, 2, 3, 4, 5, 6];
+      const laden = await createShop(uid, {
+        name, phone: '1', email,
+        businessHoursByDay: days.map((d) => ({ dayOfWeek: d, isOpen: d >= 1 && d <= 5, openTime: '09:00', closeTime: '17:00', breaks: [] })),
+      });
+      const service = await createService({ shopId: laden.id, name: 'Schnitt', duration: 30, price: 20 });
+      // E-Mail der Person bei den Kontaktdaten des Ladens (nur Inhaber), wie createStaff in der App
+      const staff = await createStaff({
+        shopId: laden.id, name: 'Robin', email: 'robin@example.com', phone: '', role: 'staff', serviceIds: [service.id], isActive: true,
+        status: 'available', userId: '',
+        workingHours: days.map((d) => ({ dayOfWeek: d, startTime: '08:00', endTime: '18:00', isWorking: d !== 0 })),
+      });
+      return { email, pw, uid, shopId: laden.id, staffId: staff.id, serviceId: service.id };
+    },
+    { name },
+  );
+  return { ...shop, monday: nextMonday() };
+};
+
+/**
+ * Wegwerf-Laden aufräumen. Läden löscht der Browser seit Stufe 2 nicht mehr selbst (nur das Backend, mit Sicherung):
+ * Konto und Laden (Inhaber q-me-test-…@example.com) bleiben stehen, bis der Betreiber „Konten aufräumen“ laufen lässt
+ * (deploy/konten-aufraeumen.py oder Betreiber-Bereich → Löschen). Das Konto bleibt absichtlich, daran erkennt man den
+ * Testladen.
+ */
+const removeTempShop = async (_page, shop) => {
+  console.log(`Wegwerf-Laden ${shop.shopId} (${shop.email}) bleibt bis zum nächsten „Konten aufräumen“.`);
+};
+
+/**
+ * Buchungsablauf (Nummer ziehen / Termin buchen) bis zum Schritt „Wann?“: Leistung und Person nur anklicken, wo es etwas
+ * zu wählen gibt – bei nur einer Leistung oder Person wählt die App selbst (pages/PublicJoinQueue.tsx).
+ * leistung/person: Name (RegExp) des Knopfs, sonst der erste bzw. „Egal wer“. Gibt die Schritte zurück, die zu sehen waren.
+ */
+const bisWann = async (page, { leistung, person = /Egal wer/ } = {}) => {
+  const schritt = () =>
+    page
+      .waitForFunction(
+        () => {
+          const t = document.querySelector('#schritt-titel')?.textContent || '';
+          return t === 'Wann passt es dir?' ? 'wann' : t === 'Bei wem?' ? 'person' : t === 'Was soll gemacht werden?' ? 'leistung' : null;
+        },
+        null,
+        { timeout: 60000 },
+      )
+      .then((h) => h.jsonValue());
+  const gesehen = [];
+  for (let i = 0; i < 4; i++) {
+    const jetzt = await schritt();
+    if (jetzt === 'wann') return [...gesehen, jetzt];
+    // Erst handeln, wenn der Schritt stehen bleibt (gleich nach dem Laden springt die App bei nur einer Wahl weiter)
+    await page.waitForTimeout(300);
+    if ((await schritt()) !== jetzt) continue;
+    gesehen.push(jetzt);
+    // Kurz warten, bis die Wahl geladen ist (Zeiten je Person), dann wählen und auf den nächsten Schritt warten
+    const knopf =
+      jetzt === 'leistung'
+        ? leistung
+          ? page.getByRole('button', { name: leistung }).first()
+          : page.locator('section button[aria-pressed]').first()
+        : page.getByRole('button', { name: person }).first();
+    await knopf.click({ timeout: 60000 });
+    await page.waitForFunction((alt) => (document.querySelector('#schritt-titel')?.textContent || '') !== alt, jetzt === 'leistung' ? 'Was soll gemacht werden?' : 'Bei wem?', { timeout: 30000 });
+  }
+  throw new Error(`„Wann?“ nicht erreicht: ${gesehen.join(' → ')}`);
+};
+
 /** Ergebnisliste ausgeben; Rückgabe true, wenn alles passt */
 const report = (rows) => {
   let ok = true;
@@ -69,4 +187,34 @@ const run = (fn) =>
       process.exit(1);
     });
 
-module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, report, run };
+// --- Anmeldung nachgebildet: kein Testkonto nötig ---------------------------------------------------------------------
+
+const UID = 'betreiber-test';
+const EMAIL = 'chef@example.com';
+
+/** Eigene Anmeldung (backend/app/apis/anmeldung) beantworten, ohne Backend: anmelden, registrieren, ich, abmelden.
+ *  Seit Stufe 4 reist die Anmeldung im Cookie; hier merkt sich der Test nur, ob jemand angemeldet ist. */
+const mockAuth = async (page, { email = EMAIL, uid = UID, verified = true } = {}) => {
+  const konto = { uid, email, emailVerified: verified, displayName: 'Chef' };
+  let angemeldet = false;
+  await page.route('**/routes/anmeldung/**', (route) => {
+    const pfad = new URL(route.request().url()).pathname.replace('/routes/anmeldung/', '');
+    if (pfad === 'anmelden' || pfad === 'registrieren') angemeldet = true;
+    if (pfad === 'abmelden') angemeldet = false;
+    if (pfad === 'ich' && !angemeldet) {
+      return route.fulfill({ status: 401, contentType: 'application/json', headers: { 'X-Anmeldung-Fehler': 'auth/unauthenticated' }, body: '{"detail":"Du bist nicht angemeldet."}' });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(pfad === 'abmelden' ? { ok: true } : konto) });
+  });
+};
+
+const signInFake = async (page) => {
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2000);
+  await page.evaluate(async ({ email }) => {
+    const { signInWithEmailAndPassword, anmeldung } = await import('/src/app/auth/konto.ts');
+    await signInWithEmailAndPassword(anmeldung, email, 'egal');
+  }, { email: EMAIL });
+};
+
+module.exports = { BASE, SHOP_ID, OUT, berlin, launch, newPage, shot, collectErrors, fixture, signIn, mockAuth, signInFake, tempShop, removeTempShop, bisWann, report, run };

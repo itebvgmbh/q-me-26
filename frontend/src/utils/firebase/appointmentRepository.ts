@@ -1,9 +1,17 @@
-import { doc, getDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
-import { firestore } from '../firestore-client';
+import { eigenesAngebot } from '../konto';
 import { AppEventType, emitAppointmentUpdated, useEventStore } from './event-system';
 import useTimeSlotStore from '../timeSlotStore';
 import { safelyConvertToDate } from '../datetime';
 import brain from 'brain';
+import { t } from '@/i18n';
+
+/** Server hat die Annahme abgelehnt; message ist für den Kunden */
+export class EarlierSlotRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EarlierSlotRefused';
+  }
+}
 
 /**
  * Accept an earlier appointment slot from a notification.
@@ -17,14 +25,10 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
     console.log('Accepting earlier slot with notification ID:', notificationId);
     
     // Get notification details before making the API call to have the shop ID and timestamps
-    const notificationRef = doc(firestore, 'earlier_slot_notifications', notificationId);
-    const notificationDoc = await getDoc(notificationRef);
-    if (!notificationDoc.exists()) {
-      throw new Error('Notification not found');
+    const notificationData = await eigenesAngebot(notificationId);
+    if (!notificationData) {
+      throw new EarlierSlotRefused(t('Der Platz ist leider schon weg.'));
     }
-    
-    // Store notification data for cache invalidation and event emitting
-    const notificationData = notificationDoc.data();
     
     // Make the API call to accept the slot using the Brain client instead of fetch
     // This properly handles authentication tokens
@@ -40,7 +44,9 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       status: brainResponse.status,
       statusText: brainResponse.statusText,
       headers: new Headers(brainResponse.headers),
-      json: async () => brainResponse.data
+      // Ohne format liefert der Brain-Client keinen geparsten Inhalt (data bleibt null): selbst lesen.
+      // Vorher hieß jede Annahme „Der Platz ist leider schon weg“, obwohl der Server verschoben hatte.
+      json: async () => brainResponse.json()
     };
     
     
@@ -64,15 +70,13 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       throw new Error(`Failed to accept earlier slot: ${errorDetail}`);
     }
     
-    // Parse the successful response
-    let responseData;
-    try {
-      responseData = await response.json();
-      console.log('Successfully accepted earlier slot:', responseData);
-    } catch (parseError) {
-      console.error('Error parsing success response:', parseError);
-      // Continue even if we can't parse the response - the operation might have succeeded
+    // Der Server antwortet auch bei Ablehnung mit 200: {status: "error", message: "Der frühere Platz ist inzwischen vergeben."}
+    // Vorher galt jede 200 als Erfolg – der Kunde sah "Du hast den früheren Platz", der Termin blieb aber, wo er war.
+    const responseData = await response.json().catch(() => null);
+    if (responseData?.status !== 'success') {
+      throw new EarlierSlotRefused(responseData?.message || t('Der Platz ist leider schon weg.'));
     }
+    console.log('Successfully accepted earlier slot:', responseData);
     
     // Comprehensive cache invalidation
     if (notificationData && notificationData.shopId) {
@@ -137,18 +141,7 @@ export const acceptEarlierAppointmentSlot = async (notificationId: string): Prom
       });
     }
     
-    // Mark notification as accepted locally
-    try {
-      await updateDoc(notificationRef, {
-        isAccepted: true,
-        isRead: true,
-        acceptedAt: Timestamp.now()
-      });
-    } catch (updateError) {
-      console.error('Error updating notification state:', updateError);
-      // Continue since the backend already processed the acceptance
-    }
-    
+    // Als angenommen markiert der Server das Angebot selbst (in derselben Transaktion wie die Verschiebung)
     return true;
   } catch (error) {
     console.error('Error accepting earlier slot:', error);

@@ -12,7 +12,7 @@ Type=simple
 User=q-me
 Group=q-me
 WorkingDirectory=/opt/q-me/backend
-# PORT, FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT_KEY_FILE
+# PORT, QME_DATABASE_URL, Schlüssel (deploy/README.md)
 EnvironmentFile=/etc/q-me.env
 Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # Öffnungs-, Arbeits- und Pausenzeiten sind deutsche Ortszeit. Ohne diese Zeile rechnet das
@@ -29,6 +29,8 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/q-me/backend/.local_data
+# /var/lib/q-me: Logos und Fotos (app/libs/laeden.py, dateien/); systemd legt den Ordner für q-me an und gibt ihn frei
+StateDirectory=q-me
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

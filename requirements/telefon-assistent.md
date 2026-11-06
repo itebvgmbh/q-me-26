@@ -1,0 +1,167 @@
+# Anforderung: Telefon-Assistent
+
+- **ID:** telefon-assistent
+- **Stand:** 05.11.2026, mit Stefan abgestimmt
+- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026, Abrechnung am 05.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und Testminuten im Betreiber-Bereich, Testen und Zubuchen durch den Inhaber, Abrechnung über Stripe, Kostendeckel, Warnungen, Schalter „für alle öffnen“. Anrufliste fehlt noch. Anleitung in `deploy/telefon-assistent.md`
+
+## Worum es geht
+
+Wer gerade schneidet, kann nicht ans Telefon. Anrufe, bei denen keiner abnimmt, sind verlorene Kunden. Der Telefon-Assistent nimmt diese Anrufe für den Laden an und spricht mit dem Anrufer. Er nennt freie Termine und bucht sie nach der Zusage. Er sagt die aktuelle Wartezeit, zieht auf Wunsch eine Nummer für die Schlange und beantwortet einfache Fragen zum Laden.
+
+Der Telefon-Assistent ist ein kostenpflichtiger Zusatz zum Tarif und wird nach Nutzung abgerechnet.
+
+Beteiligt sind:
+
+- **Anrufer:** Kunde des Ladens, meist ohne Dranzeit-Konto.
+- **Laden:** richtet den Assistenten ein und sieht die Ergebnisse.
+- **Betreiber (ITEBV):** vergibt die Rufnummern und rechnet ab.
+
+## Ablauf für den Laden
+
+1. **Testen und zubuchen:** Unter „Laden“, „Telefon-Assistent“ startet der Inhaber 30 Testminuten selbst (Stefan, 05.11.2026), danach bucht er den Zusatz ab Solo dort zu. „Tarif“ verweist dorthin. Bis der Betreiber den Assistenten im Betreiber-Bereich für alle öffnet, geht das nur mit seiner Freigabe.
+2. **Nummer des Ladens:** Der Laden trägt seine Nummer ein und sieht die Rufnummer, auf die er umleitet. Die Anrufer sehen sie nie, sie wählen weiter die Nummer des Ladens.
+3. **Rufumleitung:** Der Laden richtet bei seinem Telefonanbieter eine Umleitung auf diese Nummer ein. Empfohlen: bei Nichtmelden nach etwa 20 Sekunden und bei besetzt. „Immer“ geht auch.
+   - Dranzeit zeigt Anleitungen für die gängigen Fälle: Telekom, Vodafone, O2/Telefónica, 1&1, Fritzbox und die Codes fürs Handy.
+   - Ein Probeanruf zeigt, ob die Umleitung ankommt.
+4. **Einstellungen:**
+   - Was passiert, wenn der Assistent nicht weiterhilft: Rückrufbitte, Durchstellen auf eine Handynummer oder beides.
+   - SMS an den Anrufer: ein oder aus.
+   - Kostendeckel je Monat.
+5. **Anrufliste:** Für jeden Anruf stehen dort Zeit, Nummer und Dauer, das Ergebnis und eine kurze Zusammenfassung. Mögliche Ergebnisse: gebucht, Nummer gezogen, Frage beantwortet, Rückrufbitte, aufgelegt.
+6. **Termine:** Gebuchte Termine und gezogene Nummern stehen wie alle anderen im Kalender, in der Schlange und auf dem Bildschirm. Sie sind mit „per Telefon“ gekennzeichnet.
+7. **Verbrauch:** Der Laden sieht die Minuten des laufenden Monats und was noch inklusive ist.
+
+## Ablauf für den Anrufer
+
+### Begrüßung und Sprache
+
+- Der Assistent meldet sich mit dem Namen des Ladens. Im ersten Satz sagt er, dass er ein KI-Assistent ist (Art. 50 Abs. 1 KI-Verordnung).
+- Er begrüßt auf Deutsch. Spricht der Anrufer eine andere Sprache, fragt er gleich in dieser Sprache, ob es so weitergeht, und bleibt danach bis zum Ende dabei. Öffentlich steht weiter „auf Deutsch“, bis Türkisch und Arabisch am Telefon geprüft sind.
+
+### Termin buchen
+
+- **Wunsch klären:** Der Assistent fragt nach der Leistung, die er der Leistungsliste des Ladens zuordnet. Wenn es passt, fragt er auch nach Wunschperson und Wunschzeit.
+- **Angebot:** Er nennt den nächsten passenden freien Termin. Lehnt der Anrufer ab, bietet er weitere an.
+- **Buchung:** Er bucht erst nach ausdrücklicher Zusage.
+- **Name und Nummer:** Er fragt nach dem Namen. Die Rufnummer nimmt er aus der Anruferkennung. Ist die Nummer unterdrückt, fragt er nach ihr, sofern sie gebraucht wird (SMS, Rückruf).
+- **Wiederholen:** Am Ende wiederholt er Tag, Uhrzeit, Leistung und Person.
+- **Platz weg:** Wird der Platz zwischen Angebot und Zusage anderweitig vergeben, sagt er das und bietet den nächsten an. Ein Platz wird nie doppelt vergeben.
+
+### Wartezeit und Nummer
+
+- Der Assistent nennt die aktuelle Wartezeit der Schlange. Er rechnet dabei genauso wie Bildschirm und Nummernseite.
+- Auf Wunsch zieht er eine Nummer und nennt sie zusammen mit der ungefähren Zeit. Ist die SMS eingeschaltet, bekommt der Anrufer eine SMS mit dem Link zur Nummernseite.
+- Eine Nummer gibt es nur, solange die Schlange offen ist.
+
+### Fragen
+
+- Der Assistent beantwortet Fragen zu Öffnungszeiten, Adresse, Leistungen, Preisen und Dauer, und zwar nur aus den Daten des Ladens.
+- Was dort nicht steht, erfindet er nicht. Dann gilt die Einstellung des Ladens: Rückrufbitte oder Durchstellen.
+
+### Wenn der Assistent nicht weiterkommt
+
+Das gilt auch, wenn der Anrufer einen Menschen sprechen will. Es greift die Einstellung des Ladens:
+
+- **Rückrufbitte:** Name, Nummer und Anliegen landen in der Anrufliste. Der Laden bekommt eine Push-Nachricht.
+- **Durchstellen:** Weiter an die hinterlegte Handynummer. Nimmt dort niemand ab, bleibt es bei einer Rückrufbitte.
+
+### Wann der Assistent annimmt
+
+- Außerhalb der Öffnungszeiten nimmt er genauso an. Er bucht dann für die nächsten Tage.
+- Ist der Laden gesperrt, der Zusatz gekündigt, die Testminuten verbraucht oder der Deckel erreicht, spricht keine KI. Es kommt eine kurze Ansage mit dem Hinweis auf die Online-Buchung des Ladens.
+
+## Regeln
+
+- **Gleiche Regeln wie online:** Für Buchungen per Telefon gelten dieselben Regeln wie für die Online-Buchung: Arbeitszeiten, Pausen, Dauer der Leistung, Vorlauf, wie weit im Voraus gebucht werden kann, gesperrte Läden.
+- **Wie eine Buchung ohne Konto:** Eine Buchung per Telefon zählt wie eine Buchung ohne Konto, mit Tagesnummer für den Aufruf.
+- **Gleiche Schlange:** Eine per Telefon gezogene Nummer steht in derselben Schlange wie eine am Tresen oder online gezogene. Es gelten dieselben Regeln für Reihenfolge und Verzug.
+
+## SMS (wenn der Laden sie eingeschaltet hat)
+
+- **Empfänger:** Nur an Handynummern.
+- **Termin:** Die SMS nennt Laden, Tag, Uhrzeit und Leistung und enthält einen Link zum Absagen.
+- **Schlange:** Die SMS nennt Laden und Nummer und enthält einen Link zur Nummernseite. Dort kann der Anrufer auch Push einschalten.
+- **Häufigkeit:** Höchstens eine SMS je Anruf.
+
+## Abrechnung
+
+- **Eigenes Abo (Stefan, 05.11.2026):** Ab Solo zubuchbar, als eigenes Monatsabo neben dem Tarif, mit demselben Stripe-Kunden und derselben Zahlungsart. Nicht im Tarif-Abo, weil das Kundenportal Abos mit mehreren Produkten oder Nutzungspreisen nicht mehr umstellen kann, ein Jahrestarif keinen Monatsposten verträgt und die Minuten in der Testphase des Tarif-Abos frei wären. Zubuchen setzt ein laufendes Tarif-Abo voraus. Endet das Tarif-Abo, wird der Zusatz zum Ende seines Monats gekündigt.
+- **Preismodell:** 29 € netto im Monat mit 100 Minuten inklusive, danach 0,20 € pro Minute. Gleich in jedem Tarif, nicht im Gründerpreis enthalten. Abgerechnet wird erst, wenn Zubuchen, Kostendeckel und Anrufliste gebaut sind.
+- **Zählung:** Gezählt wird die Gesprächszeit vom Annehmen bis zum Auflegen, sekundengenau. Die Monatssumme wird auf volle Minuten aufgerundet. Durchgestellte Gespräche zählen mit. Ansagen ohne KI (Deckel, gesperrt, gekündigt) kosten den Laden nichts. Der Monat ist der Abrechnungszeitraum des Zusatz-Abos.
+- **Bei Stripe:** Grundpreis 29 € im Voraus, Minuten als Nutzungspreis mit Stufen (1–100 für 0 €, ab der 101. je 0,20 €) an einem Billing Meter mit der Formel „last“. Nach jedem Anruf geht die aufgerundete Monatssumme an Stripe, höchstens bis zum Deckel. Ein Abgleich im Hintergrund holt verpasste Meldungen nach.
+- **Zahlung offen:** Ist eine Zahlung des Zusatzes offen, kommt die Ansage, bis sie da ist.
+- **Testphase:** 30 Minuten frei. Danach kommt die Ansage, bis der Zusatz gebucht ist.
+- **Kostendeckel:** Der Laden legt einen Höchstbetrag je Monat fest, ohne eigene Angabe gelten 59 € insgesamt (250 Minuten). Bei 80 % und bei 100 % bekommt er eine Mail und einen Hinweis im Dashboard. Ab 100 % kommt bis zum Monatsende die Ansage. Die Warnung gilt auch für die Testminuten und muss stehen, bevor fremde Läden freigegeben werden. Sonst hören Anrufer nur noch die Ansage, ohne dass der Laden es erfährt.
+- **Rechnung:** Die Monatsrechnung zeigt die Minuten als eigenen Posten. Der Betreiber-Bereich zeigt die Minuten je Laden und Monat.
+- **Kündigung:** Zum Monatsende, auf der Seite des Assistenten oder im Kundenportal. Bis dahin nimmt er ab, danach kommt die Ansage, bis die Umleitung entfernt ist.
+- **Öffnung für alle (Stefan, 05.11.2026):** Ein Schalter im Betreiber-Bereich, zunächst aus. Umlegen erst, wenn Datenschutzerklärung und AGB ergänzt sind, der Vertrag zur Auftragsverarbeitung mit Vapi steht und das Twilio-Kundenprofil genehmigt ist.
+
+## Hinweise für Kunden
+
+Die Kunden wählen weiter die Nummer des Ladens. „Per Telefon buchen“ ist neben „Nummer ziehen“ und „Termin buchen“ der dritte Weg, aber nicht der Hauptknopf: Online kostet den Laden nichts, jede Telefonminute schon.
+
+- **Einrichtung:** Sobald der Assistent abnimmt, zeigt `/telefon-assistent` fertige Texte für Google-Eintrag, Webseite und Tresen. Die Stellen außerhalb von Dranzeit pflegt nur der Laden. Steht in den Ladendaten nicht die umgeleitete Nummer, sagt die Seite das.
+- **Ladenseite, Ladenliste und Salonseite:** Knopf „Per Telefon buchen“. Unter der Nummer auf Laden- und Salonseite eine Zeile, die den KI-Assistenten nennt.
+- **Buchen und Nummer ziehen:** „Lieber telefonisch?“ mit der Nummer, oben neben dem Wechsel zwischen Nummer und Termin. Das gilt auch für den Weg über den QR-Code.
+- **QR-Plakat:** Eine Zeile mit der Nummer, abwählbar. Gedruckt bleibt sie hängen, auch wenn der Assistent später aus ist.
+- **Woher die Seiten es wissen:** `/routes/telefon-hinweis` nennt nur die IDs der Läden, bei denen alle Bedingungen erfüllt sind.
+- **Bedingungen:** Freigegeben, eingeschaltet, Probeanruf bestanden, Minuten übrig, nicht gesperrt, Tarif mit Terminen. Außer auf dem Plakat muss die Nummer in den Ladendaten die umgeleitete sein.
+- **Nicht versprechen:** Es gibt keine Rückrufbitte, keine SMS und nur Deutsch. In anderen Sprachen steht deshalb „auf Deutsch“ dabei. „Rund um die Uhr“ steht nirgends.
+- **Bewusst ohne Hinweis:** Nummernseite, Erinnerungen und Push (der Assistent kann bestehende Termine nicht verschieben oder absagen), Anrufbeantworter (er muss aus, sonst nimmt er vor der Umleitung ab), Kasten für die Webseite des Ladens (dort steht die Nummer schon, Text im Kasten „Jetzt weitersagen“).
+
+## Datenschutz und Recht
+
+- **KI-Hinweis:** Zu Beginn jedes Gesprächs.
+- **Keine Tonaufnahme:** Gespeichert werden Anrufernummer, Zeit, Dauer, Ergebnis und eine kurze Zusammenfassung. Das wird nach 90 Tagen gelöscht, wie bei den Terminen. Wird der Laden gelöscht, werden die Anrufliste mitgelöscht und die Nummer freigegeben.
+- **Verantwortung:** Der Laden bleibt für die Daten seiner Kunden verantwortlich, Dranzeit verarbeitet sie in seinem Auftrag.
+- **Bekannte Anrufer (Stefan, 06.11.2026):** Wer am Telefon bucht, steht danach mit Namen und Anrufernummer in der Kundenliste des Ladens. Gibt es zur Nummer schon einen Eintrag, auch einen vom Laden angelegten, hängt der Termin daran. Ruft die Nummer wieder an, begrüßt der Assistent mit Namen, fragt nicht noch einmal danach, bietet die Leistung vom letzten Mal an und kennt die kommenden Termine. Der Laden sieht alle Termine einer Person in der Kundenliste. Löschfristen wie bei jedem Eintrag dort (12 Monate ohne Termin), unterdrückte Nummern bleiben ohne Eintrag. Absagen oder Verschieben bestehender Termine am Telefon gibt es noch nicht.
+- **Dienstleister:** Mit allen Dienstleistern für Telefon, Sprach-KI und SMS gibt es einen Vertrag zur Auftragsverarbeitung. Die Daten werden möglichst in der EU verarbeitet.
+- **Texte:** Datenschutzerklärung, AGB (Zusatz und Preise), Preise-Seite und ein Hilfe-Artikel werden ergänzt.
+
+## Acceptance – Abnahme
+
+- Ein Probeanruf auf die Ladennummer mit eingerichteter Umleitung landet beim Assistenten des richtigen Ladens.
+- Der erste Satz des Assistenten sagt, dass er eine KI ist.
+- Ein am Telefon gebuchter Termin steht danach im Kalender des Ladens mit Name, Nummer, Leistung, Person, Tagesnummer und dem Kennzeichen „per Telefon“.
+- Wollen zwei Anrufer gleichzeitig denselben Platz, bekommt ihn nur einer. Dem anderen wird der nächste freie angeboten.
+- Die genannte Wartezeit stimmt mit dem Bildschirm überein. Eine per Telefon gezogene Nummer erscheint in der Schlange am Tresen und auf dem Bildschirm.
+- Fragen nach Öffnungszeit, Adresse und Preis werden aus den Ladendaten richtig beantwortet. Auf eine Frage, die die Daten nicht beantworten, kommt keine erfundene Antwort, sondern Rückrufbitte oder Durchstellen.
+- Eine Rückrufbitte erscheint in der Anrufliste und kommt als Push beim Laden an.
+- Durchstellen geht nur an die hinterlegte Nummer. Nimmt dort niemand ab, wird daraus eine Rückrufbitte.
+- Eine SMS geht nur raus, wenn der Laden sie eingeschaltet hat, nur an Handynummern und höchstens einmal je Anruf.
+- Ein Anruf auf Englisch oder Türkisch wird in dieser Sprache geführt und richtig gebucht.
+- Ist der Kostendeckel oder das Testkontingent erreicht, kommt nur noch die Ansage, ohne weitere KI-Minuten. Bei 80 % kommt die Warnung.
+- Die Minuten des Monats stehen auf der Rechnung, die Inklusivminuten sind abgezogen.
+- Anrufliste und Zusammenfassungen sind nach 90 Tagen gelöscht.
+
+## Nicht in der ersten Stufe
+
+- Termine am Telefon absagen oder verschieben (der Anrufer bekommt den Link aus der SMS oder hinterlässt eine Rückrufbitte)
+- Anrufe nach außen, zum Beispiel Erinnerungen per Anruf
+- Die eigene Nummer des Ladens zu uns umziehen
+- Frei wählbare Stimme und Begrüßung
+- WhatsApp
+
+## Offen
+
+- **Anbieter:** Probelauf mit zwei Sprach-KI-Plattformen und einer Telefonleitung. Verglichen werden:
+  - deutsche Sprachqualität und Sprachwechsel
+  - Antwortzeit und Ins-Wort-Fallen
+  - Kosten pro Minute
+  - Verarbeitung in der EU und Vertrag zur Auftragsverarbeitung
+  - deutsche Rufnummern
+- **Preise:** nach den ersten bezahlten Minuten gegen die gemessenen Kosten prüfen.
+- **SMS:** Anbieter, Absendername (Dranzeit oder Name des Ladens) und ob SMS im Minutenpreis stecken oder einzeln abgerechnet werden.
+- **Nummer nach Kündigung:** wie lange sie gehalten wird, bevor sie an einen anderen Laden geht.
+
+## Vorschlag zur Umsetzung (nicht Teil der Anforderung)
+
+- **Rufnummern:** Eine gemeinsame Berliner 030-Nummer auf die ITEBV. Das Backend erkennt den Laden an der Nummer, die bei der Umleitung mitkommt (`ForwardedFrom`), und nimmt nur Anrufe von zugelassenen Läden an, bevor die KI abnimmt (geprüft mit simon mobile am 02.11.2026, Festnetz noch offen). Kommt die Nummer bei einem Anbieter nicht an, zeigt das der Probeanruf, und der Laden bekommt eine eigene Nummer. Ortsnetznummern gibt es nur mit Sitz im Ortsnetz. Umleitungen auf deutsche Festnetznummern sind in den üblichen Flatrates enthalten.
+- **Sprach-KI:** Eine fertige Plattform übernimmt Stimme, Spracherkennung und Telefonleitung. Sie ruft unser Backend auf für:
+  - freie Zeiten (vorhandene Berechnung)
+  - buchen
+  - Nummer ziehen und Wartezeit
+  - Rückrufbitte
+- **Buchen im Backend:** Gebucht wird heute im Browser. Fürs Telefon muss das Backend selbst buchen können. Das Belegen eines Platzes gibt es dort schon (wie bei „früher dran“). Die Tagesnummer vergibt bisher nur das Frontend. Beide Stellen müssen danach gleich bleiben.
+- **Nach dem Gespräch:** Die Plattform meldet Dauer und Zusammenfassung. Daraus werden der Eintrag in der Anrufliste und die Nutzungsmeldung an Stripe (Billing Meter, nach Nutzung abgerechneter Preis im bestehenden Abo).
+- **Anbieterneutral:** Die Schnittstelle so halten, dass ein Wechsel der Plattform keine Änderung an Buchung und Abrechnung braucht.

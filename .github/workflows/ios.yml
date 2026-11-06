@@ -1,0 +1,150 @@
+# iPhone/iPad-App (mobile/, Anleitung mobile/README.md).
+# Bei Änderungen an mobile/: Simulator-Build ohne Signatur als Gegenprobe.
+# Von Hand (Actions → iOS-App → Run workflow, „Zu TestFlight hochladen“ anhaken): signiertes Archiv und Upload
+# zu TestFlight. Geht erst, wenn das Apple-Konto steht und die Secrets aus mobile/README.md gesetzt sind.
+name: iOS-App
+
+on:
+  push:
+    paths:
+      - mobile/**
+      - .github/workflows/ios.yml
+  pull_request:
+    paths:
+      - mobile/**
+      - .github/workflows/ios.yml
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: Zu TestFlight hochladen (braucht die Secrets aus mobile/README.md)
+        type: boolean
+        default: false
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    name: Simulator-Build (ohne Signatur)
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      # Kopiert capacitor.config.json und www/ (Offline-Seite) ins Xcode-Projekt, schreibt die Plugin-Liste
+      - run: npx cap sync ios
+      - run: xcodebuild -version
+      # Swift-Pakete (Capacitor, Firebase) nicht jedes Mal neu laden
+      - uses: actions/cache@v4
+        with:
+          path: mobile/ios/App/.spm
+          key: spm-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json', 'mobile/ios/App/App.xcodeproj/project.pbxproj') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Bauen für den Simulator
+        run: >-
+          xcodebuild build -quiet
+          -project ios/App/App.xcodeproj -scheme App -configuration Debug
+          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
+          -clonedSourcePackagesDirPath ios/App/.spm
+          CODE_SIGNING_ALLOWED=NO
+
+  testflight:
+    name: Archiv und TestFlight
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    needs: simulator
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      IOS_GOOGLE_SERVICE_INFO: ${{ secrets.IOS_GOOGLE_SERVICE_INFO }}
+    steps:
+      - name: Secrets vorhanden?
+        run: |
+          fehlt=0
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 IOS_GOOGLE_SERVICE_INFO; do
+            if [ -z "${!name}" ]; then echo "::error::$name fehlt – siehe mobile/README.md"; fehlt=1; fi
+          done
+          exit $fehlt
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx cap sync ios
+      - uses: actions/cache@v4
+        with:
+          path: mobile/ios/App/.spm
+          key: spm-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json', 'mobile/ios/App/App.xcodeproj/project.pbxproj') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Firebase-Konfiguration und App-Store-Connect-Schlüssel ablegen
+        run: |
+          printf '%s\n' "$IOS_GOOGLE_SERVICE_INFO" > ios/App/App/GoogleService-Info.plist
+          plutil -lint ios/App/App/GoogleService-Info.plist
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_$ASC_KEY_ID.p8"
+      - name: Universal Links auf dranzeit.de passen zur Team-ID?
+        run: |
+          if ! curl -fsS https://dranzeit.de/.well-known/apple-app-site-association | grep -q "$APPLE_TEAM_ID.de.dranzeit.app"; then
+            echo "::warning::apple-app-site-association nennt die Team-ID $APPLE_TEAM_ID noch nicht – QR-Codes öffnen dann Safari statt der App (mobile/README.md)"
+          fi
+      # Signieren übernimmt Xcode selbst über den API-Schlüssel (automatische Signatur, Zertifikat in der Apple-Cloud).
+      # Das ist vorbereitet, aber erst mit dem Apple-Konto zu prüfen.
+      - name: Archiv bauen
+        run: >-
+          xcodebuild archive -quiet
+          -project ios/App/App.xcodeproj -scheme App -configuration Release
+          -destination 'generic/platform=iOS'
+          -archivePath "$RUNNER_TEMP/Dranzeit.xcarchive"
+          -clonedSourcePackagesDirPath ios/App/.spm
+          -allowProvisioningUpdates
+          -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_$ASC_KEY_ID.p8"
+          -authenticationKeyID "$ASC_KEY_ID"
+          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          CODE_SIGN_STYLE=Automatic
+          CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: Zu TestFlight hochladen
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Dranzeit.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Build ${{ github.run_number }} ist bei App Store Connect – nach der Verarbeitung (etwa 15 Minuten) in TestFlight."
+      - name: Schlüssel vom Runner löschen
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc" ios/App/App/GoogleService-Info.plist

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Staff, Shop, Service, deleteStaff } from '../utils/firestore';
 import { EditStaffDialog } from './EditStaffDialog';
+import { t, tn } from '@/i18n';
 
 export interface StaffCardProps {
   employee: Staff;
@@ -26,15 +27,17 @@ export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCar
   const [confirmOpen, setConfirmOpen] = useState(false);
   const offered = (employee.serviceIds || []).map((id) => services.find((s) => s.id === id)?.name).filter(Boolean);
   const workingDays = (employee.workingHours || []).filter((h) => h.isWorking).length;
+  const inviteOpen = !employee.userId && employee.inviteExpires && employee.inviteExpires.toDate() > new Date();
+  const access = employee.userId ? t('Hat Zugang') : inviteOpen ? t('Eingeladen') : '';
 
   const handleDeactivate = async () => {
     try {
       await deleteStaff(employee.id);
       await onStaffUpdated();
-      toast.success(`${employee.name} ist deaktiviert.`);
+      toast.success(t('{name} ist deaktiviert.', { name: employee.name }));
     } catch (error) {
       console.error('Error deleting staff:', error);
-      toast.error('Deaktivieren hat nicht geklappt.');
+      toast.error(t('Deaktivieren hat nicht geklappt.'));
     }
   };
 
@@ -49,30 +52,37 @@ export const StaffCard = ({ employee, shop, services, onStaffUpdated }: StaffCar
           </span>
         )}
         <div className="min-w-0">
-          <h3 className="truncate font-display text-lg font-bold">{employee.name}</h3>
-          <p className="truncate text-sm text-muted-foreground">{employee.email}{employee.email && ' · '}{workingDays ? `${workingDays} Tage pro Woche` : <span className="text-destructive">keine Arbeitszeiten</span>}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate font-display text-lg font-bold">{employee.name}</h3>
+            {access && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{access}</span>}
+          </div>
+          <p className="truncate text-sm text-muted-foreground">{employee.email}{employee.email && ' · '}{workingDays ? tn(workingDays, '{n} Tag pro Woche', '{n} Tage pro Woche') : <span className="text-destructive">{t('keine Arbeitszeiten')}</span>}</p>
           <p className="mt-1 text-sm">
-            {offered.length ? offered.join(', ') : <span className="text-destructive">Keine Leistung zugeordnet – taucht bei der Buchung nicht auf.</span>}
+            {offered.length ? offered.join(', ') : <span className="text-destructive">{t('Keine Leistung zugeordnet – taucht bei der Buchung nicht auf.')}</span>}
           </p>
         </div>
       </div>
       <div className="flex gap-2">
         <EditStaffDialog staff={employee} services={services} shop={shop} onStaffUpdated={onStaffUpdated} />
         <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmOpen(true)}>
-          Deaktivieren
+          {t('Deaktivieren')}
         </Button>
       </div>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">{employee.name} deaktivieren?</AlertDialogTitle>
-            <AlertDialogDescription>Für {employee.name} kann dann niemand mehr buchen. Bestehende Termine bleiben.</AlertDialogDescription>
+            <AlertDialogTitle className="font-display">{t('{name} deaktivieren?', { name: employee.name })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('Für {name} kann dann niemand mehr buchen, bestehende Termine bleiben.', { name: employee.name })}
+              {employee.userId ? ` ${t('{name} sieht „Mein Tag“ nicht mehr.', { name: employee.name })}` : ''}{' '}
+              {t('Unter „Deaktiviert“ holst du die Person jederzeit zurück.')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">Abbrechen</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">{t('Abbrechen')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeactivate} className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Deaktivieren
+              {t('Deaktivieren')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

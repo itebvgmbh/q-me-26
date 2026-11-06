@@ -2,14 +2,14 @@
 # Einen Schlüssel in /etc/q-me.env setzen und das Backend neu starten. Als root ausführen.
 # Der Wert kommt über die Standardeingabe – so steht er weder in einer Befehlszeile noch in einer History:
 #   ... | bash /opt/q-me/deploy/set-secret.sh GOOGLE_MAPS_API_KEY
-# Den passenden PowerShell-Block (fragt verdeckt ab) gibt es in deploy/README.md, "Schlüssel für Laden einrichten".
+# Den passenden PowerShell-Block (fragt verdeckt ab) gibt es in deploy/README.md, "Schlüssel eintragen".
 set -euo pipefail
 
 NAME=${1:-}
 case "$NAME" in
-	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY | ANTHROPIC_WORKSPACE_ID) ;;
+	GOOGLE_MAPS_API_KEY | ANTHROPIC_API_KEY | ANTHROPIC_WORKSPACE_ID | RESEND_API_KEY | STRIPE_SECRET_KEY | STRIPE_WEBHOOK_SECRET | STRIPE_TEST_SECRET_KEY | QME_TELEFON_TOKEN | QME_TWILIO_AUTH_TOKEN | QME_VAPI_API_KEY | QME_VAPI_ASSISTANT_ID | QME_VAPI_PHONE_NUMBER_ID | QME_TELEFON_NUMMER | QME_PIN_BENUTZER_B64 | QME_PIN_PASSWORT_B64 | QME_PIN_TEST_BENUTZER_B64 | QME_PIN_TEST_PASSWORT_B64 | QME_PIN_WEBHOOK_GEHEIMNIS) ;;
 	*)
-		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID" >&2
+		echo "Unbekannter Name '$NAME'. Erlaubt: GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID, RESEND_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_TEST_SECRET_KEY, QME_TELEFON_TOKEN, QME_TWILIO_AUTH_TOKEN, QME_VAPI_API_KEY, QME_VAPI_ASSISTANT_ID, QME_VAPI_PHONE_NUMBER_ID, QME_TELEFON_NUMMER, QME_PIN_BENUTZER_B64, QME_PIN_PASSWORT_B64, QME_PIN_TEST_BENUTZER_B64, QME_PIN_TEST_PASSWORT_B64, QME_PIN_WEBHOOK_GEHEIMNIS" >&2
 		exit 2
 		;;
 esac

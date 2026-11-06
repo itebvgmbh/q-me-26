@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from fastapi import BackgroundTasks, APIRouter
-from google.cloud import firestore
+from app import store
 import traceback
 
 from app.apis.firebase_utils import get_firestore_db
@@ -194,8 +194,8 @@ async def create_appointment(appointment_data: Dict[str, Any],
         db = get_firestore_db()
         
         # Add creation timestamp
-        appointment_data['createdAt'] = firestore.SERVER_TIMESTAMP
-        appointment_data['updatedAt'] = firestore.SERVER_TIMESTAMP
+        appointment_data['createdAt'] = store.SERVER_TIMESTAMP
+        appointment_data['updatedAt'] = store.SERVER_TIMESTAMP
         
         # Create the appointment
         doc_ref = db.collection('appointments').document()
@@ -250,8 +250,8 @@ async def cancel_appointment(appointment_id: str,
         # Mark as cancelled with timestamp
         update_data = {
             'status': 'cancelled',
-            'cancelledAt': firestore.SERVER_TIMESTAMP,
-            'updatedAt': firestore.SERVER_TIMESTAMP
+            'cancelledAt': store.SERVER_TIMESTAMP,
+            'updatedAt': store.SERVER_TIMESTAMP
         }
         
         # Use the main update function to ensure consistent cache invalidation

@@ -7,12 +7,13 @@ nachgebauter Datenbank. Ohne Firebase-Zugang und ohne pytest lauffähig:
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app.apis.check_slots as cs  # noqa: E402
 from app.apis.check_slots import Candidate, Offer, plan_offers  # noqa: E402
-from app.apis.models import AvailableTimeslotsResponse, TimeSlot  # noqa: E402
+from app.apis.models import TimeSlot  # noqa: E402
 
 DAY = datetime(2026, 10, 14)
 
@@ -164,7 +165,7 @@ class FakeQuery:
 
 class FakeDb:
     def __init__(self):
-        self.store = {'appointments': {}, 'earlier_slot_notifications': {}}
+        self.store = {'appointments': {}, 'earlier_slot_notifications': {}, 'shops': {}}
 
     def collection(self, name):
         return FakeQuery(self.store, name)
@@ -184,13 +185,14 @@ def test_pruefung_mit_datenbank_zeitzone_angebot_frist_und_kaskade():
     appts['anonym'] = {**base, 'customerId': None, 'startTime': utc(t('13:45')), 'endTime': utc(t('14:16'))}
     free = {'12:30'}
 
-    def fake_slots(request, background_tasks):
-        if request.date.date() != DAY.date():
-            return AvailableTimeslotsResponse(timeslots=[])
-        return AvailableTimeslotsResponse(timeslots=[TimeSlot(start_time=t(h), end_time=t(h) + timedelta(minutes=31), is_available=True) for h in sorted(free)])
+    def fake_slots(inputs, service_id, day):
+        if day.date() != DAY.date():
+            return []
+        return [TimeSlot(start_time=t(h), end_time=t(h) + timedelta(minutes=31), is_available=True) for h in sorted(free)]
 
     cs.get_firestore_db = lambda: db
-    cs.get_available_timeslots = fake_slots
+    cs.load_timeslot_inputs = lambda *a: SimpleNamespace(appointments=[])
+    cs.timeslots_for_day = fake_slots
     cs.threading.Timer = lambda *a, **k: type('T', (), {'start': lambda self: None, 'daemon': True})()
 
     # 12:10: 12:30 ist frei -> nur A (nächster in der Reihe) bekommt das Angebot
@@ -202,6 +204,8 @@ def test_pruefung_mit_datenbank_zeitzone_angebot_frist_und_kaskade():
     assert note['appointmentId'] == 'A' and note['earlierStartTime'] == '2026-10-14T12:30:00', note
     assert note['expiresAt'] == t('12:25').astimezone(), note['expiresAt']
     assert note['status'] == 'offered' and note['userId'] == 'g'
+    # ... und der Benachrichtigungsdienst schickt es per Push/E-Mail (app/libs/notify_worker.py)
+    assert note['offerNotice'] == 'pending', note
 
     # 12:20: noch in der Frist -> nichts ändert sich
     cs.run_earlier_slot_check(now=t('12:20'))
@@ -226,6 +230,43 @@ def test_pruefung_mit_datenbank_zeitzone_angebot_frist_und_kaskade():
     cs.run_earlier_slot_check(now=t('12:38'))
     assert [v['status'] for v in notes.values() if v['appointmentId'] == 'B'] == ['expired']
 
+
+def test_frueher_fertig_gibt_den_rest_frei():
+    # Wie occupiedWindow im Frontend (utils/queue-lane.ts): belegt ist, was wirklich gebraucht wird
+    from app.apis.available_timeslots import occupied_window
+
+    start, end = t('11:00'), t('11:30')
+    assert occupied_window({'status': 'scheduled'}, start, end) == (start, end)
+    # 10:20 früher aufgerufen, 10:45 fertig: belegt war 10:20–10:45, 11:00–11:30 ist wieder frei
+    early = {'status': 'completed', 'calledAt': utc(t('10:20')), 'completedAt': utc(t('10:45'))}
+    assert occupied_window(early, start, end) == (t('10:20'), t('10:45'))
+    # Ohne Aufruf vor der Zeit abgehakt: belegt nichts
+    assert occupied_window({'status': 'completed', 'calledAt': utc(t('10:30')), 'completedAt': utc(t('10:30'))}, start, end) is None
+    # 11:00 dran, 11:15 fertig: ab 11:15 frei
+    assert occupied_window({'status': 'completed', 'calledAt': utc(t('11:00')), 'completedAt': utc(t('11:15'))}, start, end) == (start, t('11:15'))
+    # Dran seit 10:20 (zuletzt aufgerufen): belegt 10:20–10:50 statt 11:00–11:30
+    assert occupied_window({'status': 'in-progress', 'calledAt': utc(t('09:00')), 'lastCalledAt': utc(t('10:20'))}, start, end) == (t('10:20'), t('10:50'))
+    # Altbestand ohne Zeitpunkte: wie geplant
+    assert occupied_window({'status': 'completed'}, start, end) == (start, end)
+
+
+
+def test_gratis_laden_bekommt_kein_frueher_dran():
+    db = FakeDb()
+    db.store['shops']['itebv'] = {'trialEndsAt': datetime(2026, 1, 1, tzinfo=timezone.utc)}  # Test vorbei, kein Abo
+    base = {'shopId': 'itebv', 'staffId': 'stefan', 'serviceId': 'schnitt', 'status': 'scheduled', 'checkEarlierOptions': True}
+    db.store['appointments']['A'] = {**base, 'customerId': 'g', 'startTime': utc(t('13:15')), 'endTime': utc(t('13:46'))}
+
+    def fake_slots(inputs, service_id, day):
+        return [TimeSlot(start_time=t('12:30'), end_time=t('13:01'), is_available=True)]
+
+    cs.get_firestore_db = lambda: db
+    cs.load_timeslot_inputs = lambda *a: SimpleNamespace(appointments=[])
+    cs.timeslots_for_day = fake_slots
+    cs.threading.Timer = lambda *a, **k: type('T', (), {'start': lambda self: None, 'daemon': True})()
+    result = cs.run_earlier_slot_check(now=t('12:10'))
+    assert result.appointments_checked == 0, result
+    assert db.store['earlier_slot_notifications'] == {}
 
 if __name__ == '__main__':
     tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith('test_') and callable(fn)]

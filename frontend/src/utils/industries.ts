@@ -1,46 +1,49 @@
+import { t } from '@/i18n';
+
 export interface Industry {
   id: string;
   name: string;
   description: string;
 }
 
-// Industrie-Kategorien für Dienstleistungsbetriebe
+// Industrie-Kategorien für Dienstleistungsbetriebe. Gespeichert wird nur die id; Name und Beschreibung
+// sind Getter, damit sie erst beim Anzeigen übersetzt werden (beim Laden der Datei steht die Sprache noch nicht fest)
 export const INDUSTRIES: Industry[] = [
   {
     id: 'barbershop',
-    name: 'Friseure/Barbiere',
-    description: 'Haarschnitte, Bartpflege und Styling für Damen und Herren'
+    get name() { return t('Friseure/Barbiere'); },
+    get description() { return t('Haarschnitte, Bartpflege und Styling für Damen und Herren'); },
   },
   {
     id: 'physiotherapy',
-    name: 'Physiotherapeuten',
-    description: 'Physiotherapeutische Behandlungen und Massagen'
+    get name() { return t('Physiotherapeuten'); },
+    get description() { return t('Physiotherapeutische Behandlungen und Massagen'); },
   },
   {
     id: 'automotive',
-    name: 'Autowerkstätten',
-    description: 'Reparatur und Wartung von Fahrzeugen'
+    get name() { return t('Autowerkstätten'); },
+    get description() { return t('Reparatur und Wartung von Fahrzeugen'); },
   },
   {
     id: 'coaching',
-    name: 'Therapeuten/Coaches',
-    description: 'Psychologische Beratung, Coaching und Therapie'
+    get name() { return t('Therapeuten/Coaches'); },
+    get description() { return t('Psychologische Beratung, Coaching und Therapie'); },
   },
   {
     id: 'nailstudio',
-    name: 'Nagelstudios',
-    description: 'Maniküre, Pediküre und Nagelverlängerung'
+    get name() { return t('Nagelstudios'); },
+    get description() { return t('Maniküre, Pediküre und Nagelverlängerung'); },
   },
   {
     id: 'beautysalon',
-    name: 'Kosmetiksalons',
-    description: 'Gesichtsbehandlungen, Kosmetik und Hautpflege'
+    get name() { return t('Kosmetiksalons'); },
+    get description() { return t('Gesichtsbehandlungen, Kosmetik und Hautpflege'); },
   },
   {
     id: 'massage',
-    name: 'Massagepraxen',
-    description: 'Entspannungs- und Wellnessmassagen'
-  }
+    get name() { return t('Massagepraxen'); },
+    get description() { return t('Entspannungs- und Wellnessmassagen'); },
+  },
 ];
 
 // Hilfsfunktion zum Abrufen einer Industry anhand der ID
@@ -51,5 +54,5 @@ export const getIndustryById = (id: string): Industry | undefined => {
 // Hilfsfunktion zum Abrufen des Industry-Namens anhand der ID
 export const getIndustryNameById = (id: string): string => {
   const industry = getIndustryById(id);
-  return industry ? industry.name : 'Unbekannte Branche';
+  return industry ? industry.name : t('Unbekannte Branche');
 };

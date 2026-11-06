@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter
-from firebase_admin import firestore
+from app import store
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
 
@@ -29,7 +29,7 @@ async def cleanup_past_timeslot_suggestions() -> int:
         notifications_ref = db.collection('earlier_slot_notifications')
         # We can't filter directly on Firestore timestamp fields with < comparison in queries
         # So we need to get all non-accepted notifications and filter them in code
-        query = notifications_ref.where(filter=firestore.FieldFilter("isAccepted", "==", False))
+        query = notifications_ref.where(filter=store.FieldFilter("isAccepted", "==", False))
         
         docs_to_delete = []
         for doc in query.stream():

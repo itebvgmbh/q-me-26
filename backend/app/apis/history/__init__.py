@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
-from firebase_admin import firestore
+from app import store
 from app.apis.firebase_utils import get_firestore_db
 from app.apis.utils import convert_timestamp_to_datetime
 from app.auth import AuthorizedUser
@@ -40,7 +40,7 @@ async def get_notification_history_full2222222(user: AuthorizedUser, limit: int 
 
         if is_admin(user):
             notifications_query = db.collection('earlier_slot_notifications')
-            notifications_query = notifications_query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+            notifications_query = notifications_query.order_by('createdAt', direction=store.DESCENDING)
             docs = list(notifications_query.limit(limit).stream())
         else:
             shop_ids = owned_shop_ids(user.sub)

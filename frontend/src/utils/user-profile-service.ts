@@ -1,8 +1,8 @@
-import { doc, getDoc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseApp } from 'app';
 import { UserProfile, UserRole } from './types';
+import { backendSenden, liveLesen } from './live';
 import { listShopsOfOwner, getStaffByUserId } from './firestore';
+import { gespeichertesGeraet, startseite } from './geraet';
+import { sprache, spracheGewaehlt } from '@/i18n';
 
 export interface UpdateProfileData {
   displayName: string;
@@ -23,17 +23,16 @@ export const onProfileSaved = (listener: ProfileListener) => {
 };
 export const emitProfileSaved = (uid: string, profile: UserProfile) => profileListeners.forEach((listener) => listener(uid, profile));
 
+/** Profil des angemeldeten Kontos über das Backend (GET /routes/konto/profil; Stufe 2, backend/app/libs/laeden.py).
+ * null nur, wenn es wirklich keins gibt. Ohne Verbindung ein Fehler – das ist nicht dasselbe wie "kein Profil" (sonst
+ * landet ein bestehendes Konto in der Rollenwahl, iPhone 27.10.2026). userId: nur das eigene Konto geht. */
+export const loadUserProfile = async (_userId: string): Promise<UserProfile | null> =>
+  (await liveLesen<{ profil: UserProfile | null }>('konto/profil', true)).profil;
+
+/** Wie loadUserProfile, aber jeder Fehler gilt als "kein Profil" – nur für Anzeigen, nie für Entscheidungen über die Rolle */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  console.log('Getting user profile for:', userId);
   try {
-    const db = getFirestore(firebaseApp);
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (userDoc.exists()) {
-      console.log('User profile found:', userDoc.data());
-      return userDoc.data() as UserProfile;
-    }
-    console.log('No user profile found');
-    return null;
+    return await loadUserProfile(userId);
   } catch (error: any) {
     // Kein Toast: Aufrufer (Navigation, Login) entscheiden selbst, was angezeigt wird
     console.error('Error getting user profile:', error);
@@ -41,50 +40,46 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   }
 };
 
+/** Profil mit Rolle anlegen. Gibt es schon eins, bleibt es unverändert und wird zurückgegeben (das Backend legt es in
+ * einer Transaktion an, damit ein Profil nie überschrieben wird). E-Mails vom Backend kommen in der gewählten Sprache. */
 export const createUserProfile = async (uid: string, email: string, role: UserRole): Promise<UserProfile> => {
-  const db = getFirestore(firebaseApp);
-  const now = Timestamp.now();
-  
-  const profile: UserProfile = {
-    uid,
-    email,
-    role,
-    createdAt: now,
-    updatedAt: now
-  };
-
-  await setDoc(doc(db, 'users', uid), profile);
-  emitProfileSaved(uid, profile);
-  return profile;
+  const { profil } = await backendSenden<{ profil: UserProfile }>('konto/profil/anlegen', { email, role, language: sprache() });
+  emitProfileSaved(uid, profil);
+  return profil;
 };
 
-export const updateUserProfile = async (userId: string, data: UpdateProfileData) => {
-  try {
-    const db = getFirestore(firebaseApp);
-    const userRef = doc(db, 'users', userId);
-    
-    // Update user profile in Firestore
-    await updateDoc(userRef, {
-      displayName: data.displayName,
-      email: data.email,
-      phone: data.phone,
-      updatedAt: new Date().toISOString(),
-    });
+/** Eigenes Profil ändern (Name, Handynummer, Sprache …) */
+export const saveOwnProfile = async (aenderung: Partial<UserProfile> & Record<string, unknown>): Promise<UserProfile> =>
+  (await backendSenden<{ profil: UserProfile }>('konto/profil', { aenderung })).profil;
 
-    return true;
+/** Sprache im Profil an die gerade gewählte angleichen (beim Laden des Profils): Wer die Sprache wechselt, bekommt
+ * die nächsten E-Mails vom Backend in der neuen. Schlägt es fehl, bleibt die alte – kein Grund für eine Meldung. */
+export const syncProfileLanguage = async (_userId: string, profile: UserProfile | null): Promise<void> => {
+  if (!profile || profile.language === sprache() || !spracheGewaehlt()) return;
+  try {
+    await saveOwnProfile({ language: sprache() });
   } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
+    console.error('Sprache im Profil nicht gespeichert:', error);
   }
 };
 
+export const updateUserProfile = async (_userId: string, data: UpdateProfileData) => {
+  await saveOwnProfile({ displayName: data.displayName, email: data.email, phone: data.phone });
+  return true;
+};
+
 export const getRedirectPath = async (userId: string): Promise<string> => {
-  console.log('Getting redirect path for:', userId);
-  const profile = await getUserProfile(userId);
-  
+  let profile: UserProfile | null;
+  try {
+    profile = await loadUserProfile(userId);
+  } catch (error) {
+    // Ohne Verbindung nicht in die Rollenwahl, sondern auf die Startseite
+    console.error('Profil für die Weiterleitung nicht geladen:', error);
+    return '/';
+  }
+
   if (!profile) {
-    console.log('No profile found, redirecting to role selection');
-    return '/role-selection'; // Existing auth user needs to select role
+    return '/role-selection'; // Konto ohne Profil (z. B. abgebrochene Registrierung)
   }
 
   // Redirect based on role
@@ -94,7 +89,10 @@ export const getRedirectPath = async (userId: string): Promise<string> => {
       // Noch kein Laden: gleich in den Einrichtungsassistenten. Im Zweifel (Fehler beim Laden) an den
       // Tresen – sonst landet ein bestehender Betrieb im Assistenten und legt womöglich einen zweiten Laden an.
       try {
-        return (await listShopsOfOwner(userId)).length > 0 ? '/shop-dashboard' : '/shop-setup';
+        if ((await listShopsOfOwner(userId)).length === 0) return '/shop-setup';
+        // Das Gerät weiß, wofür es da ist (Tresen, eigenes Handy, Büro – utils/geraet.ts)
+        const geraet = gespeichertesGeraet();
+        return geraet ? startseite(geraet, true) : '/shop-dashboard';
       } catch (error) {
         console.error('Läden konnten nicht geladen werden:', error);
         return '/shop-dashboard';

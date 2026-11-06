@@ -1,48 +1,26 @@
 /**
- * Verbindung zur Datenbank (Firestore) in schwierigen Netzen.
+ * Verbindung zum Server in schwierigen Netzen.
  *
- * Firestore hält eine Dauerverbindung offen. Manche WLANs (Router-Filter, Firewalls) lassen einfache
- * Abfragen durch, diese Verbindung aber nicht – dann liefert Firestore still eine leere Liste aus dem
- * Zwischenspeicher, und die App meldete "Shop nicht gefunden". Abhilfe:
- *  - Lesen über getDocFromServer/getDocsFromServer, damit ein Verbindungsfehler ein Fehler ist
- *  - bei Verbindungsfehler einmal mit einfacher Verbindungsart (Long-Polling) neu laden
- *  - klappt auch das nicht: klare Meldung mit Hinweis auf mobile Daten
- * Diese Datei darf nichts aus der App importieren (wird beim Start von firebase.ts gelesen).
+ * Früher hielt Firestore eine Dauerverbindung offen, die manche WLANs und Safari auf dem iPhone nicht durchließen
+ * (Sonderweg Long-Polling, PR #39/#40). Seit Stufe 2 (requirements/eigene-datenbank.md) liest der Browser alles über
+ * normale Abrufe beim eigenen Server (utils/live.ts). Hier bleibt nur: Verbindungsfehler erkennen – damit die Seite
+ * „Keine Verbindung“ sagt statt „Laden nicht gefunden“ – und für die Meldung kurz beschreiben.
  */
 
-const STORAGE_KEY = 'qme-verbindung-einfach';
-
-/** Einfache Verbindungsart gewünscht: per Adresse (?einfach) oder nach einem Fehlschlag in diesem Tab */
-export const simpleConnectionWanted = (): boolean => {
-  try {
-    return new URLSearchParams(window.location.search).has('einfach') || window.sessionStorage.getItem(STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
-
-/** Fehler, die auf eine fehlende Verbindung zur Datenbank hindeuten (nicht: Datensatz fehlt, keine Rechte) */
+/** Fehler, die auf eine fehlende Verbindung hindeuten (nicht: gibt es nicht, keine Rechte) */
 export const isConnectionError = (error: unknown): boolean => {
-  const code = (error as { code?: string })?.code;
+  // fetch ohne Netz: TypeError ("Failed to fetch", Safari "Load failed", Firefox "NetworkError …")
+  if (error instanceof TypeError) return true;
+  const status = (error as { status?: number })?.status;
+  if (typeof status === 'number') return status === 0 || status === 502 || status === 503 || status === 504;
   const message = String((error as { message?: string })?.message || '');
-  return code === 'unavailable' || code === 'deadline-exceeded' || /offline|could not reach|failed to get document/i.test(message);
-};
-
-/** Einmal mit einfacher Verbindungsart neu laden. false, wenn das schon versucht wurde (dann Meldung zeigen). */
-export const retryWithSimpleConnection = (): boolean => {
-  if (simpleConnectionWanted()) return false;
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, '1');
-  } catch {
-    return false;
-  }
-  window.location.reload();
-  return true;
+  return /offline|failed to fetch|load failed|networkerror|keine verbindung/i.test(message);
 };
 
 /** Kurze technische Beschreibung für die Fehlermeldung (hilft bei der Fehlersuche per Bildschirmfoto) */
 export const describeConnectionError = (error: unknown): string => {
-  const code = (error as { code?: string })?.code || 'fehler';
+  const status = (error as { status?: number })?.status;
+  const code = (error as { code?: string })?.code || (typeof status === 'number' ? `http-${status}` : 'fehler');
   const message = String((error as { message?: string })?.message || error || '').replace(/\s+/g, ' ').slice(0, 160);
-  return `${code}: ${message}${simpleConnectionWanted() ? ' · einfache Verbindung' : ''}`;
+  return `${code}: ${message}`;
 };

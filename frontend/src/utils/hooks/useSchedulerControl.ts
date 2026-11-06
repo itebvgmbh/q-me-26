@@ -58,8 +58,9 @@ export const useSchedulerControl = () => {
     setHistoryLoading(true);
     try {
       const response = await brain.get_notification_history_full2222222({});
+      // Antwort des Backends (brain/data-contracts) hat optionale Felder, die die Ansicht hier als gesetzt annimmt
       const data = await response.json();
-      setHistoryItems(data);
+      setHistoryItems(data as unknown as NotificationHistoryItem[]);
     } catch (error) {
       console.error('Error loading notification history:', error);
       toast.error('Fehler beim Laden des Benachrichtigungsverlaufs');
@@ -75,7 +76,7 @@ export const useSchedulerControl = () => {
     setLoading(true);
     try {
       const response = await brain.get_scheduler_status();
-      const data = await response.json();
+      const data = (await response.json()) as unknown as SchedulerStatus;
       setStatus(data);
       setInterval(data.interval_seconds);
     } catch (error) {

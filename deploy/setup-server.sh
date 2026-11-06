@@ -3,13 +3,13 @@
 # und Node 22 sind dort schon installiert). Einmalig als root ausführen, nachdem
 # das Repository nach /opt/q-me geklont wurde (siehe deploy/README.md):
 #
-#   bash /opt/q-me/deploy/setup-server.sh q-me.spielmacherei.de
+#   bash /opt/q-me/deploy/setup-server.sh dranzeit.de
 #
 # Q-ME läuft neben den anderen Projekten: eigener Dienst auf 127.0.0.1:$PORT und
 # ein zusätzlicher Block in /etc/caddy/Caddyfile. Bestehendes wird nicht verändert.
 set -euo pipefail
 
-DOMAIN=${1:-q-me.spielmacherei.de}
+DOMAIN=${1:-dranzeit.de}
 # Leer: erster freier Port ab 8090
 PORT=${PORT:-}
 APP_DIR=/opt/q-me
@@ -71,10 +71,6 @@ else
 	cat > "$ENV_FILE" <<EOF
 # Q-ME Backend. Liest der Dienst q-me beim Start.
 PORT=$PORT
-# Firebase-Projekt, dessen Anmelde-Tokens das Backend akzeptiert
-FIREBASE_PROJECT_ID=qmedata-7c79e
-# Dienstkonto-Schlüssel (JSON aus der Firebase-Konsole), Rechte 640 root:q-me
-FIREBASE_SERVICE_ACCOUNT_KEY_FILE=$SECRETS_DIR/firebase-service-account.json
 EOF
 	chown root:q-me "$ENV_FILE"
 	chmod 640 "$ENV_FILE"
@@ -116,7 +112,4 @@ fi
 
 echo
 echo "Fertig. Noch offen:"
-[ -f "$SECRETS_DIR/firebase-service-account.json" ] \
-	|| echo "  - Firebase-Schlüssel nach $SECRETS_DIR/firebase-service-account.json legen (640 root:q-me), dann: systemctl restart q-me"
 echo "  - DNS: A-Record $DOMAIN -> IPv4 dieses Servers (Caddy holt das Zertifikat dann selbst)"
-echo "  - Firebase Console -> Authentication -> Autorisierte Domains: $DOMAIN"

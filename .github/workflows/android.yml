@@ -1,0 +1,66 @@
+# Baut die Android-App (Trusted Web Activity in android/, Anleitung android/README.md).
+# Ohne Schlüssel: unsignierte Fassung als Gegenprobe. Mit den Secrets ANDROID_UPLOAD_KEYSTORE (Base64) und
+# ANDROID_UPLOAD_PASSWORD (legt der Block in android/README.md an): signiertes .aab für Google Play und .apk zum
+# Ausprobieren, beides unter Actions → Lauf → Artifacts. Von Hand: Actions → Android-App → Run workflow.
+name: Android-App
+
+on:
+  push:
+    paths:
+      - android/**
+      - .github/workflows/android.yml
+  pull_request:
+    paths:
+      - android/**
+      - .github/workflows/android.yml
+  workflow_dispatch:
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Bauen
+        run: ./gradlew --no-daemon bundleRelease assembleRelease
+      - name: Signieren
+        if: env.KEYSTORE_B64 != ''
+        env:
+          # PKCS12 wie von keytool angelegt: ein Passwort für Speicher und Schlüssel
+          STOREPASS: ${{ secrets.ANDROID_UPLOAD_PASSWORD }}
+          KEYPASS: ${{ secrets.ANDROID_UPLOAD_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KS="$RUNNER_TEMP/upload.jks"
+          # --ignore-garbage: Zeilenende aus der PowerShell-Pipe (android/README.md) stört nicht
+          echo "$KEYSTORE_B64" | base64 --decode --ignore-garbage > "$KS"
+          mkdir -p ausgabe
+          cp app/build/outputs/bundle/release/app-release.aab ausgabe/dranzeit.aab
+          jarsigner -keystore "$KS" -storepass:env STOREPASS -keypass:env KEYPASS \
+            -sigalg SHA256withRSA -digestalg SHA-256 ausgabe/dranzeit.aab upload
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/ausgerichtet.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-key-alias upload --ks-pass env:STOREPASS --key-pass env:KEYPASS \
+            --out ausgabe/dranzeit.apk "$RUNNER_TEMP/ausgerichtet.apk"
+          rm -f "$KS"
+          keytool -printcert -jarfile ausgabe/dranzeit.apk | grep -i 'SHA256:'
+      - name: Unsigniert ablegen
+        if: env.KEYSTORE_B64 == ''
+        run: |
+          mkdir -p ausgabe
+          cp app/build/outputs/bundle/release/app-release.aab ausgabe/dranzeit-unsigniert.aab
+          cp app/build/outputs/apk/release/app-release-unsigned.apk ausgabe/dranzeit-unsigniert.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dranzeit-android
+          path: android/ausgabe/
+          retention-days: 30

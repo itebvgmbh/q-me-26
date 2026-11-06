@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { doc, getDocFromServer } from 'firebase/firestore';
-import { getServicesByShopId, getStaffByShopId, Service, Shop, Staff } from '../firestore';
-import { firestore as db } from '../firestore-client';
-import { isConnectionError, retryWithSimpleConnection } from '../connection';
+import { t } from '@/i18n';
+import { getServicesByShopId, getStaffByShopId, offeredServices, Service, Shop, Staff } from '../firestore';
+import { isConnectionError } from '../connection';
+import { liveLesen, LiveFehlt } from '../live';
 
 /**
  * Custom hook for fetching and managing shop details
@@ -24,7 +24,7 @@ export const useShopDetails = (shopId: string | null) => {
   useEffect(() => {
     const loadShopDetails = async () => {
       if (!shopId) {
-        toast.error('Shop-ID fehlt');
+        toast.error(t('Laden-ID fehlt'));
         navigate('/');
         return;
       }
@@ -32,18 +32,21 @@ export const useShopDetails = (shopId: string | null) => {
       try {
         setLoading(true);
         
-        // Vom Server lesen: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
-        const snap = await getDocFromServer(doc(db, 'shops', shopId));
-        if (!snap.exists()) {
-          toast.error('Shop nicht gefunden');
+        // Über das Backend: ohne Verbindung ein Fehler statt "Shop nicht gefunden"
+        let laden: Shop;
+        try {
+          laden = (await liveLesen<{ laden: Shop }>(`live/laden/${encodeURIComponent(shopId)}`)).laden;
+        } catch (error) {
+          if (!(error instanceof LiveFehlt)) throw error;
+          toast.error(t('Laden nicht gefunden'));
           navigate('/');
           return;
         }
-        setShop({ id: snap.id, ...snap.data() } as Shop);
+        setShop(laden);
 
         // Load services data
         const servicesData = await getServicesByShopId(shopId);
-        setServices(servicesData);
+        setServices(offeredServices(servicesData));
 
         // Load staff data - filter for active staff only
         const staffData = await getStaffByShopId(shopId);
@@ -54,12 +57,11 @@ export const useShopDetails = (shopId: string | null) => {
       } catch (error) {
         console.error('Fehler beim Laden der Shop-Details:', error);
         if (isConnectionError(error)) {
-          if (retryWithSimpleConnection()) return;
           setLoadError(error);
           setLoading(false);
           return;
         }
-        toast.error('Fehler beim Laden der Shop-Details');
+        toast.error(t('Der Laden konnte nicht geladen werden.'));
         navigate('/');
       }
     };

@@ -1,16 +1,37 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, Megaphone } from 'lucide-react';
+import { Check, Megaphone, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { safelyConvertToDate } from '../../utils/datetime';
 import { Appointment, Service, updateAppointment } from '../../utils/firestore';
+import { delayMinutes, expectedStart, isDue, projectLane, SHOW_DELAY_MINUTES, waitingInOrder } from '../../utils/queue-lane';
+import { merke, t, tn, tTeile } from '@/i18n';
 
+// Platzhalter, die so in Firestore stehen – verglichen wird deutsch, angezeigt übersetzt
+const PLACEHOLDER_NAMES: string[] = [merke('Unbekannter Kunde'), merke('Laufkundschaft'), merke('Gast')];
+
+/**
+ * Name und Nummer, wie am Tresen gerufen wird – die Nummer steht immer dabei, auch bei Nummern vom Tresen
+ * (vorher nur bei Buchungen ohne Konto; wer am Tresen eine Nummer bekam, kannte sie nicht).
+ */
 export const customerLabel = (a: Appointment) => {
-  const name = a.customerName && a.customerName !== 'Unbekannter Kunde' ? a.customerName : 'Gast';
-  return a.isAnonymous && a.referenceCode ? `${name} · Nr. ${a.referenceCode}` : name;
+  const raw = a.customerName?.trim() ?? '';
+  if (a.referenceCode) {
+    const name = raw && !PLACEHOLDER_NAMES.includes(raw) ? raw : '';
+    return name ? t('{name} · Nr. {nummer}', { name, nummer: a.referenceCode }) : t('Nr. {nummer}', { nummer: a.referenceCode });
+  }
+  if (!raw || raw === 'Unbekannter Kunde') return t('Gast');
+  return PLACEHOLDER_NAMES.includes(raw) ? t(raw) : raw;
 };
+
+/** Handynummer vom Nummer-Ziehen oder aus dem Profil, damit der Laden anrufen kann (nach 90 Tagen gelöscht) */
+const PhoneLink = ({ phone }: { phone: string }) => (
+  <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2">
+    <Phone className="h-3.5 w-3.5" aria-hidden="true" /> <bdi dir="ltr">{phone}</bdi>
+  </a>
+);
 
 interface Props {
   title: string;
@@ -21,88 +42,202 @@ interface Props {
   live: boolean;
 }
 
-/** Eine Spur am Tresen: wer gerade dran ist, wer als Nächstes kommt */
+type Ask = { kind: 'early' } | { kind: 'noShow' } | null;
+
+/**
+ * Eine Schlange am Tresen (je Person): wer gerade dran ist, wer als Nächstes kommt.
+ * Wer wartet, bleibt hier, bis er aufgerufen oder abgesagt wird – auch wenn seine geplante Zeit vorbei ist
+ * (utils/queue-lane.ts). Aufgerufen wird ohne Rückfrage nur, wer fällig ist; ein Termin am Nachmittag nicht.
+ */
 export const CounterLane = ({ title, appointments, services, now, live }: Props) => {
   const [busy, setBusy] = useState(false);
-  const sorted = [...appointments].sort((a, b) => safelyConvertToDate(a.startTime).getTime() - safelyConvertToDate(b.startTime).getTime());
-  const current = sorted.find((a) => a.status === 'in-progress');
-  const waiting = sorted.filter((a) => a.status === 'scheduled' && safelyConvertToDate(a.endTime) > now);
-  const done = sorted.filter((a) => a.status === 'completed').length;
+  const [ask, setAsk] = useState<Ask>(null);
+  const nowMs = now.getTime();
+  const current = appointments.find((a) => a.status === 'in-progress');
+  const waiting = useMemo(() => waitingInOrder(appointments), [appointments]);
+  const projection = useMemo(() => projectLane(appointments, nowMs), [appointments, nowMs]);
+  const done = appointments.filter((a) => a.status === 'completed').length;
   const next = waiting[0];
-  const serviceName = (a: Appointment) => services.find((s) => s.id === a.serviceId)?.name || 'Leistung';
+  const nextDue = Boolean(next && isDue(next, nowMs));
+  const delay = live && next ? delayMinutes(next, projection) : 0;
+  const serviceName = (a: Appointment) => services.find((s) => s.id === a.serviceId)?.name || t('Leistung');
+  const at = (a: Appointment) => format(safelyConvertToDate(a.startTime), 'HH:mm');
 
-  // Laufenden Kunden abschließen und den nächsten aufrufen – der Live-Listener aktualisiert die Ansicht
-  const callNext = async () => {
+  const run = async (work: () => Promise<void>) => {
     setBusy(true);
+    setAsk(null);
     try {
-      if (current) await updateAppointment(current.id, { status: 'completed' });
-      if (next) {
-        await updateAppointment(next.id, { status: 'in-progress' });
-        toast.success(`${customerLabel(next)} ist dran.`);
-      } else {
-        toast.success('Fertig. Gerade wartet niemand.');
-      }
+      await work();
     } catch (error) {
-      console.error('Error calling next customer:', error);
-      toast.error('Das hat nicht geklappt. Versuch es noch einmal.');
+      console.error('Error at the counter:', error);
+      toast.error(t('Das hat nicht geklappt. Versuch es noch einmal.'));
     } finally {
       setBusy(false);
     }
   };
 
+  // Laufenden Kunden abschließen und den nächsten aufrufen – der Live-Listener aktualisiert die Ansicht
+  const finishAndCall = (callNext: boolean) =>
+    run(async () => {
+      if (current) await updateAppointment(current.id, { status: 'completed' });
+      if (callNext && next) {
+        await updateAppointment(next.id, { status: 'in-progress' });
+        toast.success(t('{name} ist dran.', { name: customerLabel(next) }));
+      } else {
+        toast.success(waiting.length === 0 ? t('Fertig. Gerade wartet niemand.') : t('Fertig.'));
+      }
+    });
+
+  const noShow = () =>
+    run(async () => {
+      if (!current) return;
+      await updateAppointment(current.id, { status: 'cancelled', noShow: true }, { notifyCustomer: true });
+      toast.success(t('{name} ist abgesagt.', { name: customerLabel(current) }));
+    });
+
+  const primary = () => {
+    if (next && nextDue) return finishAndCall(true);
+    if (current) return finishAndCall(false);
+    if (next) setAsk({ kind: 'early' });
+  };
+
   return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={`Spur ${title}`}>
+    <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5" aria-label={t('Schlange von {name}', { name: title })}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl font-bold">{title}</h3>
-        <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          {waiting.length} wartet · {done} fertig
+        <p className="text-end text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          {t('{wartend} wartet · {fertig} fertig', { wartend: waiting.length, fertig: done })}
+          {delay >= SHOW_DELAY_MINUTES && <span className="block normal-case tracking-normal">{t('ca. {minuten} Min. Verzug', { minuten: delay })}</span>}
         </p>
       </header>
 
       <div className={cn('flex flex-col gap-1 rounded-2xl p-4', current ? 'bg-signal text-signal-foreground' : 'border border-dashed border-border')}>
-        <p className="text-xs font-semibold uppercase tracking-[0.08em]">Jetzt dran</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em]">{t('Jetzt dran')}</p>
         {current ? (
           <>
             <p className="font-display text-2xl font-bold">{customerLabel(current)}</p>
             <p className="text-sm">
-              {serviceName(current)} · {safelyConvertToDate(current.startTime) > now ? 'geplant' : 'seit'}{' '}
-              <span className="font-mono">{format(safelyConvertToDate(current.startTime), 'HH:mm')}</span>
+              {tTeile(
+                '{leistung} · seit <zeit/>',
+                { zeit: () => <span className="font-mono">{format(safelyConvertToDate(current.lastCalledAt ?? current.calledAt ?? current.startTime), 'HH:mm')}</span> },
+                { leistung: serviceName(current) },
+              )}
             </p>
+            {current.customerPhone && <PhoneLink phone={current.customerPhone} />}
+            {live && ask?.kind !== 'noShow' && (
+              <button
+                type="button"
+                className="mt-1 self-start text-sm font-semibold underline underline-offset-2"
+                onClick={() => setAsk({ kind: 'noShow' })}
+                disabled={busy}
+              >
+                {t('Nicht gekommen')}
+              </button>
+            )}
           </>
         ) : (
-          <p className="text-muted-foreground">Niemand. {next ? 'Ruf die nächste Nummer auf.' : ''}</p>
+          <p className="text-muted-foreground">
+            {next
+              ? nextDue
+                ? t('Niemand. Ruf die nächste Nummer auf.')
+                : t('Niemand. Als Nächstes {name} um {zeit}.', { name: customerLabel(next), zeit: at(next) })
+              : appointments.length === 0
+                ? t('Noch niemand da.')
+                : t('Niemand.')}
+          </p>
         )}
       </div>
 
-      {live && (current || next) && (
-        <Button size="lg" onClick={callNext} disabled={busy}>
-          {next ? <Megaphone className="mr-2 h-4 w-4" aria-hidden="true" /> : <Check className="mr-2 h-4 w-4" aria-hidden="true" />}
-          {busy ? 'Moment …' : next ? (current ? 'Fertig – nächste Nummer' : 'Nächste Nummer aufrufen') : 'Fertig'}
-        </Button>
+      {ask?.kind === 'noShow' && current && (
+        <Confirm
+          text={t('{name} absagen? Der Kunde bekommt Bescheid, sein Platz wird frei.', { name: customerLabel(current) })}
+          confirmLabel={t('Ja, absagen')}
+          onConfirm={noShow}
+          onCancel={() => setAsk(null)}
+          busy={busy}
+        />
+      )}
+
+      {live && (current || next) && ask?.kind !== 'early' && (
+        <div className="flex flex-col gap-2">
+          <Button size="lg" onClick={primary} disabled={busy}>
+            {next && (nextDue || !current) ? <Megaphone className="me-2 h-4 w-4" aria-hidden="true" /> : <Check className="me-2 h-4 w-4" aria-hidden="true" />}
+            {busy
+              ? t('Moment …')
+              : next && nextDue
+                ? current
+                  ? t('Fertig – nächste Nummer')
+                  : t('Nächste Nummer aufrufen')
+                : current
+                  ? t('Fertig')
+                  : t('Nächste Nummer aufrufen')}
+          </Button>
+          {current && next && !nextDue && (
+            <p className="text-sm text-muted-foreground">
+              {t('Als Nächstes erst um {zeit}: {name}.', { zeit: at(next), name: customerLabel(next) })}{' '}
+              <button type="button" className="font-semibold text-foreground underline underline-offset-2" onClick={() => setAsk({ kind: 'early' })} disabled={busy}>
+                {t('Schon jetzt aufrufen')}
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
+      {ask?.kind === 'early' && next && (
+        <Confirm
+          text={t('{name} ist erst um {zeit} eingeplant und vielleicht noch nicht da. Jetzt schon aufrufen?', { name: customerLabel(next), zeit: at(next) })}
+          confirmLabel={current ? t('Ja, fertig und aufrufen') : t('Ja, jetzt aufrufen')}
+          onConfirm={() => finishAndCall(true)}
+          onCancel={() => setAsk(null)}
+          busy={busy}
+        />
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Als Nächstes</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('Als Nächstes')}</p>
         {waiting.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Keiner mehr in der Schlange.</p>
+          <p className="text-sm text-muted-foreground">
+            {appointments.length === 0 && live
+              ? t('Kunden ziehen ihre Nummer über den QR-Code. Steht jemand ohne Handy vor dir, tipp oben auf „Kunde eintragen“.')
+              : t('Keiner mehr in der Schlange.')}
+          </p>
         ) : (
           <ol className="flex flex-col divide-y divide-border">
-            {waiting.slice(0, 6).map((a, i) => (
-              <li key={a.id} className="flex items-center gap-3 py-2">
-                <span className="w-12 shrink-0 font-mono text-[15px] font-semibold">{format(safelyConvertToDate(a.startTime), 'HH:mm')}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{customerLabel(a)}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {serviceName(a)} · {a.type === 'queue' ? 'Schlange' : 'Termin'}
+            {waiting.slice(0, 6).map((a, i) => {
+              const late = live ? delayMinutes(a, projection) : 0;
+              return (
+                <li key={a.id} className="flex items-center gap-3 py-2">
+                  <span className="w-12 shrink-0 font-mono text-[15px] font-semibold">{at(a)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{customerLabel(a)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {serviceName(a)} · {a.type === 'queue' ? t('Nummer') : t('Termin')}
+                      {late >= SHOW_DELAY_MINUTES && ` · ${t('ca. {zeit}', { zeit: format(expectedStart(a, projection), 'HH:mm') })}`}
+                    </span>
+                    {a.customerPhone && <PhoneLink phone={a.customerPhone} />}
                   </span>
-                </span>
-                {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">Nächste</span>}
-              </li>
-            ))}
-            {waiting.length > 6 && <li className="py-2 text-sm text-muted-foreground">+ {waiting.length - 6} weitere</li>}
+                  {i === 0 && <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-signal">{t('Nächste')}</span>}
+                </li>
+              );
+            })}
+            {waiting.length > 6 && <li className="py-2 text-sm text-muted-foreground">{tn(waiting.length - 6, '+ {n} weitere', '+ {n} weitere')}</li>}
           </ol>
         )}
       </div>
     </section>
   );
 };
+
+const Confirm = ({ text, confirmLabel, onConfirm, onCancel, busy }: { text: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; busy: boolean }) => (
+  <div className="flex flex-col gap-2 rounded-2xl border border-border p-3" role="alertdialog" aria-label={text}>
+    <p className="text-sm font-semibold">{text}</p>
+    <div className="flex gap-2">
+      <Button className="flex-1" onClick={onConfirm} disabled={busy}>
+        {confirmLabel}
+      </Button>
+      <Button variant="outline" className="flex-1" onClick={onCancel} disabled={busy}>
+        {t('Abbrechen')}
+      </Button>
+    </div>
+  </div>
+);

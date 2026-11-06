@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["XXXXXXXXXX.de.dranzeit.app"],
+        "components": [
+          { "/": "/public-join-queue", "comment": "QR-Code vom Plakat, Bildschirm und Tresen" },
+          { "/": "/join-queue" },
+          { "/": "/nummer/*", "comment": "Nummer aus Push und E-Mail" },
+          { "/": "/my-bookings", "comment": "Früher-dran-Angebot aus der E-Mail" },
+          { "/": "/book-appointment" },
+          { "/": "/shop-details" },
+          { "/": "/staff-registration", "comment": "Einladung ins Team" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["XXXXXXXXXX.de.dranzeit.app"]
+  }
+}

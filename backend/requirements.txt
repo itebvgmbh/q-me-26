@@ -11,9 +11,28 @@ anthropic
 urllib3>=2.6
 certifi
 requests
-firebase-admin
 
 # Imported directly by the backend; previously only pulled in transitively
 python-dotenv
 python-dateutil
 pyjwt[crypto]
+
+# Benachrichtigungen im Browser (app/libs/webpush.py)
+pywebpush
+# Zeitzonen auch unter Windows (auf dem Server liefert sie das System)
+tzdata
+# Abo-Abrechnung der Läden (app/libs/stripe_billing.py)
+stripe
+# E-Rechnung (XRechnung) zu den Abo-Rechnungen (app/libs/invoices.py); feste Version, damit das XML gleich bleibt
+drafthorse==2025.2.0
+# QR-Code im Einbau-Kasten und zum Herunterladen (app/einbau.py); nur Standardbibliothek
+segno
+# Brief an die Salons als PDF, Schriften eingebettet (app/libs/brief.py)
+reportlab
+# Eigene Datenbank (PostgreSQL) statt Firestore (requirements/eigene-datenbank.md, app/libs/datenbank.py);
+# Schema-Änderungen über Alembic (migrations/, deploy/datenbank.sh migrieren)
+sqlalchemy>=2.0.36
+psycopg[binary]>=3.2
+alembic>=1.14
+# Eigene Anmeldung (app/libs/anmeldung.py): Passwörter als Argon2id
+argon2-cffi>=23.1

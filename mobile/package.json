@@ -1,0 +1,19 @@
+{
+  "name": "dranzeit-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "iPhone/iPad-App von Dranzeit: Capacitor-Hülle um https://dranzeit.de (Anleitung: README.md)",
+  "scripts": {
+    "sync": "cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor-community/keep-awake": "8.0.1",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/push-notifications": "8.1.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

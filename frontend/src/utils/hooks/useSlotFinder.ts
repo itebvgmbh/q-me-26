@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { TimeSlot } from '../types';
 import { Staff } from '../firestore';
 import { findEarliestSlots } from '../firestore/timeslots';
@@ -49,7 +50,7 @@ export const useSlotFinder = (options: {
         console.error('Error finding available slot:', error);
         if (!active) return;
         setState({ key, status: 'failed' });
-        toast.error('Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.');
+        toast.error(t('Die freien Plätze konnten nicht geladen werden. Versuch es gleich noch einmal.'));
       });
     return () => {
       active = false;

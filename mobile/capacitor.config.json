@@ -1,0 +1,28 @@
+{
+  "appId": "de.dranzeit.app",
+  "appName": "Dranzeit",
+  "webDir": "www",
+  "server": {
+    "url": "https://dranzeit.de/?app=ios",
+    "allowNavigation": [
+      "dranzeit.de",
+      "www.dranzeit.de"
+    ],
+    "errorPath": "offline.html"
+  },
+  "ios": {
+    "appendUserAgent": "DranzeitApp/ios",
+    "backgroundColor": "#eeede7",
+    "contentInset": "automatic",
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

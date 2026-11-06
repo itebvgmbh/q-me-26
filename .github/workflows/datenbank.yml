@@ -1,0 +1,85 @@
+# Prüft die Anbindung an PostgreSQL und die Schema-Fassungen (backend/tests/test_datenbank.py) gegen eine
+# Wegwerf-Datenbank, die Syntax der Skripte fürs Ausrollen, den Vertrag der Speicher-Schicht und die eigene Anmeldung
+# gegen PostgreSQL, und dass das Backend keine Google- oder Firebase-Pakete mehr lädt. Läuft, sobald sich Backend oder
+# Datenbank-Skripte ändern;
+# von Hand: Actions → Datenbank → Run workflow. Anleitung: requirements/eigene-datenbank.md (Stufe 0).
+name: Datenbank
+
+on:
+  push:
+    paths:
+      - backend/**
+      - deploy/datenbank.sh
+      - deploy/dateiumzug.*
+      - deploy/update.sh
+      - .github/workflows/datenbank.yml
+  pull_request:
+    paths:
+      - backend/**
+      - deploy/datenbank.sh
+      - deploy/dateiumzug.*
+      - deploy/update.sh
+      - .github/workflows/datenbank.yml
+  workflow_dispatch:
+
+jobs:
+  datenbank:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Dieselbe Hauptversion wie auf dem Server
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: q_me_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Python und Abhängigkeiten wie auf dem Server
+        run: |
+          uv venv --python 3.13 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Skripte fürs Ausrollen
+        working-directory: deploy
+        run: |
+          bash -n datenbank.sh
+          bash -n dateiumzug.sh
+          bash -n update.sh
+          shellcheck -S warning datenbank.sh dateiumzug.sh
+      - name: Anbindung und Schema
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_datenbank.py
+      - name: Vertrag gegen PostgreSQL (app/store/postgres.py)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_speicher_vertrag.py
+      - name: Bilder aus Firebase Storage holen (deploy/dateiumzug.py)
+        run: .venv/bin/python tests/test_dateiumzug.py
+      - name: Eigene Anmeldung (app/libs/anmeldung.py, app/apis/anmeldung)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_anmeldung.py
+      - name: Keine Google- und Firebase-Pakete mehr
+        run: .venv/bin/python tests/test_speicher_gebuendelt.py
+      - name: Live-Daten für Nummer und Bildschirm (app/apis/live)
+        run: .venv/bin/python tests/test_live.py
+      - name: Termine des Teams (app/apis/team_termine)
+        run: .venv/bin/python tests/test_team_termine.py
+      - name: Team und Leistungen (app/apis/team_laden)
+        run: .venv/bin/python tests/test_team_laden.py
+      - name: Pausen (app/apis/pausen)
+        run: .venv/bin/python tests/test_pausen.py
+      - name: Läden, Bilder, Kunden, Konto (app/libs/laeden.py)
+        run: .venv/bin/python tests/test_laeden.py

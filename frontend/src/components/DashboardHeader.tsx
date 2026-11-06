@@ -39,6 +39,7 @@ export const DashboardHeader = ({
       
       {/* Action buttons */}
       <EmployeeActionButtons 
+        shopId={employee.shopId}
         onCreateCustomer={onCreateCustomer}
         onEditWorkingHours={onEditWorkingHours}
       />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Service } from '../utils/firestore/types';
 import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
+import { intlSprache, t, tTeile } from '@/i18n';
 
 export interface QueueServiceStepProps {
   services: Service[];
@@ -12,19 +13,27 @@ export interface QueueServiceStepProps {
 }
 
 const meta = (s: Service) =>
-  [s.duration && `${s.duration} Min`, typeof s.price === 'number' && `${s.price.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`]
+  [
+    s.duration && t('{dauer} Min', { dauer: s.duration }),
+    typeof s.price === 'number' &&
+      t('{preis} €', { preis: s.price.toLocaleString(intlSprache(), { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }),
+  ]
     .filter(Boolean)
     .join(' · ');
 
 export const QueueServiceStep: React.FC<QueueServiceStepProps> = ({ services, selectedService, onSelectService, onBack, arrivedFromQR, shopName }) => (
   <QueueStepShell
-    title="Was soll gemacht werden?"
-    description={shopName ? <>bei <strong className="text-foreground">{shopName}</strong></> : undefined}
+    title={t('Was soll gemacht werden?')}
+    description={
+      shopName
+        ? tTeile('bei <laden>{name}</laden>', { laden: (inhalt) => <strong className="text-foreground">{inhalt}</strong> }, { name: shopName })
+        : undefined
+    }
     onBack={onBack}
-    backLabel={arrivedFromQR ? 'Auswahl zurücksetzen' : 'Anderen Shop wählen'}
+    backLabel={arrivedFromQR ? t('Auswahl zurücksetzen') : t('Anderen Laden wählen')}
   >
     {services.length === 0 ? (
-      <p className="text-muted-foreground">Dieser Shop hat noch keine Leistungen eingetragen.</p>
+      <p className="text-muted-foreground">{t('Dieser Laden hat noch keine Leistungen eingetragen.')}</p>
     ) : (
       <div className="grid gap-2 sm:grid-cols-2">
         {services.map((s) => (

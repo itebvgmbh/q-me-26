@@ -22,9 +22,7 @@ import {
   GetUserNotificationsData,
   RunNowData,
   SendEmailData,
-  SendStaffInvitationData,
   SetIntervalData,
-  StaffInvitationEmailRequest,
   StartSchedulerData,
   StopSchedulerData,
   UpdateAppointmentEndpointData,
@@ -61,21 +59,6 @@ export namespace Brain {
     export type RequestBody = EmailNotificationRequest;
     export type RequestHeaders = {};
     export type ResponseBody = SendEmailData;
-  }
-
-  /**
-   * @description Send a staff invitation email with a registration link
-   * @tags dbtn/module:notifications, dbtn/hasAuth
-   * @name send_staff_invitation
-   * @summary Send Staff Invitation
-   * @request POST:/routes/send-staff-invitation
-   */
-  export namespace send_staff_invitation {
-    export type RequestParams = {};
-    export type RequestQuery = {};
-    export type RequestBody = StaffInvitationEmailRequest;
-    export type RequestHeaders = {};
-    export type ResponseBody = SendStaffInvitationData;
   }
 
   /**
