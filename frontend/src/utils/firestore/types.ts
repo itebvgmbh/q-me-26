@@ -119,8 +119,23 @@ export interface Customer {
   activationTokenHash?: string;
   activationExpires?: Timestamp;
   isActive: boolean;
+  /** "telefon": hat der Telefon-Assistent nach einer Buchung angelegt (backend/app/libs/telefon_kunden.py) */
+  source?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+/** Ein Termin in der Kundenliste, mit Namen von Leistung und Person (backend/app/libs/telefon_kunden.py, historie) */
+export interface CustomerVisit {
+  id: string;
+  startTime?: Timestamp;
+  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  type?: 'queue' | 'booked';
+  source?: string;
+  referenceCode?: string;
+  customerName?: string;
+  leistung: string;
+  person: string;
 }
 
 export interface Appointment {

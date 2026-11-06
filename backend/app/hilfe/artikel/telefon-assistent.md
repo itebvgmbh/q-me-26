@@ -3,7 +3,7 @@ titel: Telefon-Assistent einrichten
 kurz: Eine KI nimmt Anrufe an, wenn im Laden niemand rangeht, nennt freie Termine und bucht sie. So testest du sie, buchst sie zu und richtest sie ein.
 thema: laden
 reihenfolge: 6
-stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen
+stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen, stammkunden, kundenliste, wiedererkennen
 ---
 Geht im Laden niemand ran, nimmt der Telefon-Assistent den Anruf an. Deine Kunden wählen weiter deine normale Nummer. Du richtest bei deinem Telefonanbieter nur eine Umleitung ein.
 
@@ -14,6 +14,14 @@ Geht im Laden niemand ran, nimmt der Telefon-Assistent den Anruf an. Deine Kunde
 - Fragen zu Öffnungszeiten, Adresse, Leistungen und Preisen beantworten
 
 Er spricht Deutsch und sagt im ersten Satz, dass er eine KI ist. Termine und Nummern stehen danach wie alle anderen im Kalender und am Tresen.
+
+## Stammkunden erkennen
+
+Bucht jemand am Telefon, legt der Assistent ihn in deiner Kundenliste an, mit dem Namen aus dem Gespräch und der Nummer, von der er anruft. Steht die Nummer dort schon, etwa weil du den Kunden selbst angelegt hast, nimmt er diesen Eintrag.
+
+Ruft er wieder an, begrüßt ihn der Assistent mit Namen, fragt nicht noch einmal danach und bietet ihm die Leistung vom letzten Mal an. Er kennt auch seine kommenden Termine und kann sie nennen.
+
+Alle Termine einer Person siehst du unter **„Laden“ → „Mein Tag“ → „Kundenliste“**: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 12 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
 
 ## Was er kostet
 

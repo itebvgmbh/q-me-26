@@ -19,7 +19,8 @@ Zugang: Kopfzeile "Authorization: Bearer <QME_TELEFON_TOKEN>" aus /etc/q-me.env;
 
 Freie Plätze rechnet dieselbe Berechnung wie "Früher dran" (app/apis/available_timeslots), heute für Nummern mit
 der Prognose der Schlange (app/libs/queue_notify.py). Gebucht wird über app/libs/buchung.py: Ein Platz geht nur
-einmal weg, auch wenn im selben Moment online oder am Tresen gebucht wird.
+einmal weg, auch wenn im selben Moment online oder am Tresen gebucht wird. Mit der Nummer des Anrufers ("anrufer")
+steht er danach in der Kundenliste des Ladens, beim nächsten Anruf kennt ihn der Eingang (app/libs/telefon_kunden.py).
 """
 import hmac
 import os
@@ -33,6 +34,7 @@ from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
+from app.libs import telefon_kunden as tk
 from app.libs import telefon_laeden as tl
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
 from app.libs.notify_worker import wake
@@ -314,14 +316,20 @@ def _preis(value) -> str:
 
 def _anlegen(db, shop_id: str, leistung: dict, name: str, anrufer: Optional[str], art: str, candidates: List[Placement]) -> dict:
     """Wie eine Buchung ohne Konto (isAnonymous, mit Tagesnummer), gekennzeichnet "per Telefon" (source). Das Team
-    bekommt Bescheid wie bei einer Online-Buchung (Merker teamNotice, app/libs/team_notify.py)."""
+    bekommt Bescheid wie bei einer Online-Buchung (Merker teamNotice, app/libs/team_notify.py). Mit der Nummer des
+    Anrufers hängt der Termin am Eintrag in der Kundenliste, neu oder schon vorhanden (app/libs/telefon_kunden.py)."""
     phone = t.e164(anrufer)
+    kunde_id, neu = tk.fuer_termin(db, shop_id, phone, name)
     data = {
         "shopId": shop_id, "serviceId": leistung["id"], "status": "scheduled", "type": art, "isAnonymous": True,
-        "customerName": name, **({"customerPhone": phone} if phone else {}), "checkEarlierOptions": False, "source": "telefon",
-        **notice_fields({}, "new", datetime.now(timezone.utc)),
+        "customerName": name, **({"customerPhone": phone} if phone else {}), **({"customerId": kunde_id} if kunde_id else {}),
+        "checkEarlierOptions": False, "source": "telefon", **notice_fields({}, "new", datetime.now(timezone.utc)),
     }
     created = create_appointment(db, data, candidates, needs_code=True)
+    try:
+        tk.anlegen(db, neu)
+    except Exception as e:  # Der Termin steht, der Eintrag ist Beiwerk
+        print(f"Telefon {shop_id}: Kunde zu Termin {created['id']} nicht angelegt: {e}")
     for day in {d for c in candidates for d in c.days()}:
         invalidate_shop_date_cache(shop_id, day, verbose=False)
     wake()
@@ -538,8 +546,10 @@ def aendern(anfrage: AendernAnfrage) -> dict:
             name = _name(anfrage.name)
             ref = db.collection("appointments").document(anfrage.termin_id)
             snap = ref.get()
-            _eigener_termin((snap.to_dict() or {}) if snap.exists else None, shop_id)
+            vorher = (snap.to_dict() or {}) if snap.exists else None
+            _eigener_termin(vorher, shop_id)
             ref.update({"customerName": name, "updatedAt": datetime.now(timezone.utc)})
+            tk.name_berichtigt(db, vorher, vorher.get("customerName", ""), name, AENDERN_MINUTEN)
             print(f"Telefon {shop_id}: Name an Termin {anfrage.termin_id} berichtigt")
             return {"ok": True, "name": name, "ansage": f"Geändert: Der Termin steht jetzt auf den Namen {name}."}
     except _Nein as nein:

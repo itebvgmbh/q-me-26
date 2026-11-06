@@ -176,11 +176,15 @@ def warnstufe(anteil: float) -> int:
     return next((stufe for stufe in reversed(WARNSTUFEN) if anteil >= stufe / 100), 0)
 
 
-def begruessung(name: str, leistungen: Sequence[str] = (), termine: bool = True) -> str:
-    """Erste Worte des Assistenten: dass er eine KI ist (Art. 50 Abs. 1 KI-Verordnung) und gleich, was man buchen kann"""
-    kopf = f"Hallo, hier ist der KI-Assistent von {name}."
+def begruessung(name: str, leistungen: Sequence[str] = (), termine: bool = True, kunde: Optional[dict] = None) -> str:
+    """Erste Worte des Assistenten: dass er eine KI ist (Art. 50 Abs. 1 KI-Verordnung) und gleich, was man buchen kann.
+    kunde: bekannter Anrufer (app/libs/telefon_kunden.py, bekannt) – dann mit Namen und seiner letzten Leistung."""
+    kopf = f"Hallo {kunde['anrede']}, hier ist der KI-Assistent von {name}." if kunde and kunde.get("anrede") else f"Hallo, hier ist der KI-Assistent von {name}."
     if not termine:
         return f"{kopf} Ich kann Ihnen eine Nummer für heute ziehen und die Wartezeit nennen. Was darf es sein?"
+    wieder = ((kunde or {}).get("zuletzt") or {}).get("leistung")
+    if wieder and wieder in leistungen:
+        return f"{kopf} Möchten Sie wieder einen Termin für {wieder}?"
     if not leistungen:
         return f"{kopf} Möchten Sie einen Termin?"
     if len(leistungen) == 1:

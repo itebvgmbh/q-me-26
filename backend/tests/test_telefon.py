@@ -340,7 +340,7 @@ def test_buchen_wie_ohne_konto_mit_tagesnummer_und_belegung():
     assert termin["startTime"] == at("10:30") and termin["endTime"] == at("11:00") and termin["staffId"] == "robin"
     assert termin["type"] == "booked" and termin["isAnonymous"] is True and termin["source"] == "telefon"
     assert termin["customerName"] == "Alex Muster" and termin["customerPhone"] == "+491512345678"
-    assert termin["checkEarlierOptions"] is False and "customerId" not in termin
+    assert termin["checkEarlierOptions"] is False and termin["customerId"] in store["customers"]
     assert termin["teamNotice"] == "new"  # Inhaber und Person bekommen Bescheid (app/libs/team_notify.py)
     code = termin["referenceCode"]
     assert 10 <= int(code) <= 99 and r["nummer"] == code
@@ -517,6 +517,93 @@ def test_gratis_tarif_hoechstens_100_kunden_im_monat():
     assert tel.nummer(tel.NummerAnfrage(**anruf(), leistung="schnitt", name="Alex"))["ok"], "Nummer 100 geht noch"
     voll = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="schnitt", name="Sam"))
     assert not voll["ok"] and voll["grund"] == "monat_voll", voll
+
+
+# --- Bekannte Anrufer: Kundenliste (app/libs/telefon_kunden.py) ------------------------------------------------------
+
+def test_erste_buchung_legt_den_anrufer_in_der_kundenliste_an():
+    _, store = setup()
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex Muster", anrufer="0151 2345678"))
+    [(kid, kunde)] = store["customers"].items()
+    assert kunde["name"] == "Alex Muster" and kunde["phone"] == "+491512345678" and kunde["shopId"] == "laden", kunde
+    assert kunde["source"] == "telefon" and kunde["isActive"] is False and "userId" not in kunde and kunde["email"] == ""
+    assert store["appointments"][r["termin_id"]]["customerId"] == kid
+    # Wieder dieselbe Nummer, andere Schreibweise, anderer Name: derselbe Eintrag, der Name bleibt
+    zwei = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", name="Alexa", anrufer="+49 151 2345678"))
+    assert zwei["ok"] and len(store["customers"]) == 1 and store["customers"][kid]["name"] == "Alex Muster"
+    assert store["appointments"][zwei["termin_id"]]["customerId"] == kid and store["appointments"][zwei["termin_id"]]["customerName"] == "Alexa"
+
+
+def test_vom_laden_angelegter_kunde_wird_erkannt():
+    _, store = setup()
+    store["customers"] = {
+        "k1": {"shopId": "laden", "name": "Herr Krause", "phone": "0151 2345678", "email": "k@example.com", "updatedAt": at("09:00")},
+        "fremd": {"shopId": "anders", "name": "Jemand", "phone": "0151 2345678"},
+    }
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Krause", anrufer="+491512345678"))
+    assert store["appointments"][r["termin_id"]]["customerId"] == "k1" and len(store["customers"]) == 2
+
+
+def test_ohne_nummer_kein_eintrag_und_ohne_platz_auch_nicht():
+    _, store = setup()
+    for anrufer, zeit in ((None, "11:00"), ("anonymous", "12:00"), ("{{customer.number}}", "13:00")):
+        r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T{zeit}", name="Alex", anrufer=anrufer))
+        assert r["ok"] and "customerId" not in store["appointments"][r["termin_id"]], anrufer
+    assert not store.get("customers")
+    weg = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T09:30", name="Alex", anrufer="0151 2345678"))
+    assert not weg["ok"] and not store.get("customers"), "Platz weg: kein Eintrag ohne Termin"
+
+
+def test_name_berichtigen_auch_im_frischen_eintrag():
+    _, store = setup()
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Hella", anrufer="0151 2345678"))
+    kid = store["appointments"][r["termin_id"]]["customerId"]
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=r["termin_id"], name="Ella"))["ok"]
+    assert store["customers"][kid]["name"] == "Ella"
+    # Älterer Eintrag: Vielleicht bucht er für jemand anderen – der Eintrag bleibt
+    store["customers"][kid]["createdAt"] = datetime.now(timezone.utc) - timedelta(days=30)
+    zwei = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T12:00", name="Ella", anrufer="0151 2345678"))
+    assert tel.aendern(tel.AendernAnfrage(**anruf(), termin_id=zwei["termin_id"], name="Anna"))["ok"]
+    assert store["customers"][kid]["name"] == "Ella" and store["appointments"][zwei["termin_id"]]["customerName"] == "Anna"
+
+
+def test_bekannter_anrufer_mit_letztem_besuch_und_kommenden_terminen():
+    from app.libs import telefon_kunden as tk
+
+    db, store = setup()
+    store["customers"] = {"k1": {"shopId": "laden", "name": "Stefan Tittmann", "phone": "+491512345678", "userId": "konto"}}
+    vor = TAG - timedelta(days=12)
+    store["appointments"] = {
+        "alt": {"shopId": "laden", "customerId": "k1", "serviceId": "bart", "staffId": "robin", "status": "completed",
+                "startTime": at("09:00", vor - timedelta(days=30))},
+        "letzter": {"shopId": "laden", "customerId": "konto", "serviceId": "schnitt", "staffId": "kim", "status": "completed",
+                    "startTime": at("15:00", vor)},
+        "abgesagt": {"shopId": "laden", "customerId": "k1", "serviceId": "bart", "staffId": "kim", "status": "cancelled", "startTime": at("09:00", TAG - timedelta(days=1))},
+        "fremd": {"shopId": "anders", "customerId": "konto", "serviceId": "x", "status": "completed", "startTime": at("09:00", TAG - timedelta(days=1))},
+        "morgen": {"shopId": "laden", "customerId": "k1", "serviceId": "schnitt", "staffId": "robin", "status": "scheduled",
+                   "referenceCode": "23", "startTime": at("14:30", TAG + timedelta(days=1))},
+    }
+    info = tk.bekannt(db, "laden", "0151 2345678", JETZT)
+    assert info["name"] == "Stefan Tittmann" and info["anrede"] == "Stefan" and info["besuche"] == 2, info
+    assert info["zuletzt"] == {"wann": tk.vorbei_text(vor, TAG), "leistung": "Herrenschnitt", "person": "Kim"}, info
+    assert info["zuletzt"]["wann"].startswith(f"am {vor.day}. {t.MONATE[vor.month - 1]}")
+    assert info["kommend"] == [{"zeit": "morgen um 14 Uhr 30", "leistung": "Herrenschnitt", "person": "Robin", "nummer": "23"}], info
+    assert tk.bekannt(db, "laden", "0151 9999999", JETZT) is None and tk.bekannt(db, "anders", "0151 2345678", JETZT) is None
+    assert tk.bekannt(db, "laden", None, JETZT) is None
+    termine = tk.historie(db, "laden", "k1", store["customers"]["k1"])
+    assert [x["id"] for x in termine] == ["morgen", "abgesagt", "letzter", "alt"], termine
+    assert termine[0]["leistung"] == "Herrenschnitt" and termine[0]["person"] == "Robin" and termine[1]["status"] == "cancelled"
+
+
+def test_anrede_mit_vornamen_oder_titel():
+    from app.libs import telefon_kunden as tk
+
+    assert tk.anrede("Stefan Tittmann") == "Stefan" and tk.anrede("Herr Krause") == "Herr Krause"
+    assert tk.anrede("Frau Dr. Yilmaz") == "Frau Dr. Yilmaz" and tk.anrede("Yilmaz") == "Yilmaz" and tk.anrede("Herr") == "Herr"
+    assert tk.anrede("  ") == ""
+    heute = date(2026, 11, 6)
+    assert tk.vorbei_text(heute, heute) == "heute" and tk.vorbei_text(date(2026, 11, 5), heute) == "gestern"
+    assert tk.vorbei_text(date(2026, 10, 3), heute) == "am 3. Oktober" and tk.vorbei_text(date(2025, 12, 1), heute) == "am 1. Dezember 2025"
 
 
 if __name__ == "__main__":

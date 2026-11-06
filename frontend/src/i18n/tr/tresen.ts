@@ -208,7 +208,17 @@ const texte: Texte = {
   "Wird angelegt …": "Oluşturuluyor …",
 
   // components/CustomerListDialog.tsx
-  "Kunden, die in deinem Laden angelegt wurden. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "Salonunuzda eklenen müşteriler. Bağlı hesabı olmayan bir kaydı Dranzeit, 12 ay boyunca randevu olmazsa kendiliğinden siler.",
+  "Kunden, die in deinem Laden angelegt wurden, auch vom Telefon-Assistenten nach einer Buchung. Tipp auf einen Namen, dann siehst du die Termine. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "Salonunuzda eklenen müşteriler, rezervasyondan sonra telefon asistanının ekledikleri de dahil. Randevuları görmek için bir isme dokunun. Bağlı hesabı olmayan bir kaydı Dranzeit, 12 ay boyunca randevu olmazsa kendiliğinden siler.",
+  "Vom Telefon-Assistenten angelegt": "Telefon asistanı ekledi",
+  "Die Termine konnten nicht geladen werden. Versuch es gleich noch einmal.": "Randevular yüklenemedi. Birazdan tekrar deneyin.",
+  "Noch keine Termine.": "Henüz randevu yok.",
+  "{n} Besuche": {
+    one: "{n} ziyaret",
+    other: "{n} ziyaret",
+  },
+  "EEE d. MMM yyyy, HH:mm": "d MMM yyyy EEE, HH:mm",
+  "Am Telefon gebucht": "Telefonla alındı",
+  "Geplant": "Planlandı",
   "Die Kundenliste konnte nicht geladen werden. Versuch es gleich noch einmal.": "Müşteri listesi yüklenemedi. Lütfen birazdan tekrar deneyin.",
   "Kundenliste wird geladen": "Müşteri listesi yükleniyor",
   "Noch keine Kunden angelegt.": "Henüz müşteri eklenmedi.",

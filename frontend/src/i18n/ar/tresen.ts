@@ -222,7 +222,21 @@ const texte: Texte = {
   "Wird angelegt …": "جارٍ الإضافة …",
 
   // components/CustomerListDialog.tsx
-  "Kunden, die in deinem Laden angelegt wurden. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "العملاء الذين أُضيفوا في محلّك. إذا لم يكن هناك حساب مرتبط، يحذف Dranzeit الإدخال تلقائيًا بعد 12 شهرًا دون أي موعد.",
+  "Kunden, die in deinem Laden angelegt wurden, auch vom Telefon-Assistenten nach einer Buchung. Tipp auf einen Namen, dann siehst du die Termine. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "العملاء الذين أُضيفوا في محلّك، ومنهم من أضافه مساعد الهاتف بعد الحجز. اضغط على اسم لترى مواعيده. إذا لم يكن هناك حساب مرتبط، يحذف Dranzeit الإدخال تلقائيًا بعد 12 شهرًا دون أي موعد.",
+  "Vom Telefon-Assistenten angelegt": "أضافه مساعد الهاتف",
+  "Die Termine konnten nicht geladen werden. Versuch es gleich noch einmal.": "تعذّر تحميل المواعيد. حاول مرة أخرى بعد قليل.",
+  "Noch keine Termine.": "لا توجد مواعيد بعد.",
+  "{n} Besuche": {
+    zero: "{n} زيارة",
+    one: "{n} زيارة",
+    two: "{n} زيارتان",
+    few: "{n} زيارات",
+    many: "{n} زيارة",
+    other: "{n} زيارة",
+  },
+  "EEE d. MMM yyyy, HH:mm": "EEEE، d MMM yyyy، HH:mm",
+  "Am Telefon gebucht": "حُجز عبر الهاتف",
+  "Geplant": "مُجدول",
   "Die Kundenliste konnte nicht geladen werden. Versuch es gleich noch einmal.": "تعذّر تحميل قائمة العملاء. حاول مرة أخرى بعد قليل.",
   "Kundenliste wird geladen": "جارٍ تحميل قائمة العملاء",
   "Noch keine Kunden angelegt.": "لم تتم إضافة عملاء بعد.",

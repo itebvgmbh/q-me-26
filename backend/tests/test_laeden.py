@@ -195,6 +195,24 @@ def test_kundenliste_fuers_team():
     assert client(d, "fremd").post("/routes/team/kunden", json={"kunde": {"shopId": "laden1", "name": "X"}}).status_code == 403
 
 
+def test_termine_eines_kunden_fuers_team():
+    d = daten()
+    d["services"] = {"s1": {"shopId": "laden1", "name": "Schnitt", "archived": True}}
+    d["appointments"]["a3"] = {"shopId": "laden1", "status": "scheduled", "customerId": "c1", "serviceId": "s1", "staffId": "kim",
+                               "source": "telefon", "referenceCode": "12", "startTime": JETZT + timedelta(days=2)}
+    d["appointments"]["a4"] = {"shopId": "laden2", "status": "completed", "customerId": "kundin", "startTime": JETZT}
+    antwort = client(d, "kim-konto").get("/routes/team/laeden/laden1/kunden/c1/termine")
+    assert antwort.status_code == 200 and antwort.headers["cache-control"] == "no-store"
+    termine = antwort.json()["termine"]
+    assert [x["id"] for x in termine] == ["a3", "a1"], "über den Eintrag und das verbundene Konto, nur dieser Laden"
+    assert termine[0]["leistung"] == "Schnitt" and termine[0]["person"] == "Kim" and termine[0]["source"] == "telefon"
+    assert termine[0]["startTime"]["__zeit"].endswith("Z")
+    assert client(d, "fremd").get("/routes/team/laeden/laden1/kunden/c1/termine").status_code == 403
+    assert client(d, "kim-konto").get("/routes/team/laeden/laden1/kunden/gibtsnicht/termine").status_code == 404
+    d["customers"]["c9"] = {"shopId": "laden2", "name": "Fremd"}
+    assert client(d, "kim-konto").get("/routes/team/laeden/laden1/kunden/c9/termine").status_code == 404, "Eintrag eines anderen Ladens"
+
+
 # --- eigenes Konto -------------------------------------------------------------------------------------------------
 
 

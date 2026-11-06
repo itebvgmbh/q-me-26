@@ -208,7 +208,17 @@ const texte: Texte = {
   "Wird angelegt …": "Creating …",
 
   // components/CustomerListDialog.tsx
-  "Kunden, die in deinem Laden angelegt wurden. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "Customers added in your shop. Without a connected account, Dranzeit deletes an entry automatically after 12 months without an appointment.",
+  "Kunden, die in deinem Laden angelegt wurden, auch vom Telefon-Assistenten nach einer Buchung. Tipp auf einen Namen, dann siehst du die Termine. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "Customers added in your shop, including by the phone assistant after a booking. Tap a name to see their appointments. Without a connected account, Dranzeit deletes an entry automatically after 12 months without an appointment.",
+  "Vom Telefon-Assistenten angelegt": "Added by the phone assistant",
+  "Die Termine konnten nicht geladen werden. Versuch es gleich noch einmal.": "Couldn't load the appointments. Please try again in a moment.",
+  "Noch keine Termine.": "No appointments yet.",
+  "{n} Besuche": {
+    one: "{n} visit",
+    other: "{n} visits",
+  },
+  "EEE d. MMM yyyy, HH:mm": "EEE d MMM yyyy, HH:mm",
+  "Am Telefon gebucht": "Booked by phone",
+  "Geplant": "Scheduled",
   "Die Kundenliste konnte nicht geladen werden. Versuch es gleich noch einmal.": "Couldn't load the customer list. Please try again in a moment.",
   "Kundenliste wird geladen": "Loading customer list",
   "Noch keine Kunden angelegt.": "No customers added yet.",

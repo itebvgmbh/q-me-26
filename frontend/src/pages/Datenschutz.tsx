@@ -102,8 +102,9 @@ export default function Datenschutz() {
             Auswertung des Ladens.
           </li>
           <li>
-            Kunden, die ein Laden angelegt hat, löschen wir 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach
-            dem Anlegen, solange kein Konto verbunden ist. Der Laden kann sie jederzeit selbst löschen.
+            Kunden, die ein Laden angelegt hat, auch über seinen Telefon-Assistenten nach einer Buchung am Telefon,
+            löschen wir 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach dem Anlegen, solange kein Konto
+            verbunden ist. Der Laden kann sie jederzeit selbst löschen.
           </li>
           <li>Die Adresse für Benachrichtigungen im Browser löschen wir nach 3 Tagen.</li>
           <li>

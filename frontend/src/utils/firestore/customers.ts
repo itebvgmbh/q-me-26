@@ -1,5 +1,5 @@
 import { auth } from 'app';
-import { Customer } from './types';
+import { Customer, CustomerVisit } from './types';
 import { backendSenden, liveLesen } from '../live';
 import { t } from '@/i18n';
 
@@ -94,6 +94,13 @@ export const getCustomersByShopId = async (shopId: string): Promise<Customer[]> 
     return [];
   }
 };
+
+/** Termine eines Eintrags in diesem Laden, neueste zuerst – auch die mit dem verbundenen Konto gebuchten */
+export const getCustomerVisits = async (shopId: string, customerId: string): Promise<CustomerVisit[]> =>
+  (await liveLesen<{ termine: CustomerVisit[] }>(
+    `team/laeden/${encodeURIComponent(shopId)}/kunden/${encodeURIComponent(customerId)}/termine`,
+    true,
+  )).termine;
 
 /** Alle Einträge eines Ladens, auch doppelte – für die Kundenliste, aus der man löschen kann */
 export const getCustomerEntries = async (shopId: string): Promise<Customer[]> =>

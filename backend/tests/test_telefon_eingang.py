@@ -187,6 +187,32 @@ def test_daten_des_ladens_gehen_gleich_mit():
     assert d.daten["leistungen"][0]["name"] == "Haarschnitt" and d.daten["name"] == "Salon Nora & Co"
 
 
+def test_bekannter_anrufer_wird_mit_namen_begruesst():
+    d = Db(aktiv(), {"trialEndsAt": datetime.now(timezone.utc) + timedelta(days=5)})
+    d.data["services"] = {"a": {"shopId": "salon", "name": "Haarschnitt"}, "b": {"shopId": "salon", "name": "Bart"}}
+    d.data["staff"] = {"kim": {"shopId": "salon", "name": "Kim Yilmaz", "isActive": True}}
+    d.data["customers"] = {"k1": {"shopId": "salon", "name": "Stefan Tittmann", "phone": "0151 12345678"}}
+    d.data["appointments"] = {"t1": {"shopId": "salon", "customerId": "k1", "serviceId": "b", "staffId": "kim", "status": "completed",
+                                     "startTime": datetime.now(timezone.utc) - timedelta(days=20)}}
+    anruf(ForwardedFrom=SALON)
+    assert d.begruessung == "Hallo Stefan, hier ist der KI-Assistent von Salon Nora & Co. Möchten Sie wieder einen Termin für Bart?"
+    assert d.daten["anrufer"]["name"] == "Stefan Tittmann" and d.daten["anrufer"]["zuletzt"]["person"] == "Kim", d.daten
+    # Fremde Nummer: wie bisher, ohne Namen und ohne Angaben zum Anrufer
+    anruf(ForwardedFrom=SALON, From="+4917099999999")
+    assert d.begruessung.startswith("Hallo, hier ist") and "anrufer" not in d.daten
+
+
+def test_klemmt_die_kundenliste_nimmt_er_trotzdem_ab():
+    d = Db(aktiv())
+    echt = eingang.tk.bekannt
+    eingang.tk.bekannt = lambda *a, **k: 1 / 0
+    try:
+        antwort = anruf(ForwardedFrom=SALON)
+    finally:
+        eingang.tk.bekannt = echt
+    assert "Connect" in antwort.text and d.begruessung.startswith("Hallo, hier ist")
+
+
 def test_begruessung_je_nach_angebot():
     kopf = "Hallo, hier ist der KI-Assistent von Nora."
     assert t.begruessung("Nora", ["Bart"]) == f"{kopf} Möchten Sie einen Termin für Bart?"
@@ -195,6 +221,10 @@ def test_begruessung_je_nach_angebot():
     assert t.begruessung("Nora") == f"{kopf} Möchten Sie einen Termin?"
     assert "Nummer für heute" in t.begruessung("Nora", ["A"], termine=False)
     assert "KI-Assistent" in t.begruessung("Nora", ["A"], termine=False)
+    stefan = {"anrede": "Stefan", "zuletzt": {"leistung": "Dauerwelle"}}
+    assert t.begruessung("Nora", ["Bart"], kunde=stefan) == "Hallo Stefan, hier ist der KI-Assistent von Nora. Möchten Sie einen Termin für Bart?", \
+        "letzte Leistung gibt es nicht mehr"
+    assert t.begruessung("Nora", ["A"], termine=False, kunde=stefan).startswith("Hallo Stefan, hier ist der KI-Assistent")
 
 
 def test_kurz_vor_dem_limit_nimmt_er_noch_ab():

@@ -34,6 +34,10 @@ Danach zeigt Dranzeit einen Link. Schick ihn der Person mit **„Link kopieren�
 
 Wer bei dir mit Konto eine Nummer zieht oder einen Termin bucht, steht danach von selbst unter **„Bestandskunde“**, schon mit dem Konto verbunden. Hast du die Person vorher mit derselben E-Mail angelegt, verbindet Dranzeit deinen Eintrag mit ihrem Konto, wenn ihre Adresse dort bestätigt ist (über den Link in unserer Bestätigungs-Mail). Sonst schick ihr den Link.
 
+## Termine eines Kunden
+
+Tipp oben auf **„Kundenliste“** und dann auf den Namen. Darunter stehen alle Termine dieser Person in deinem Laden, die neuesten zuerst, mit Leistung und Person. Termine über den Telefon-Assistenten haben ein Telefon-Zeichen. Wer am Telefon bucht, steht von selbst in der Liste: [Telefon-Assistent](/hilfe/telefon-assistent)
+
 ## Kunde löschen
 
 Tipp oben auf **„Kundenliste“**. Dort stehen alle Kunden deines Ladens. Tipp beim Kunden auf **„Löschen“** und bestätige mit **„Ja, löschen“**. Kommende Termine des Kunden werden abgesagt, frühere bleiben ohne Namen stehen. Hat der Kunde sein Konto verbunden, verschwindet nur der Eintrag aus deiner Liste, die Termine bleiben in seinem Konto.
