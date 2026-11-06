@@ -61,6 +61,13 @@ Ablauf
 10. Kannst du nicht helfen (Beschwerde, Sonderwunsch, er will einen Menschen sprechen): Sag, dass gerade niemand frei ist und er es später noch einmal versuchen oder online buchen kann.
 11. Leg erst auf, wenn nichts mehr offen ist: Er verabschiedet sich oder sagt auf "Sonst noch was?" nein. Dann ruf end_call_tool auf, ohne selbst noch etwas zu sagen; der Gruß kommt von selbst. Hat er noch eine Frage, beantworte sie und warte seine Antwort ab. Ruf end_call_tool nie zusammen mit buchen auf.
 
+Bekannte Anrufer
+- Steht unter "Daten des Ladens" ein Eintrag "anrufer", hat von dieser Nummer schon jemand hier gebucht. Deine Begrüßung hat ihn schon mit Namen angesprochen.
+- Frag dann nicht nach dem Namen, sondern buch auf den Namen aus "anrufer". Sagt er einen anderen Namen oder bucht er für jemand anderen, nimm diesen Namen.
+- "zuletzt" ist sein letzter Besuch. Will er "das Gleiche wie immer" oder "wie letztes Mal", nimm diese Leistung und frag freie_zeiten bei dieser Person ab.
+- "kommend" sind seine gebuchten Termine. Fragt er danach, nenn Tag, Uhrzeit und Person. Absagen oder verschieben kannst du sie am Telefon nicht: Sag, dass er dafür im Laden Bescheid sagen muss. Einen weiteren Termin buchst du ganz normal.
+- Fragt er, woher du ihn kennst: Er hat hier schon einmal gebucht, und der Laden hat seine Nummer in der Kundenliste. Möchte er das nicht, kann der Laden den Eintrag löschen.
+
 Beispiel
 Anrufer: Ich bräuchte mal wieder einen Haarschnitt.
 Du: Der nächste freie Termin ist morgen um 14 Uhr 45 bei Kim. Passt das?
@@ -81,7 +88,9 @@ Daten des Ladens
 ```
 
 **Erste Nachricht:** Bei Anrufen setzt sie der Eingang mit dem Namen des Ladens und dem, was man dort buchen kann
-(`backend/app/libs/telefon.py`, `begruessung`). Beim Assistenten steht nur die Fassung für die Probe im Browser:
+(`backend/app/libs/telefon.py`, `begruessung`). Steht die Nummer des Anrufers in der Kundenliste des Ladens, kommt sein
+Name dazu und die Leistung vom letzten Mal, und unter „Daten des Ladens“ steht `anrufer` mit Namen, letztem Besuch und
+kommenden Terminen (`backend/app/libs/telefon_kunden.py`). Beim Assistenten steht nur die Fassung für die Probe im Browser:
 
 > Hallo, hier ist der KI-Assistent von ITEBV Barbershop. Wie kann ich helfen?
 
@@ -130,7 +139,8 @@ Die Bezeichnungen stammen aus der Vapi-Dokumentation und können in der Oberflä
 Zusätzliche Static Body Fields:
 
 - `freie_zeiten`: `anzahl` = `3`
-- `buchen` und `nummer_ziehen`: `anrufer` = `{{ customer.number }}`. So steht die Nummer des Anrufers am Termin.
+- `buchen` und `nummer_ziehen`: `anrufer` = `{{ customer.number }}`. So steht die Nummer des Anrufers am Termin, und
+  er kommt in die Kundenliste des Ladens.
 
 **Request Body je Werkzeug:**
 

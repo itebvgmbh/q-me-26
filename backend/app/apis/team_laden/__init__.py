@@ -179,6 +179,7 @@ from fastapi import File, Form, UploadFile  # noqa: E402
 
 from app import seo  # noqa: E402
 from app.libs import laeden as ld  # noqa: E402
+from app.libs import telefon_kunden  # noqa: E402
 
 
 class LadenAnlegen(BaseModel):
@@ -257,6 +258,21 @@ def kunden(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
     _id(shop_id, merke("Diesen Laden gibt es nicht."))
     require_shop_member(user, shop_id)
     return live.json_wert({"kunden": ld.kunden(store.db(), shop_id)})
+
+
+@router.get("/team/laeden/{shop_id}/kunden/{kunde_id}/termine")
+def kunden_termine(shop_id: str, kunde_id: str, user: AuthorizedUser, response: Response) -> dict:
+    """Termine eines Eintrags der Kundenliste in diesem Laden, neueste zuerst (Kundenliste unter "Mein Tag")"""
+    _keine_ablage(response)
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    _id(kunde_id, merke("Diesen Kunden gibt es nicht mehr."))
+    require_shop_member(user, shop_id)
+    db = store.db()
+    snap = db.collection("customers").document(kunde_id).get()
+    kunde = (snap.to_dict() or {}) if snap.exists else {}
+    if kunde.get("shopId") != shop_id:
+        raise HTTPException(status_code=404, detail=merke("Diesen Kunden gibt es nicht mehr."))
+    return live.json_wert({"termine": telefon_kunden.historie(db, shop_id, kunde_id, kunde)})
 
 
 @router.post("/team/kunden")
