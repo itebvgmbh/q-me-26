@@ -355,6 +355,7 @@ Gleiche Systemanweisung und gleiche Werkzeuge. Unterschiede:
 | 14 | „Meine Haare müssen geschnitten werden.“ | nimmt gleich den Haarschnitt, zählt nicht alle Leistungen auf |
 | 15 | ganzer Ablauf bis zur Buchung | eine Frage pro Antwort, eine Zusammenfassung vor dem Buchen, danach nur „Erledigt“ und Nummer |
 | 16 | Nummer ziehen oder buchen, auf die Nummer achten | sagt „Nummer 36“, nie „sechsunddreißigste“ |
+| 17 | Zweiter Anruf von derselben Nummer nach einer Buchung | begrüßt mit Namen, bietet die Leistung vom letzten Mal an, fragt nicht nach dem Namen; nennt auf Nachfrage den gebuchten Termin |
 
 Zu jedem Anruf notierst du:
 
