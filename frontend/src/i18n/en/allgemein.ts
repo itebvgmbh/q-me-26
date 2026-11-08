@@ -45,6 +45,11 @@ const texte: Texte = {
   "Einen Moment …": "One moment …",
   "Heute": "Today",
   "Morgen": "Tomorrow",
+  // Cookie-Banner (components/CookieBanner.tsx)
+  "Cookie-Einstellungen": "Cookie settings",
+  "Alle akzeptieren": "Accept all",
+  "Nur notwendige": "Necessary only",
+  "Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“. <link>Datenschutz</link>": "May we use Google Analytics to measure how Dranzeit is used? Google sets cookies for this, and data may go to the USA. You can change this at any time under “Cookie settings”. <link>Privacy</link>",
 };
 
 export default texte;

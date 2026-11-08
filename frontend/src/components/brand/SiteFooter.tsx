@@ -4,6 +4,7 @@ import { Logo } from './Logo';
 import { t } from '@/i18n';
 import { SprachListe } from '../SprachWahl';
 import { inStoreApp } from '../../utils/app-shell';
+import { cookieEinstellungenOeffnen, statistikMoeglich } from '../../utils/statistik';
 
 export const SiteFooter = () => {
   const { user, profile } = useUserProfile();
@@ -41,6 +42,11 @@ export const SiteFooter = () => {
             <Link to="/impressum" className="hover:text-foreground">{t('Impressum')}</Link>
             <Link to="/datenschutz" className="hover:text-foreground">{t('Datenschutz')}</Link>
             <Link to="/agb" className="hover:text-foreground">{t('AGB')}</Link>
+            {statistikMoeglich() && (
+              <button type="button" onClick={cookieEinstellungenOeffnen} className="inline-flex min-h-11 items-center hover:text-foreground">
+                {t('Cookie-Einstellungen')}
+              </button>
+            )}
           </nav>
           <p>© {new Date().getFullYear()} Dranzeit · ITEBV GmbH</p>
         </div>

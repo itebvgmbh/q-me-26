@@ -112,8 +112,8 @@ def test_seo_grundlagen():
     balken = re.search(r'id="balken">(.*?)</ol>', page, flags=re.S).group(1)
     assert re.findall(r'data-id="([a-z]+)"', balken)[:2] == ["fresha", "dranzeit"]
     assert "Bei dieser Einstellung ist Fresha 3,20 € im Monat günstiger." in page
-    # Fremde Links geben keine Empfehlung weiter, keine fremden Skripte
-    assert 'rel="nofollow noopener" target="_blank"' in page and not re.search(r'<script[^>]+src=', page)
+    # Fremde Links geben keine Empfehlung weiter, keine fremden Skripte (nur das eigene /statistik.js, tests/test_statistik.py)
+    assert 'rel="nofollow noopener" target="_blank"' in page and not re.search(r'<script[^>]+src="(?!/statistik\.js")', page)
 
 
 def test_routen_sitemap_und_app_aus_dem_store():

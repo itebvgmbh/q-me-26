@@ -34,6 +34,7 @@ import {
   type PushConfig,
 } from '../utils/push';
 import { inNativeApp } from '../utils/native-app';
+import { ereignis } from '../utils/statistik';
 import { ProdErrorPage } from '../prod-components/ProdErrorPage';
 import { datumsLocale, t, tn } from '@/i18n';
 
@@ -97,6 +98,21 @@ export default function Nummer() {
     rememberTicket({ id: appt.id, shopId: appt.shopId, start: safelyConvertToDate(appt.startTime).toISOString() });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
+
+  // GA4: Kunde hat gerade eine Nummer gezogen oder einen Termin gebucht (?neu=1). Einmal je Nummer und Sitzung, sonst
+  // zählte jedes Neuladen mit. Nur die Art geht mit, keine Nummer, kein Laden, kein Name (utils/statistik.ts).
+  useEffect(() => {
+    if (!justJoined || !appt?.id) return;
+    const merker = `dranzeit:gezaehlt:${appt.id}`;
+    try {
+      if (sessionStorage.getItem(merker)) return;
+      sessionStorage.setItem(merker, '1');
+    } catch {
+      // ohne Speicher: dann eben bei jedem Laden
+    }
+    ereignis('generate_lead', { lead_source: appt.type === 'booked' ? 'termin' : 'nummer' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justJoined, appt?.id]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);

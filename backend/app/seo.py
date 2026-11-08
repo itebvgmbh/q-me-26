@@ -156,7 +156,32 @@ h1{font-size:clamp(34px,6vw,56px);line-height:1;letter-spacing:-.04em;margin:0 0
 .cta{background:var(--signal);color:#141414;border-radius:24px;padding:24px;margin:32px 0}
 .cta a{color:#141414;font-weight:700}
 footer{color:var(--muted);font-size:14px;padding-block:24px;display:flex;gap:16px;flex-wrap:wrap}footer a{color:inherit}
+footer button{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+.cookies{position:fixed;inset:auto 0 0 0;z-index:100;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgb(0 0 0/.08);padding:16px max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-bottom))}
+.cookies>div{max-width:960px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+.cookies p{margin:0;color:var(--muted);font-size:14px;flex:1 1 380px}.cookies p a{color:var(--ink)}
+.cookies .wahl{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 auto}
+.cookies button{min-height:44px;padding:0 18px;border-radius:12px;font:inherit;font-weight:700;background:none;border:2px solid var(--ink);color:var(--ink);cursor:pointer}
+.cookies[hidden],#cookie-einstellungen[hidden]{display:none}
+@media print{.cookies{display:none}}
 """
+
+# Google Analytics 4 nur mit Einwilligung: Regeln und Mess-ID in frontend/public/statistik.js (dieselbe Datei wie in der
+# React-App, ausgeliefert unter /statistik.js). Hier nur der Banner für die Seiten vom Backend, gleicher Text wie
+# frontend/src/components/CookieBanner.tsx. Ohne statistik.js (oder in der App aus dem Store) bleibt er verborgen.
+STATISTIK_KOPF = '<script src="/statistik.js" defer></script>'
+COOKIE_BANNER = (
+    "<section class=\"cookies\" id=\"cookies\" aria-label=\"Cookie-Einstellungen\" hidden><div>"
+    "<p>Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die "
+    "USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“. <a href=\"/datenschutz\">Datenschutz</a></p>"
+    "<div class=\"wahl\"><button type=\"button\" data-cookies=\"1\">Alle akzeptieren</button>"
+    "<button type=\"button\" data-cookies=\"0\">Nur notwendige</button></div></div></section>"
+    "<script>document.addEventListener('DOMContentLoaded',function(){var s=window.dranzeitStatistik,"
+    "b=document.getElementById('cookies'),l=document.getElementById('cookie-einstellungen');if(!s||s.aus||!b)return;"
+    "if(l){l.hidden=false;l.addEventListener('click',function(){b.hidden=false})}if(s.wahl()===null)b.hidden=false;"
+    "b.addEventListener('click',function(e){var k=e.target.closest('[data-cookies]');if(!k)return;"
+    "s.setzen(k.getAttribute('data-cookies')==='1');b.hidden=true})})</script>"
+)
 
 
 def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | list | None = None,
@@ -170,7 +195,7 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
     return (
         "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">"
-        f"<script>{APP_JS}</script><title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
+        f"<script>{APP_JS}</script>{STATISTIK_KOPF}<title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
         + (f"<meta name=\"robots\" content=\"{_e(robots)}\">" if robots else "") +
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
@@ -184,7 +209,9 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         f"{body}"
         "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
         "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/vergleich/buchungsplattformen-friseure\">Anbieter im Vergleich</a><a href=\"/hilfe\">Hilfe</a>"
-        "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a></footer></div></body></html>"
+        "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a>"
+        "<button type=\"button\" id=\"cookie-einstellungen\" hidden>Cookie-Einstellungen</button></footer></div>"
+        f"{COOKIE_BANNER}</body></html>"
     )
 
 

@@ -14,6 +14,7 @@ import type { PublicAppointment } from '../utils/firestore/public-appointments';
 import { useLive } from '../utils/live';
 import { t, tn } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
+import { statistikAbschalten } from '../utils/statistik';
 
 const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
@@ -43,6 +44,9 @@ export default function Bildschirm() {
   const shop: Shop | null | undefined = live.fehlt ? null : live.daten ? live.daten.laden : undefined;
   const staff = live.daten?.personen;
   const appts = live.daten?.termine;
+
+  // Der Fernseher im Wartezimmer zählt nicht als Besucher (public/statistik.js) – auch wenn er über / hierher kam
+  useEffect(() => statistikAbschalten(), []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 15_000);

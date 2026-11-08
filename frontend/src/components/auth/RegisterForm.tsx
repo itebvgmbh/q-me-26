@@ -8,6 +8,7 @@ import { authErrorMessage, safeRedirect } from '../../utils/auth-errors';
 import { linkAnonymousBookingsToUser, type TicketToLink } from '../../utils/AnonymousBookingLinker';
 import { sendVerificationMailAfterSignUp } from '../../utils/email-verification';
 import { UserRole } from '../../utils/types';
+import { ereignis } from '../../utils/statistik';
 import { AuthShell, EmailField, FormError, PasswordField } from './AuthShell';
 
 interface Props {
@@ -58,6 +59,8 @@ export const RegisterForm = ({ role }: Props) => {
         // Nummern, die in diesem Browser ohne Konto gezogen wurden, übernehmen
         await linkAnonymousBookingsToUser(state);
       }
+      // Haupt-Conversion in GA4: ein Laden meldet sich an (nur mit Einwilligung, ohne persönliche Daten)
+      if (role === 'shopOwner') ereignis('sign_up', { method: 'email' });
       toast.success(t('Dein Konto ist angelegt.'));
       sendVerificationMailAfterSignUp();
       navigate(next || copy.home, { replace: true });
