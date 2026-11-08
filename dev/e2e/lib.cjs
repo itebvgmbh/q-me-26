@@ -16,10 +16,13 @@ const launch = () => chromium.launch({ args: (process.env.QME_BROWSER_ARGS || ''
 /** Neue Seite in deutscher Zeit; Handygröße, wenn nichts anderes angegeben */
 const newPage = async (browser, options = {}) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Berlin', locale: 'de-DE', ...options });
-  // „Wofür nutzt du dieses Gerät?“ (frontend/src/utils/geraet.ts) nicht fragen – sonst liegt der Dialog über dem Tresen
+  // „Wofür nutzt du dieses Gerät?“ (frontend/src/utils/geraet.ts) nicht fragen – sonst liegt der Dialog über dem Tresen.
+  // Cookie-Banner (frontend/public/statistik.js) gleich mit „Nur notwendige“ beantworten: Er läge sonst über den Knöpfen
+  // unten, und Testläufe zählen nicht in Google Analytics.
   await context.addInitScript(() => {
     try {
       sessionStorage.setItem('dranzeit-geraet-spaeter', '1');
+      localStorage.setItem('dranzeit:cookies', 'notwendig');
     } catch {
       /* about:blank */
     }

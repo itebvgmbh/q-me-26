@@ -15,7 +15,7 @@ Von deinen Kunden speichert Dranzeit nur, was für Nummer und Termin nötig ist:
 - **Push-Nachrichten:** Erlaubt ein Kunde sie, speichert Dranzeit die Adresse, die sein Browser dafür erzeugt.
 - **Dein Laden:** Angaben zum Laden und zu den Leistungen, Name und E-Mail-Adresse der Personen im Team und die Daten für die Abrechnung deines Abos.
 
-Werbe- oder Analyse-Cookies setzt Dranzeit nicht ein.
+Werbe-Cookies setzt Dranzeit nicht ein. Statistik mit Google Analytics läuft nur, wenn ein Besucher im Cookie-Banner zustimmt, und nie mit Daten deiner Kunden wie Name, Telefonnummer oder Termin. In der App aus den Stores, auf dem Wartezimmer-Bildschirm und im Kasten auf deiner Webseite gibt es sie gar nicht. Mehr: [Datenschutzerklärung](/datenschutz).
 
 ## Wann gelöscht wird
 

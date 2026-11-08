@@ -45,6 +45,11 @@ const texte: Texte = {
   "Einen Moment …": "لحظة واحدة …",
   "Heute": "اليوم",
   "Morgen": "غدًا",
+  // Cookie-Banner (components/CookieBanner.tsx)
+  "Cookie-Einstellungen": "إعدادات ملفات تعريف الارتباط",
+  "Alle akzeptieren": "قبول الكل",
+  "Nur notwendige": "الضرورية فقط",
+  "Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“. <link>Datenschutz</link>": "هل تسمح لنا بقياس كيفية استخدام Dranzeit عبر Google Analytics؟ لهذا الغرض تضع Google ملفات تعريف الارتباط، وقد تُنقل البيانات إلى الولايات المتحدة. يمكنك تغيير ذلك في أي وقت من خلال „إعدادات ملفات تعريف الارتباط“. <link>الخصوصية</link>",
 };
 
 export default texte;

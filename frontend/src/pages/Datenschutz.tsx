@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { LegalPage } from '../components/LegalPage';
 import { COMPANY } from '@/constants/legal';
+import { cookieEinstellungenOeffnen, statistikMoeglich } from '../utils/statistik';
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="04.11.2026">
+    <LegalPage title="Datenschutz" updated="08.11.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -86,10 +87,67 @@ export default function Datenschutz() {
           </li>
         </ul>
         <p>
-          Wir setzen keine Werbe- oder Analyse-Cookies ein und verfolgen dich nicht über andere Seiten. Im Browser
-          speichern wir nur, was die App zum Funktionieren braucht, etwa deine Anmeldung oder eine Nummer, die du ohne
-          Konto gezogen hast.
+          Wir setzen keine Werbe-Cookies ein und verfolgen dich nicht über andere Seiten. Im Browser speichern wir, was
+          die App zum Funktionieren braucht, etwa deine Anmeldung, eine Nummer, die du ohne Konto gezogen hast, und deine
+          Wahl im Cookie-Banner (§ 25 Abs. 2 Nr. 2 TDDDG). Statistik-Cookies von Google Analytics nur, wenn du zustimmst
+          (nächster Abschnitt).
         </p>
+      </section>
+
+      <section id="statistik">
+        <h2>Statistik mit Google Analytics</h2>
+        <p>
+          Wenn du im Cookie-Banner „Alle akzeptieren“ wählst, nutzen wir Google Analytics 4, einen Dienst der Google
+          Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“). Damit sehen wir, wie Besucher
+          Dranzeit finden und nutzen, zum Beispiel welche Seiten aufgerufen werden, über welche Suche oder Seite jemand
+          kommt und ob sich ein Laden anmeldet oder jemand eine Nummer zieht. So verbessern wir die Seiten und das
+          Angebot.
+        </p>
+        <ul>
+          <li>
+            <strong>Welche Daten:</strong> aufgerufene Seiten, Zeitpunkt und Dauer, die Seite, von der du kommst,
+            ungefährer Standort (Land, Region, Stadt), Gerät, Browser, Betriebssystem, Bildschirmgröße und Sprache, eine
+            zufällige Kennung in einem Cookie sowie Ereignisse wie „Laden angemeldet“ oder „Nummer gezogen“. Namen,
+            E-Mail-Adressen, Telefonnummern, Termine oder den gewählten Laden geben wir nicht an Google weiter.
+          </li>
+          <li>
+            <strong>IP-Adresse:</strong> Google Analytics 4 speichert keine IP-Adressen. Google nutzt sie bei Zugriffen
+            aus der EU nur auf Servern in der EU, um den ungefähren Standort zu bestimmen, und verwirft sie danach.
+          </li>
+          <li>
+            <strong>Cookies:</strong> <code>_ga</code> und <code>_ga_RG8P11CJNJ</code> unterscheiden Besucher und
+            Besuche. Sie bleiben bis zu 2 Jahre in deinem Browser, wenn du sie nicht vorher löschst oder widerrufst.
+          </li>
+          <li>
+            <strong>Speicherdauer bei Google:</strong> Ereignisdaten, die einer Kennung zugeordnet sind, löscht Google
+            nach 14 Monaten.
+          </li>
+          <li>
+            <strong>Übermittlung in die USA:</strong> Google kann Daten auch auf Servern der Google LLC in den USA
+            verarbeiten. Google LLC ist nach dem EU-US Data Privacy Framework zertifiziert; dafür gilt der
+            Angemessenheitsbeschluss der EU-Kommission (Art. 45 DSGVO), ergänzend die EU-Standardvertragsklauseln.
+          </li>
+          <li>
+            <strong>Rechtsgrundlage:</strong> deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Ohne
+            Einwilligung laden wir Google Analytics gar nicht: Es werden keine Cookies gesetzt und keine Daten an Google
+            geschickt.
+          </li>
+          <li>
+            <strong>Widerruf:</strong> jederzeit für die Zukunft über „Cookie-Einstellungen“ unten auf jeder Seite oder
+            hier, mit „Nur notwendige“. Die Cookies von Google Analytics löschen wir dann in deinem Browser.
+          </li>
+          <li>
+            In der App aus Google Play und dem App Store, auf dem Wartezimmer-Bildschirm im Laden und im Dranzeit-Kasten
+            auf Webseiten von Läden setzen wir Google Analytics nicht ein.
+          </li>
+        </ul>
+        {statistikMoeglich() && (
+          <p>
+            <button type="button" onClick={cookieEinstellungenOeffnen} className="underline underline-offset-2">
+              Cookie-Einstellungen ändern
+            </button>
+          </p>
+        )}
       </section>
 
       <section>
@@ -113,6 +171,11 @@ export default function Datenschutz() {
             auf Anfrage.
           </li>
           <li>Server-Protokolle löschen wir nach spätestens 14 Tagen.</li>
+          <li>
+            Google Analytics (nur mit Einwilligung): Ereignisdaten nach 14 Monaten, die Cookies <code>_ga</code> und{' '}
+            <code>_ga_RG8P11CJNJ</code> nach spätestens 2 Jahren. Deine Wahl im Cookie-Banner bleibt in deinem Browser, bis
+            du sie änderst oder die Website-Daten löschst.
+          </li>
           <li>
             Die Prüfsumme der Anschrift eines Salons, der keine Post von uns möchte, behalten wir ohne Frist, weil nur so der
             Widerspruch dauerhaft gilt.
@@ -148,6 +211,10 @@ export default function Datenschutz() {
           <li>
             <strong>Push-Dienste der Browser-Hersteller</strong> (zum Beispiel Google, Apple, Mozilla): Zustellung der
             Benachrichtigungen. Der Inhalt wird dabei verschlüsselt übertragen.
+          </li>
+          <li>
+            <strong>Google Analytics</strong> (Google Ireland Limited, Dublin): Statistik über die Nutzung der Seiten, nur
+            mit deiner Einwilligung (siehe „Statistik mit Google Analytics“).
           </li>
           <li>
             <strong>OpenStreetMap</strong> (OpenStreetMap Foundation, Großbritannien): Kartenbilder auf der Shop-Karte

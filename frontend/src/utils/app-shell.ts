@@ -11,7 +11,8 @@
  *
  * Gemerkt in sessionStorage, nicht in localStorage: Die Android-App teilt den Speicher mit Chrome, sonst
  * fehlten Tarif und Preise danach auch im normalen Browser. Hilfe- und Stadtseiten vom Server erkennen die
- * App genauso (backend/app/seo.py, APP_JS) – Änderungen an beiden Stellen.
+ * App genauso (backend/app/seo.py, APP_JS), ebenso public/statistik.js (in der App keine Statistik) – Änderungen an
+ * allen drei Stellen.
  */
 
 export type AppPlatform = 'android' | 'ios';

@@ -45,6 +45,11 @@ const texte: Texte = {
   "Einen Moment …": "Bir saniye …",
   "Heute": "Bugün",
   "Morgen": "Yarın",
+  // Cookie-Banner (components/CookieBanner.tsx)
+  "Cookie-Einstellungen": "Çerez ayarları",
+  "Alle akzeptieren": "Tümünü kabul et",
+  "Nur notwendige": "Yalnızca gerekli olanlar",
+  "Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“. <link>Datenschutz</link>": "Dranzeit’ın nasıl kullanıldığını Google Analytics ile ölçebilir miyiz? Bunun için Google çerez kullanır, veriler ABD’ye aktarılabilir. Bunu istediğin zaman “Çerez ayarları” bölümünden değiştirebilirsin. <link>Gizlilik</link>",
 };
 
 export default texte;

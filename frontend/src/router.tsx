@@ -8,6 +8,7 @@ import { AppProvider } from "./components/AppProvider";
 import { Navigation } from "./components/Navigation";
 import { SiteFooter } from "./components/brand/SiteFooter";
 import { SeitenKopf } from "./components/SeitenKopf";
+import { CookieBanner } from "./components/CookieBanner";
 import { LadenProvider } from "./utils/laden-kontext";
 import { t } from "@/i18n";
 
@@ -65,6 +66,7 @@ export const router = createBrowserRouter(
               </main>
               <SiteFooter />
             </div>
+            <CookieBanner />
           </LadenProvider>
         </AppProvider>
       ),
@@ -91,6 +93,7 @@ export const router = createBrowserRouter(
               <NotFoundPage />
             </SuspenseWrapper>
           </main>
+          <CookieBanner />
         </div>
       ),
       errorElement: <RouteError />,
