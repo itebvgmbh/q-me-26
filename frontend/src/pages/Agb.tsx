@@ -4,7 +4,7 @@ import { COMPANY } from '@/constants/legal';
 
 export default function Agb() {
   return (
-    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="04.11.2026">
+    <LegalPage title="Allgemeine Geschäftsbedingungen" updated="09.11.2026">
       <section>
         <h2>1. Geltungsbereich</h2>
         <p>
@@ -69,6 +69,49 @@ export default function Agb() {
         </p>
       </section>
 
+      <section id="telefon-assistent">
+        <h2>5a. Zusatz: Telefon-Assistent</h2>
+        <ul>
+          <li>
+            Der Telefon-Assistent ist ein Zusatz zu einem Abo ab dem Tarif Solo. Eine KI nimmt die Anrufe an, die der Kunde
+            auf die Rufnummer umleitet, die wir ihm nennen. Sie nennt freie Termine und bucht sie, sagt die Wartezeit, zieht
+            Nummern und beantwortet Fragen anhand der Angaben des Ladens. Zu Beginn jedes Gesprächs sagt sie, dass sie eine
+            KI ist.
+          </li>
+          <li>
+            Vor dem Zubuchen kann der Kunde den Assistenten 30 Minuten kostenlos testen. Die Testminuten enden von selbst und
+            kosten nichts.
+          </li>
+          <li>
+            Es gelten die Preise der Preisseite zum Zeitpunkt des Zubuchens, zuzüglich Umsatzsteuer. Die Gesprächszeit wird
+            sekundengenau gezählt und je Abrechnungsmonat auf volle Minuten aufgerundet. Der Kunde legt einen Kostendeckel
+            je Monat fest, ohne Angabe 59 € netto. Ist er erreicht, hören Anrufer bis zum Ende des Monats nur eine kurze
+            Ansage, und mehr berechnen wir nicht. Abgerechnet wird über ein eigenes Monatsabo bei Stripe mit eigener
+            Rechnung: der Grundpreis im Voraus, Minuten über die enthaltenen hinaus am Ende des Monats.
+          </li>
+          <li>
+            Der Zusatz läuft monatlich und verlängert sich jeweils um einen Monat. Der Kunde kann ihn unter
+            „Telefon-Assistent“ zum Ende des laufenden Monats kündigen. Endet das Abo des Tarifs, endet der Zusatz zum Ende
+            seines laufenden Monats.
+          </li>
+          <li>
+            Die Umleitung richtet der Kunde bei seinem Telefonanbieter ein und trägt deren Kosten. Nicht jeder Anbieter
+            übermittelt dabei die Nummer des Ladens. Dann stellen wir auf Wunsch eine eigene Rufnummer bereit. Rufnummern,
+            auf die umgeleitet wird, bleiben unsere. Der Kunde erwirbt an ihnen keine Rechte und gibt sie nicht als Nummer
+            seines Ladens an.
+          </li>
+          <li>
+            Die KI kann sich verhören oder irren. Der Kunde prüft die Buchungen aus Telefonaten wie andere Buchungen. Sind
+            alle Leitungen belegt oder fällt ein Telefon- oder KI-Dienst aus, kann ein Anruf mit einer Ansage enden. Eine
+            bestimmte Verfügbarkeit schulden wir auch hier nicht.
+          </li>
+          <li>
+            Nutzt ein Kunde den Assistenten missbräuchlich, etwa für Werbeanrufe oder für Nummern, die nicht ihm gehören,
+            dürfen wir ihn für diesen Laden sperren.
+          </li>
+        </ul>
+      </section>
+
       <section>
         <h2>6. Pflichten des Kunden</h2>
         <ul>
@@ -90,11 +133,14 @@ export default function Agb() {
         <ul>
           <li>
             <strong>Gegenstand und Zweck:</strong> Betrieb der Warteschlange und Terminbuchung, Benachrichtigungen und
-            Erinnerungen an die Kunden des Ladens.
+            Erinnerungen an die Kunden des Ladens. Nutzt der Kunde den Telefon-Assistenten, außerdem die Annahme
+            umgeleiteter Anrufe durch die KI, Buchungen am Telefon, das Wiedererkennen bekannter Anrufer und die Anrufliste.
           </li>
           <li>
             <strong>Daten und Betroffene:</strong> Name, Telefonnummer, E-Mail-Adresse, Termine und Wartenummern der Kunden
-            des Ladens; Name und E-Mail-Adresse der Mitarbeitenden.
+            des Ladens; Name und E-Mail-Adresse der Mitarbeitenden. Beim Telefon-Assistenten außerdem die Rufnummer der
+            Anrufer, der Inhalt der Gespräche, der live in Text umgewandelt wird, deren Mitschrift sowie Zeitpunkt, Dauer
+            und Ergebnis der Anrufe.
           </li>
           <li>
             <strong>Weisungen:</strong> Wir verarbeiten die Daten nur nach Weisung des Kunden, die durch die Nutzung der
@@ -107,8 +153,11 @@ export default function Agb() {
           <li>
             <strong>Unterauftragsverarbeiter:</strong> Hetzner Online GmbH (Server in Deutschland, mit Datenbank und
             Anmeldung), Google Ireland Limited (Firebase: nur noch eine alte Kopie aus der Zeit bis November 2026, bis zu
-            ihrer Löschung), Resend, Inc. (E-Mail-Versand) sowie die Push-Dienste der Browser-Hersteller. Über
-            neue Unterauftragsverarbeiter informieren wir vorher; der Kunde kann widersprechen.
+            ihrer Löschung), Resend, Inc. (E-Mail-Versand) sowie die Push-Dienste der Browser-Hersteller. Nur beim
+            Telefon-Assistenten außerdem Twilio Ireland Limited (Telefonie) und Vapi, Inc. (Sprach-KI) mit dessen
+            Unterauftragsverarbeitern Soniox, Inc. (Spracherkennung), OpenAI (Sprachmodell) und Microsoft Ireland
+            Operations Limited (Sprachausgabe). Über neue Unterauftragsverarbeiter informieren wir vorher; der Kunde kann
+            widersprechen.
           </li>
           <li>
             <strong>Unterstützung:</strong> Wir helfen dem Kunden bei Anfragen Betroffener und bei Datenpannen und melden
@@ -117,7 +166,9 @@ export default function Agb() {
           <li>
             <strong>Löschung:</strong> Namen und Kontaktdaten bei Nummern und Terminen ohne Konto entfernen wir 90 Tage nach
             dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir 12 Monate nach ihrem letzten Termin; der
-            Kunde kann sie jederzeit selbst löschen. Nach Vertragsende löschen wir die Daten des Ladens innerhalb von 30 Tagen,
+            Kunde kann sie jederzeit selbst löschen. Anrufe in der Anrufliste des Telefon-Assistenten löschen wir 90 Tage nach
+            dem Anruf, Mitschriften und Protokolle bei Vapi werden nach 14 Tagen gelöscht. Nach Vertragsende löschen wir die
+            Daten des Ladens innerhalb von 30 Tagen,
             soweit keine Aufbewahrungspflicht besteht.
           </li>
           <li>

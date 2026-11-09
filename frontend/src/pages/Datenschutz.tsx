@@ -5,7 +5,7 @@ import { cookieEinstellungenOeffnen, statistikMoeglich } from '../utils/statisti
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="08.11.2026">
+    <LegalPage title="Datenschutz" updated="09.11.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -42,6 +42,21 @@ export default function Datenschutz() {
             <strong>Vom Laden angelegt:</strong> Trägt ein Laden dich in seine Kundenliste ein, speichern wir den Namen,
             die E-Mail-Adresse und, wenn angegeben, die Telefonnummer, die der Laden einträgt, und die Termine, die er für
             dich vereinbart (Art. 6 Abs. 1 lit. b DSGVO).
+          </li>
+          <li id="telefon-assistent">
+            <strong>Telefon-Assistent eines Ladens:</strong> Leitet ein Laden seine Anrufe zu unserem Telefon-Assistenten
+            um, nimmt eine KI deinen Anruf an, wenn im Laden niemand rangeht. Das sagt sie im ersten Satz. Dabei verarbeiten
+            wir deine Telefonnummer, wenn du sie nicht unterdrückst, das Gespräch selbst und was du darin sagst, etwa deinen
+            Namen und deinen Terminwunsch. Das Gespräch wird live in Text umgewandelt, ein Sprachmodell bildet die Antwort,
+            eine künstliche Stimme spricht sie. Aufnahmen machen wir nicht. Buchst du einen Termin oder ziehst eine Nummer,
+            steht er beim Laden wie jede andere Buchung, und du stehst mit Namen und Telefonnummer in seiner Kundenliste.
+            Rufst du später von derselben Nummer an, erkennt dich der Assistent daran, spricht dich mit Namen an und kennt
+            deine Termine bei diesem Laden. Jeden Anruf sieht der Laden in seiner Anrufliste mit Zeitpunkt, Dauer, Nummer
+            und Ergebnis, damit er zurückrufen kann. Verantwortlich ist der Laden, wir verarbeiten die Daten in seinem
+            Auftrag. Rechtsgrundlage ist für die Buchung Art. 6 Abs. 1 lit. b DSGVO, für das Wiedererkennen und die
+            Anrufliste Art. 6 Abs. 1 lit. f DSGVO: Der Laden möchte seine Kunden am Telefon erkennen und verpasste Anrufe
+            zurückrufen können. Möchtest du das nicht, sag es dem Laden. Löscht er dich aus seiner Kundenliste,
+            verschwinden auch deine Anrufe aus seiner Anrufliste.
           </li>
           <li>
             <strong>Früher dran:</strong> Wenn du es einschaltest, prüfen wir, ob ein früherer Platz frei wird, und
@@ -164,6 +179,11 @@ export default function Datenschutz() {
             löschen wir 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach dem Anlegen, solange kein Konto
             verbunden ist. Der Laden kann sie jederzeit selbst löschen.
           </li>
+          <li>
+            Anrufe beim Telefon-Assistenten eines Ladens löschen wir 90 Tage nach dem Anruf aus seiner Anrufliste, die
+            Anrufe einer Nummer auch dann, wenn der Laden den Kunden mit dieser Nummer aus seiner Kundenliste löscht. Die
+            Mitschrift des Gesprächs und die technischen Protokolle bei Vapi werden nach 14 Tagen gelöscht.
+          </li>
           <li>Die Adresse für Benachrichtigungen im Browser löschen wir nach 3 Tagen.</li>
           <li>
             Kontodaten speichern wir, bis du dein Konto löschst (unter „Mein Profil“) oder uns um Löschung bittest. Dann
@@ -219,6 +239,14 @@ export default function Datenschutz() {
           <li>
             <strong>OpenStreetMap</strong> (OpenStreetMap Foundation, Großbritannien): Kartenbilder auf der Shop-Karte
             und Umwandlung von Adressen in Koordinaten. Beim Laden der Karte erhält der Dienst deine IP-Adresse.
+          </li>
+          <li>
+            <strong>Nur bei Anrufen beim Telefon-Assistenten eines Ladens:</strong> Twilio (Twilio Ireland Limited, Dublin)
+            stellt die Rufnummer und verbindet den Anruf. Vapi (Vapi, Inc., San Francisco) betreibt die Sprach-KI und setzt
+            dafür ein: Soniox (Soniox, Inc., USA) für die Spracherkennung, OpenAI (OpenAI, USA) für das Sprachmodell und
+            Microsoft Azure (Microsoft Ireland Operations Limited, Dublin) für die Stimme. Sie erhalten das Gespräch, deine
+            Telefonnummer und die Angaben zum Laden, die der Assistent braucht. Vapi behält eine Mitschrift und die
+            Protokolle des Gesprächs (siehe „Wie lange wir Daten speichern“).
           </li>
           <li>
             <strong>Nur beim Einrichten eines Ladens und für das Salon-Verzeichnis:</strong> Google Places (Google
