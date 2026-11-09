@@ -78,7 +78,7 @@ zum Abschalten, `QME_OFFER_HOLD_MINUTES` (Frist je Angebot, Standard 15) und
 `QME_OFFER_LEAD_MINUTES` (ein angebotener Platz liegt mindestens so weit in der
 Zukunft, Standard 15).
 
-Holt `main`, installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
+Holt `bildschirm` (den Live-Stand), installiert Abhängigkeiten, baut die Web-App in ein neues Verzeichnis
 und tauscht sie erst nach erfolgreichem Build aus. Danach startet es das Backend
 neu und prüft es. Einen anderen Branch ausrollen: `BRANCH=<name> bash …`.
 
