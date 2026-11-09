@@ -7,11 +7,12 @@ Telefon-Assistent einrichten und zubuchen (/telefon-assistent). Nur der Inhaber 
     POST /telefon-einrichtung/{shop_id}/deckel      Kostendeckel je Monat in Euro netto
     POST /telefon-einrichtung/{shop_id}/buchen      Zusatz buchen: Stripe Checkout für ein eigenes Monatsabo
     POST /telefon-einrichtung/{shop_id}/kuendigen   zum Monatsende kündigen oder die Kündigung zurücknehmen
+    GET  /telefon-einrichtung/{shop_id}/anrufe      Anrufliste der letzten 90 Tage (app/libs/telefon_anrufliste.py)
 
 Den Probeanruf erkennt der Eingang (app/apis/telefon_eingang), die Daten stehen in app/libs/telefon_laeden.py, die
 Abrechnung in app/libs/telefon_abrechnung.py. Den Stand des Abos schreibt der Stripe-Webhook.
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from app.apis.billing import _require_stripe, known_customer, stripe_errors, _portal_url
@@ -20,7 +21,9 @@ from app.auth import AuthorizedUser
 from app.auth.access import require_shop_of_owner
 from app.i18n import merke
 from app.libs import telefon as t
+from app.libs import live
 from app.libs import telefon_abrechnung as ta
+from app.libs import telefon_anrufliste as tal
 from app.libs import telefon_laeden as tl
 from app.libs.links import public_origin
 from app.libs.shop_privat import stripe_link
@@ -61,6 +64,18 @@ def ansehen(shop_id: str, user: AuthorizedUser) -> dict:
     require_shop_of_owner(user, shop_id)
     db = get_firestore_db()
     return tl.stand(db, shop_id, _laden(db, shop_id))
+
+
+@router.get("/telefon-einrichtung/{shop_id}/anrufe")
+def anrufe(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
+    """Wer angerufen hat und was daraus wurde, die neuesten zuerst"""
+    response.headers["Cache-Control"] = "no-store"
+    if not t.ID_RE.fullmatch(shop_id):
+        raise HTTPException(status_code=404, detail=merke("Diesen Laden gibt es nicht."))
+    require_shop_of_owner(user, shop_id)
+    db = get_firestore_db()
+    _laden(db, shop_id)
+    return live.json_wert({"anrufe": tal.liste(db, shop_id)})
 
 
 @router.post("/telefon-einrichtung/{shop_id}")

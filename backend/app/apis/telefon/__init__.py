@@ -34,6 +34,7 @@ from app.apis.available_timeslots import load_timeslot_inputs, timeslots_for_day
 from app.apis.cache import invalidate_shop_date_cache
 from app.apis.firebase_utils import get_firestore_db
 from app.libs import telefon as t
+from app.libs import telefon_anrufliste as tal
 from app.libs import telefon_kunden as tk
 from app.libs import telefon_laeden as tl
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
@@ -330,6 +331,10 @@ def _anlegen(db, shop_id: str, leistung: dict, name: str, anrufer: Optional[str]
         tk.anlegen(db, neu)
     except Exception as e:  # Der Termin steht, der Eintrag ist Beiwerk
         print(f"Telefon {shop_id}: Kunde zu Termin {created['id']} nicht angelegt: {e}")
+    try:
+        tal.termin_dazu(db, shop_id, phone, created["id"])
+    except Exception as e:  # ebenso die Anrufliste
+        print(f"Telefon {shop_id}: Termin {created['id']} nicht in der Anrufliste: {e}")
     for day in {d for c in candidates for d in c.days()}:
         invalidate_shop_date_cache(shop_id, day, verbose=False)
     wake()

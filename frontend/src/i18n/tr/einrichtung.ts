@@ -441,6 +441,28 @@ const texte: Texte = {
   "Zum Monatsende kündigen": "Ay sonunda iptal et",
   "Rechnungen und Zahlungsart": "Faturalar ve ödeme yöntemi",
   "Danke! Der Telefon-Assistent ist gebucht. Der Stand erscheint hier in wenigen Sekunden.": "Teşekkürler! Telefon asistanı satın alındı. Durum birkaç saniye içinde burada görünecek.",
+  // Anrufliste des Telefon-Assistenten (components/TelefonAnrufliste.tsx)
+  "Anrufe": "Aramalar",
+  "Aktualisieren": "Yenile",
+  "Die Anrufe konnten nicht geladen werden.": "Aramalar yüklenemedi.",
+  "Noch keine Anrufe.": "Henüz arama yok.",
+  "Anrufe der letzten 90 Tage. Ältere löschen wir.": "Son 90 günün aramaları. Daha eskilerini siliyoruz.",
+  "Gestern": "Dün",
+  "Unterdrückte Nummer": "Gizli numara",
+  "Zurückrufen": "Geri ara",
+  "Gespräch läuft gerade": "Görüşme sürüyor",
+  "Kein Termin gebucht": "Randevu alınmadı",
+  "Termin gebucht: {zeit}": "Randevu alındı: {zeit}",
+  "Nummer {nummer} gezogen": "{nummer} numaralı sıra alındı",
+  "{leistung} bei {person}": "{leistung}, {person} ile",
+  "Nur Ansage: {grund}": "Yalnızca anons: {grund}",
+  "Alle Leitungen waren belegt, nur Ansage": "Tüm hatlar meşguldü, yalnızca anons",
+  "Störung, nur Ansage": "Arıza, yalnızca anons",
+  "Testminuten aufgebraucht": "Deneme dakikaları bitti",
+  "Kostendeckel erreicht": "Maliyet sınırına ulaşıldı",
+  "Assistent ausgeschaltet": "Asistan kapalı",
+  "Zahlung offen": "Ödeme bekliyor",
+  "Noch nicht freigeschaltet": "Henüz etkinleştirilmedi",
 };
 
 export default texte;

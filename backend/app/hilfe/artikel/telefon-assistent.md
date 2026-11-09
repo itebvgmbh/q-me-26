@@ -3,7 +3,7 @@ titel: Telefon-Assistent einrichten
 kurz: Eine KI nimmt Anrufe an, wenn im Laden niemand rangeht, nennt freie Termine und bucht sie. So testest du sie, buchst sie zu und richtest sie ein.
 thema: laden
 reihenfolge: 6
-stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen, stammkunden, kundenliste, wiedererkennen
+stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen, stammkunden, kundenliste, wiedererkennen, anrufliste, zurückrufen, rückruf, verpasst, belegt
 ---
 Geht im Laden niemand ran, nimmt der Telefon-Assistent den Anruf an. Deine Kunden wählen weiter deine normale Nummer. Du richtest bei deinem Telefonanbieter nur eine Umleitung ein.
 
@@ -22,6 +22,14 @@ Bucht jemand am Telefon, legt der Assistent ihn in deiner Kundenliste an, mit de
 Ruft er wieder an, begrüßt ihn der Assistent mit Namen, fragt nicht noch einmal danach und bietet ihm die Leistung vom letzten Mal an. Er kennt auch seine kommenden Termine und kann sie nennen.
 
 Alle Termine einer Person siehst du unter **„Laden“ → „Mein Tag“ → „Kundenliste“**: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 12 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
+
+## Anrufliste und zurückrufen
+
+Unter **„Laden“ → „Telefon-Assistent“** siehst du unter **„Anrufe“**, wer angerufen hat und was daraus wurde: der gebuchte Termin, die gezogene Nummer oder „Kein Termin gebucht“. Steht dort „Nur Ansage“, hat der Anrufer nur die kurze Ansage gehört, zum Beispiel weil die Testminuten aufgebraucht waren.
+
+Wo kein Termin herauskam, kannst du mit **„Zurückrufen“** direkt anrufen. Die Liste zeigt die Anrufe der letzten 90 Tage, ältere löscht Dranzeit. Löschst du einen Kunden aus der Kundenliste, verschwinden seine Anrufe mit.
+
+Telefonieren gerade sehr viele Läden gleichzeitig mit dem Assistenten, hört der Anrufer kurz „Einen Moment bitte“ und wird dann verbunden. Klappt es auch dann nicht, hört er eine Ansage, dass alle Leitungen belegt sind, und der Anruf steht in deiner Liste.
 
 ## Was er kostet
 

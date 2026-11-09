@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 import app.apis.telefon as tel  # noqa: E402
 from app.libs import buchung, schedule  # noqa: E402
 from app.libs import telefon as t  # noqa: E402
+from app.libs import telefon_anrufliste as tal  # noqa: E402
 
 BERLIN = schedule.BERLIN
 _today = datetime.now(BERLIN).date()
@@ -604,6 +605,16 @@ def test_anrede_mit_vornamen_oder_titel():
     heute = date(2026, 11, 6)
     assert tk.vorbei_text(heute, heute) == "heute" and tk.vorbei_text(date(2026, 11, 5), heute) == "gestern"
     assert tk.vorbei_text(date(2026, 10, 3), heute) == "am 3. Oktober" and tk.vorbei_text(date(2025, 12, 1), heute) == "am 1. Dezember 2025"
+
+
+def test_gebuchter_termin_kommt_in_die_anrufliste():
+    _, store = setup()
+    store[t.ANRUFE] = {"CA1": {"shopId": "laden"}}
+    store[tal.SAMMLUNG] = {"CA1": {"shopId": "laden", "beginn": at("10:05"), "ende": None, "anrufer": "+491512345678",
+                                   "ergebnis": tal.ASSISTENT, "termine": []}}
+    r = tel.buchen(tel.BuchenAnfrage(**anruf(), leistung="schnitt", platz=f"robin@{TAG}T10:30", name="Alex", anrufer="0151 2345678"))
+    zwei = tel.nummer(tel.NummerAnfrage(**anruf(), leistung="Bart", name="Alex", anrufer="0151 2345678"))
+    assert store[tal.SAMMLUNG]["CA1"]["termine"] == [r["termin_id"], zwei["termin_id"]]
 
 
 if __name__ == "__main__":

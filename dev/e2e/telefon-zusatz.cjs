@@ -38,6 +38,7 @@ run(async () => {
     if (p === '/routes/team/ich/laeden') return json(route, 200, { laeden: [LADEN] });
     if (p === `/routes/team/laeden/${LADEN.id}`) return json(route, 200, { laden: LADEN, kanaele: [] });
     if (p === telefon) return json(route, 200, stand);
+    if (p === `${telefon}/anrufe`) return json(route, 200, { anrufe: [] }); // Anrufliste: dev/e2e/telefon-anrufliste.cjs
     if (p === `${telefon}/testen`) return json(route, 200, (stand = TEST));
     if (p === `${telefon}/deckel`) return json(route, 200, (stand = { ...stand, deckel: body.deckel, verbrauch: { ...stand.verbrauch, grenze: 100 + (body.deckel - 29) * 5 } }));
     if (p === `${telefon}/kuendigen`)

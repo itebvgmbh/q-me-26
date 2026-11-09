@@ -62,6 +62,9 @@ def _daily_privacy_cleanup() -> None:
         print(f"Datenschutz: {changed} alte Termine anonymisiert")
         deleted = delete_stale_customers(get_firestore_db())
         print(f"Datenschutz: {deleted} Kunden-Einträge ohne Termin seit 12 Monaten gelöscht")
+        from app.libs.telefon_anrufliste import aufraeumen as anrufe_aufraeumen
+
+        print(f"Datenschutz: {anrufe_aufraeumen(get_firestore_db())} Anrufe älter als 90 Tage aus der Anrufliste gelöscht")
         from app.libs.schedule import delete_past_days
 
         print(f"Belegung: {delete_past_days(get_firestore_db())} Dokumente vergangener Tage gelöscht")

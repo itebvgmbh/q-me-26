@@ -2,6 +2,7 @@
 // Regeln und Preise: backend/app/libs/telefon.py (gleiche Zahlen wie hier), Abrechnung: backend/app/libs/telefon_abrechnung.py
 import { useEffect, useState } from 'react';
 import { send } from './betreiber';
+import { liveLesen, type Zeitpunkt } from './live';
 
 /** Preis des Zusatzes, netto (Stefan, 02.11.2026). Gleich wie backend/app/libs/telefon.py */
 export const TELEFON_PREIS = { grundpreis: 29, inklusiv: 100, minute: 0.2, testminuten: 30, deckel: 59, deckelMin: 29, deckelMax: 500 };
@@ -66,6 +67,34 @@ export interface TelefonStand {
 const pfad = (shopId: string, aktion = '') => `/routes/telefon-einrichtung/${encodeURIComponent(shopId)}${aktion ? `/${aktion}` : ''}`;
 
 export const ladeTelefon = (shopId: string) => send<TelefonStand>(pfad(shopId));
+
+/** Ein Anruf in der Anrufliste (backend/app/libs/telefon_anrufliste.py), 90 Tage lang */
+export interface TelefonAnruf {
+  id: string;
+  beginn: Zeitpunkt;
+  sekunden: number;
+  /** Das Gespräch mit dem Assistenten läuft noch */
+  laeuft: boolean;
+  /** +49…, null bei unterdrückter Nummer */
+  anrufer: string | null;
+  /** aus dem gebuchten Termin oder aus der Kundenliste */
+  name: string | null;
+  /** assistent: die KI hat abgenommen; ansage: nur die kurze Ansage (grund); belegt: alle Leitungen belegt; stoerung */
+  ergebnis: 'assistent' | 'ansage' | 'belegt' | 'stoerung';
+  grund: TelefonGrund;
+  termine: {
+    id: string;
+    startTime?: Zeitpunkt;
+    status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+    type?: 'queue' | 'booked';
+    nummer?: string;
+    leistung: string;
+    person: string;
+  }[];
+}
+
+export const ladeAnrufe = async (shopId: string): Promise<TelefonAnruf[]> =>
+  (await liveLesen<{ anrufe: TelefonAnruf[] }>(`telefon-einrichtung/${encodeURIComponent(shopId)}/anrufe`, true)).anrufe;
 
 export const speichereTelefon = (shopId: string, aktiv: boolean, anschluss: string) => send<TelefonStand>(pfad(shopId), { aktiv, anschluss });
 
