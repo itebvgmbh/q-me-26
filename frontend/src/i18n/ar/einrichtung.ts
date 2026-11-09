@@ -441,6 +441,28 @@ const texte: Texte = {
   "Zum Monatsende kündigen": "الإلغاء في نهاية الشهر",
   "Rechnungen und Zahlungsart": "الفواتير وطريقة الدفع",
   "Danke! Der Telefon-Assistent ist gebucht. Der Stand erscheint hier in wenigen Sekunden.": "شكرًا! تم الاشتراك في مساعد الهاتف. ستظهر الحالة هنا خلال ثوانٍ.",
+  // Anrufliste des Telefon-Assistenten (components/TelefonAnrufliste.tsx)
+  "Anrufe": "المكالمات",
+  "Aktualisieren": "تحديث",
+  "Die Anrufe konnten nicht geladen werden.": "تعذّر تحميل المكالمات.",
+  "Noch keine Anrufe.": "لا توجد مكالمات بعد.",
+  "Anrufe der letzten 90 Tage. Ältere löschen wir.": "مكالمات آخر 90 يومًا. نحذف الأقدم منها.",
+  "Gestern": "أمس",
+  "Unterdrückte Nummer": "رقم مخفي",
+  "Zurückrufen": "معاودة الاتصال",
+  "Gespräch läuft gerade": "المكالمة جارية الآن",
+  "Kein Termin gebucht": "لم يُحجز موعد",
+  "Termin gebucht: {zeit}": "تم حجز موعد: {zeit}",
+  "Nummer {nummer} gezogen": "تم سحب الرقم {nummer}",
+  "{leistung} bei {person}": "{leistung} عند {person}",
+  "Nur Ansage: {grund}": "رسالة صوتية فقط: {grund}",
+  "Alle Leitungen waren belegt, nur Ansage": "كانت كل الخطوط مشغولة، رسالة صوتية فقط",
+  "Störung, nur Ansage": "عطل، رسالة صوتية فقط",
+  "Testminuten aufgebraucht": "انتهت الدقائق التجريبية",
+  "Kostendeckel erreicht": "تم بلوغ حد التكلفة",
+  "Assistent ausgeschaltet": "المساعد متوقف",
+  "Zahlung offen": "الدفع معلّق",
+  "Noch nicht freigeschaltet": "لم يُفعَّل بعد",
 };
 
 export default texte;

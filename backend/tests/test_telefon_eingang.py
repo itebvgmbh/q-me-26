@@ -23,7 +23,10 @@ import app.apis.telefon_eingang as eingang  # noqa: E402
 import app.apis.telefon_hinweis as hinweis  # noqa: E402
 from app import seo  # noqa: E402
 from app.libs import telefon as t  # noqa: E402
+from app.libs import telefon_anrufliste as tal  # noqa: E402
 from app.libs import telefon_laeden as tl  # noqa: E402
+
+ECHT = eingang._assistent  # bevor Db ihn ersetzt
 
 TOKEN = "geheim"
 GEMEINSAM = "+493012345678"
@@ -64,6 +67,7 @@ class Db:
             t.LAEDEN: {"salon": laden} if laden else {},
             t.LEITUNGEN: leitungen or {},
             t.ANRUFE: {},
+            tal.SAMMLUNG: {},
         }
         self.db = FakeDb(self.data)
         self.vapi = []
@@ -242,7 +246,7 @@ def test_stoerung_bei_vapi_gibt_eine_verstaendliche_ansage():
     eingang._assistent = kaputt
     antwort = anruf(ForwardedFrom=SALON)
     assert antwort.status_code == 200 and "<Say" in antwort.text and "später" in antwort.text
-    assert not d.data[t.ANRUFE]
+    assert not d.data[t.ANRUFE] and d.data[tal.SAMMLUNG]["CA1"]["ergebnis"] == tal.STOERUNG
 
 
 # --- Probeanruf --------------------------------------------------------------------------------------------------------
@@ -489,6 +493,127 @@ def test_werkzeuge_mit_unaufgeloester_variable_nehmen_die_gewaehlte_nummer():
     d = Db(leitungen={GEMEINSAM: {"shopId": "salon"}})
     shop_id, _ = tel._laden(d.db, tel.Anruf(angerufen=GEMEINSAM, laden_id="{{laden_id}}"))
     assert shop_id == "salon"
+
+
+# --- Anrufliste und belegte Leitungen ----------------------------------------------------------------------------------
+
+
+def nochmal(pfad, **felder):
+    """Twilio fragt nach einem Redirect unter dieser Adresse nach und unterschreibt sie mit der Abfrage"""
+    felder = {"To": GEMEINSAM, "From": ANRUFER, "CallSid": "CA1", **felder}
+    return client.post(f"/routes{pfad}", data=felder, headers={"X-Twilio-Signature": signiert(pfad, felder)})
+
+
+def zu_ende(sid="CA1", dauer="65"):
+    felder = {"CallSid": sid, "CallStatus": "completed", "CallDuration": dauer}
+    return client.post("/routes/telefon-eingang/status", data=felder, headers={"X-Twilio-Signature": signiert("/telefon-eingang/status", felder)})
+
+
+def test_anruf_steht_in_der_anrufliste():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON)
+    e = d.data[tal.SAMMLUNG]["CA1"]
+    assert e["shopId"] == "salon" and e["anrufer"] == ANRUFER and e["ergebnis"] == tal.ASSISTENT and e["ende"] is None
+    zu_ende()
+    e = d.data[tal.SAMMLUNG]["CA1"]
+    assert e["sekunden"] == 65 and e["ende"] is not None and d.data[t.LAEDEN]["salon"]["sekunden"] == 65
+
+
+def test_nur_ansage_steht_mit_grund_in_der_liste_und_kostet_nichts():
+    d = Db(aktiv(sekunden=1800))
+    antwort = anruf(ForwardedFrom=SALON, From="anonymous")
+    assert "<Say" in antwort.text and not d.vapi
+    e = d.data[tal.SAMMLUNG]["CA1"]
+    assert e["ergebnis"] == tal.ANSAGE and e["grund"] == t.TEST_VERBRAUCHT and e["anrufer"] is None
+    zu_ende(dauer="12")
+    assert d.data[tal.SAMMLUNG]["CA1"]["sekunden"] == 12 and d.data[t.LAEDEN]["salon"]["sekunden"] == 1800
+
+
+def test_abgewiesene_anrufe_stehen_nicht_in_der_liste():
+    d = Db(aktiv())
+    anruf()
+    anruf(ForwardedFrom="+493099999999", CallSid="CA2")
+    assert not d.data[tal.SAMMLUNG]
+
+
+def test_alles_belegt_erst_warten_dann_zweiter_versuch():
+    d = Db(aktiv())
+
+    def belegt(*_):
+        raise eingang.Belegt("Over Concurrency Limit.")
+
+    eingang._assistent = belegt
+    antwort = anruf(ForwardedFrom=SALON)
+    assert "Einen Moment" in antwort.text and '<Pause length="8"/>' in antwort.text, antwort.text
+    assert "<Redirect method=\"POST\">https://dranzeit.de/routes/telefon-eingang?laden=salon&amp;versuch=2</Redirect>" in antwort.text
+    assert d.data[tal.SAMMLUNG]["CA1"]["ergebnis"] == tal.BELEGT and not d.data[t.ANRUFE]
+    # Beim zweiten Mal muss die Ladennummer nicht mehr mitkommen, der Laden steht in der unterschriebenen Adresse
+    eingang._assistent = d._assistent
+    antwort = nochmal("/telefon-eingang?laden=salon&versuch=2")
+    assert "Connect" in antwort.text and d.vapi == [("salon", "Salon Nora & Co", ANRUFER)]
+    assert d.data[tal.SAMMLUNG]["CA1"]["ergebnis"] == tal.ASSISTENT and d.data[t.ANRUFE]["CA1"]["shopId"] == "salon"
+
+
+def test_beim_zweiten_mal_belegt_kommt_die_ansage():
+    d = Db(aktiv())
+
+    def belegt(*_):
+        raise eingang.Belegt("voll")
+
+    eingang._assistent = belegt
+    antwort = nochmal("/telefon-eingang?laden=salon&versuch=2")
+    assert "<Redirect" not in antwort.text and "alle Leitungen belegt" in antwort.text and "Salon Nora &amp; Co" in antwort.text
+    assert d.data[tal.SAMMLUNG]["CA1"]["ergebnis"] == tal.BELEGT and not d.data[t.ANRUFE]
+
+
+def test_zweiter_versuch_nur_mit_passender_signatur():
+    d = Db(aktiv())
+    felder = {"To": GEMEINSAM, "From": ANRUFER, "CallSid": "CA1"}
+    falsch = signiert("/telefon-eingang", felder)  # ohne die Abfrage unterschrieben
+    antwort = client.post("/routes/telefon-eingang?laden=salon&versuch=2", data=felder, headers={"X-Twilio-Signature": falsch})
+    assert antwort.status_code == 403 and not d.vapi
+    antwort = nochmal("/telefon-eingang?laden=..%2Fx&versuch=zwei")  # Unsinn in der Adresse: wie ein Direktanruf
+    assert "<Reject/>" in antwort.text and not d.vapi
+
+
+class VapiAntwort:
+    def __init__(self, status, inhalt):
+        self.status_code, self._inhalt, self.text = status, inhalt, json.dumps(inhalt)
+
+    def json(self):
+        return self._inhalt
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+def test_vapi_meldet_belegte_leitungen():
+    alt = eingang.requests.post
+    rufe = lambda: ECHT("salon", "Salon", "Hallo", "{}", ANRUFER)  # noqa: E731
+    try:
+        for antwort in (VapiAntwort(400, {"message": "Over Concurrency Limit.", "error": "Bad Request", "statusCode": 400}),
+                        VapiAntwort(201, {"subscriptionLimits": {"concurrencyBlocked": True, "concurrencyLimit": 10, "remainingConcurrentCalls": 0}})):
+            eingang.requests.post = lambda *a, _antwort=antwort, **k: _antwort
+            try:
+                rufe()
+                raise AssertionError(f"nicht als belegt erkannt: {antwort.text}")
+            except eingang.Belegt:
+                pass
+        frei = {"subscriptionLimits": {"concurrencyBlocked": False, "concurrencyLimit": 10, "remainingConcurrentCalls": 9},
+                "phoneCallProviderDetails": {"twiml": "<Response/>"}}
+        eingang.requests.post = lambda *a, **k: VapiAntwort(201, frei)
+        assert rufe() == "<Response/>"
+        eingang.requests.post = lambda *a, **k: VapiAntwort(500, {"message": "kaputt"})
+        try:
+            rufe()
+            raise AssertionError("Fehler verschluckt")
+        except eingang.Belegt:
+            raise AssertionError("Störung ist nicht „belegt“")
+        except RuntimeError:
+            pass
+    finally:
+        eingang.requests.post = alt
 
 
 if __name__ == "__main__":

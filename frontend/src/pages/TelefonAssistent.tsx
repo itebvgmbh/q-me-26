@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useInhaberLaden } from '../utils/laden-kontext';
+import TelefonAnrufliste from '../components/TelefonAnrufliste';
 import {
   TELEFON_PREIS,
   bucheZusatz,
@@ -514,6 +515,7 @@ export default function TelefonAssistent() {
   return seite(
     <>
       {zusatz}
+      <TelefonAnrufliste shopId={shopId} auchLeer={stand.aktiv && stand.status === 'aktiv'} />
       <Schritt nummer={1} titel={stand.eigeneNummer ? t('Einschalten') : t('Nummer deines Ladens')}>
         <form
           className="flex flex-col gap-3"

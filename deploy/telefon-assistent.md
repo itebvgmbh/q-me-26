@@ -296,7 +296,11 @@ diese Angabe nicht auf, deshalb sitzt die Prüfstelle vor Vapi.
 
 **Gleichzeitige Anrufe:** Eine Nummer ist nie besetzt. Die Grenzen hängen an den Konten: Twilio erlaubt ohne
 genehmigtes Business-Kundenprofil (Trust Hub → Customer Profiles) 2 gleichzeitige Anrufe, mit Profil unbegrenzt. Vapi
-begrenzt je Konto, zusätzliche Leitungen lassen sich dort zubuchen. Sind alle Leitungen belegt, nimmt niemand mehr an.
+begrenzt je Konto, zusätzliche Leitungen lassen sich dort zubuchen. Sind bei Vapi alle Leitungen belegt (400 „Over
+Concurrency Limit.“ oder `subscriptionLimits.concurrencyBlocked`), hört der Anrufer „Einen Moment bitte“, nach 8 Sekunden
+fragt Twilio noch einmal nach (`?laden=…&versuch=2`), dann kommt die Ansage „alle Leitungen belegt“. Wie viele Leitungen
+belegt sind, schreibt der Eingang bei jedem Anruf ins Log: `journalctl -u q-me | grep Vapi-Leitungen`. Jeder Anruf steht
+in der Anrufliste des Ladens (`telefon_anrufliste`, 90 Tage).
 
 ### Probe
 

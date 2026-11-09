@@ -441,6 +441,28 @@ const texte: Texte = {
   "Zum Monatsende kündigen": "Cancel at the end of the month",
   "Rechnungen und Zahlungsart": "Invoices and payment method",
   "Danke! Der Telefon-Assistent ist gebucht. Der Stand erscheint hier in wenigen Sekunden.": "Thank you! The phone assistant is booked. The status will appear here in a few seconds.",
+  // Anrufliste des Telefon-Assistenten (components/TelefonAnrufliste.tsx)
+  "Anrufe": "Calls",
+  "Aktualisieren": "Refresh",
+  "Die Anrufe konnten nicht geladen werden.": "The calls could not be loaded.",
+  "Noch keine Anrufe.": "No calls yet.",
+  "Anrufe der letzten 90 Tage. Ältere löschen wir.": "Calls from the last 90 days. We delete older ones.",
+  "Gestern": "Yesterday",
+  "Unterdrückte Nummer": "Withheld number",
+  "Zurückrufen": "Call back",
+  "Gespräch läuft gerade": "Call in progress",
+  "Kein Termin gebucht": "No appointment booked",
+  "Termin gebucht: {zeit}": "Appointment booked: {zeit}",
+  "Nummer {nummer} gezogen": "Took number {nummer}",
+  "{leistung} bei {person}": "{leistung} with {person}",
+  "Nur Ansage: {grund}": "Announcement only: {grund}",
+  "Alle Leitungen waren belegt, nur Ansage": "All lines were busy, announcement only",
+  "Störung, nur Ansage": "Fault, announcement only",
+  "Testminuten aufgebraucht": "Trial minutes used up",
+  "Kostendeckel erreicht": "Cost cap reached",
+  "Assistent ausgeschaltet": "Assistant switched off",
+  "Zahlung offen": "Payment outstanding",
+  "Noch nicht freigeschaltet": "Not activated yet",
 };
 
 export default texte;

@@ -44,6 +44,11 @@ GESPERRT, AUS, NICHT_FREI, TEST_VERBRAUCHT, DECKEL, GEKUENDIGT, ZAHLUNG = (
 )
 MAX_GENANNT = 3  # so viele Leistungen nennt die Begrüßung, mehr hört am Telefon niemand zu Ende
 STOERUNG = "Das ist eine automatische Ansage. Gerade ist niemand erreichbar. Bitte versuchen Sie es später noch einmal. Auf Wiederhören."
+# Sind bei Vapi alle Leitungen belegt (Grenze gleichzeitiger Gespräche im Konto), wartet der Anrufer kurz und es gibt
+# einen zweiten Versuch. Ist dann noch alles belegt, hört er die Ansage (belegt_text).
+VERSUCHE = 2
+WARTEN_SEKUNDEN = 8
+WARTEN = "Einen Moment bitte, gleich geht es weiter."
 
 
 def e164(nummer) -> Optional[str]:
@@ -200,8 +205,19 @@ def ansage_text(name: str) -> str:
     return f"Das ist eine automatische Ansage von {name}. Gerade ist niemand erreichbar. Termine können Sie online auf dranzeit punkt de buchen. Auf Wiederhören."
 
 
+def belegt_text(name: str) -> str:
+    return (f"Das ist eine automatische Ansage von {name}. Gerade sind alle Leitungen belegt. Bitte versuchen Sie es in "
+            "ein paar Minuten noch einmal. Termine können Sie auch online auf dranzeit punkt de buchen. Auf Wiederhören.")
+
+
 def twiml_ansage(text: str) -> str:
     return f'<?xml version="1.0" encoding="UTF-8"?><Response><Say language="de-DE">{escape(text)}</Say><Hangup/></Response>'
+
+
+def twiml_warten(url: str) -> str:
+    """Kurz warten, dann fragt Twilio unter url noch einmal nach (gleicher Anruf, gleiche Felder)"""
+    return (f'<?xml version="1.0" encoding="UTF-8"?><Response><Say language="de-DE">{escape(WARTEN)}</Say>'
+            f'<Pause length="{WARTEN_SEKUNDEN}"/><Redirect method="POST">{escape(url)}</Redirect></Response>')
 
 
 def twiml_abweisen() -> str:
