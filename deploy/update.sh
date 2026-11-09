@@ -9,7 +9,7 @@ set -euo pipefail
 APP_DIR=/opt/q-me
 WEB_ROOT=/opt/q-me-web
 ENV_FILE=/etc/q-me.env
-BRANCH=${BRANCH:-main}
+BRANCH=${BRANCH:-bildschirm}  # live läuft bildschirm; main ist nur Spiegel
 # Von uv verwaltetes Python außerhalb von /root, damit der Dienst es lesen darf
 export UV_PYTHON_INSTALL_DIR=/usr/local/share/uv-python
 
