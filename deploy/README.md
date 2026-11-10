@@ -305,6 +305,19 @@ Bis dahin leitet die App `/einbau/…` auf `/routes/seo/einbau/…` weiter (geht
 Prüfen: `curl -sI https://dranzeit.de/ | grep -i frame` zeigt beide Kopfzeilen, `curl -sI https://dranzeit.de/einbau/<Laden-ID>`
 keine davon.
 
+## Termin-API der Läden (/api/v1)
+
+Programme eines Ladens (Webseite, Kasse) legen über `https://dranzeit.de/api/v1/…` Kunden, Leistungen und Termine an,
+verschieben und sagen ab (`backend/app/schnittstelle`, Anforderung `requirements/termin-api.md`). Beschreibung zum
+Ausprobieren: `https://dranzeit.de/api/v1/docs`. Den Schlüssel erzeugt der Inhaber unter „Laden“ → „Schnittstelle (API)“;
+gespeichert wird nur sein Hash (Sammlung `api_schluessel`). Ab Tarif Solo. Kein Eintrag in `/etc/q-me.env` nötig.
+
+Caddy muss `/api/*` ans Backend geben. Das stellt `caddy-domain.py` ein – nach diesem Update **einmal neu ausführen**,
+mit denselben Adressen wie zuletzt (siehe „Kasten für Webseiten der Läden“). Bis dahin geht die API auch unter
+`/routes/…` nicht, sie hängt nur unter `/api/v1`.
+
+Prüfen: `curl -s https://dranzeit.de/api/v1/laden` antwortet mit `{"fehler": {"code": "kein_zugang", …}}`.
+
 ## Suchmaschinen (Search Console, Seitenköpfe)
 
 Die Domain `dranzeit.de` ist in der Google Search Console als Domain-Property per DNS bestätigt (TXT-Eintrag

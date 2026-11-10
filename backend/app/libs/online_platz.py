@@ -5,6 +5,7 @@ app/apis/telefon für den Telefon-Assistenten). Dieselbe Berechnung wie die frei
 buildDayContext mit projectAt in booking-rules.ts). Gleichzeitige Buchungen fängt danach die Belegung in der
 Transaktion ab (app/libs/schedule.py).
 """
+from dataclasses import replace
 from datetime import datetime, time, timedelta
 from typing import List, Optional, Tuple
 
@@ -58,11 +59,14 @@ def leistung_im_laden(db, shop_id: str, service_id: str) -> bool:
     return bool(service and service.get("shopId") == shop_id and not service.get("archived"))
 
 
-def freier_platz(db, shop_id: str, service_id: str, staff_id: str, start: datetime) -> Optional[Tuple[datetime, datetime]]:
+def freier_platz(db, shop_id: str, service_id: str, staff_id: str, start: datetime,
+                 ohne: Optional[str] = None) -> Optional[Tuple[datetime, datetime]]:
     """Frisch gerechnet: Ist der Platz nach den Regeln frei (Öffnungs-, Arbeitszeiten, Pausen, Termine)?
-    Dann (Beginn, Ende) mit Zeitzone, sonst None."""
+    Dann (Beginn, Ende) mit Zeitzone, sonst None. ohne: dieser Termin zählt nicht (Verschieben über den eigenen Platz)."""
     local = ortszeit(start)
     inputs = load_timeslot_inputs(db, shop_id, staff_id, [service_id], local.date(), local.date())
+    if ohne:
+        inputs = replace(inputs, appointments=[a for a in inputs.appointments if a.get("id") != ohne])
     for slot in timeslots_for_day(inputs, service_id, datetime.combine(local.date(), time())) or []:
         if slot.is_available and slot.start_time == local:
             return aware(slot.start_time), aware(slot.end_time)

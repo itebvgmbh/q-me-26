@@ -31,6 +31,7 @@ BACKEND_PATHS = (
     " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
     " /einbau/*"  # Kasten für Webseiten der Läden (backend/app/einbau.py)
     " /vergleich /vergleich/*"  # Vergleich der Buchungsplattformen (backend/app/vergleich.py)
+    " /api/*"  # Termin-API der Läden mit Beschreibung unter /api/v1/docs (backend/app/schnittstelle)
 )
 # Nur diese Pfade dürfen fremde Seiten einbetten (iframe); alles andere nur Dranzeit selbst (Schutz vor Clickjacking)
 EMBEDDABLE_PATHS = "/einbau/* /routes/seo/einbau/*"
@@ -42,7 +43,7 @@ def block(domain: str, port: str, redirects: list[str]) -> str:
 {domain} {{
 	encode zstd gzip
 
-	# API, Stadtseiten, Salon-Verzeichnis, Hilfe, Einbau-Kasten und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
+	# API, Termin-API, Stadtseiten, Salon-Verzeichnis, Hilfe, Einbau-Kasten und Sitemap ans Backend (uvicorn, nur lokal erreichbar)
 	@backend path {BACKEND_PATHS}
 	handle @backend {{
 		reverse_proxy 127.0.0.1:{port}

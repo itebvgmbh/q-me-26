@@ -208,6 +208,7 @@ TEXTE: dict = {
     "Du bist mit dem Konto des Ladens angemeldet. Den Link öffnet die Kundin oder der Kunde mit dem eigenen Konto.":
         "أنت مسجّل الدخول بحساب المحل. يفتح العميل هذا الرابط بحسابه الخاص.",
     "Diesen Laden gibt es nicht.": "هذا المحل غير موجود.",
+    "Die Schnittstelle gibt es ab dem Tarif Solo.": "الواجهة البرمجية متاحة بدءًا من باقة Solo.",
     "Diesen Kunden gibt es nicht mehr.": "هذا العميل لم يعد موجودًا.",
     "Konten von Läden und Teams löschen wir auf Anfrage. Schreib uns an {kontakt}.": "نحذف حسابات المحلات والفرق عند الطلب. راسلنا على {kontakt}.",
     "Nur für den Betreiber der App.": "لمشغّل التطبيق فقط.",

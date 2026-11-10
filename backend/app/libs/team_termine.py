@@ -118,7 +118,7 @@ def _pruefen(db, shop_id: str, daten: dict) -> None:
         raise TerminFehler(400, merke("Diese Person gehört nicht zu diesem Laden."))
 
 
-def _nach_dem_schreiben(termin_id: str, vorher: dict | None, nachher: dict, frei: bool, benachrichtigen: bool) -> None:
+def nach_dem_schreiben(termin_id: str, vorher: dict | None, nachher: dict, frei: bool, benachrichtigen: bool) -> None:
     """Freie Zeiten neu rechnen, „Früher dran“ anstoßen, Benachrichtigungen wecken, Live-Kanäle melden. Wirft nie."""
     try:
         from app.apis.cache import invalidate_shop_date_cache
@@ -179,7 +179,7 @@ def termin_anlegen(db, uid: str | None, daten: dict) -> dict:
     data.update(status=status, type=art, customerName=daten.get("customerName") or "Unbekannter Kunde")
     needs_code = bool(daten.get("isAnonymous") or art == "queue")
     created = create_appointment(db, data, [Placement(daten["staffId"], start, ende)], needs_code)
-    _nach_dem_schreiben(created["id"], None, created, frei=bool(created.get("checkEarlierOptions")), benachrichtigen=False)
+    nach_dem_schreiben(created["id"], None, created, frei=bool(created.get("checkEarlierOptions")), benachrichtigen=False)
     return created
 
 
@@ -258,6 +258,6 @@ def termin_aendern(db, termin_id: str, aenderung: dict, kunde_benachrichtigen: b
     frueher_fertig = (aufgerufen and jetzt < (_zeit(vorher.get("startTime")) or jetzt)) or (
         status == "completed" and vorher.get("status") != "completed" and jetzt < (_zeit(vorher.get("endTime")) or jetzt)
     )
-    _nach_dem_schreiben(termin_id, aktuell, nachher, frei=frei_oder_gesucht(vorher, zusammen) or frueher_fertig,
+    nach_dem_schreiben(termin_id, aktuell, nachher, frei=frei_oder_gesucht(vorher, zusammen) or frueher_fertig,
                         benachrichtigen=bool(nachricht))
     return {**nachher, "id": termin_id}

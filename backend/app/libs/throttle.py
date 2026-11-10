@@ -10,9 +10,10 @@ MAX_HITS = 30
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
 
 
-def throttle(request: Request, bucket: str = "", max_hits: int = MAX_HITS) -> None:
-    """429, wenn derselbe Absender in der letzten Minute schon max_hits Anfragen geschickt hat."""
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
+def throttle(request: Request, bucket: str = "", max_hits: int = MAX_HITS, wer: str | None = None) -> None:
+    """429, wenn derselbe Absender in der letzten Minute schon max_hits Anfragen geschickt hat. Absender ist die
+    Adresse, mit wer etwas anderes (z. B. der API-Schlüssel, app/schnittstelle)."""
+    ip = wer or (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
     now = time.monotonic()
     q = _hits[(bucket, ip)]
     while q and now - q[0] > WINDOW_SECONDS:

@@ -22,6 +22,7 @@ const LADEN_SEITEN = [
   '/service-management',
   '/tarif',
   '/telefon-assistent',
+  '/schnittstelle',
   '/auswertung',
   '/plakat',
   '/employee-dashboard',

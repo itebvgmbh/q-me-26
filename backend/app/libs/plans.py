@@ -7,6 +7,7 @@ Wirksamer Tarif eines Ladens:
 4. sonst "gratis"
 Läden von vor der Einführung der Tarife testen ab TARIFF_LAUNCH 30 Tage.
 "telefon" heißt: Der Telefon-Assistent lässt sich testen und zubuchen (eigenes Abo, app/libs/telefon_abrechnung.py).
+"api": Termin-API mit Schlüssel je Laden (app/schnittstelle).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -14,11 +15,11 @@ from datetime import datetime, timedelta, timezone
 PLANS = {
     "gratis": {"name": "Gratis", "monthly": 0, "yearly": 0, "max_staff": 1, "max_customers_per_month": 100, "features": set()},
     "solo": {"name": "Solo", "monthly": 19, "yearly": 190, "max_staff": 1, "max_customers_per_month": None,
-             "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "telefon"}},
+             "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "telefon", "api"}},
     "laden": {"name": "Laden", "monthly": 39, "yearly": 390, "max_staff": 4, "max_customers_per_month": None,
-              "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "team", "bildschirm", "auswertung", "telefon"}},
+              "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "team", "bildschirm", "auswertung", "telefon", "api"}},
     "team": {"name": "Team", "monthly": 59, "yearly": 590, "max_staff": 10, "max_customers_per_month": None,
-             "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "team", "bildschirm", "auswertung", "telefon"}},
+             "features": {"termine", "frueherDran", "benachrichtigung", "erinnerung", "team", "bildschirm", "auswertung", "telefon", "api"}},
 }
 PAID_PLANS = ("solo", "laden", "team")
 PLAN_ORDER = ("gratis", "solo", "laden", "team")
