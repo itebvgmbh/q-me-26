@@ -24,7 +24,6 @@ const texte: Texte = {
   "Menü öffnen": "Menüyü aç",
   "Menü": "Menü",
   "Fußzeile": "Alt bilgi",
-  "Anbieter im Vergleich": "Sağlayıcı karşılaştırması",
   "Friseur ohne Termin": "Randevusuz kuaför",
   "Rechtliches": "Yasal bilgiler",
   "Impressum": "Künye",

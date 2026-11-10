@@ -56,7 +56,7 @@ def test_block_leitet_stadtseiten_ans_backend():
     b = cd.block("dranzeit.de", "8091", ["www.dranzeit.de"])
     assert "@backend path /routes/* /friseur-ohne-termin" in b and "/sitemap.xml" in b
     assert " /friseur /friseur/* /barbershop /barbershop/*" in b  # Salon-Verzeichnis
-    assert " /vergleich /vergleich/*" in b  # Vergleich der Buchungsplattformen
+    assert " /vergleich /vergleich/*" in b  # alte Vergleichsseite, Weiterleitung nach salonlotse.de
     assert " /api/*" in b  # Termin-API der Läden (backend/app/schnittstelle)
     assert "reverse_proxy 127.0.0.1:8091" in b
     assert "try_files {path} {path}.html {path}index.html /app.html /index.html" in b  # /preise → preise.html mit eigenem Kopf

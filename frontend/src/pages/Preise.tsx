@@ -120,11 +120,11 @@ function PreiseSeite() {
           })}
         </p>
         <p className="text-muted-foreground">
-          {tTeile('Treatwell, Planity und andere dagegen rechnen? <vergleich>Buchungsplattformen im Vergleich</vergleich>', {
-            vergleich: (inhalt) => (
-              <a href="/vergleich/buchungsplattformen-friseure" className="font-semibold text-foreground underline underline-offset-4">
+          {tTeile('Was bringt dir das unterm Strich? <rechner>Rechne es mit dem Ersparnis-Rechner aus</rechner>', {
+            rechner: (inhalt) => (
+              <Link to="/rechner" className="font-semibold text-foreground underline underline-offset-4">
                 {inhalt}
-              </a>
+              </Link>
             ),
           })}
         </p>

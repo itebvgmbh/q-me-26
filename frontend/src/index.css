@@ -103,17 +103,27 @@ html[lang="ar"] .font-mono {
 }
 
 @layer components {
-  /* Ticket-Abriss: gestrichelte Linie mit zwei Stanzlöchern in Hintergrundfarbe */
-  .ticket-perforation {
-    @apply relative border-t-2 border-dashed border-foreground/30;
+  /* Ticket-Abriss (components/brand/Ticket.tsx): Ober- und Unterteil bekommen je zwei halbe Löcher ausgestanzt, die sich an
+     der gestrichelten Linie zu runden Löchern treffen. Echte Löcher statt Kreisen in Hintergrundfarbe: Die sahen neben dem
+     Schatten der Marke wie aufgemalte helle Punkte aus. Je Seite eine eigene Maskenebene (51 %), damit beide Löcher bleiben. */
+  .ticket-oben {
+    -webkit-mask:
+      radial-gradient(circle 12px at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 12px at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle 12px at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 12px at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
   }
-  .ticket-perforation::before,
-  .ticket-perforation::after {
-    content: "";
-    @apply absolute -top-[13px] h-6 w-6 rounded-full bg-background;
+  /* -1px: überlappt das Oberteil, sonst bliebe an gedrehten Marken eine Haarlinie zwischen den Teilen */
+  .ticket-unten {
+    @apply -mt-px border-t-2 border-dashed border-foreground/30;
+    -webkit-mask:
+      radial-gradient(circle 12px at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 12px at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle 12px at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 12px at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
   }
-  .ticket-perforation::before { left: -12px; }
-  .ticket-perforation::after { right: -12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

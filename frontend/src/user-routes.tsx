@@ -20,6 +20,7 @@ const Agb = lazyPage(() => import("./pages/Agb.tsx"));
 const Auswertung = lazyPage(() => import("./pages/Auswertung.tsx"));
 const Betreiber = lazyPage(() => import("./pages/Betreiber.tsx"));
 const Preise = lazyPage(() => import("./pages/Preise.tsx"));
+const Rechner = lazyPage(() => import("./pages/Rechner.tsx"));
 const Tarif = lazyPage(() => import("./pages/Tarif.tsx"));
 const TelefonAssistent = lazyPage(() => import("./pages/TelefonAssistent.tsx"));
 const Schnittstelle = lazyPage(() => import("./pages/Schnittstelle.tsx"));
@@ -77,6 +78,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/datenschutz", element: <Datenschutz />},
 	{ path: "/agb", element: <Agb />},
 	{ path: "/preise", element: <Preise />},
+	{ path: "/rechner", element: <Rechner />},
 	{ path: "/tarif", element: <UserGuard><Tarif /></UserGuard>},
 	{ path: "/telefon-assistent", element: <UserGuard><TelefonAssistent /></UserGuard>},
 	{ path: "/schnittstelle", element: <UserGuard><Schnittstelle /></UserGuard>},
@@ -94,6 +96,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/barbershop", element: <StadtWeiterleitung />},
 	{ path: "/hilfe", element: <StadtWeiterleitung />},
 	{ path: "/einbau/*", element: <StadtWeiterleitung />},
+	// alte Vergleichsseite: Backend leitet nach salonlotse.de weiter (backend/app/vergleich.py)
 	{ path: "/vergleich/*", element: <StadtWeiterleitung />},
 	{ path: "/vergleich", element: <StadtWeiterleitung />},
 	{ path: "/join-queue", element: <RedirectKeepQuery to="/public-join-queue" />},
