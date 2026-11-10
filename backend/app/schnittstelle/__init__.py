@@ -19,6 +19,7 @@ from typing import List, Literal, Optional, Tuple
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -139,7 +140,7 @@ BUCHEN = _fehler((400, "Person, Kunde oder Zeitraum passt nicht"), (404, "gibt e
 
 app = FastAPI(
     title="Dranzeit-API", version="1.0.0", description=BESCHREIBUNG,
-    docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
+    docs_url="/docs", redoc_url=None, openapi_url="/openapi.json",
     servers=[{"url": "https://dranzeit.de/api/v1", "description": "Dranzeit"}], root_path_in_servers=False,
     responses=IMMER,
     openapi_tags=[
@@ -149,6 +150,16 @@ app = FastAPI(
         {"name": "Termine", "description": "Freie Zeiten, buchen, verschieben, absagen"},
     ],
 )
+
+
+# ReDoc in fester Version: das von FastAPI vorgegebene redoc@next ist inzwischen ein ES-Modul und bleibt im Browser leer
+REDOC_JS = "https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.js"
+
+
+@app.get("/redoc", include_in_schema=False)
+def redoc(request: Request):
+    wurzel = request.scope.get("root_path", "").rstrip("/")
+    return get_redoc_html(openapi_url=f"{wurzel}/openapi.json", title="Dranzeit-API", redoc_js_url=REDOC_JS)
 
 
 # --- Fehler -------------------------------------------------------------------------------------------------------------
