@@ -427,7 +427,9 @@ def test_beschreibung_reicht_einem_fremden_entwickler():
     client = TestClient(api.app)
     schema = client.get("/openapi.json").json()
     assert schema["servers"] == [{"url": "https://dranzeit.de/api/v1", "description": "Dranzeit"}], "absolute Adresse für Postman und Generatoren"
-    assert client.get("/redoc").status_code == 200
+    redoc = client.get("/redoc").text
+    assert "redoc@next" not in redoc and "redoc@2.1.5" in redoc, "redoc@next läuft nicht mehr im Browser (import.meta)"
+    assert "/openapi.json" in redoc
     text = schema["info"]["description"]
     for abschnitt in ("Erste Schritte", "Früher dran", "Änderungen abgleichen", "Fehlercodes", "Testen", "Noch nicht dabei"):
         assert abschnitt in text, abschnitt
