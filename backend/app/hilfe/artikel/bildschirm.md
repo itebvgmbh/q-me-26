@@ -2,7 +2,7 @@
 titel: Wartezimmer-Bildschirm auf Fernseher oder Tablet
 kurz: Zeig auf einem Fernseher oder Tablet im Laden, welche Nummer dran ist und welche als Nächstes kommen, mit QR-Code zum Nummer-Ziehen.
 thema: loslegen
-reihenfolge: 4
+reihenfolge: 5
 stichworte: fernseher, tv, smart-tv, monitor, tablet, wartezimmer, wartebereich, anzeige, aufrufanzeige, bildschirm, vollbild, hdmi
 ---
 Der Wartezimmer-Bildschirm zeigt für jede Person im Team, welche Nummer gerade dran ist und welche als Nächstes kommen. Er aktualisiert sich von selbst. Er gehört zu den Tarifen Laden und Team und ist in der Testphase dabei. Ohne passenden Tarif zeigt er nur einen Hinweis.

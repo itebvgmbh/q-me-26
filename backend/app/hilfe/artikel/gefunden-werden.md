@@ -2,7 +2,7 @@
 titel: Damit Kunden dich finden
 kurz: Adresse, Branche und dein eigener Link: So erscheinst du auf der Karte, auf den Stadtseiten und dort, wo deine Kunden ohnehin schon sind.
 thema: loslegen
-reihenfolge: 5
+reihenfolge: 6
 stichworte: finden, gefunden, karte, google, suche, stadtseite, adresse, instagram, whatsapp, link, sichtbar, werbung, ladenseite
 ---
 Kunden finden dich bei Dranzeit auf drei Wegen: über die Karte [Läden finden](/shop-map), über die Stadtseiten „Friseur ohne Termin in …“ und über deinen eigenen Link. Für Karte und Stadtseiten braucht Dranzeit deine Adresse.
