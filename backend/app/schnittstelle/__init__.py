@@ -13,6 +13,7 @@ Kalender (app/libs/team_termine.py). Ein Platz geht so nur einmal weg.
 """
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from datetime import datetime, time, timedelta, timezone
 from typing import List, Literal, Optional, Tuple
 
@@ -20,7 +21,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app import store
 from app.libs import api_schluessel as ak
@@ -44,33 +45,110 @@ EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 STATUS = {"scheduled": "geplant", "in-progress": "laeuft", "completed": "fertig", "cancelled": "abgesagt"}
 ART = {"booked": "termin", "queue": "nummer"}
 
-BESCHREIBUNG = """
-Schnittstelle für die eigenen Programme eines Ladens: Webseite, Kassensystem, Buchungsformular einer Agentur.
+# Leitfaden für Entwickler: steht unter /api/v1/docs und /api/v1/redoc, im Repo lesbar als leitfaden.md
+BESCHREIBUNG = (Path(__file__).parent / "leitfaden.md").read_text(encoding="utf-8")
+ZEIT = {"format": "date-time"}
 
-**Zugang:** Den Schlüssel erzeugt der Inhaber in Dranzeit unter *Laden → Schnittstelle (API)*. Jede Anfrage schickt
-ihn als Kopfzeile `Authorization: Bearer dz_…`. Der Schlüssel gehört auf einen Server, nie in den Browser oder eine App:
-Wer ihn hat, kann im Namen des Ladens buchen und Kundendaten lesen.
 
-**Zeiten** im ISO-Format mit Zeitzone, z. B. `2026-11-12T10:00:00+01:00`. Ohne Zeitzone gilt deutsche Zeit.
+# --- Antworten (für die Beschreibung; die Endpunkte geben genau diese Felder zurück) --------------------------------------
 
-**Regeln beim Buchen und Verschieben** (`regeln`):
-- `online` (Standard): wie die Online-Buchung – nur freie Plätze in Öffnungs- und Arbeitszeiten, ohne Pausen, mit der
-  Vorlaufzeit des Ladens, nur bei Personen, die die Leistung anbieten. Ohne `person_id` nimmt Dranzeit die erste,
-  bei der die Zeit frei ist.
-- `tresen`: wie im Kalender des Ladens – jede Zeit, solange die Person dann frei ist. `person_id` ist Pflicht.
+class FreieZeit(BaseModel):
+    start: str = Field(json_schema_extra=ZEIT, examples=["2026-11-20T10:30:00+01:00"])
+    ende: str = Field(json_schema_extra=ZEIT, examples=["2026-11-20T11:00:00+01:00"])
+    person_id: str
 
-**Früher dran:** `frueher_dran: true` beim Anlegen heißt, der Kunde ist einverstanden, vorgezogen zu werden, wenn
-früher etwas frei wird. Das Angebot erreicht ihn nur, wenn sein Eintrag in der Kundenliste mit einem Dranzeit-Konto
-verbunden ist (`frueher_dran_erreichbar`).
 
-**Fehler** kommen als `{"fehler": {"code": "platz_weg", "meldung": "…"}}`. Ist ein Platz weg (409 `platz_weg`),
-stehen bei `online` die nächsten freien Zeiten in `alternativen`.
+class Fehlerinhalt(BaseModel):
+    code: str = Field(examples=["platz_weg"], description="Danach entscheiden; Liste im Leitfaden unter „Fehlercodes“")
+    meldung: str = Field(examples=["Diese Zeit ist nicht frei."], description="Deutscher Text für Menschen")
+    alternativen: Optional[List[FreieZeit]] = Field(default=None, description="nur bei platz_weg mit regeln = online")
+    details: Optional[List[dict]] = Field(default=None, description="nur bei ungueltig: welches Feld, was falsch ist")
 
-**Grenze:** 120 Anfragen je Minute und Schlüssel (danach 429 `zu_viele`).
-"""
 
-app = FastAPI(title="Dranzeit-API", version="1.0.0", description=BESCHREIBUNG,
-              docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
+class Fehler(BaseModel):
+    fehler: Fehlerinhalt
+
+
+class Laden(BaseModel):
+    id: str
+    name: str
+    adresse: str
+    telefon: str
+    webseite: str
+    zeitzone: str = Field(examples=["Europe/Berlin"])
+    vorlauf_minuten: int = Field(description="So kurzfristig bucht online niemand (regeln = online)")
+    frueher_dran: bool = Field(description="Tarif enthält „Früher dran“")
+
+
+class Person(BaseModel):
+    id: str
+    name: str
+    aktiv: bool
+    leistung_ids: List[str] = Field(description="leer: bietet alle Leistungen an")
+
+
+class Leistung(BaseModel):
+    id: str
+    name: str
+    beschreibung: str
+    kategorie: str
+    dauer_minuten: int
+    ruestzeit_minuten: int = Field(description="Zeit danach, in der die Person nicht frei ist")
+    preis: float = Field(description="Euro")
+    archiviert: bool = Field(description="gelöscht, nicht mehr buchbar")
+
+
+class Kunde(BaseModel):
+    id: str
+    name: str
+    email: str
+    telefon: str = Field(description="wenn lesbar im Format +49…")
+    konto_verbunden: bool = Field(description="mit einem Dranzeit-Konto verbunden: Voraussetzung für „Früher dran“-Angebote")
+    quelle: str = Field(description="api, telefon oder leer (in Dranzeit angelegt)")
+    angelegt: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+
+
+class Termin(BaseModel):
+    id: str
+    status: str = Field(description="geplant, laeuft, fertig oder abgesagt", examples=["geplant"])
+    art: str = Field(description="termin oder nummer (in Dranzeit gezogene Nummer der Warteschlange)", examples=["termin"])
+    leistung_id: Optional[str] = None
+    person_id: Optional[str] = None
+    kunde_id: Optional[str] = Field(default=None, description="Eintrag der Kundenliste; leer bei Nummern ohne Eintrag")
+    kunde_name: str
+    start: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+    ende: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+    nummer: Optional[str] = Field(default=None, description="Aufrufnummer, wenn der Termin eine hat")
+    preis: Optional[float] = Field(default=None, description="Euro, beim Buchen aus der Leistung übernommen")
+    frueher_dran: bool
+    frueher_dran_erreichbar: bool = Field(description="„Früher dran“ an und der Kunde hat ein verbundenes Konto")
+    quelle: str = Field(description="api, telefon oder leer (online, Tresen, Kalender)")
+    angelegt: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+    geaendert: Optional[str] = Field(default=None, json_schema_extra=ZEIT, description="zum Abgleichen: ändert sich bei jeder Änderung")
+
+
+def _fehler(*faelle: Tuple[int, str]) -> dict:
+    return {status: {"model": Fehler, "description": text} for status, text in faelle}
+
+
+IMMER = _fehler((401, "kein_zugang: Schlüssel fehlt, falsch oder widerrufen"), (403, "tarif oder gesperrt"),
+                (422, "ungueltig: Anfrage unvollständig oder falsch"), (429, "zu_viele: mehr als 120 Anfragen in einer Minute"))
+NICHT_DA = _fehler((404, "gibt es in diesem Laden nicht"))
+BUCHEN = _fehler((400, "Person, Kunde oder Zeitraum passt nicht"), (404, "gibt es in diesem Laden nicht"),
+                 (409, "platz_weg, zu_kurzfristig oder nicht_offen"))
+
+app = FastAPI(
+    title="Dranzeit-API", version="1.0.0", description=BESCHREIBUNG,
+    docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
+    servers=[{"url": "https://dranzeit.de/api/v1", "description": "Dranzeit"}], root_path_in_servers=False,
+    responses=IMMER,
+    openapi_tags=[
+        {"name": "Laden", "description": "Der Laden zum Schlüssel und sein Team"},
+        {"name": "Leistungen", "description": "Was der Laden anbietet, mit Dauer und Preis"},
+        {"name": "Kunden", "description": "Die Kundenliste des Ladens"},
+        {"name": "Termine", "description": "Freie Zeiten, buchen, verschieben, absagen"},
+    ],
+)
 
 
 # --- Fehler -------------------------------------------------------------------------------------------------------------
@@ -201,6 +279,9 @@ def _anbieter(z: Zugang, service_id: str, person_id: Optional[str]) -> List[str]
 
 
 class LeistungNeu(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"name": "Erstberatung", "dauer_minuten": 30, "preis": 0, "beschreibung": "Kostenlose Beratung vor der ersten Behandlung"}]})
+
     name: str = Field(min_length=1, max_length=120)
     dauer_minuten: int = Field(ge=5, le=600)
     preis: float = Field(default=0, ge=0, le=100000, description="Euro")
@@ -218,7 +299,7 @@ class LeistungNeu(BaseModel):
         return wert
 
 
-@app.get("/laden", tags=["Laden"], summary="Der Laden zu diesem Schlüssel")
+@app.get("/laden", tags=["Laden"], summary="Der Laden zu diesem Schlüssel", response_model=Laden)
 def laden(z: Zugang = Depends(zugang)) -> dict:
     return {"id": z.shop_id, "name": str(z.shop.get("name") or ""), "adresse": adresse(z.shop),
             "telefon": str(z.shop.get("phone") or ""), "webseite": str(z.shop.get("website") or ""),
@@ -226,26 +307,27 @@ def laden(z: Zugang = Depends(zugang)) -> dict:
             "frueher_dran": has_feature(z.shop, "frueherDran")}
 
 
-@app.get("/personen", tags=["Laden"], summary="Personen im Team")
+@app.get("/personen", tags=["Laden"], summary="Personen im Team", response_model=List[Person])
 def personen(z: Zugang = Depends(zugang)) -> list:
     """`leistung_ids` leer heißt: bietet alle Leistungen an."""
     return [{"id": pid, "name": str(p.get("name") or ""), "aktiv": _aktiv(p), "leistung_ids": list(p.get("serviceIds") or [])}
             for pid, p in _personen(z)]
 
 
-@app.get("/leistungen", tags=["Leistungen"], summary="Leistungen auslesen")
+@app.get("/leistungen", tags=["Leistungen"], summary="Leistungen auslesen", response_model=List[Leistung])
 def leistungen(archivierte: bool = Query(False, description="auch gelöschte (ausgeblendete)"), z: Zugang = Depends(zugang)) -> list:
     alle = [(d.id, d.to_dict() or {}) for d in z.db.collection("services").where("shopId", "==", z.shop_id).stream()]
     return [_leistung_aus(sid, s) for sid, s in sorted(alle, key=lambda e: str(e[1].get("name") or "").casefold())
             if archivierte or not s.get("archived")]
 
 
-@app.get("/leistungen/{leistung_id}", tags=["Leistungen"], summary="Eine Leistung")
+@app.get("/leistungen/{leistung_id}", tags=["Leistungen"], summary="Eine Leistung", response_model=Leistung, responses=NICHT_DA)
 def leistung(leistung_id: str, z: Zugang = Depends(zugang)) -> dict:
     return _leistung_aus(leistung_id, _leistung(z, leistung_id, archivierte=True))
 
 
-@app.post("/leistungen", tags=["Leistungen"], summary="Leistung anlegen", status_code=201)
+@app.post("/leistungen", tags=["Leistungen"], summary="Leistung anlegen", status_code=201, response_model=Leistung,
+          responses=_fehler((400, "person_unbekannt")))
 def leistung_anlegen(body: LeistungNeu, z: Zugang = Depends(zugang)) -> dict:
     """Mit `person_ids` bieten diese Personen die Leistung gleich an. Wer bisher alle Leistungen anbietet (leere
     `leistung_ids`), bietet auch die neue an."""
@@ -271,6 +353,8 @@ def leistung_anlegen(body: LeistungNeu, z: Zugang = Depends(zugang)) -> dict:
 # --- Kunden -------------------------------------------------------------------------------------------------------------
 
 class KundeNeu(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"name": "Alex Muster", "email": "alex@example.com", "telefon": "0151 2345678"}]})
+
     name: str = Field(min_length=1, max_length=120)
     email: Optional[str] = Field(default=None, max_length=200)
     telefon: Optional[str] = Field(default=None, max_length=40)
@@ -342,7 +426,7 @@ def _speichern(z: Zugang, kid: str, eintrag: dict) -> None:
     z.db.collection("customers").document(kid).set(eintrag)
 
 
-@app.get("/kunden", tags=["Kunden"], summary="Kunden suchen")
+@app.get("/kunden", tags=["Kunden"], summary="Kunden suchen", response_model=List[Kunde])
 def kunden(email: Optional[str] = None, telefon: Optional[str] = None,
            name: Optional[str] = Query(None, description="Teil des Namens, Groß-/Kleinschreibung egal"),
            z: Zugang = Depends(zugang)) -> list:
@@ -359,12 +443,13 @@ def kunden(email: Optional[str] = None, telefon: Optional[str] = None,
     return [_kunde_aus(i, k) for i, k in treffer[:1000]]
 
 
-@app.get("/kunden/{kunde_id}", tags=["Kunden"], summary="Ein Kunde")
+@app.get("/kunden/{kunde_id}", tags=["Kunden"], summary="Ein Kunde", response_model=Kunde, responses=NICHT_DA)
 def kunde(kunde_id: str, z: Zugang = Depends(zugang)) -> dict:
     return _kunde_aus(kunde_id, _kunde(z, kunde_id))
 
 
-@app.post("/kunden", tags=["Kunden"], summary="Kunden anlegen", status_code=201)
+@app.post("/kunden", tags=["Kunden"], summary="Kunden anlegen", status_code=201, response_model=Kunde,
+          responses={200: {"model": Kunde, "description": "gab es schon (gleiche E-Mail oder Rufnummer)"}})
 def kunde_anlegen(body: KundeNeu, response: Response, z: Zugang = Depends(zugang)) -> dict:
     """Gibt es die E-Mail oder Rufnummer im Laden schon, kommt der vorhandene Eintrag zurück (200 statt 201)."""
     vorhanden = _kunde_finden(z, body.email, body.telefon)
@@ -389,7 +474,8 @@ def _naechste(z: Zugang, service_id: str, staff_ids: List[str], ab: Optional[dat
     return naechste_plaetze(z.db, z.shop_id, z.shop, service_id, staff_ids, jetzt_ort, ab_ort, anzahl, tage, nummer=False)[:anzahl]
 
 
-@app.get("/freie-zeiten", tags=["Termine"], summary="Freie Zeiten wie online")
+@app.get("/freie-zeiten", tags=["Termine"], summary="Freie Zeiten wie online", response_model=List[FreieZeit],
+         responses=_fehler((400, "person_unbekannt oder person_bietet_nicht_an"), (404, "leistung_unbekannt")))
 def freie_zeiten(leistung_id: str, person_id: Optional[str] = None,
                  ab: Optional[datetime] = Query(None, description="frühestens ab (Standard: jetzt)"),
                  tage: int = Query(7, ge=1, le=31), anzahl: int = Query(20, ge=1, le=100),
@@ -404,6 +490,12 @@ def freie_zeiten(leistung_id: str, person_id: Optional[str] = None,
 # --- Termine ------------------------------------------------------------------------------------------------------------
 
 class TerminNeu(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"leistung_id": "LEISTUNG_ID", "start": "2026-11-20T10:30:00+01:00",
+         "kunde": {"name": "Alex Muster", "email": "alex@example.com"}, "frueher_dran": True},
+        {"leistung_id": "LEISTUNG_ID", "start": "2026-11-20T19:00:00+01:00", "person_id": "PERSON_ID", "kunde_id": "KUNDE_ID",
+         "regeln": "tresen"}]})
+
     leistung_id: str = Field(pattern=ID)
     start: datetime
     person_id: Optional[str] = Field(default=None, pattern=ID, description="Pflicht bei regeln = tresen")
@@ -414,6 +506,8 @@ class TerminNeu(BaseModel):
 
 
 class TerminVerschieben(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"start": "2026-11-21T09:00:00+01:00"}]})
+
     start: datetime
     person_id: Optional[str] = Field(default=None, pattern=ID, description="ohne: dieselbe Person")
     regeln: Literal["online", "tresen"] = "online"
@@ -489,7 +583,8 @@ def _dauer(s: dict) -> timedelta:
     return timedelta(minutes=int(s.get("duration") or 30) + int(s.get("setupTime") or 0))
 
 
-@app.get("/termine", tags=["Termine"], summary="Termine in einem Zeitraum")
+@app.get("/termine", tags=["Termine"], summary="Termine in einem Zeitraum", response_model=List[Termin],
+         responses=_fehler((400, "zeitraum")))
 def termine(von: Optional[datetime] = Query(None, description="Beginn ab (Standard: heute 0 Uhr)"),
             bis: Optional[datetime] = Query(None, description="Beginn vor (Standard: von + 7 Tage, höchstens 42 Tage)"),
             kunde_id: Optional[str] = None, status: Optional[Literal["geplant", "laeuft", "fertig", "abgesagt"]] = None,
@@ -506,12 +601,12 @@ def termine(von: Optional[datetime] = Query(None, description="Beginn ab (Standa
     return sorted(liste, key=lambda t: (t["start"] or "", t["id"]))
 
 
-@app.get("/termine/{termin_id}", tags=["Termine"], summary="Ein Termin")
+@app.get("/termine/{termin_id}", tags=["Termine"], summary="Ein Termin", response_model=Termin, responses=NICHT_DA)
 def termin(termin_id: str, z: Zugang = Depends(zugang)) -> dict:
     return _antwort(z, termin_id)
 
 
-@app.post("/termine", tags=["Termine"], summary="Termin anlegen", status_code=201)
+@app.post("/termine", tags=["Termine"], summary="Termin anlegen", status_code=201, response_model=Termin, responses=BUCHEN)
 def termin_anlegen(body: TerminNeu, z: Zugang = Depends(zugang)) -> dict:
     """Das Ende ergibt sich aus Dauer und Rüstzeit der Leistung. Das Team bekommt Bescheid wie bei einer Online-Buchung."""
     service = _leistung(z, body.leistung_id)
@@ -570,7 +665,8 @@ def _offen(a: dict) -> None:
         raise ApiFehler(409, "nicht_offen", "Dieser Termin läuft schon, ist fertig oder abgesagt.")
 
 
-@app.post("/termine/{termin_id}/verschieben", tags=["Termine"], summary="Termin verschieben")
+@app.post("/termine/{termin_id}/verschieben", tags=["Termine"], summary="Termin verschieben", response_model=Termin,
+          responses=BUCHEN)
 def termin_verschieben(termin_id: str, body: TerminVerschieben, z: Zugang = Depends(zugang)) -> dict:
     """Neue Zeit, optional bei einer anderen Person. Der Kunde bekommt Bescheid wie bei einer Verschiebung im Kalender."""
     a = _termin(z, termin_id)
@@ -605,7 +701,8 @@ def termin_verschieben(termin_id: str, body: TerminVerschieben, z: Zugang = Depe
     return _antwort(z, termin_id)
 
 
-@app.post("/termine/{termin_id}/absagen", tags=["Termine"], summary="Termin absagen")
+@app.post("/termine/{termin_id}/absagen", tags=["Termine"], summary="Termin absagen", response_model=Termin,
+          responses=_fehler((404, "termin_unbekannt"), (409, "nicht_offen")))
 def termin_absagen(termin_id: str, body: TerminAbsagen, z: Zugang = Depends(zugang)) -> dict:
     """Der Laden sagt ab: Der Kunde bekommt Bescheid (abschaltbar). Mit `durch_kunde` hat der Kunde selbst abgesagt,
     etwa auf der Webseite: Dann bekommt das Team Bescheid. Zweimal absagen ist kein Fehler."""

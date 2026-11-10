@@ -4,7 +4,8 @@
 - **Stand:** 10.11.2026
 - **Status:** Abgestimmt mit Stefan am 10.11.2026 (siehe „Entschieden“).
 - **Fortschritt:** Gebaut am 10.11.2026 (task-003). Tests: `backend/tests/test_termin_api.py`. Caddy: `caddy-domain.py`
-  gibt `/api/*` ans Backend (`deploy/README.md`, „Termin-API der Läden“).
+  gibt `/api/*` ans Backend (`deploy/README.md`, „Termin-API der Läden“). Leitfaden für Entwickler:
+  `backend/app/schnittstelle/leitfaden.md`, live unter `/api/v1/redoc` und `/api/v1/docs` (10.11.2026).
 - **Grundlage:** Buchung im Backend (`backend/app/libs/buchung.py`), Termine des Teams
   (`backend/app/libs/team_termine.py`), freie Plätze wie online (`backend/app/libs/online_platz.py`), Kundenliste
   (`backend/app/libs/laeden.py`, `backend/app/libs/telefon_kunden.py`), Telefon-Assistent als Vorbild für eine
