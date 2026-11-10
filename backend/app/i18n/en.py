@@ -195,6 +195,7 @@ TEXTE: dict = {
     "Du bist mit dem Konto des Ladens angemeldet. Den Link öffnet die Kundin oder der Kunde mit dem eigenen Konto.":
         "You're signed in with the shop's account. The customer opens this link with their own account.",
     "Diesen Laden gibt es nicht.": "This shop doesn't exist.",
+    "Die Schnittstelle gibt es ab dem Tarif Solo.": "The API is available from the Solo plan.",
     "Diesen Kunden gibt es nicht mehr.": "This customer no longer exists.",
     "Konten von Läden und Teams löschen wir auf Anfrage. Schreib uns an {kontakt}.": "We delete shop and team accounts on request. Write to us at {kontakt}.",
     "Nur für den Betreiber der App.": "Only for the operator of the app.",

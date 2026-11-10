@@ -58,7 +58,7 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
     {
       to: '/shop-profile',
       label: merke('Laden'),
-      also: ['/staff-management', '/service-management', '/tarif', '/telefon-assistent', '/auswertung', '/plakat', '/shop-setup', '/employee-dashboard'],
+      also: ['/staff-management', '/service-management', '/tarif', '/telefon-assistent', '/schnittstelle', '/auswertung', '/plakat', '/shop-setup', '/employee-dashboard'],
     },
   ],
   employee: [

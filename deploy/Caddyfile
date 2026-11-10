@@ -14,6 +14,11 @@ __DOMAIN__ {
 		reverse_proxy 127.0.0.1:__PORT__
 	}
 
+	# Termin-API der Läden mit Beschreibung unter /api/v1/docs (backend/app/schnittstelle)
+	handle /api/* {
+		reverse_proxy 127.0.0.1:__PORT__
+	}
+
 	# Bausteine der React-App: Name enthält den Inhalt-Hash, also ewig gültig. Fehlt einer
 	# (Seite vor dem Ausrollen geöffnet), ehrlich 404 statt index.html – sonst merkt sich der
 	# Browser die HTML-Seite für ein Jahr als Skript.

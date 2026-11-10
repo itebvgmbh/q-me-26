@@ -87,6 +87,11 @@ def create_app() -> FastAPI:
     app.include_router(vergleich.router)
     app.include_router(vergleich.router, prefix="/routes/seo")
 
+    # Termin-API der Läden mit eigener Beschreibung (/api/v1/docs), Zugang per Schlüssel je Laden (app/schnittstelle)
+    from app import schnittstelle
+
+    app.mount("/api/v1", schnittstelle.app)
+
     for route in app.routes:
         if hasattr(route, "methods"):
             for method in route.methods:

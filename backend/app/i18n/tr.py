@@ -192,6 +192,7 @@ TEXTE: dict = {
     "Du bist mit dem Konto des Ladens angemeldet. Den Link öffnet die Kundin oder der Kunde mit dem eigenen Konto.":
         "Salonun hesabıyla giriş yaptınız. Bu bağlantıyı müşteri kendi hesabıyla açmalıdır.",
     "Diesen Laden gibt es nicht.": "Bu salon mevcut değil.",
+    "Die Schnittstelle gibt es ab dem Tarif Solo.": "API, Solo paketinden itibaren kullanılabilir.",
     "Diesen Kunden gibt es nicht mehr.": "Bu müşteri artık yok.",
     "Konten von Läden und Teams löschen wir auf Anfrage. Schreib uns an {kontakt}.":
         "Salon ve ekip hesaplarını talep üzerine siliyoruz. Bize {kontakt} adresinden yazın.",
