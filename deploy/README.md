@@ -318,6 +318,11 @@ mit denselben Adressen wie zuletzt (siehe „Kasten für Webseiten der Läden“
 
 Prüfen: `curl -s https://dranzeit.de/api/v1/laden` antwortet mit `{"fehler": {"code": "kein_zugang", …}}`.
 
+Webhooks (`backend/app/libs/webhooks.py`) brauchen nichts Eigenes: Beobachter und Zusteller starten mit dem Dienst
+(Threads `webhooks-beobachten`, `webhooks-zustellen`), der Beobachter hört erst, wenn ein Laden einen Webhook hat.
+Fehler stehen im Protokoll mit „Webhooks:“ (`journalctl -u q-me | grep Webhooks`). Die Datenbank-Sammlungen heißen
+`api_webhooks`, `api_webhook_stand`, `api_webhook_zustellungen`.
+
 ## Suchmaschinen (Search Console, Seitenköpfe)
 
 Die Domain `dranzeit.de` ist in der Google Search Console als Domain-Property per DNS bestätigt (TXT-Eintrag

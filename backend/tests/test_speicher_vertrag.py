@@ -386,6 +386,35 @@ def vertrag_live_abfrage_meldet_aenderungen(db):
         watch.unsubscribe()
 
 
+def vertrag_live_abfrage_mit_in_und_zeit_meldet_geaenderte_dokumente(db):
+    """Wie der Beobachter der Webhooks (app/libs/webhooks.py): Termine bestimmter Läden ab einer Zeit, je Änderung das
+    Dokument mit Art der Änderung"""
+    col = sammlung(db, "live_in")
+    ab = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    col.document("a").set({"shopId": "l1", "startTime": ab + timedelta(hours=1), "status": "scheduled"})
+    col.document("alt").set({"shopId": "l1", "startTime": ab - timedelta(days=1), "status": "scheduled"})
+    gemeldet, erster, weiter = [], threading.Event(), threading.Event()
+
+    def bei_aenderung(docs, changes, read_time):
+        gemeldet.append([(c.type.name, c.document.id, (c.document.to_dict() or {}).get("status")) for c in changes])
+        (weiter if erster.is_set() else erster).set()
+
+    watch = col.where("shopId", "in", ["l1", "l2"]).where("startTime", ">=", ab).on_snapshot(bei_aenderung)
+    try:
+        assert erster.wait(15), gemeldet
+        assert gemeldet[0] == [("ADDED", "a", "scheduled")], gemeldet
+        col.document("fremd").set({"shopId": "l3", "startTime": ab + timedelta(hours=2), "status": "scheduled"})
+        col.document("a").update({"status": "cancelled"})
+        assert weiter.wait(15), gemeldet
+        frist = time.time() + 5
+        while ("MODIFIED", "a", "cancelled") not in [e for runde in gemeldet[1:] for e in runde] and time.time() < frist:
+            time.sleep(0.1)
+        spaeter = [e for runde in gemeldet[1:] for e in runde]
+        assert ("MODIFIED", "a", "cancelled") in spaeter and not any(e[1] == "fremd" for e in spaeter), gemeldet
+    finally:
+        watch.unsubscribe()
+
+
 if __name__ == "__main__":
     db = client()
     vertraege = [v for k, v in dict(globals()).items() if k.startswith("vertrag_")]

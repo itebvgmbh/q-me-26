@@ -6,6 +6,8 @@
 - **Fortschritt:** Gebaut am 10.11.2026 (task-003). Tests: `backend/tests/test_termin_api.py`. Caddy: `caddy-domain.py`
   gibt `/api/*` ans Backend (`deploy/README.md`, „Termin-API der Läden“). Leitfaden für Entwickler:
   `backend/app/schnittstelle/leitfaden.md`, live unter `/api/v1/redoc` und `/api/v1/docs` (10.11.2026).
+  Webhooks auf Stefans Wunsch nachgezogen am 10.11.2026 (`backend/app/libs/webhooks.py`, Tests
+  `backend/tests/test_webhooks.py`), Anlass: Anbindung einer Software für Haarentfernungsinstitute.
 - **Grundlage:** Buchung im Backend (`backend/app/libs/buchung.py`), Termine des Teams
   (`backend/app/libs/team_termine.py`), freie Plätze wie online (`backend/app/libs/online_platz.py`), Kundenliste
   (`backend/app/libs/laeden.py`, `backend/app/libs/telefon_kunden.py`), Telefon-Assistent als Vorbild für eine
@@ -92,10 +94,20 @@ wird. Ist der Platz weg, antwortet die API mit 409 und nennt die nächsten freie
 - Ein widerrufener Schlüssel, ein Gratis-Laden und ein gesperrter Laden bekommen 401 bzw. 403.
 - Ein Schlüssel von Laden A sieht nichts von Laden B.
 
+## Webhooks (ergänzt 10.11.2026)
+
+- Das Programm legt über die API Webhooks an (höchstens 5 je Laden, nur `https` an öffentliche Adressen). Dranzeit
+  meldet jede Änderung an Terminen des Ladens, egal wer sie gemacht hat: `termin.angelegt`, `termin.verschoben`,
+  `termin.abgesagt`, `termin.geaendert`, dazu `ping` zum Testen.
+- Signiert mit einem Geheimnis je Webhook (HMAC-SHA256), Wiederholung über etwa 22 Stunden, Zustellungen 7 Tage
+  einsehbar.
+- Ein Webhook gehört zum Schlüssel, mit dem er angelegt wurde; Widerrufen nimmt ihn mit. Der Inhaber sieht alle
+  Webhooks unter „Schnittstelle (API)“ und kann sie entfernen.
+
 ## Nicht Teil dieses Vorhabens
 
-- Webhooks (Dranzeit meldet Änderungen aktiv an das Programm des Ladens).
 - Leistungen ändern oder löschen, Personen anlegen, Nummern ziehen über die API.
+- „Früher dran“ für Kunden ohne Dranzeit-Konto.
 - Ein Partner-Zugang über mehrere Läden.
 
 ## Entschieden (Stefan, 10.11.2026)

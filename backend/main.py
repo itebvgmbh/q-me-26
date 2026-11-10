@@ -161,6 +161,11 @@ def create_app() -> FastAPI:
 
             start_public_sync()
 
+            # Webhooks der Termin-API: Änderungen an Terminen melden und zustellen (app/libs/webhooks.py)
+            from app.libs.webhooks import start_webhooks
+
+            start_webhooks()
+
     return app
 
 

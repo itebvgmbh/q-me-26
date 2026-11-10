@@ -70,6 +70,10 @@ def widerrufen(db, shop_id: str, schluessel_id: str) -> None:
     if e.get("shopId") != shop_id or e.get("revokedAt"):
         raise SchluesselFehler(404, "Diesen Schlüssel gibt es nicht.")
     ref.update({"revokedAt": _jetzt()})
+    # Webhooks dieses Schlüssels gehen mit: wer die Anbindung stoppt, will auch keine Daten mehr hinschicken
+    from app.libs import webhooks
+
+    webhooks.fuer_schluessel_loeschen(db, schluessel_id)
 
 
 def pruefen(db, schluessel: Optional[str]) -> Optional[Tuple[str, dict]]:

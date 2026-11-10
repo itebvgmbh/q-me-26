@@ -14,11 +14,25 @@ export type ApiSchluessel = {
   zuletzt_benutzt?: Zeitpunkt | null;
 };
 
-export const API_BESCHREIBUNG = '/api/v1/docs';
+/** Webhook, den ein Programm mit einem Schlüssel angelegt hat (backend/app/libs/webhooks.py): Dorthin schickt Dranzeit
+ *  jede Änderung an Terminen des Ladens. Der Inhaber sieht ihn und kann ihn entfernen. */
+export type ApiWebhook = {
+  id: string;
+  url: string;
+  ereignisse: string[];
+  angelegt?: Zeitpunkt | null;
+};
+
+export type SchnittstellenStand = { schluessel: ApiSchluessel[]; tarif: boolean; webhooks?: ApiWebhook[] };
+
+export const API_BESCHREIBUNG = '/api/v1/redoc';
 
 const pfad = (shopId: string) => `team/laeden/${encodeURIComponent(shopId)}/api-schluessel`;
 
-export const ladeSchluessel = (shopId: string) => liveLesen<{ schluessel: ApiSchluessel[]; tarif: boolean }>(pfad(shopId), true);
+export const ladeSchluessel = (shopId: string) => liveLesen<SchnittstellenStand>(pfad(shopId), true);
+
+export const webhookEntfernen = (shopId: string, id: string) =>
+  backendSenden<{ ok: boolean }>(`team/laeden/${encodeURIComponent(shopId)}/webhooks/${encodeURIComponent(id)}/entfernen`, {});
 
 export const schluesselAnlegen = (shopId: string, name: string) =>
   backendSenden<{ eintrag: ApiSchluessel; schluessel: string }>(pfad(shopId), { name });
