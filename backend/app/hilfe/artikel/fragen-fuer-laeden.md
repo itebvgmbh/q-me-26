@@ -30,7 +30,7 @@ Ja. Unter **„Laden“** → **„Tarif“** → **„Abo verwalten, Rechnungen
 
 ### Welche Geräte brauche ich?
 
-Für den Tresen ein Handy, Tablet oder einen Computer mit Internet und Browser, installieren musst du nichts. Dazu einmal das QR-Plakat auf A4 ausdrucken. Für den [Wartezimmer-Bildschirm](/hilfe/bildschirm) reicht ein Fernseher oder Bildschirm mit Browser.
+Für den Tresen ein Handy, Tablet oder einen Computer mit Internet und Browser, installieren musst du nichts. Welches Tablet sich lohnt: [Welches Tablet für den Tresen?](/hilfe/tablet-fuer-den-tresen). Dazu einmal das QR-Plakat auf A4 ausdrucken. Für den [Wartezimmer-Bildschirm](/hilfe/bildschirm) reicht ein Fernseher oder Bildschirm mit Browser.
 
 Beim ersten Öffnen von **„Heute“** fragt Dranzeit, wofür du das Gerät nutzt: **„Tresen-Tablet“**, **„Mein Handy“**, **„Wartezimmer-Bildschirm“** oder **„Büro“**. Danach startet es immer dort. Ändern kannst du das unter **„Laden“** → **„Auf diesem Gerät“**.
 
