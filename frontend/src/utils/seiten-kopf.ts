@@ -33,6 +33,11 @@ export const OEFFENTLICHE_SEITEN: Record<string, Kopf> = {
     description:
       'Gratis für eine Person, Solo 19 €, Laden 39 €, Team 59 € im Monat (netto). Monatlich kündbar, 30 Tage kostenlos testen, ohne Zahlungsdaten.',
   },
+  '/rechner': {
+    title: 'Ersparnis-Rechner für Friseure: Was bringt Dranzeit? | Dranzeit',
+    description:
+      'Rechne aus, was dein Salon im Monat gewinnt, wenn eine KI ans Telefon geht und Absagen neu besetzt werden – gegengerechnet mit Abo und Telefon-Assistent.',
+  },
   '/shop-map': {
     title: 'Friseure und Barbershops in deiner Nähe finden | Dranzeit',
     description:

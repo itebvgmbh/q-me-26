@@ -10,7 +10,7 @@ Kurze Antworten auf das, was Läden vor dem Start am häufigsten fragen. Fehlt d
 
 ### Was kostet Dranzeit, und nehmt ihr Provision?
 
-Provision und Gebühren je Kunde oder Termin gibt es nicht. Du zahlst einen festen Preis pro Laden: Gratis kostet nichts (eine Person, bis 100 Kunden im Monat), Solo 19 €, Laden 39 € und Team 59 € im Monat, jeweils netto. Jährlich zahlst du 10 Monatspreise. Alle Einzelheiten: [Welcher Tarif passt zu mir?](/hilfe/tarife) Wie sich das gegen Treatwell, Planity und andere rechnet: [Buchungsplattformen im Vergleich](/vergleich/buchungsplattformen-friseure)
+Provision und Gebühren je Kunde oder Termin gibt es nicht. Du zahlst einen festen Preis pro Laden: Gratis kostet nichts (eine Person, bis 100 Kunden im Monat), Solo 19 €, Laden 39 € und Team 59 € im Monat, jeweils netto. Jährlich zahlst du 10 Monatspreise. Alle Einzelheiten: [Welcher Tarif passt zu mir?](/hilfe/tarife) Was dir Dranzeit im Monat unterm Strich bringt: [Ersparnis-Rechner](/rechner)
 
 ### Brauchen meine Kunden eine App oder ein Konto?
 

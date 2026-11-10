@@ -126,18 +126,23 @@ export default function Features() {
             ),
           })}
         </p>
-        {!inStoreApp() && (
-          <p className="text-muted-foreground">
-            {tTeile("Noch unentschieden? <vergleich>Dranzeit, Treatwell, Planity und andere im Vergleich</vergleich>", {
-              vergleich: (inhalt) => (
-                <a href="/vergleich/buchungsplattformen-friseure" className="font-semibold text-foreground underline underline-offset-4">
-                  {inhalt}
-                </a>
-              ),
-            })}
-          </p>
-        )}
       </section>
+
+      {!inStoreApp() && (
+        <section className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6 md:pb-20">
+          <div className="flex flex-col items-start gap-5 rounded-3xl border border-border bg-card p-6 sm:p-10 md:flex-row md:items-center md:justify-between">
+            <div className="flex max-w-2xl flex-col gap-2">
+              <h2 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{t("Rechnet sich das für deinen Laden?")}</h2>
+              <p className="text-muted-foreground">
+                {t("Rechne aus, was dir der Telefon-Assistent und das Nachrücken bei Absagen im Monat bringen – abzüglich Abo.")}
+              </p>
+            </div>
+            <Button size="lg" variant="outline" asChild>
+              <Link to="/rechner">{t("Zum Ersparnis-Rechner")}</Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
       <section className="bg-signal">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-5 px-4 py-14 text-signal-foreground sm:px-6 md:flex-row md:items-center md:justify-between">

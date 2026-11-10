@@ -56,7 +56,7 @@ export default function App() {
 
         <div className="flex min-w-0 flex-[1_1_320px] justify-center" aria-hidden="true">
           <Ticket
-            className="w-[320px] max-w-full -rotate-3 shadow-[0_30px_60px_-30px_rgba(20,20,20,0.45)]"
+            className="w-[320px] max-w-full -rotate-3 drop-shadow-[0_22px_22px_rgba(20,20,20,0.22)]"
             eyebrow={t('Deine Nummer')}
             eyebrowRight={t('Herrenschnitt')}
             number="14"

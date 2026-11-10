@@ -12,42 +12,50 @@ interface Props {
   eyebrowRight?: ReactNode;
   stats?: TicketStat[];
   footer?: ReactNode;
-  /** Farbe der Stanzlöcher = Hintergrund um das Ticket herum */
-  notchClassName?: string;
   size?: 'md' | 'lg';
   className?: string;
 }
 
-/** Digitale Wartemarke: große Nummer, Abriss, Kennzahlen */
-export const Ticket = ({
-  number,
-  eyebrow,
-  eyebrowRight,
-  stats = [],
-  footer,
-  notchClassName = 'before:bg-background after:bg-background',
-  size = 'md',
-  className,
-}: Props) => (
-  <div className={cn('flex flex-col gap-4 rounded-3xl bg-signal px-6 py-6 text-signal-foreground', className)}>
-    {(eyebrow || eyebrowRight) && (
-      <div className="flex items-start justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]">
-        <span>{eyebrow}</span>
-        {eyebrowRight && <span className="text-end">{eyebrowRight}</span>}
-      </div>
-    )}
-    <div
-      className={cn(
-        'font-mono font-bold leading-[0.85] tracking-[-0.05em]',
-        size === 'lg' ? 'text-[88px] sm:text-[112px]' : 'text-7xl sm:text-[88px]',
+/**
+ * Digitale Wartemarke: große Nummer, Abriss, Kennzahlen.
+ * Die zwei Stanzlöcher am Abriss sind wirklich ausgestanzt (Masken .ticket-oben/.ticket-unten in index.css): Dort scheint
+ * durch, was dahinter liegt – Seite, Karte, Schatten. Schatten deshalb als drop-shadow, der folgt den Löchern; ein
+ * box-shadow läge als Rechteck dahinter.
+ */
+export const Ticket = ({ number, eyebrow, eyebrowRight, stats = [], footer, size = 'md', className }: Props) => {
+  const kopf = (
+    <>
+      {(eyebrow || eyebrowRight) && (
+        <div className="flex items-start justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]">
+          <span>{eyebrow}</span>
+          {eyebrowRight && <span className="text-end">{eyebrowRight}</span>}
+        </div>
       )}
-    >
-      {/* bdi: Nummer bleibt auch in arabischer Umgebung in ihrer Reihenfolge */}
-      <bdi>{number}</bdi>
-    </div>
-    {stats.length > 0 && (
-      <>
-        <div className={cn('ticket-perforation -mx-6 my-1', notchClassName)} aria-hidden="true" />
+      <div
+        className={cn(
+          'font-mono font-bold leading-[0.85] tracking-[-0.05em]',
+          size === 'lg' ? 'text-[88px] sm:text-[112px]' : 'text-7xl sm:text-[88px]',
+        )}
+      >
+        {/* bdi: Nummer bleibt auch in arabischer Umgebung in ihrer Reihenfolge */}
+        <bdi>{number}</bdi>
+      </div>
+    </>
+  );
+
+  if (stats.length === 0) {
+    return (
+      <div className={cn('flex flex-col gap-4 rounded-3xl bg-signal px-6 py-6 text-signal-foreground', className)}>
+        {kopf}
+        {footer}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex flex-col text-signal-foreground', className)}>
+      <div className="ticket-oben flex flex-col gap-4 rounded-t-3xl bg-signal px-6 pb-5 pt-6">{kopf}</div>
+      <div className="ticket-unten flex flex-col gap-4 rounded-b-3xl bg-signal px-6 pb-6 pt-5">
         <dl className="grid grid-cols-2 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="flex flex-col gap-0.5">
@@ -56,8 +64,8 @@ export const Ticket = ({
             </div>
           ))}
         </dl>
-      </>
-    )}
-    {footer}
-  </div>
-);
+        {footer}
+      </div>
+    </div>
+  );
+};

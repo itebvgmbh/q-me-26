@@ -30,7 +30,7 @@ BACKEND_PATHS = (
     "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
     " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
     " /einbau/*"  # Kasten für Webseiten der Läden (backend/app/einbau.py)
-    " /vergleich /vergleich/*"  # Vergleich der Buchungsplattformen (backend/app/vergleich.py)
+    " /vergleich /vergleich/*"  # alte Vergleichsseite, leitet nach salonlotse.de weiter (backend/app/vergleich.py)
     " /api/*"  # Termin-API der Läden mit Beschreibung unter /api/v1/docs (backend/app/schnittstelle)
 )
 # Nur diese Pfade dürfen fremde Seiten einbetten (iframe); alles andere nur Dranzeit selbst (Schutz vor Clickjacking)
