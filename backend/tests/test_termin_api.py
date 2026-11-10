@@ -422,6 +422,35 @@ def test_beschreibung_zum_ausprobieren():
     assert client.get("/docs").status_code == 200
 
 
+def test_beschreibung_reicht_einem_fremden_entwickler():
+    """Wer nur die Beschreibung hat (Swagger, ReDoc, Postman, Code-Generator), weiß, was zurückkommt und was schiefgehen kann"""
+    client = TestClient(api.app)
+    schema = client.get("/openapi.json").json()
+    assert schema["servers"] == [{"url": "https://dranzeit.de/api/v1", "description": "Dranzeit"}], "absolute Adresse für Postman und Generatoren"
+    assert client.get("/redoc").status_code == 200
+    text = schema["info"]["description"]
+    for abschnitt in ("Erste Schritte", "Früher dran", "Änderungen abgleichen", "Fehlercodes", "Testen", "Noch nicht dabei"):
+        assert abschnitt in text, abschnitt
+    teile = schema["components"]["schemas"]
+
+    def antwort(pfad, methode, status):
+        inhalt = schema["paths"][pfad][methode]["responses"][status]["content"]["application/json"]["schema"]
+        return inhalt.get("$ref") or inhalt.get("items", {}).get("$ref")
+
+    assert antwort("/termine", "post", "201").endswith("/Termin")
+    assert antwort("/termine", "get", "200").endswith("/Termin")
+    assert antwort("/freie-zeiten", "get", "200").endswith("/FreieZeit")
+    assert antwort("/kunden", "post", "201").endswith("/Kunde") and antwort("/leistungen", "get", "200").endswith("/Leistung")
+    assert {"id", "status", "start", "ende", "kunde_id", "frueher_dran", "frueher_dran_erreichbar", "geaendert"} <= set(teile["Termin"]["properties"])
+    for pfad, ops in schema["paths"].items():
+        for methode, op in ops.items():
+            for status in ("401", "403", "429"):
+                assert antwort(pfad, methode, status).endswith("/Fehler"), (pfad, methode, status)
+    assert antwort("/termine", "post", "409").endswith("/Fehler") and antwort("/termine/{termin_id}", "get", "404").endswith("/Fehler")
+    assert antwort("/termine", "post", "422").endswith("/Fehler"), "422 im Format der API, nicht im FastAPI-Format"
+    assert teile["TerminNeu"].get("examples") and teile["KundeNeu"].get("examples") and teile["LeistungNeu"].get("examples")
+
+
 # --- Schlüssel verwalten (Inhaber, mit Anmeldung) ---------------------------------------------------------------------
 
 def inhaber_client(store, uid):
