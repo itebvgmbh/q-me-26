@@ -25,6 +25,12 @@ const texte: Texte = {
   "Wird widerrufen …": "Revoking …",
   "Ja, widerrufen": "Yes, revoke",
   "Widerrufen": "Revoke",
+  "Webhook entfernt. Dorthin geht ab sofort nichts mehr.": "Webhook removed. Nothing will be sent there from now on.",
+  "Webhooks": "Webhooks",
+  "An diese Adressen schickt Dranzeit jede Änderung an deinen Terminen, mit Namen der Kunden. Angelegt hat sie ein Programm mit einem deiner Schlüssel. Kennst du eine Adresse nicht, entferne sie und widerrufe den Schlüssel.": "Dranzeit sends every change to your appointments to these addresses, including customer names. They were set up by a program using one of your keys. If you don't recognise an address, remove it and revoke the key.",
+  "Wird entfernt …": "Removing …",
+  "Ja, entfernen": "Yes, remove",
+  "Entfernen": "Remove",
 };
 
 export default texte;

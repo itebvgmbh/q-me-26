@@ -18,6 +18,7 @@ from app.auth.access import require_shop_of_owner
 from app.i18n import merke
 from app.libs import api_schluessel as ak
 from app.libs import live
+from app.libs import webhooks as wh
 from app.libs.plans import has_feature
 
 router = APIRouter()
@@ -44,7 +45,9 @@ def _laden(shop_id: str, user) -> dict:
 def schluessel(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
     response.headers["Cache-Control"] = "no-store"
     shop = _laden(shop_id, user)
-    return live.json_wert({"schluessel": ak.liste(store.db(), shop_id), "tarif": has_feature(shop, "api")})
+    db = store.db()
+    return live.json_wert({"schluessel": ak.liste(db, shop_id), "tarif": has_feature(shop, "api"),
+                           "webhooks": [wh.fuer_den_inhaber(i, w) for i, w in wh.des_ladens(db, shop_id)]})
 
 
 @router.post("/team/laeden/{shop_id}/api-schluessel")
@@ -69,4 +72,16 @@ def widerrufen(shop_id: str, schluessel_id: str, user: AuthorizedUser) -> dict:
     except ak.SchluesselFehler as e:
         raise HTTPException(status_code=e.status, detail=e.meldung)
     print(f"API-Schlüssel {schluessel_id} für {shop_id} widerrufen")
+    return {"ok": True}
+
+
+@router.post("/team/laeden/{shop_id}/webhooks/{webhook_id}/entfernen")
+def webhook_entfernen(shop_id: str, webhook_id: str, user: AuthorizedUser) -> dict:
+    """Der Inhaber sieht, wohin Daten gehen, und kann einen Webhook selbst entfernen"""
+    _laden(shop_id, user)
+    try:
+        wh.loeschen(store.db(), shop_id, webhook_id)
+    except wh.WebhookFehler as e:
+        raise HTTPException(status_code=e.status, detail=e.meldung)
+    print(f"Webhook {webhook_id} von {shop_id} durch den Inhaber entfernt")
     return {"ok": True}

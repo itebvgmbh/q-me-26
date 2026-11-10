@@ -2,12 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Copy, KeyRound } from 'lucide-react';
+import { Copy, KeyRound, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInhaberLaden } from '../utils/laden-kontext';
-import { API_BESCHREIBUNG, ladeSchluessel, schluesselAnlegen, schluesselWiderrufen, type ApiSchluessel } from '../utils/api-schluessel';
+import {
+  API_BESCHREIBUNG,
+  ladeSchluessel,
+  schluesselAnlegen,
+  schluesselWiderrufen,
+  webhookEntfernen,
+  type SchnittstellenStand,
+} from '../utils/api-schluessel';
 import { datumsLocale, t } from '@/i18n';
 
 /**
@@ -18,7 +25,7 @@ import { datumsLocale, t } from '@/i18n';
 export default function Schnittstelle() {
   const { laeden, laden } = useInhaberLaden();
   const shopId = laden?.id ?? '';
-  const [stand, setStand] = useState<{ schluessel: ApiSchluessel[]; tarif: boolean } | null>(null);
+  const [stand, setStand] = useState<SchnittstellenStand | null>(null);
   const [name, setName] = useState('');
   const [neu, setNeu] = useState<{ name: string; schluessel: string } | null>(null);
   const [busy, setBusy] = useState('');
@@ -64,6 +71,14 @@ export default function Schnittstelle() {
       laden_();
     });
 
+  const entfernen = (id: string) =>
+    run(id, async () => {
+      await webhookEntfernen(shopId, id);
+      setFragen('');
+      toast.success(t('Webhook entfernt. Dorthin geht ab sofort nichts mehr.'));
+      laden_();
+    });
+
   const kopieren = (text: string) =>
     navigator.clipboard.writeText(text).then(
       () => toast.success(t('Kopiert.')),
@@ -89,6 +104,7 @@ export default function Schnittstelle() {
   }
 
   const schluessel = stand?.schluessel ?? [];
+  const webhooks = stand?.webhooks ?? [];
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
@@ -189,6 +205,44 @@ export default function Schnittstelle() {
           </ul>
         )}
       </section>
+
+      {webhooks.length > 0 && (
+        <section className="flex flex-col gap-3" aria-labelledby="webhook-liste">
+          <h2 id="webhook-liste" className="font-display text-2xl font-extrabold">
+            {t('Webhooks')}
+          </h2>
+          <p className="text-muted-foreground">
+            {t('An diese Adressen schickt Dranzeit jede Änderung an deinen Terminen, mit Namen der Kunden. Angelegt hat sie ein Programm mit einem deiner Schlüssel. Kennst du eine Adresse nicht, entferne sie und widerrufe den Schlüssel.')}
+          </p>
+          <ul className="flex flex-col gap-3">
+            {webhooks.map((w) => (
+              <li key={w.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <Webhook className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="break-all font-mono text-sm font-semibold">{w.url}</span>
+                    <span className="text-sm text-muted-foreground">{t('Angelegt am {datum}.', { datum: datum(w.angelegt) })}</span>
+                  </div>
+                </div>
+                {fragen === w.id ? (
+                  <div className="flex gap-2">
+                    <Button variant="destructive" disabled={busy !== ''} onClick={() => entfernen(w.id)}>
+                      {busy === w.id ? t('Wird entfernt …') : t('Ja, entfernen')}
+                    </Button>
+                    <Button variant="outline" onClick={() => setFragen('')}>
+                      {t('Abbrechen')}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" onClick={() => setFragen(w.id)}>
+                    {t('Entfernen')}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

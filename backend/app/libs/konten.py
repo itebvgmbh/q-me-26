@@ -25,7 +25,7 @@ FOUNDERS_DOC = ("meta", "gruender")  # wie app/apis/billing
 SHOP_COLLECTIONS = (
     "services", "staff", "staff-invitations", "recurring-breaks", "breaks", "appointments", "public_appointments", "customers",
     "schedules", "shop_days", "earlier_slot_notifications", "queue", "push_subscriptions", "telefon_leitungen", "telefon_laeden", "telefon_anrufe",
-    "team_push_subscriptions", "api_schluessel",
+    "team_push_subscriptions", "api_schluessel", "api_webhooks", "api_webhook_stand", "api_webhook_zustellungen",
 )
 VERZEICHNIS = "verzeichnis"  # wie app/libs/verzeichnis.py
 # Unter-Sammlungen des Ladens: Team-Vermerke (app/libs/team.py), Kontaktdaten der Personen (app/libs/staff_contacts.py),

@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app import store
 from app.libs import api_schluessel as ak
 from app.libs import team_laden as tl
+from app.libs import webhooks as wh
 from app.libs.buchung import PlatzWeg, cancel_appointment, create_appointment
 from app.libs.online_platz import freier_platz, naechste_plaetze, ortszeit, person_fuer_leistung, vorlauf_minuten
 from app.libs.plans import has_feature, is_suspended
@@ -148,6 +149,7 @@ app = FastAPI(
         {"name": "Leistungen", "description": "Was der Laden anbietet, mit Dauer und Preis"},
         {"name": "Kunden", "description": "Die Kundenliste des Ladens"},
         {"name": "Termine", "description": "Freie Zeiten, buchen, verschieben, absagen"},
+        {"name": "Webhooks", "description": "Dranzeit meldet jede Änderung an Terminen an dein Programm"},
     ],
 )
 
@@ -195,6 +197,7 @@ class Zugang:
     shop_id: str
     shop: dict
     db: object
+    schluessel_id: str = ""
 
 
 _bearer = HTTPBearer(auto_error=False, description="Schlüssel aus Dranzeit → Laden → Schnittstelle (API)")
@@ -219,7 +222,7 @@ def zugang(request: Request, cred: Optional[HTTPAuthorizationCredentials] = Depe
         raise ApiFehler(403, "gesperrt", "Dieser Laden ist gesperrt.")
     if not has_feature(shop, "api"):
         raise ApiFehler(403, "tarif", "Die Schnittstelle gibt es ab dem Tarif Solo.")
-    return Zugang(eintrag["shopId"], shop, db)
+    return Zugang(eintrag["shopId"], shop, db, schluessel_id)
 
 
 # --- Zeiten -------------------------------------------------------------------------------------------------------------
@@ -562,6 +565,14 @@ def _termin(z: Zugang, termin_id: str) -> dict:
     return a
 
 
+def termin_fuer_ereignis(db, shop_id: str, termin_id: str, appt: dict, cache: dict) -> dict:
+    """Der Termin im Body eines Webhooks, mit denselben Feldern wie GET /termine/{id} (app/libs/webhooks.py).
+    cache: Kundenindex je Laden, für mehrere Ereignisse auf einmal"""
+    if shop_id not in cache:
+        cache[shop_id] = Kundenindex(_alle_kunden(Zugang(shop_id, {}, db, "")))
+    return Termin(**_termin_aus(termin_id, appt, cache[shop_id])).model_dump()
+
+
 def _antwort(z: Zugang, termin_id: str) -> dict:
     return _termin_aus(termin_id, _termin(z, termin_id), Kundenindex(_alle_kunden(z)))
 
@@ -733,3 +744,97 @@ def termin_absagen(termin_id: str, body: TerminAbsagen, z: Zugang = Depends(zuga
         termin_aendern(z.db, termin_id, {"status": "cancelled"}, kunde_benachrichtigen=body.kunde_benachrichtigen)
     print(f"API {z.shop_id}: Termin {termin_id} abgesagt" + (" (durch den Kunden)" if body.durch_kunde else ""))
     return _antwort(z, termin_id)
+
+
+# --- Webhooks -----------------------------------------------------------------------------------------------------------
+
+Ereignis = Literal["termin.angelegt", "termin.verschoben", "termin.abgesagt", "termin.geaendert"]
+
+
+class WebhookNeu(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"url": "https://example.com/dranzeit/webhook"}]})
+
+    url: str = Field(max_length=500, description="https-Adresse im öffentlichen Internet")
+    ereignisse: Optional[List[Ereignis]] = Field(default=None, description="ohne: alle")
+
+
+class Webhook(BaseModel):
+    id: str
+    url: str
+    ereignisse: List[str]
+    angelegt: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+
+
+class WebhookAngelegt(Webhook):
+    geheimnis: str = Field(description="Zum Prüfen der Signatur. Wird nur dieses eine Mal angezeigt.")
+
+
+class WebhookTest(BaseModel):
+    ok: bool
+    status: Optional[int] = Field(default=None, description="HTTP-Status deiner Gegenstelle")
+    fehler: Optional[str] = None
+
+
+class Zustellung(BaseModel):
+    id: str = Field(description="steht auch in der Kopfzeile Dranzeit-Zustellung")
+    ereignis_id: Optional[str] = Field(default=None, description="id im Body; gleich bei jedem Versuch")
+    typ: str
+    termin_id: Optional[str] = None
+    status: str = Field(description="offen, zugestellt, fehlgeschlagen oder verworfen")
+    versuche: int
+    letzter_status: Optional[int] = None
+    letzter_fehler: Optional[str] = None
+    angelegt: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+    naechster_versuch: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+    zugestellt: Optional[str] = Field(default=None, json_schema_extra=ZEIT)
+
+
+def _webhook_fehler(e: wh.WebhookFehler) -> ApiFehler:
+    return ApiFehler(e.status, e.code, e.meldung)
+
+
+@app.get("/webhooks", tags=["Webhooks"], summary="Webhooks des Ladens", response_model=List[Webhook])
+def webhooks(z: Zugang = Depends(zugang)) -> list:
+    return [wh.oeffentlich(i, w) for i, w in wh.des_ladens(z.db, z.shop_id)]
+
+
+@app.post("/webhooks", tags=["Webhooks"], summary="Webhook anlegen", status_code=201, response_model=WebhookAngelegt,
+          responses=_fehler((400, "url_ungueltig oder zu_viele_webhooks")))
+def webhook_anlegen(body: WebhookNeu, z: Zugang = Depends(zugang)) -> dict:
+    """Ab jetzt meldet Dranzeit jede Änderung an Terminen des Ladens an diese Adresse. Termine, die es vorher schon gab,
+    lösen erst bei ihrer nächsten Änderung etwas aus. Der Webhook gehört zum Schlüssel: Widerrufen nimmt ihn mit."""
+    try:
+        eintrag, geheimnis = wh.anlegen(z.db, z.shop_id, z.schluessel_id, body.url, body.ereignisse, _jetzt())
+    except wh.WebhookFehler as e:
+        raise _webhook_fehler(e)
+    print(f"API {z.shop_id}: Webhook {eintrag['id']} angelegt")
+    return {**eintrag, "geheimnis": geheimnis}
+
+
+@app.delete("/webhooks/{webhook_id}", tags=["Webhooks"], summary="Webhook löschen", status_code=204, responses=NICHT_DA)
+def webhook_loeschen(webhook_id: str, z: Zugang = Depends(zugang)) -> Response:
+    try:
+        wh.loeschen(z.db, z.shop_id, webhook_id)
+    except wh.WebhookFehler as e:
+        raise _webhook_fehler(e)
+    print(f"API {z.shop_id}: Webhook {webhook_id} gelöscht")
+    return Response(status_code=204)
+
+
+@app.post("/webhooks/{webhook_id}/test", tags=["Webhooks"], summary="ping schicken", response_model=WebhookTest, responses=NICHT_DA)
+def webhook_testen(webhook_id: str, z: Zugang = Depends(zugang)) -> dict:
+    """Schickt sofort ein Ereignis `ping`, signiert wie jedes andere, und sagt, was deine Gegenstelle geantwortet hat."""
+    try:
+        return wh.testen(z.db, z.shop_id, webhook_id, _jetzt())
+    except wh.WebhookFehler as e:
+        raise _webhook_fehler(e)
+
+
+@app.get("/webhooks/{webhook_id}/zustellungen", tags=["Webhooks"], summary="Letzte Zustellungen", response_model=List[Zustellung],
+         responses=NICHT_DA)
+def webhook_zustellungen(webhook_id: str, z: Zugang = Depends(zugang)) -> list:
+    """Die letzten 50, neueste zuerst. Erledigte bleiben 7 Tage."""
+    try:
+        return wh.zustellungen(z.db, z.shop_id, webhook_id)
+    except wh.WebhookFehler as e:
+        raise _webhook_fehler(e)
