@@ -437,19 +437,14 @@ Telefonnummer des Anrufers, gekennzeichnet mit `source: "telefon"`. Sie stehen g
 Schlange und auf dem Bildschirm. Ein Platz geht dabei nur einmal weg, auch wenn gleichzeitig online oder am
 Tresen gebucht wird (`backend/app/libs/buchung.py`).
 
-## Vergleichsseite (/vergleich/buchungsplattformen-friseure)
+## Ersparnis-Rechner (/rechner) und alte Vergleichsseite
 
-Vergleich mit Treatwell, Planity, Fresha, Booksy, Shore und Salonkee: `backend/app/vergleich.py` (Daten, Texte, Quellen, Rechner),
-Tests in `backend/tests/test_vergleich.py`. Die Reihenfolge rechnet der Code aus den Daten aus. Schriften liegen in
-`frontend/public/fonts`, das Vorschaubild ist `frontend/public/og-vergleich.png`.
+Der Vergleich mit Treatwell, Planity und anderen ist nach salonlotse.de umgezogen (Repo `itebvgmbh/salonlotse`).
+`/vergleich/…` leitet dauerhaft dorthin weiter (`backend/app/vergleich.py`); dafür bleibt `/vergleich` in `caddy-domain.py`.
 
-Caddy muss `/vergleich` ans Backend geben. Das stellt `caddy-domain.py` ein, aber nur, wenn man es nach dem Update einmal neu
-ausführt: `python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de dranzeit.com www.dranzeit.com`.
-Bis dahin leitet die App auf `/routes/seo/vergleich/…` weiter.
-
-**Pflege:** Die Seite ist vergleichende Werbung (§ 6 UWG), jede Angabe über andere Anbieter braucht eine Quelle und muss stimmen. Alle drei Monate
-die Quellen in `QUELLEN` neu abrufen, Preise und Kurs in `ANBIETER`, `TABELLE`, `DETAILS` und `FAQ` angleichen, `STAND` und `STAND_ISO` setzen
-und im Januar die Jahreszahl in `TITEL`. Ändern sich die eigenen Tarife, schlägt `test_dranzeit_preise_wie_tarife` an.
+An seiner Stelle rechnet `/rechner` (`frontend/src/pages/Rechner.tsx`) aus, was ein Laden mit Telefon-Assistent und
+Nachrücken im Monat gewinnt, abzüglich Abo. Die Rechnung steht in `frontend/src/utils/ersparnis.ts`, Test ohne Browser:
+`node --experimental-strip-types dev/ersparnis.test.mjs`. Preise kommen aus `utils/plans.ts` und `utils/telefon-assistent.ts`.
 
 ## Abo-Abrechnung (Stripe)
 

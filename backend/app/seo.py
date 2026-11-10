@@ -121,7 +121,7 @@ def _e(value) -> str:
 # App aus Google Play bzw. dem App Store: Dort wird nichts verkauft (Erklärung und gleiche Erkennung in
 # frontend/src/utils/app-shell.ts). Links zu Tarif, Preisen und den Hilfe-Artikeln über Preise verschwinden,
 # diese Artikel selbst leiten zur Hilfe-Übersicht weiter.
-APP_VERKAUF = ("/tarif", "/preise", "/vergleich", "/hilfe/tarife", "/hilfe/abo", "/hilfe/gruenderangebot")
+APP_VERKAUF = ("/tarif", "/preise", "/rechner", "/hilfe/tarife", "/hilfe/abo", "/hilfe/gruenderangebot")
 APP_STYLE = ",".join(f'.in-app a[href^="{p}"]' for p in APP_VERKAUF) + "{display:none!important}"
 APP_JS = (
     "(function(){var k='dranzeit:app',a=null;try{a=sessionStorage.getItem(k)}catch(e){}"
@@ -208,7 +208,7 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
         f"{body}"
         "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
-        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/vergleich/buchungsplattformen-friseure\">Anbieter im Vergleich</a><a href=\"/hilfe\">Hilfe</a>"
+        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/rechner\">Ersparnis-Rechner</a><a href=\"/hilfe\">Hilfe</a>"
         "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a>"
         "<button type=\"button\" id=\"cookie-einstellungen\" hidden>Cookie-Einstellungen</button></footer></div>"
         f"{COOKIE_BANNER}</body></html>"
@@ -337,7 +337,7 @@ def _verzeichnis_pfade() -> dict[str, str]:
 @router.get("/sitemap.xml")
 def sitemap() -> Response:
     base = public_url()
-    paths = ["/", "/features", "/preise", "/vergleich/buchungsplattformen-friseure", "/shop-map", BASE_PATH]
+    paths = ["/", "/features", "/preise", "/rechner", "/shop-map", BASE_PATH]
     shops = load_shops()
     paths += [f"{BASE_PATH}/{slug}" for slug in cities(shops)]
     pages = _verzeichnis_pfade()
