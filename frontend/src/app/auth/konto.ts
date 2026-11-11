@@ -142,8 +142,8 @@ class Konto implements User {
       email: this.email,
       emailVerified: this.emailVerified,
       displayName: this.displayName,
-      bereich: this.bereich,
-      laden: this.laden,
+      // nur auf einem gekoppelten Tablet; sonst bleibt der gemerkte Stand wie bisher (dev/e2e/anmeldung.cjs)
+      ...(this.bereich ? { bereich: this.bereich, laden: this.laden } : {}),
     };
   }
 }
