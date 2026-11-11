@@ -290,6 +290,10 @@ Caddy muss `/hilfe` ans Backend geben. Das stellt `caddy-domain.py` ein, aber nu
 `python3 /opt/q-me/deploy/caddy-domain.py dranzeit.de --redirect-from www.dranzeit.de q-me.spielmacherei.de`.
 Bis dahin leitet die App `/hilfe` auf `/routes/seo/hilfe` weiter; es funktioniert also auch vorher.
 
+Die Hilfe gibt es auch auf Englisch, Türkisch und Arabisch unter `/en/hilfe`, `/tr/hilfe`, `/ar/hilfe` (seit
+11.11.2026). Auch diese Pfade gibt `caddy-domain.py` ans Backend – nach dem Update also einmal neu ausführen
+(wegen der Adresse dranzeit.com mit `--skip-dns-check`). Bis dahin leitet die App auch sie unter `/routes/seo` weiter.
+
 ## Kasten für Webseiten der Läden (/einbau)
 
 Läden bauen unter „Mein Laden“ → „Auf deiner Webseite“ einen Kasten (iframe auf `/einbau/<Laden-ID>`), einen Knopf

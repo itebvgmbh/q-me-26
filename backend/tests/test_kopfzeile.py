@@ -53,10 +53,28 @@ def test_skript_bekommt_rollenmenues_sicher_eingebettet():
     h = kopfzeile.kopfzeile("/hilfe")
     skript = h.split("<script>")[1].split("</script>")[0]
     assert "__MENUE__" not in skript and "</" not in skript
-    daten = json.loads(re.search(r"var M=(\{.*?\});\nfunction zu", skript, re.S).group(1).replace("<\\/", "</"))
+    daten = json.loads(re.search(r"var M=(\{.*?\});\n", skript, re.S).group(1).replace("<\\/", "</"))
     assert daten["links"]["shopOwner"][0]["to"] == "/shop-dashboard"
     assert daten["profil"]["customer"] == "/customer-profile"
     assert "dranzeit.konto" in skript and "dranzeit.rolle" in skript
+
+
+def test_kopfzeile_in_der_sprache_der_hilfe():
+    from app.i18n import t
+
+    alt = {"de": "/hilfe/plakat", "tr": "/tr/hilfe/plakat", "ar": "/ar/hilfe/plakat"}
+    h = kopfzeile.kopfzeile("/tr/hilfe/plakat", "tr", alt)
+    assert f'<a href="/tr/hilfe" class="kz-xl kz-an" aria-current="page">{t("Hilfe", "tr")}</a>' in h
+    assert f'>{t("Läden finden", "tr")}</a>' in h and f'>{t("Anmelden", "tr")}</a>' in h
+    wahl = h.split('class="kz-sprache"')[1].split("</details>")[0]
+    assert 'href="/hilfe/plakat" lang="de" hreflang="de" data-sprache="de"' in wahl and "English" not in wahl
+    assert 'data-sprache="tr" aria-current="true"' in wahl and 'dir="rtl"' in wahl
+    skript = h.split("<script>")[1].split("</script>")[0]
+    daten = json.loads(re.search(r"var M=(\{.*?\});\n", skript, re.S).group(1).replace("<\\/", "</"))
+    assert daten["hilfe"] == "/tr/hilfe" and daten["texte"]["hilfe"] == t("Hilfe", "tr")
+    assert "dranzeit:sprache" in skript
+    # Ohne Übersetzungen (Salonseiten, deutsche Seiten ohne Alternativen): keine Sprachwahl, alles wie bisher
+    assert "kz-sprache" not in kopfzeile.kopfzeile("/friseur/berlin").split("<style")[0].split("<script>")[0]
 
 
 def test_hilfe_und_stadtseite_haben_die_kopfzeile():

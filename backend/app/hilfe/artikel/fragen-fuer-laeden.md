@@ -26,7 +26,7 @@ Die reihst du unter **„Heute“** mit **„Kunde eintragen“** selbst ein. Si
 
 ### Kann ich jederzeit kündigen?
 
-Ja. Unter **„Laden“** → **„Tarif“** → **„Abo verwalten, Rechnungen, kündigen“** kündigst du zum Ende des bezahlten Monats oder Jahres. Danach läuft dein Laden im Gratis-Tarif weiter. Mehr: [Abo abschließen, wechseln und kündigen](/hilfe/abo)
+Ja. Unter **„Laden“** → **„Tarif“** → **„Abo verwalten, Zahlungsart, kündigen“** kündigst du zum Ende des bezahlten Monats oder Jahres. Danach läuft dein Laden im Gratis-Tarif weiter. Mehr: [Abo abschließen, wechseln und kündigen](/hilfe/abo)
 
 ### Welche Geräte brauche ich?
 

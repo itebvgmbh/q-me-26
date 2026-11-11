@@ -97,6 +97,12 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/barbershop/*", element: <StadtWeiterleitung />},
 	{ path: "/barbershop", element: <StadtWeiterleitung />},
 	{ path: "/hilfe", element: <StadtWeiterleitung />},
+	{ path: "/en/hilfe", element: <StadtWeiterleitung />},
+	{ path: "/en/hilfe/*", element: <StadtWeiterleitung />},
+	{ path: "/tr/hilfe", element: <StadtWeiterleitung />},
+	{ path: "/tr/hilfe/*", element: <StadtWeiterleitung />},
+	{ path: "/ar/hilfe", element: <StadtWeiterleitung />},
+	{ path: "/ar/hilfe/*", element: <StadtWeiterleitung />},
 	{ path: "/einbau/*", element: <StadtWeiterleitung />},
 	// alte Vergleichsseite: Backend leitet nach salonlotse.de weiter (backend/app/vergleich.py)
 	{ path: "/vergleich/*", element: <StadtWeiterleitung />},

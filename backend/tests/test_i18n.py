@@ -7,6 +7,7 @@ Accept-Language, Push und E-Mails in der gespeicherten Sprache und übersetzte F
     cd backend && .venv/bin/python tests/test_i18n.py --fehlend     nur auflisten, was in den Katalogen fehlt
 """
 import ast
+import json
 import os
 import re
 import sys
@@ -83,6 +84,11 @@ def gesammelt():
                     anfang = _text(detail.values[0]) if detail.values else ""
                     if not (anfang or "").startswith(("Error", "Failed")):  # englische Meldungen nur für Entwickler
                         probleme.append(f"{stelle}: f-String als detail – merke('… {{wert}} …', wert=…) nehmen")
+    # Menüpunkte der Kopfzeile stehen in frontend/src/navigation.json (app/kopfzeile.py übersetzt sie auf der Hilfe)
+    nav = json.loads((APP.parents[1] / "frontend" / "src" / "navigation.json").read_text(encoding="utf-8"))
+    for rolle, punkte in nav["links"].items():
+        for punkt in punkte:
+            merke_dir(punkt["label"], f"navigation.json:{rolle}")
     return schluessel, probleme
 
 

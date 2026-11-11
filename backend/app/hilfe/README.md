@@ -59,3 +59,39 @@ Die Hilfe und die App verwenden dieselben Wörter. `begriffe.md` erklärt sie f�
 
 Status am Tresen: **Wartet**, **Ist dran**, **Fertig**, **Abgesagt**.
 Status beim Kunden („Meine Termine“): **Gebucht**, **Du bist dran**, **Fertig**, **Abgesagt**.
+
+## Übersetzungen (Englisch, Türkisch, Arabisch)
+
+Jeden Artikel gibt es auch unter `/en/hilfe/…`, `/tr/hilfe/…` und `/ar/hilfe/…` (Arabisch von rechts nach links).
+Die Übersetzung liegt in `artikel/<sprache>/<adresse>.md`, gleiche Adresse wie der deutsche Artikel:
+
+```
+---
+titel: Print and put up the poster
+kurz: …                    ← höchstens 155 Zeichen
+stichworte: …              ← Suchwörter in der Sprache
+quelle: 3f2a9c1b7e04       ← Fingerabdruck des deutschen Artikels, aus dem übersetzt wurde
+---
+```
+
+Thema, Reihenfolge und `faq` kommen vom deutschen Artikel. Links auf `/hilfe/…` bleiben so stehen, die Seite
+zeigt sie in der Sprache der Übersetzung.
+
+**Deutschen Artikel geändert oder neu angelegt? Dann die drei Übersetzungen im selben Zug nachziehen.**
+`tests/test_hilfe.py` schlägt sonst an (fehlt / veraltet). So geht es:
+
+1. `cd backend && python -m app.hilfe.stand` zeigt, was fehlt oder veraltet ist; was sich im Deutschen geändert hat,
+   zeigt `git log -p app/hilfe/artikel/<adresse>.md`.
+2. Übersetzungen anpassen: gleicher Aufbau wie im Deutschen – dieselben `##`/`###`-Überschriften, Bilder, Link-Ziele,
+   Knöpfe `{knopf}` und Hinweiskästen (prüft der Test).
+3. `python -m app.hilfe.stand --setzen <sprache> <adresse>` (je Sprache) hakt ab.
+
+Regeln für die Übersetzung:
+
+- **Knöpfe und Menüpunkte genau wie in der App:** die Übersetzung des deutschen Knopftexts aus
+  `frontend/src/i18n/<sprache>/*.ts` (bzw. `backend/app/i18n/<sprache>.py` für Push und E-Mails).
+- **Hinweiskästen:** en `**Tip:**` / `**Important:**`, tr `**İpucu:**` / `**Dikkat:**`, ar `**نصيحة:**` / `**تنبيه:**`.
+- **Anführungszeichen:** en “…”, tr “…”, ar «…». **Ton:** en britisches Englisch, tr durchgehend „sen“,
+  ar Hocharabisch mit westlichen Ziffern wie in der App.
+- Die Bilder zeigen die deutsche App; die Seite sagt das dazu. Neue Bilder deshalb nicht übersetzen.
+- Texte rundherum (Übersicht, Kopfzeile, Fußzeile) stehen in `backend/app/i18n/<sprache>.py`.
