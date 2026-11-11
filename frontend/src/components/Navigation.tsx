@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
-import { anmeldung } from 'app';
+import { anmeldung, nurTresen } from 'app';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -69,6 +69,12 @@ const LINKS: Record<UserRole | 'guest', NavItem[]> = {
   ],
 };
 
+// Gekoppeltes Tablet am Tresen (pages/Koppeln.tsx): nur Heute und Kalender, kein Profil, kein Laden
+const TRESEN: NavItem[] = [
+  { to: '/shop-dashboard', label: merke('Heute') },
+  { to: '/kalender', label: merke('Kalender') },
+];
+
 const PROFILE_PATH: Record<UserRole, string> = {
   customer: '/customer-profile',
   shopOwner: '/profile',
@@ -97,7 +103,8 @@ export function Navigation() {
   const [open, setOpen] = useState(false);
 
   const role: UserRole | 'guest' = user && profile ? profile.role : 'guest';
-  const links = (user && !profile ? [] : LINKS[role]).filter((item) => !(inStoreApp() && VERKAUF.includes(item.to)));
+  const tresen = nurTresen(user);
+  const links = tresen ? TRESEN : (user && !profile ? [] : LINKS[role]).filter((item) => !(inStoreApp() && VERKAUF.includes(item.to)));
   const displayName = profile?.displayName || user?.displayName || user?.email || '';
   const initial = (displayName.trim()[0] || 'Q').toUpperCase();
   // Gäste haben die meisten Einträge (dazu Anmelden und Registrieren): bis lg das Menü zum Aufklappen
@@ -180,17 +187,17 @@ export function Navigation() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-60 rounded-xl" align="end">
                 <DropdownMenuLabel className="font-normal">
-                  <p className="truncate text-sm font-semibold">{profile?.displayName || t('Dein Konto')}</p>
+                  <p className="truncate text-sm font-semibold">{tresen ? t('Tablet am Tresen') : profile?.displayName || t('Dein Konto')}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {profile && (
+                {profile && !tresen && (
                   <DropdownMenuItem onSelect={() => navigate(PROFILE_PATH[profile.role])}>
                     <UserRound className="me-2 h-4 w-4" aria-hidden="true" />
                     {t('Mein Profil')}
                   </DropdownMenuItem>
                 )}
-                {betreiber && (
+                {betreiber && !tresen && (
                   <DropdownMenuItem onSelect={() => navigate('/betreiber')}>
                     <ShieldCheck className="me-2 h-4 w-4" aria-hidden="true" />
                     {t('Betreiber-Bereich')}
@@ -236,12 +243,12 @@ export function Navigation() {
                     </NavLink>
                   ),
                 )}
-                {profile && (
+                {profile && !tresen && (
                   <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
                     {t('Mein Profil')}
                   </NavLink>
                 )}
-                {betreiber && (
+                {betreiber && !tresen && (
                   <NavLink to="/betreiber" onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
                     {t('Betreiber-Bereich')}
                   </NavLink>

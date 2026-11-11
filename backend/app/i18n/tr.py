@@ -329,7 +329,7 @@ TEXTE: dict = {
     # Tablet am Tresen koppeln (app/apis/geraete, databutton_app/mw/auth_mw.py)
     'Am Tresen-Tablet geht das nicht. Melde dich dafür auf deinem eigenen Gerät an.': 'Bu, resepsiyon tabletinde yapılamaz. Bunun için kendi cihazında giriş yap.',
     'Dieser Code gilt nicht mehr. Am Tablet erscheint gleich ein neuer – scanne den.': 'Bu kod artık geçerli değil. Tablette birazdan yenisi çıkacak – onu tara.',
-    'Ein Tablet koppeln kann nur, wer einen Laden bei Dranzeit hat.': "Tablet eşleştirmeyi yalnızca Dranzeit'te dükkânı olan biri yapabilir.",
-    'Wähl den Laden, für den das Tablet ist.': 'Tabletin hangi dükkân için olduğunu seç.',
+    'Ein Tablet koppeln kann nur, wer einen Laden bei Dranzeit hat.': "Tablet eşleştirmeyi yalnızca Dranzeit'te salonu olan biri yapabilir.",
+    'Wähl den Laden, für den das Tablet ist.': 'Tabletin hangi salon için olduğunu seç.',
     'Dieses Tablet ist schon abgemeldet.': 'Bu tabletin oturumu zaten kapatılmış.',
 }

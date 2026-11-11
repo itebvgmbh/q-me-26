@@ -239,8 +239,9 @@ def db_test_laden_waehlen():
 
 def db_test_ohne_laden_kein_koppeln():
     _schema()
+    # Die Attrappe für die Läden gilt für alle Apps (Modul): auch das Tablet ohne Läden anlegen
     handy, _ = _inhaber(laeden=[])
-    start = _starten(_app())
+    start = _starten(_app([]))
     r = handy.get("/routes/geraete/koppeln/info", params={"code": start["code"]})
     assert r.status_code == 403 and r.headers["X-Koppeln-Fehler"] == "kein-laden"
     assert handy.post("/routes/geraete/koppeln/bestaetigen", json={"code": start["code"]}, headers=DRANZEIT).status_code == 403

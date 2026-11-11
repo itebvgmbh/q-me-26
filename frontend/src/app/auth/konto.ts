@@ -15,6 +15,10 @@
  * fragt der Tab bei /ich nach, sobald ein Aufruf ans Backend mit 401 abgelehnt wird oder der Tab wieder nach vorn kommt.
  * Sonst zeigte er weiter „angemeldet“, und jede Seite scheiterte mit „Not authenticated“. Dafür ist fetch unten
  * umwickelt; es ändert an keiner Anfrage etwas, es schaut nur auf die Antwort.
+ *
+ * Ein per QR-Code gekoppeltes Tablet (pages/Koppeln.tsx) ist mit dem Konto des Inhabers angemeldet, aber nur für den
+ * Tresen: bereich „tresen“. Das Backend lässt dann nur die Aufrufe des Tresens zu (backend/app/libs/geraete.py),
+ * die Seiten zeigen nur Heute und Kalender (nurTresen).
  */
 
 export interface User {
@@ -22,13 +26,24 @@ export interface User {
   email: string | null;
   emailVerified: boolean;
   displayName: string | null;
+  /** "tresen": gekoppeltes Tablet, nur der Tresen; sonst null */
+  bereich?: string | null;
+  /** Laden, für den das Tablet gekoppelt wurde */
+  laden?: string | null;
   readonly providerData: { providerId: string }[];
   getIdToken(forceRefresh?: boolean): Promise<string>;
   reload(): Promise<void>;
   delete(): Promise<void>;
 }
 
-type Daten = { uid: string; email: string | null; emailVerified: boolean; displayName?: string | null };
+type Daten = {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  displayName?: string | null;
+  bereich?: string | null;
+  laden?: string | null;
+};
 // GET /routes/anmeldung/ich ohne Sitzung: {"uid": null}
 type Ich = Daten | { uid: null };
 const angemeldet = (d: Ich): d is Daten => typeof d.uid === 'string' && d.uid !== '';
@@ -82,6 +97,8 @@ class Konto implements User {
   email: string | null;
   emailVerified: boolean;
   displayName: string | null;
+  bereich: string | null;
+  laden: string | null;
   readonly providerData = [{ providerId: 'password' }];
 
   constructor(d: Daten) {
@@ -89,6 +106,8 @@ class Konto implements User {
     this.email = d.email ?? null;
     this.emailVerified = Boolean(d.emailVerified);
     this.displayName = d.displayName ?? null;
+    this.bereich = d.bereich ?? null;
+    this.laden = d.laden ?? null;
   }
 
   async getIdToken(): Promise<string> {
@@ -107,6 +126,8 @@ class Konto implements User {
     this.email = d.email ?? null;
     this.emailVerified = Boolean(d.emailVerified);
     this.displayName = d.displayName ?? null;
+    this.bereich = d.bereich ?? null;
+    this.laden = d.laden ?? null;
     merken(this);
   }
 
@@ -116,7 +137,14 @@ class Konto implements User {
   }
 
   toJSON(): Daten {
-    return { uid: this.uid, email: this.email, emailVerified: this.emailVerified, displayName: this.displayName };
+    return {
+      uid: this.uid,
+      email: this.email,
+      emailVerified: this.emailVerified,
+      displayName: this.displayName,
+      bereich: this.bereich,
+      laden: this.laden,
+    };
   }
 }
 
@@ -151,17 +179,20 @@ const melden = () => zuhoerer.forEach((z) => z(aktuell));
 
 function setzen(d: Daten | null) {
   const vorher = aktuell?.uid ?? null;
+  const bereichVorher = aktuell?.bereich ?? null;
   if (d && aktuell && aktuell.uid === d.uid) {
     aktuell.email = d.email ?? null;
     aktuell.emailVerified = Boolean(d.emailVerified);
     aktuell.displayName = d.displayName ?? null;
+    aktuell.bereich = d.bereich ?? null;
+    aktuell.laden = d.laden ?? null;
   } else {
     aktuell = d ? new Konto(d) : null;
   }
   merken(aktuell);
   const warBereit = bereit;
   bereit = true;
-  if (!warBereit || vorher !== (aktuell?.uid ?? null)) melden();
+  if (!warBereit || vorher !== (aktuell?.uid ?? null) || bereichVorher !== (aktuell?.bereich ?? null)) melden();
 }
 
 const pruefen: Promise<void> = (async () => {
@@ -271,6 +302,15 @@ export const signInWithEmailAndPassword = async (_a: Anmeldung, email: string, p
 export const createUserWithEmailAndPassword = async (_a: Anmeldung, email: string, password: string): Promise<{ user: User }> => {
   setzen(await senden<Daten>('registrieren', { email, passwort: password }));
   return { user: aktuell as User };
+};
+
+/** Gekoppeltes Tablet am Tresen: nur Heute und Kalender (backend/app/libs/geraete.py) */
+export const nurTresen = (user: User | null | undefined): boolean => user?.bereich === 'tresen';
+
+/** Nach dem Koppeln: die Sitzung, die das Tablet gerade abgeholt hat (pages/Koppeln.tsx); das Cookie ist schon gesetzt */
+export const gekoppelt = (d: Daten): User => {
+  setzen(d);
+  return aktuell as User;
 };
 
 export const signOut = async (_a?: Anmeldung): Promise<void> => {
