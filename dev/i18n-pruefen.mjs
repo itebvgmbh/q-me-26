@@ -121,6 +121,17 @@ for (const datei of dateien) {
   }
 }
 
+// Menüpunkte der Kopfzeile stehen in navigation.json (components/Navigation.tsx übersetzt sie mit t(item.label))
+if (!filter.length || filter.some((f) => "components/Navigation.tsx".startsWith(f) || f === "navigation.json")) {
+  const menue = JSON.parse(fs.readFileSync(path.join(WURZEL, "navigation.json"), "utf8"));
+  for (const [rolle, punkte] of Object.entries(menue.links)) {
+    for (const punkt of punkte) {
+      if (!verwendet.has(punkt.label)) verwendet.set(punkt.label, []);
+      verwendet.get(punkt.label).push(`navigation.json:${rolle}`);
+    }
+  }
+}
+
 // --- Kataloge laden ---
 const kataloge = {};
 const herkunft = {}; // sprache -> schlüssel -> [bereiche]

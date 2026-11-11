@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { anmeldung, nurTresen } from 'app';
@@ -20,66 +20,43 @@ import { useIsBetreiber } from '../utils/betreiber';
 import type { UserRole } from '../utils/types';
 import { inStoreApp } from '../utils/app-shell';
 import { stopTeamPushBeforeLogout } from '../utils/team-push';
-import { istRtl, merke, t } from '@/i18n';
+import { istRtl, t } from '@/i18n';
+import MENUE from '../navigation.json';
 import { SprachListe, SprachMenue } from './SprachWahl';
 
 /**
+ * Menüpunkte stehen in navigation.json – dieselbe Liste nutzt das Backend für die Kopfzeile seiner Seiten (Hilfe,
+ * /friseur …, backend/app/kopfzeile.py), damit man dort im selben Menü bleibt.
  * server: Seite kommt vom Backend (z. B. /hilfe) – normaler Link statt Router-Link; also: Seiten, die zu diesem Bereich
  * gehören; ab: in der Kopfzeile erst ab dieser Breite, schmaler wäre die Zeile zu voll (steht dann in der Fußzeile)
  */
 type NavItem = { to: string; label: string; server?: boolean; also?: string[]; ab?: 'xl' };
 
+// Inhaber: drei Bereiche – Heute (Tresen, „Nur ich“ statt eigener Seite), Kalender (planen), Laden (alles Übrige,
+// pages/ShopProfile.tsx). Mitarbeiter: „Mein Tag“ ist ihr „Heute, nur ich“, wer vorher Kunde war, behält „Meine Termine“.
+const LINKS = MENUE.links as Record<UserRole | 'guest' | 'tresen', NavItem[]>;
+// Gekoppeltes Tablet am Tresen (pages/Koppeln.tsx): nur Heute und Kalender, kein Profil, kein Laden
+const TRESEN = LINKS.tresen;
+const PROFILE_PATH = MENUE.profil as Record<UserRole, string>;
+
 // In der App aus dem Store wird nichts verkauft (utils/app-shell.ts)
-const VERKAUF = ['/preise', '/tarif'];
+const VERKAUF = MENUE.verkauf;
+
+// Rolle für die Kopfzeile der Backend-Seiten merken: Dort gibt es kein Profil, nur den Stand aus localStorage
+// (dranzeit.konto, app/auth/konto.ts). Ohne Konto zählt der Wert nicht.
+const ROLLE_SPEICHER = 'dranzeit.rolle';
+const merkeRolle = (rolle: string | null) => {
+  try {
+    if (rolle) localStorage.setItem(ROLLE_SPEICHER, rolle);
+    else localStorage.removeItem(ROLLE_SPEICHER);
+  } catch {
+    // privater Modus: dann zeigt die Hilfe eben das Gästemenü
+  }
+};
 
 // Nur für Inhaber mehrerer Läden – Gäste laden das Auswahlfeld nicht mit. Fehlt der Baustein (alte Fassung nach dem
 // Ausrollen), bleibt die Kopfzeile ohne Auswahl statt auf der Fehlerseite zu landen.
 const LadenWahlKopf = lazy(() => import('./LadenWahlKopf').catch(() => ({ default: () => null })));
-
-const LINKS: Record<UserRole | 'guest', NavItem[]> = {
-  guest: [
-    { to: '/shop-map', label: merke('Läden finden') },
-    { to: '/public-join-queue', label: merke('Nummer ziehen') },
-    { to: '/book-appointment', label: merke('Termin buchen') },
-    { to: '/features', label: merke('Für Läden') },
-    { to: '/preise', label: merke('Preise'), ab: 'xl' },
-    { to: '/hilfe', label: merke('Hilfe'), server: true, ab: 'xl' },
-  ],
-  customer: [
-    { to: '/my-bookings', label: merke('Meine Termine') },
-    { to: '/public-join-queue', label: merke('Nummer ziehen') },
-    { to: '/book-appointment', label: merke('Termin buchen') },
-    { to: '/shop-map', label: merke('Läden finden') },
-  ],
-  // Drei Bereiche: Heute (Tresen, „Nur ich“ statt eigener Seite), Kalender (planen), Laden (alles Übrige, pages/ShopProfile.tsx)
-  shopOwner: [
-    { to: '/shop-dashboard', label: merke('Heute') },
-    { to: '/kalender', label: merke('Kalender') },
-    {
-      to: '/shop-profile',
-      label: merke('Laden'),
-      also: ['/staff-management', '/service-management', '/tarif', '/telefon-assistent', '/schnittstelle', '/auswertung', '/plakat', '/shop-setup', '/employee-dashboard'],
-    },
-  ],
-  employee: [
-    // „Mein Tag“ ist für Mitarbeiter ihr „Heute, nur ich“ – der Name steht so auch in Einladungen und Hilfe
-    { to: '/employee-dashboard', label: merke('Mein Tag') },
-    // Wer vorher Kunde war, behält seine eigenen Buchungen
-    { to: '/my-bookings', label: merke('Meine Termine') },
-  ],
-};
-
-// Gekoppeltes Tablet am Tresen (pages/Koppeln.tsx): nur Heute und Kalender, kein Profil, kein Laden
-const TRESEN: NavItem[] = [
-  { to: '/shop-dashboard', label: merke('Heute') },
-  { to: '/kalender', label: merke('Kalender') },
-];
-
-const PROFILE_PATH: Record<UserRole, string> = {
-  customer: '/customer-profile',
-  shopOwner: '/profile',
-  employee: '/profile',
-};
 
 const inBereich = (item: NavItem, pathname: string) => !!item.also?.some((p) => pathname.startsWith(p));
 
@@ -109,6 +86,11 @@ export function Navigation() {
   const initial = (displayName.trim()[0] || 'Q').toUpperCase();
   // Gäste haben die meisten Einträge (dazu Anmelden und Registrieren): bis lg das Menü zum Aufklappen
   const guest = role === 'guest';
+
+  useEffect(() => {
+    if (profile) merkeRolle(profile.role);
+    else if (!loading && !user) merkeRolle(null);
+  }, [profile, loading, user]);
 
   const handleLogout = async () => {
     setOpen(false);

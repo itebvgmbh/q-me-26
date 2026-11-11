@@ -19,6 +19,8 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from app import kopfzeile
+
 BERLIN = ZoneInfo("Europe/Berlin")
 CACHE_SECONDS = 60
 BASE_PATH = "/friseur-ohne-termin"
@@ -135,14 +137,30 @@ APP_JS = (
 )
 
 
-STYLE = """
-:root{--bg:#eeede7;--card:#fff;--ink:#141414;--muted:#5a5a52;--line:#d8d6cc;--signal:#ffc83d}
-@media (prefers-color-scheme:dark){:root{--bg:#121211;--card:#1c1c1a;--ink:#f2f1eb;--muted:#a8a79e;--line:#34332e}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:960px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left))}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:8px 24px}.top nav{display:flex;gap:16px}.top nav a{color:inherit}
-.brand{font-weight:800;font-size:22px;letter-spacing:-.03em;text-decoration:none;color:inherit;display:flex;gap:8px;align-items:center}
-.brand i{width:26px;height:26px;border-radius:7px;background:var(--signal);display:inline-block}
+# Farben und Schriften wie in der App (frontend/src/index.css, tailwind.config.js) – die App ist immer hell, also
+# auch diese Seiten, sonst wechselt beim Klick zwischen App und Hilfe das ganze Bild. Schriften unter /schrift (kopfzeile.py).
+SCHRIFT_BEREICH = (
+    "unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,"
+    "U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+)
+SCHRIFTEN = (
+    "@font-face{font-family:'DM Sans Variable';font-style:normal;font-display:swap;font-weight:100 1000;"
+    f"src:url(/schrift/dm-sans-latin-opsz.woff2) format('woff2-variations');{SCHRIFT_BEREICH}}}"
+    "@font-face{font-family:'Bricolage Grotesque Variable';font-style:normal;font-display:swap;font-weight:200 800;"
+    f"src:url(/schrift/bricolage-grotesque-latin-opsz.woff2) format('woff2-variations');{SCHRIFT_BEREICH}}}"
+)
+SCHRIFT_VORLADEN = "".join(
+    f'<link rel="preload" href="/schrift/{datei}" as="font" type="font/woff2" crossorigin>'
+    for datei in ("dm-sans-latin-opsz.woff2", "bricolage-grotesque-latin-opsz.woff2")
+)
+
+STYLE = SCHRIFTEN + """
+:root{--bg:hsl(50 16% 92.5%);--card:#fff;--ink:#141414;--muted:hsl(60 2% 34%);--line:hsl(50 8% 84%);--signal:#ffc83d;
+--sans:"DM Sans Variable","DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--display:"Bricolage Grotesque Variable","Bricolage Grotesque","DM Sans Variable",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
+.wrap{max-width:960px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-left)) 24px}
+h1,h2,h3{font-family:var(--display)}
 h1{font-size:clamp(34px,6vw,56px);line-height:1;letter-spacing:-.04em;margin:0 0 12px;text-wrap:balance}
 .lead{color:var(--muted);font-size:19px;max-width:60ch;margin:0 0 28px}
 .list{display:grid;gap:12px;padding:0;margin:0;list-style:none}
@@ -203,9 +221,9 @@ def _page(title: str, description: str, canonical_path: str, body: str, json_ld:
         "<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"de_DE\">"
         f"<meta property=\"og:image\" content=\"{_e(public_url())}{_e(og_bild)}\"><meta property=\"og:image:width\" content=\"1200\">"
         "<meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\">"
-        f"{extra_head}<style>{STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body><div class=\"wrap\">"
-        "<div class=\"top\"><a class=\"brand\" href=\"/\"><i></i>Dranzeit</a>"
-        "<nav><a href=\"/hilfe\">Hilfe</a><a href=\"/features\">Für Läden</a></nav></div>"
+        f"{SCHRIFT_VORLADEN}{extra_head}<style>{STYLE}{kopfzeile.STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body>"
+        # Dieselbe Kopfzeile wie in der App (app/kopfzeile.py), damit man auf Hilfe und Salonseiten im selben Menü bleibt
+        f"{kopfzeile.kopfzeile(canonical_path)}<div class=\"wrap\">"
         f"{body}"
         "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
         "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/rechner\">Ersparnis-Rechner</a><a href=\"/hilfe\">Hilfe</a>"
