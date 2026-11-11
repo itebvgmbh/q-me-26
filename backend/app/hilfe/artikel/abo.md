@@ -21,7 +21,7 @@ Läuft deine Testphase noch, beginnt die Abrechnung erst nach ihrem Ende, in den
 
 ## Wechseln, Zahlungsart, Rechnungen
 
-Bei laufendem Abo steht unter „Mein Tarif“ der Knopf **„Abo verwalten, Rechnungen, kündigen“**. Er öffnet das Kundenportal von Stripe. Dort kannst du:
+Bei laufendem Abo steht unter „Mein Tarif“ der Knopf **„Abo verwalten, Zahlungsart, kündigen“**. Er öffnet das Kundenportal von Stripe. Dort kannst du:
 
 - Tarif oder Zahlweise wechseln (dahin führt auch **„Wechseln“** bei den Tarifen), den Unterschied rechnet Stripe anteilig ab
 - die Zahlungsart ändern
@@ -32,7 +32,7 @@ Jede Rechnung bekommst du außerdem per E-Mail. Unter „Mein Tarif“ → **„
 
 ## Kündigen
 
-1. Tipp unter „Mein Tarif“ auf **„Abo verwalten, Rechnungen, kündigen“**.
+1. Tipp unter „Mein Tarif“ auf **„Abo verwalten, Zahlungsart, kündigen“**.
 2. Kündige im Kundenportal das Abo.
 
 Es läuft bis zum Ende des bezahlten Monats oder Jahres weiter. Unter „Mein Tarif“ steht dann „Gekündigt zum …“ mit dem Datum. Danach läuft dein Laden im [Gratis-Tarif](/hilfe/gratis-tarif) weiter, gelöscht wird nichts. Ohne Kündigung verlängert sich das Abo jeweils um denselben Zeitraum.

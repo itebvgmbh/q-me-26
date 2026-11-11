@@ -39,6 +39,6 @@ Nimm dafür nicht „Deaktivieren“: Dann sieht die Person auch „Mein Tag“ 
 
 Pausen und neue Zeiten gelten nur für neue Buchungen. Wer schon eine Nummer oder einen Termin hat, bleibt eingetragen. Dranzeit sagt niemandem von selbst ab. Liegt ein Termin in einer wöchentlichen Pause, ist er unter „Mein Tag“ als **„Konflikt“** markiert.
 
-Verschieb solche Kunden unter **„Kalender“** in der Liste **„Alle Termine am …“** über **„Bearbeiten“** oder sag sie dort über **„Status“** → **„Abgesagt“** ab. Die Liste klappst du unten mit **„Alle Termine als Liste – zum Bearbeiten“** auf. Der Kunde sieht die Absage auf seiner Nummer-Seite. Eine Nachricht verschickt Dranzeit dafür nicht.
+Verschieb solche Kunden unter **„Kalender“** in der Liste **„Alle Termine am …“** über **„Bearbeiten“** oder sag sie dort über **„Status“** → **„Abgesagt“** ab. Die Liste klappst du unten mit **„Alle Termine als Liste – zum Bearbeiten“** auf. Der Kunde sieht die Absage auf seiner Nummer-Seite. Hat er Benachrichtigungen an, bekommt er außerdem eine Nachricht.
 
 [Zum Team](/staff-management){knopf}

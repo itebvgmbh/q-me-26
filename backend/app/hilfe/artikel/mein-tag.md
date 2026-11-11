@@ -9,7 +9,7 @@ stichworte: mein tag, zeitleiste, kalender, woche, tage, verschieben, ziehen, ko
 
 Als Mitarbeiter findest du „Mein Tag“ oben im Menü. Wer in mehreren Läden im Team ist, wählt oben den Laden.
 
-Als Inhaber öffnest du es unter **„Laden“** → **„Mein Tag“**: für deine Woche, deine Arbeitszeiten, **„Kunde anlegen“** und die **„Kundenliste“**. Für den heutigen Tag nimmst du einfacher **„Heute“** mit **„Nur ich“**, dort rufst du deine Kunden auch auf. Arbeitest du selbst mit, trag dich unter **„Laden“** → **„Team“** mit deiner E-Mail ein. Sonst steht in „Mein Tag“ „Du nimmst noch keine Termine an.“, und „Nur ich“ fehlt. Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
+Als Inhaber öffnest du es unter **„Laden“** → **„Mein Tag“**: für deine Woche, deine Arbeitszeiten, **„Kunde anlegen“** und die **„Kundenliste“**. Für den heutigen Tag nimmst du einfacher **„Heute“** mit **„Nur ich“**, dort rufst du deine Kunden auch auf. Arbeitest du selbst mit, trag dich unter **„Laden“** → **„Team“** mit deiner E-Mail ein. Sonst steht in „Mein Tag“ „Die Termine deines Teams stehen am Tresen.“, und „Nur ich“ fehlt. Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
 
 ## Zeitraum wählen
 
@@ -19,10 +19,10 @@ In der Zeitleiste ist die rote Linie die aktuelle Uhrzeit, deine wöchentlichen 
 
 ## Termin eintragen
 
-1. Tipp auf eine freie Stelle in der Zeitleiste. Das Fenster **„Neuen Termin anlegen“** öffnet sich mit dieser Uhrzeit. Oder tipp oben am Tag auf **„+ Termin“**, dann ist die nächste Viertelstunde vorbelegt.
+1. Tipp auf eine freie Stelle in der Zeitleiste. Das Fenster **„Termin eintragen“** öffnet sich mit dieser Uhrzeit. Oder tipp oben am Tag auf **„+ Termin“**, dann ist die nächste Viertelstunde vorbelegt.
 2. Trag den Namen ein oder wähl unter **„Bestandskunde“** jemanden aus.
 3. Wähl die **Leistung** und prüf die **Dauer**.
-4. Tipp auf **„Termin anlegen“**.
+4. Tipp auf **„Termin eintragen“**.
 
 Passt die Zeit nicht, etwa wegen einer Pause, nennt Dranzeit den Grund und speichert nichts.
 

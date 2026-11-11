@@ -29,6 +29,7 @@ BEGIN, END = "# >>> dranzeit", "# <<< dranzeit"
 BACKEND_PATHS = (
     "/routes/* /friseur-ohne-termin /friseur-ohne-termin/* /barbershop-ohne-termin /barbershop-ohne-termin/* /sitemap.xml /hilfe /hilfe/*"
     " /friseur /friseur/* /barbershop /barbershop/*"  # Salon-Verzeichnis (backend/app/verzeichnis_seiten.py)
+    " /en/hilfe /en/hilfe/* /tr/hilfe /tr/hilfe/* /ar/hilfe /ar/hilfe/*"  # Hilfe in anderen Sprachen (backend/app/hilfe)
     " /einbau/*"  # Kasten für Webseiten der Läden (backend/app/einbau.py)
     " /vergleich /vergleich/*"  # alte Vergleichsseite, leitet nach salonlotse.de weiter (backend/app/vergleich.py)
     " /api/*"  # Termin-API der Läden mit Beschreibung unter /api/v1/docs (backend/app/schnittstelle)

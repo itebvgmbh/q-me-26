@@ -20,6 +20,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app import kopfzeile
+from app.i18n import ist_rtl, merke, t, uebersetze
 
 BERLIN = ZoneInfo("Europe/Berlin")
 CACHE_SECONDS = 60
@@ -188,48 +189,79 @@ footer button{background:none;border:0;padding:0;font:inherit;color:inherit;text
 # React-App, ausgeliefert unter /statistik.js). Hier nur der Banner für die Seiten vom Backend, gleicher Text wie
 # frontend/src/components/CookieBanner.tsx. Ohne statistik.js (oder in der App aus dem Store) bleibt er verborgen.
 STATISTIK_KOPF = '<script src="/statistik.js" defer></script>'
-COOKIE_BANNER = (
-    "<section class=\"cookies\" id=\"cookies\" aria-label=\"Cookie-Einstellungen\" hidden><div>"
-    "<p>Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die "
-    "USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“. <a href=\"/datenschutz\">Datenschutz</a></p>"
-    "<div class=\"wahl\"><button type=\"button\" data-cookies=\"1\">Alle akzeptieren</button>"
-    "<button type=\"button\" data-cookies=\"0\">Nur notwendige</button></div></div></section>"
+def cookie_banner(sprache: str = "de") -> str:
+    """Frage nach Google Analytics (Texte wie im Cookie-Hinweis der App)"""
+    return (
+        f"<section class=\"cookies\" id=\"cookies\" aria-label=\"{_e(t('Cookie-Einstellungen', sprache))}\" hidden><div>"
+        f"<p>{_e(t('Dürfen wir mit Google Analytics messen, wie Dranzeit genutzt wird? Dafür setzt Google Cookies, Daten können in die USA gehen. Ändern kannst du das jederzeit unter „Cookie-Einstellungen“.', sprache))} "
+        f"<a href=\"/datenschutz\">{_e(t('Datenschutz', sprache))}</a></p>"
+        f"<div class=\"wahl\"><button type=\"button\" data-cookies=\"1\">{_e(t('Alle akzeptieren', sprache))}</button>"
+        f"<button type=\"button\" data-cookies=\"0\">{_e(t('Nur notwendige', sprache))}</button></div></div></section>"
+        + COOKIE_JS
+    )
+
+
+COOKIE_JS = (
     "<script>document.addEventListener('DOMContentLoaded',function(){var s=window.dranzeitStatistik,"
     "b=document.getElementById('cookies'),l=document.getElementById('cookie-einstellungen');if(!s||s.aus||!b)return;"
     "if(l){l.hidden=false;l.addEventListener('click',function(){b.hidden=false})}if(s.wahl()===null)b.hidden=false;"
     "b.addEventListener('click',function(e){var k=e.target.closest('[data-cookies]');if(!k)return;"
     "s.setzen(k.getAttribute('data-cookies')==='1');b.hidden=true})})</script>"
 )
+COOKIE_BANNER = cookie_banner()
+OG_LOCALE = {"de": "de_DE", "en": "en_GB", "tr": "tr_TR", "ar": "ar_AR"}
+
+
+FUSSZEILE = (("/", merke("Startseite")), ("/friseur", merke("Friseure finden")), ("/friseur-ohne-termin", merke("Ohne Termin")),
+             ("/rechner", merke("Ersparnis-Rechner")), ("/hilfe", merke("Hilfe")), ("/impressum", merke("Impressum")),
+             ("/datenschutz", merke("Datenschutz")))
+
+
+def _fusszeile(sprache: str) -> str:
+    def ziel(href: str) -> str:
+        return f"/{sprache}{href}" if href == "/hilfe" and sprache != "de" else href
+
+    return (
+        "<footer>" + "".join(f"<a href=\"{_e(ziel(href))}\">{_e(uebersetze(text, sprache))}</a>" for href, text in FUSSZEILE)
+        + f"<button type=\"button\" id=\"cookie-einstellungen\" hidden>{_e(t('Cookie-Einstellungen', sprache))}</button></footer>"
+    )
 
 
 def _page(title: str, description: str, canonical_path: str, body: str, json_ld: dict | list | None = None,
-          extra_style: str = "", robots: str = "", extra_head: str = "", og_bild: str = "/og-bild.png") -> str:
-    """robots z. B. "noindex,follow" für dünne Seiten; json_ld ein Block oder eine Liste"""
+          extra_style: str = "", robots: str = "", extra_head: str = "", og_bild: str = "/og-bild.png",
+          sprache: str = "de", alternativen: dict[str, str] | None = None) -> str:
+    """robots z. B. "noindex,follow" für dünne Seiten; json_ld ein Block oder eine Liste. sprache und alternativen
+    (Sprache → Adresse derselben Seite) nur für übersetzte Seiten (Hilfe): Sprache und Leserichtung, hreflang für
+    Suchmaschinen, Sprachwahl in der Kopfzeile, Fußzeile und Cookie-Hinweis in der Sprache."""
     blocks = json_ld if isinstance(json_ld, list) else [json_ld] if json_ld else []
     ld = "".join(
         f'<script type="application/ld+json">{json.dumps(b, ensure_ascii=False).replace("</", "<\\/")}</script>' for b in blocks
     )
     url = public_url() + canonical_path
+    hreflang = ""
+    if alternativen and len(alternativen) > 1:
+        hreflang = "".join(f"<link rel=\"alternate\" hreflang=\"{_e(s)}\" href=\"{_e(public_url() + p)}\">"
+                           for s, p in alternativen.items())
+        if "de" in alternativen:
+            hreflang += f"<link rel=\"alternate\" hreflang=\"x-default\" href=\"{_e(public_url() + alternativen['de'])}\">"
+    richtung = " dir=\"rtl\"" if ist_rtl(sprache) else ""
     return (
-        "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\">"
+        f"<!doctype html><html lang=\"{_e(sprache)}\"{richtung}><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">"
         f"<script>{APP_JS}</script>{STATISTIK_KOPF}<title>{_e(title)}</title><meta name=\"description\" content=\"{_e(description)}\">"
         + (f"<meta name=\"robots\" content=\"{_e(robots)}\">" if robots else "") +
         f"<link rel=\"canonical\" href=\"{_e(url)}\"><link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">"
         f"<meta property=\"og:title\" content=\"{_e(title)}\"><meta property=\"og:description\" content=\"{_e(description)}\">"
         f"<meta property=\"og:url\" content=\"{_e(url)}\"><meta property=\"og:site_name\" content=\"Dranzeit\">"
-        "<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"de_DE\">"
+        f"<meta property=\"og:type\" content=\"website\"><meta property=\"og:locale\" content=\"{OG_LOCALE.get(sprache, 'de_DE')}\">"
+        + hreflang +
         f"<meta property=\"og:image\" content=\"{_e(public_url())}{_e(og_bild)}\"><meta property=\"og:image:width\" content=\"1200\">"
         "<meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\">"
         f"{SCHRIFT_VORLADEN}{extra_head}<style>{STYLE}{kopfzeile.STYLE}{APP_STYLE}{extra_style}</style>{ld}</head><body>"
         # Dieselbe Kopfzeile wie in der App (app/kopfzeile.py), damit man auf Hilfe und Salonseiten im selben Menü bleibt
-        f"{kopfzeile.kopfzeile(canonical_path)}<div class=\"wrap\">"
-        f"{body}"
-        "<footer><a href=\"/\">Startseite</a><a href=\"/friseur\">Friseure finden</a>"
-        "<a href=\"/friseur-ohne-termin\">Ohne Termin</a><a href=\"/rechner\">Ersparnis-Rechner</a><a href=\"/hilfe\">Hilfe</a>"
-        "<a href=\"/impressum\">Impressum</a><a href=\"/datenschutz\">Datenschutz</a>"
-        "<button type=\"button\" id=\"cookie-einstellungen\" hidden>Cookie-Einstellungen</button></footer></div>"
-        f"{COOKIE_BANNER}</body></html>"
+        f"{kopfzeile.kopfzeile(canonical_path, sprache, alternativen)}<div class=\"wrap\">"
+        f"{body}{_fusszeile(sprache)}</div>"
+        f"{cookie_banner(sprache)}</body></html>"
     )
 
 
