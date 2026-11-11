@@ -3,6 +3,10 @@
 
 Schreibende Anfragen (alles außer GET/HEAD/OPTIONS) mit Sitzung gehen nur von den eigenen Seiten durch (Origin, siehe
 app/apis/anmeldung.ursprung_pruefen).
+
+Ein per QR-Code gekoppeltes Tablet (Sitzung mit bereich „tresen“, app/libs/geraete.py) darf nur, was auf der
+Freigabeliste steht. Alles andere beantwortet get_authorized_user mit 403 und dem Code `auth/tresen`; öffentliche
+Endpunkte (authorize_request) behandeln die Anfrage dann wie ohne Anmeldung.
 """
 
 from http import HTTPStatus
@@ -25,6 +29,8 @@ class User(BaseModel):
     email: str | None = None
     # Hat die Person ihre E-Mail-Adresse bestätigt?
     email_verified: bool | None = None
+    # None = alles; "tresen" = gekoppeltes Tablet, nur die Freigabeliste (app/libs/geraete.py)
+    bereich: str | None = None
 
 
 def get_audit_log(request: HTTPConnection) -> Callable[[str], None] | None:
@@ -36,20 +42,30 @@ AuditLogDep = Annotated[Callable[[str], None] | None, Depends(get_audit_log)]
 
 def user_from_session(request: HTTPConnection) -> User | None:
     """Konto der Sitzung im Cookie oder None. Wirft nicht (Datenbank nicht erreichbar: None)."""
-    from app.libs.anmeldung import COOKIE, sitzung_pruefen
+    from app.libs.anmeldung import COOKIE, sitzung_lesen
 
     token = request.cookies.get(COOKIE)
     if not token:
         return None
     try:
-        treffer = sitzung_pruefen(token)
+        sitzung = sitzung_lesen(token)
     except Exception as e:
         print(f"Sitzung nicht geprüft: {e.__class__.__name__}: {e}")
         return None
-    if treffer is None:
+    if sitzung is None:
         return None
-    konto = treffer[0]
-    return User(sub=konto.uid, user_id=konto.uid, name=konto.name, email=konto.email, email_verified=konto.email_bestaetigt)
+    konto = sitzung.konto
+    return User(sub=konto.uid, user_id=konto.uid, name=konto.name, email=konto.email, email_verified=konto.email_bestaetigt,
+                bereich=sitzung.bereich)
+
+
+def _ausserhalb_bereich(request: HTTPConnection, user: User) -> bool:
+    """Tresen-Sitzung und der Aufruf steht nicht auf der Freigabeliste"""
+    if not user.bereich:
+        return False
+    from app.libs.geraete import erlaubt
+
+    return not erlaubt(getattr(request, "method", "GET"), request.url.path)
 
 
 def _fremder_ursprung(request: HTTPConnection) -> bool:
@@ -65,6 +81,14 @@ def _fremder_ursprung(request: HTTPConnection) -> bool:
 def get_authorized_user(request: HTTPConnection) -> User:
     user = user_from_session(request)
     if user is not None and not _fremder_ursprung(request):
+        if _ausserhalb_bereich(request, user):
+            from app.i18n import merke
+
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=merke("Am Tresen-Tablet geht das nicht. Melde dich dafür auf deinem eigenen Gerät an."),
+                headers={"X-Anmeldung-Fehler": "auth/tresen"},
+            )
         return user
     if isinstance(request, WebSocket):
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Not authenticated")
@@ -74,4 +98,4 @@ def get_authorized_user(request: HTTPConnection) -> User:
 def authorize_request(request: HTTPConnection, _config=None) -> User | None:
     """Für öffentliche Endpunkte, die ein Konto nur nutzen, wenn eines angemeldet ist (app/libs/ticket.py)"""
     user = user_from_session(request)
-    return None if user is None or _fremder_ursprung(request) else user
+    return None if user is None or _fremder_ursprung(request) or _ausserhalb_bereich(request, user) else user

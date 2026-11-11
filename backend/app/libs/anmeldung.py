@@ -4,7 +4,8 @@ Konten, Sitzungen und Einmal-Links liegen in PostgreSQL (Schema 0003, migrations
 
 - **Passwörter:** Argon2id (argon2-cffi), Einstellungen nach OWASP (19 MiB, 2 Durchläufe).
 - **Sitzung:** Cookie `qme_sitzung` (HttpOnly, Secure, SameSite=Lax) mit 256 Bit Zufall; in der Datenbank steht nur
-  der SHA-256. Sie gilt 180 Tage ab der letzten Nutzung, verlängert wird höchstens alle 12 Stunden.
+  der SHA-256. Sie gilt 180 Tage ab der letzten Nutzung, verlängert wird höchstens alle 12 Stunden. Ein per QR-Code
+  gekoppeltes Tablet bekommt eine Sitzung mit bereich „tresen“: Sie darf nur, was der Tresen braucht (app/libs/geraete.py).
 - **Einmal-Links** (Passwort neu: 1 Stunde, Adresse bestätigen: 3 Tage) gehen per Resend raus
   (app/apis/password_reset, app/apis/email_verification). Auch sie nur als Hash, einmal benutzbar, und nur, solange
   die Adresse des Kontos dieselbe ist.
@@ -277,32 +278,56 @@ def loeschen(uid: str) -> bool:
 # --- Sitzungen --------------------------------------------------------------------------------------------------------
 
 
-def sitzung_anlegen(uid: str, bestaetigt: bool = True) -> str:
-    """Neue Sitzung, Rückgabe: der Wert fürs Cookie. bestaetigt: Passwort wurde gerade eingegeben."""
+@dataclass
+class Sitzung:
+    konto: Konto
+    # wann in dieser Sitzung zuletzt das Passwort eingegeben wurde
+    bestaetigt: datetime | None
+    # None = alles; "tresen" = nur der Tresen (gekoppeltes Tablet, app/libs/geraete.py)
+    bereich: str | None = None
+    laden: str | None = None
+    kennung: str | None = None
+
+
+def sitzung_anlegen(uid: str, bestaetigt: bool = True, *, bereich: str | None = None, laden: str | None = None,
+                    geraet: str | None = None, conn=None) -> str:
+    """Neue Sitzung, Rückgabe: der Wert fürs Cookie. bestaetigt: Passwort wurde gerade eingegeben. bereich/laden/geraet:
+    gekoppeltes Tablet (app/libs/geraete.py). conn: in einer schon offenen Transaktion anlegen."""
     token = secrets.token_urlsafe(32)
     nun = jetzt()
-    with _engine().begin() as conn:
-        conn.execute(_sql(
-            "insert into sitzungen (hash, uid, angelegt, zuletzt, laeuft_ab, bestaetigt) values (:h, :uid, :n, :n, :ab, :b)"
-        ), {"h": hash_von(token), "uid": uid, "n": nun, "ab": nun + SITZUNG_DAUER, "b": nun if bestaetigt else None})
-        conn.execute(_sql("update konten set zuletzt_angemeldet = :n where uid = :uid"), {"n": nun, "uid": uid})
+    werte = {
+        "h": hash_von(token), "uid": uid, "n": nun, "ab": nun + SITZUNG_DAUER, "b": nun if bestaetigt else None,
+        "bereich": bereich, "laden": laden, "geraet": geraet, "kennung": secrets.token_urlsafe(12),
+    }
+
+    def schreiben(c) -> None:
+        c.execute(_sql(
+            "insert into sitzungen (hash, uid, angelegt, zuletzt, laeuft_ab, bestaetigt, bereich, laden, geraet, kennung) "
+            "values (:h, :uid, :n, :n, :ab, :b, :bereich, :laden, :geraet, :kennung)"
+        ), werte)
+        c.execute(_sql("update konten set zuletzt_angemeldet = :n where uid = :uid"), {"n": nun, "uid": uid})
+
+    if conn is not None:
+        schreiben(conn)
+    else:
+        with _engine().begin() as c:
+            schreiben(c)
     return token
 
 
-def sitzung_pruefen(token: str | None) -> tuple[Konto, datetime | None] | None:
-    """Konto zur Sitzung und wann dort zuletzt das Passwort eingegeben wurde, oder None (unbekannt, abgelaufen,
-    Konto gesperrt). Verlängert die Sitzung höchstens alle 12 Stunden."""
+def sitzung_lesen(token: str | None) -> Sitzung | None:
+    """Sitzung zum Cookie oder None (unbekannt, abgelaufen, Konto gesperrt). Verlängert sie höchstens alle 12 Stunden."""
     if not token or len(token) > 200:
         return None
     nun = jetzt()
     with _engine().connect() as conn:
         zeile = conn.execute(_sql(
-            f"select s.zuletzt, s.bestaetigt, {', '.join('k.' + s for s in SPALTEN.split(', '))} "
+            f"select s.zuletzt, s.bestaetigt, s.bereich, s.laden, s.kennung, {', '.join('k.' + s for s in SPALTEN.split(', '))} "
             "from sitzungen s join konten k on k.uid = s.uid where s.hash = :h and s.laeuft_ab > :n"
         ), {"h": hash_von(token), "n": nun}).first()
     if zeile is None:
         return None
-    zuletzt, bestaetigt, *rest = zeile
+    zuletzt, bestaetigt, bereich, laden, kennung, *rest = zeile
     k = Konto(*rest)
     if k.gesperrt:
         return None
@@ -310,7 +335,13 @@ def sitzung_pruefen(token: str | None) -> tuple[Konto, datetime | None] | None:
         with _engine().begin() as conn:
             conn.execute(_sql("update sitzungen set zuletzt = :n, laeuft_ab = :ab where hash = :h"),
                          {"n": nun, "ab": nun + SITZUNG_DAUER, "h": hash_von(token)})
-    return k, bestaetigt
+    return Sitzung(k, bestaetigt, bereich, laden, kennung)
+
+
+def sitzung_pruefen(token: str | None) -> tuple[Konto, datetime | None] | None:
+    """Konto zur Sitzung und wann dort zuletzt das Passwort eingegeben wurde, oder None (wie sitzung_lesen)"""
+    s = sitzung_lesen(token)
+    return (s.konto, s.bestaetigt) if s is not None else None
 
 
 def sitzung_bestaetigen(token: str) -> None:

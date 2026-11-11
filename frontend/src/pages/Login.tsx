@@ -86,6 +86,17 @@ const Login = () => {
               ),
             })}
           </p>
+          {!cameFromBooking && (
+            <p>
+              {tTeile('Tablet am Tresen? <link>Mit dem Handy anmelden, ohne Passwort</link>', {
+                link: (inhalt) => (
+                  <Link to="/koppeln" className="font-semibold text-foreground underline-offset-4 hover:underline">
+                    {inhalt}
+                  </Link>
+                ),
+              })}
+            </p>
+          )}
           {cameFromBooking && (
             <p>
               {tTeile('Ohne Konto geht’s auch: <link>Einfach einreihen</link>', {

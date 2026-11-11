@@ -358,4 +358,10 @@ TEXTE: dict = {
     'Der Assistent von {laden} hat diesen Monat {minuten} Minuten telefoniert, das sind {betrag} € netto. Bei {deckel} € ({grenze} Minuten) hört er bis zum Monatsende auf.': 'تحدث مساعد {laden} هذا الشهر {minuten} دقيقة، أي {betrag} € صافي. عند {deckel} € ({grenze} دقيقة) يتوقف حتى نهاية الشهر.',
     'Den Deckel kannst du jederzeit ändern.': 'يمكنك تغيير الحد الأقصى في أي وقت.',
     'Ab dem {datum} nimmt er wieder ab. Soll er schon vorher weitermachen, erhöh den Deckel.': 'ابتداءً من {datum} يعود للرد. إذا أردت أن يستمر قبل ذلك، ارفع الحد الأقصى.',
+    # Tablet am Tresen koppeln (app/apis/geraete, databutton_app/mw/auth_mw.py)
+    'Am Tresen-Tablet geht das nicht. Melde dich dafür auf deinem eigenen Gerät an.': 'لا يمكن ذلك على جهاز الاستقبال اللوحي. سجّل الدخول لذلك على جهازك الخاص.',
+    'Dieser Code gilt nicht mehr. Am Tablet erscheint gleich ein neuer – scanne den.': 'هذا الرمز لم يعد صالحًا. سيظهر رمز جديد على الجهاز اللوحي بعد قليل – امسحه.',
+    'Ein Tablet koppeln kann nur, wer einen Laden bei Dranzeit hat.': 'لا يمكن ربط جهاز لوحي إلا لمن لديه محل على Dranzeit.',
+    'Wähl den Laden, für den das Tablet ist.': 'اختر المحل الذي يخصه الجهاز اللوحي.',
+    'Dieses Tablet ist schon abgemeldet.': 'تم تسجيل خروج هذا الجهاز اللوحي بالفعل.',
 }

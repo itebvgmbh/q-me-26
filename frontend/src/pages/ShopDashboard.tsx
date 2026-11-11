@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isToday, startOfDay } from 'date-fns';
 import { ChevronDown, ChevronLeft, ChevronRight, Maximize, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCurrentUser } from 'app';
+import { nurTresen, useCurrentUser } from 'app';
 import { teamTerminePfad, useLive } from '../utils/live';
 
 import { AppointmentsList } from '../components/AppointmentsList';
@@ -85,6 +85,8 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
   const [searchParams] = useSearchParams();
   const heute = bereich === 'heute';
   const { user, loading: userLoading } = useCurrentUser();
+  // Gekoppeltes Tablet (pages/Koppeln.tsx): nur der Tresen – keine Einrichtung, kein Tarif, kein Team anlegen
+  const tresen = nurTresen(user);
   // Welcher Laden: oben in der Kopfzeile gewählt (utils/laden-kontext.tsx)
   const { laeden, laden, fehler: ladenFehler, ersetze } = useInhaberLaden();
   const [shop, setShop] = useState<Shop | null>(null);
@@ -248,7 +250,7 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
 
   // Einmal je Gerät fragen, wofür es da ist (utils/geraet.ts) – am Tresen, sobald der Laden steht
   useEffect(() => {
-    if (heute && shop) setGeraetFragen(jetztFragen());
+    if (heute && shop && !tresen) setGeraetFragen(jetztFragen());
   }, [heute, shop?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const waehleGeraet = (rolle: GeraetRolle) => {
@@ -309,12 +311,12 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
 
   // Erste Schritte nur am Tresen – im Kalender wäre es dieselbe Liste ein zweites Mal. Wartet heute jemand oder ist
   // jemand dran, gehört die Schlange nach oben und die Liste darunter.
-  const startklar = heute && <Startklar key={shop.id} shop={shop} staff={staff} appointments={appointments} onEditShop={() => setShowEditShop(true)} />;
+  const startklar = heute && !tresen && <Startklar key={shop.id} shop={shop} staff={staff} appointments={appointments} onEditShop={() => setShowEditShop(true)} />;
   const kundenDa = heute && appointments.some((a) => a.status === 'scheduled' || a.status === 'in-progress');
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-      <PlanBanner shop={shop} />
+      {!tresen && <PlanBanner shop={shop} />}
       {heute && <TelefonHinweisLaden shopId={shop.id} />}
       {!kundenDa && startklar}
 
@@ -439,7 +441,11 @@ const ShopDashboard = ({ bereich = 'heute' }: { bereich?: Bereich }) => {
         <div className="flex flex-col items-start gap-3 rounded-3xl border border-border bg-card p-6">
           <p className="font-display text-xl font-bold">{t('Noch niemand im Team.')}</p>
           <p className="text-sm text-muted-foreground">{t('Ohne Team gibt es keine freien Zeiten. Leg dich selbst oder deine Leute an.')}</p>
-          <Button onClick={() => navigate('/staff-management')}>{t('Team anlegen')}</Button>
+          {tresen ? (
+            <p className="text-sm">{t('Das Team legst du auf deinem Handy unter „Laden“ an.')}</p>
+          ) : (
+            <Button onClick={() => navigate('/staff-management')}>{t('Team anlegen')}</Button>
+          )}
         </div>
       ) : heute ? (
         <div className={cn('grid gap-4', lanes.length > 1 && 'md:grid-cols-2 xl:grid-cols-3')}>

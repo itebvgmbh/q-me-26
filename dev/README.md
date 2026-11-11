@@ -55,6 +55,7 @@ node dev/e2e/bilder-hochladen.cjs           # Logo und Foto im Testladen hochlad
 node dev/e2e/betrieb-seiten.cjs             # Betriebsseiten Handy + Desktop: Dialoge, Team, Leistungen, Nummer vergeben, Rechte im Backend
 node dev/e2e/leistungen-kunden.cjs          # Leistung löschen/zurückholen, Ladenauswahl, Vorlaufzeit für Online-Termine, Kunde anlegen + /activate (braucht das Backend ab diesem Stand)
 node dev/e2e/team-einladen.cjs             # Person anlegen → Link/E-Mail → Konto anlegen oder bestehendes verbinden, Deaktivieren/Zurückholen, zwei Läden (braucht das Backend ab diesem Stand)
+node dev/e2e/koppeln.cjs                    # Tablet am Tresen per QR-Code koppeln: Prüfzahl, Bestätigen am Handy, nur Tresen (Navigation, Seiten, Backend), Abmelden unter „Laden“ (Wegwerf-Laden; braucht das Backend ab diesem Stand)
 node dev/e2e/email-bestaetigen.cjs          # Registrieren → Profil „noch nicht bestätigt“ → noch mal schicken → /email-bestaetigen (ungültig, gültig nachgebildet); QME_RESEND_TEST=1: echter Versand an delivered+…@resend.dev (braucht das Backend ab diesem Stand)
 node dev/e2e/passwort-neu.cjs              # „Passwort vergessen?“ (Backend, ohne Resend Firebase, zu oft) und /passwort-neu (gültig, zu kurz, abgelaufen) – Backend und Firebase nachgebildet, keine Testdaten nötig
 node dev/e2e/passwort-aendern.cjs           # Mein Profil → Passwort ändern: falsches/gleiches abgelehnt, danach nur neues gültig, „vergessen?“ (Wegwerf-Konto, Mail nachgebildet)

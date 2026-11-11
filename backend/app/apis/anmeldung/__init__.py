@@ -31,6 +31,7 @@ TEXTE = {
     "auth/requires-recent-login": merke("Gib zuerst dein bisheriges Passwort ein."),
     "auth/unauthenticated": merke("Du bist nicht angemeldet."),
     "auth/wrong-origin": merke("Diese Anfrage kam nicht von Dranzeit."),
+    "auth/tresen": merke("Am Tresen-Tablet geht das nicht. Melde dich dafür auf deinem eigenen Gerät an."),
 }
 
 
@@ -65,12 +66,14 @@ def cookie_loeschen(response: Response) -> None:
 
 
 def eigene_sitzung(request: Request):
-    """(Konto, bestaetigt, Token) der Anfrage oder 401"""
+    """(Konto, bestaetigt, Token) der Anfrage oder 401. Ein gekoppeltes Tablet (Tresen-Sitzung) darf hier nichts: 403."""
     token = request.cookies.get(COOKIE)
-    treffer = anmeldung.sitzung_pruefen(token)
-    if treffer is None:
+    sitzung = anmeldung.sitzung_lesen(token)
+    if sitzung is None:
         raise fehler("auth/unauthenticated", 401)
-    return treffer[0], treffer[1], token
+    if sitzung.bereich:
+        raise fehler("auth/tresen", 403)
+    return sitzung.konto, sitzung.bestaetigt, token
 
 
 def _ausfuehren(fn, *args):
@@ -121,15 +124,23 @@ def abmelden(request: Request, response: Response) -> dict:
 @router.get("/anmeldung/ich")
 def ich(request: Request, response: Response) -> dict:
     """Eigenes Konto. Ohne gültige Sitzung {"uid": null} (kein Fehler: Das fragt jede Seite beim Öffnen, auch ohne
-    Anmeldung), ein abgelaufenes Cookie wird dabei gelöscht."""
+    Anmeldung), ein abgelaufenes Cookie wird dabei gelöscht. Ein gekoppeltes Tablet bekommt dazu bereich „tresen“
+    und den Laden, für den es gekoppelt wurde."""
     response.headers["Cache-Control"] = "no-store"
     token = request.cookies.get(COOKIE)
-    treffer = anmeldung.sitzung_pruefen(token)
-    if treffer is None:
+    sitzung = anmeldung.sitzung_lesen(token)
+    if sitzung is None:
         if token:
             cookie_loeschen(response)
         return {"uid": None}
-    return treffer[0].oeffentlich()
+    return oeffentlich(sitzung)
+
+
+def oeffentlich(sitzung: anmeldung.Sitzung) -> dict:
+    daten = sitzung.konto.oeffentlich()
+    if sitzung.bereich:
+        daten.update({"bereich": sitzung.bereich, "laden": sitzung.laden})
+    return daten
 
 
 @router.post("/anmeldung/passwort-pruefen")

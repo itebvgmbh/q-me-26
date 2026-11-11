@@ -71,6 +71,10 @@ jobs:
         env:
           QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
         run: .venv/bin/python tests/test_anmeldung.py
+      - name: Tablet am Tresen koppeln (app/libs/geraete.py, app/apis/geraete)
+        env:
+          QME_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/q_me_test
+        run: .venv/bin/python tests/test_geraete.py
       - name: Keine Google- und Firebase-Pakete mehr
         run: .venv/bin/python tests/test_speicher_gebuendelt.py
       - name: Live-Daten für Nummer und Bildschirm (app/apis/live)

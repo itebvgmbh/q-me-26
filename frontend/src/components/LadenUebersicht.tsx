@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, CalendarDays, CreditCard, KeyRound, Monitor, Phone, Plus, Scissors, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GeraetWahl } from './GeraetWahl';
+import { GekoppelteTablets } from './GekoppelteTablets';
 import { TeamPushSchalter } from './TeamPushSchalter';
 import { inStoreApp } from '../utils/app-shell';
 import { ROLLEN, gespeichertesGeraet, merkeGeraet, type GeraetRolle } from '../utils/geraet';
@@ -81,6 +82,13 @@ export function LadenUebersicht({ shopId }: { shopId: string }) {
           </Button>
         </div>
         <TeamPushSchalter />
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="tablets-tresen">
+        <h2 id="tablets-tresen" className="font-display text-2xl font-bold">
+          {t('Tablets am Tresen')}
+        </h2>
+        <GekoppelteTablets />
       </section>
 
       <GeraetWahl open={fragen} onChoose={waehle} onLater={() => setFragen(false)} />

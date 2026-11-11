@@ -1,4 +1,4 @@
-import type { User } from "./konto";
+import { nurTresen, type User } from "./konto";
 import * as React from "react";
 import { createContext, useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
@@ -25,6 +25,9 @@ export const useUserGuardContext = () => {
 
   return context;
 };
+
+/** Seiten, die ein gekoppeltes Tablet am Tresen öffnen darf (app/auth/konto.ts, nurTresen) */
+const TRESEN_SEITEN = ["/shop-dashboard", "/shopdashboard", "/kalender", "/logout"];
 
 /**
  * All protected routes are wrapped in a UserGuard component.
@@ -56,6 +59,11 @@ export const UserGuard = (props: {
     const queryString = queryParams.toString();
 
     return <Navigate to={`/login?${queryString}`} replace={true} />;
+  }
+
+  // Gekoppeltes Tablet am Tresen: nur Heute, Kalender und Abmelden (das Backend lässt ohnehin nur den Tresen zu)
+  if (nurTresen(user) && !TRESEN_SEITEN.includes(pathname)) {
+    return <Navigate to="/shop-dashboard" replace={true} />;
   }
 
   return (

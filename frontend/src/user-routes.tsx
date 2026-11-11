@@ -33,6 +33,8 @@ const EmployeeDashboard = lazyPage(() => import("./pages/EmployeeDashboard.tsx")
 const Features = lazyPage(() => import("./pages/Features.tsx"));
 const Impressum = lazyPage(() => import("./pages/Impressum.tsx"));
 const Login = lazyPage(() => import("./pages/Login.tsx"));
+const Koppeln = lazyPage(() => import("./pages/Koppeln.tsx"));
+const KoppelnBestaetigen = lazyPage(() => import("./pages/KoppelnBestaetigen.tsx"));
 const Logout = lazyPage(() => import("./pages/Logout.tsx"));
 const MyBookings = lazyPage(() => import("./pages/MyBookings.tsx"));
 const Nummer = lazyPage(() => import("./pages/Nummer.tsx"));
@@ -104,6 +106,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/join-queue-refactored", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/joinqueuerefactored", element: <RedirectKeepQuery to="/public-join-queue" />},
 	{ path: "/login", element: <Login />},
+	// Tablet am Tresen per QR-Code anmelden (am Tablet) und bestätigen (am Handy des Inhabers)
+	{ path: "/koppeln", element: <Koppeln />},
+	{ path: "/koppeln/bestaetigen", element: <UserGuard><KoppelnBestaetigen /></UserGuard>},
 	{ path: "/logout", element: <UserGuard><Logout /></UserGuard>},
 	{ path: "/my-bookings", element: <UserGuard><MyBookings /></UserGuard>},
 	{ path: "/mybookings", element: <UserGuard><MyBookings /></UserGuard>},
