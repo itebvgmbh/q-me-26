@@ -397,11 +397,6 @@ def lage(street: str, postal_code: str, city: str, get=None) -> Optional[dict]:
         return None
     if key in _osm_cache:
         return _osm_cache[key]
-    if get is None:
-        import requests
-
-        get = requests.get
-    global _osm_last
     params = {"countrycodes": "de", "format": "jsonv2", "addressdetails": 1, "limit": 1}
     if street:
         params["street"] = street
@@ -409,6 +404,22 @@ def lage(street: str, postal_code: str, city: str, get=None) -> Optional[dict]:
         params["postalcode"] = postal_code
     if city:
         params["city"] = city
+    data = osm_suche(params, get)
+    if data is None:
+        return None
+    result = lage_aus_osm(data)
+    _osm_cache[key] = result
+    return result
+
+
+def osm_suche(params: dict, get=None) -> Optional[list]:
+    """Eine Nominatim-Suche, höchstens ein Abruf je Sekunde für das ganze Backend (Verzeichnis und Läden finden,
+    app/apis/suche). None, wenn OpenStreetMap nicht erreichbar ist."""
+    if get is None:
+        import requests
+
+        get = requests.get
+    global _osm_last
     with _osm_lock:
         wait = 1.1 - (time.monotonic() - _osm_last)
         if wait > 0:
@@ -421,11 +432,7 @@ def lage(street: str, postal_code: str, city: str, get=None) -> Optional[dict]:
             data = None
         finally:
             _osm_last = time.monotonic()
-    if data is None:
-        return None
-    result = lage_aus_osm(data)
-    _osm_cache[key] = result
-    return result
+    return data
 
 
 # --- Neue Einträge -------------------------------------------------------------------------------------------------

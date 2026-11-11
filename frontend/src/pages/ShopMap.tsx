@@ -1,419 +1,400 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Shop, Service } from '../utils/firestore/types';
-import { fetchMarketplaceShops, getServicesForShops, searchShops, ShopSearchFilters } from '../utils/marketplace';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { List, LocateFixed, Map as KartenIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { merke, t, tn } from '@/i18n';
 import { ConnectionProblem } from '../components/ConnectionProblem';
-import { ShopCard } from '../components/ShopCard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Search, MapPin, Navigation2 } from 'lucide-react';
-import { geocodeAddress, calculateDistance, enrichShopsWithCoordinates } from '../utils/geocoding';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { INDUSTRIES } from '../utils/industries';
-import { loadKartenSalons, type KartenSalon } from '../utils/verzeichnis';
-import { useWartende } from '../utils/laden-live';
-import { t, tn } from '@/i18n';
+import { SuchLeiste, type WoWahl } from '../components/suche/SuchLeiste';
+import { SuchKarte } from '../components/suche/SuchKarte';
+import { SalonZeile, TrefferKarte } from '../components/suche/TrefferKarte';
+import {
+  ergebnis,
+  ortAusListe,
+  RADIUS_KM,
+  zeitenFuer,
+  zustandAus,
+  zustandParams,
+  type Bereich,
+  type Filter,
+  type Grenzen,
+  type Ort,
+  type Punkt,
+  type Sortierung,
+  type Zustand,
+} from '../utils/suche';
+import { ORTE, ortAufloesen, useFreieZeiten, useSuchDaten } from '../utils/suche-daten';
 
-// Marker-Bilder aus dem eigenen Build statt vom CDN (keine Abrufe bei Dritten)
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
+const FILTER_TEXT: Record<Filter, string> = {
+  offen: merke('Jetzt geöffnet'),
+  heute: merke('Heute Termin frei'),
+  kurz: merke('Kaum Wartezeit'),
+  termine: merke('Online-Termine'),
+};
+const SORT_TEXT: Record<Sortierung, string> = {
+  empfohlen: merke('Empfohlen'),
+  entfernung: merke('Entfernung'),
+  warten: merke('Wartezeit'),
+  preis: merke('Preis'),
+};
+const BERLIN: Ort = { name: 'Berlin', typ: 'stadt', lat: 52.517, lng: 13.389 };
 
-// Salons aus dem Verzeichnis (noch ohne Dranzeit): grauer Marker
-const verzeichnisIcon = L.icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-  className: 'grayscale opacity-75',
-});
-
-/**
- * Kartenausschnitt: um den eigenen Standort oder die gesuchte Adresse, sonst so, dass alle Läden und Salons zu sehen
- * sind. Die Mitte von MapContainer gilt nur beim ersten Zeichnen – darum hier, sonst bliebe die Karte bei ganz Deutschland.
- */
-const KarteAusschnitt: React.FC<{ mitte: [number, number] | null; punkte: [number, number][] }> = ({ mitte, punkte }) => {
-  const map = useMap();
-  const punkteKey = punkte.map((p) => p.join(',')).join(';');
+/** Uhrzeit für offen/zu und „heute“: jede Minute neu */
+const useJetzt = () => {
+  const [jetzt, setJetzt] = useState(() => new Date());
   useEffect(() => {
-    if (mitte) map.setView(mitte, 13);
-    else if (punkte.length === 1) map.setView(punkte[0], 14);
-    else if (punkte.length > 1) map.fitBounds(L.latLngBounds(punkte), { padding: [40, 40], maxZoom: 14 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, mitte?.[0], mitte?.[1], punkteKey]);
-  return null;
+    const timer = setInterval(() => setJetzt(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return jetzt;
 };
 
-interface ShopWithCoordinates extends Shop {
-  // Verwendung des vorhandenen coordinates-Felds vom Shop-Interface
-  // und Hinzufügen eines optionalen distance-Felds
-  distance?: number;
-}
-
+/**
+ * Läden finden: Was? + Wo?, Filter, Liste und Karte nebeneinander (am Handy umschaltbar). Logik in utils/suche.ts,
+ * Daten aus backend/app/apis/suche. In der Adresse stehen nur Eingaben (?was=…&wo=…&filter=…&sort=…), nie der
+ * eigene Standort oder der Kartenausschnitt.
+ */
 const ShopMap = () => {
-  const navigate = useNavigate();
-  const [shops, setShops] = useState<ShopWithCoordinates[]>([]);
-  const [services, setServices] = useState<{[shopId: string]: Service[]}>({});
-  const [loading, setLoading] = useState(true);
-  // Datenbank nicht erreichbar – sonst sähe es aus, als gäbe es keine Shops
-  const [loadError, setLoadError] = useState<unknown>(null);
-  const [searchInput, setSearchInput] = useState("");
-  const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([51.1657, 10.4515]); // Deutschland Zentrum
-  const [maxDistance, setMaxDistance] = useState<number>(20); // Standardmäßig 20 km
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('');
-  // Salons ohne Dranzeit (Verzeichnis): zeigen, wo sie sind; buchen geht dort nicht
-  const [salons, setSalons] = useState<KartenSalon[]>([]);
-  const [searchCenter, setSearchCenter] = useState<[number, number] | null>(null);
+  const [params, setParams] = useSearchParams();
+  const zustand = useMemo(() => zustandAus(params), [params]);
+  const { daten, fehler, nochmal } = useSuchDaten();
+  const jetzt = useJetzt();
 
+  const [ort, setOrt] = useState<Ort | null>(null);
+  const [ortStatus, setOrtStatus] = useState<'ok' | 'sucht' | 'nicht' | 'fehler'>('ok');
+  const [nahe, setNahe] = useState<Punkt | null>(null);
+  const [naheStatus, setNaheStatus] = useState<'aus' | 'sucht' | 'an' | 'abgelehnt'>('aus');
+  const [kartenBereich, setKartenBereich] = useState<Grenzen | null>(null);
+  const [aktiv, setAktiv] = useState<string | null>(null);
+  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
+  const [ansicht, setAnsicht] = useState<'liste' | 'karte'>('liste');
+  const [zaehler, setZaehler] = useState(0);
+  const karten = useRef<Record<string, HTMLElement | null>>({});
+
+  const setzeZustand = useCallback(
+    (neu: Partial<Zustand>, ersetzen = false) => setParams(zustandParams({ ...zustand, ...neu }, params), { replace: ersetzen }),
+    [params, setParams, zustand],
+  );
+
+  // Ort aus der Adresse: erst die eigene Liste, sonst Backend (PLZ, Straße, andere Stadt)
   useEffect(() => {
-    loadKartenSalons().then(setSalons);
-  }, []);
-
-  const reference = searchCenter ?? userPosition;
-  const visibleSalons = salons
-    .filter((s) => !selectedIndustry || selectedIndustry === 'barbershop')
-    .map((s) => ({ ...s, distance: reference ? calculateDistance(reference[0], reference[1], s.latitude, s.longitude) : undefined }))
-    .filter((s) => s.distance === undefined || s.distance <= maxDistance)
-    .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0) || a.name.localeCompare(b.name));
-  const wartende = useWartende(shops.slice(0, 40).map((shop) => shop.id));
-  const kartenPunkte: [number, number][] = [
-    ...shops.filter((shop) => shop.coordinates).map((shop): [number, number] => [shop.coordinates!.latitude, shop.coordinates!.longitude]),
-    ...visibleSalons.map((s): [number, number] => [s.latitude, s.longitude]),
-  ];
-
-  // Benutzerstandort ermitteln
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserPosition([latitude, longitude]);
-          setMapCenter([latitude, longitude]);
-          setLocationPermission('granted');
-        },
-        (error) => {
-          console.error('Error getting user location:', error);
-          setLocationPermission('denied');
-        }
-      );
-    } else {
-      console.error('Geolocation is not supported by this browser.');
+    const wo = zustand.wo;
+    if (!wo) {
+      setOrt(null);
+      setOrtStatus('ok');
+      return;
     }
-  };
-
-  // Shops laden und Koordinaten hinzufügen
-  useEffect(() => {
-    const loadShopsAndCoordinates = async () => {
-      setLoading(true);
-      try {
-        // Alle Shops laden
-        setLoadError(null);
-        const shopsData = await fetchMarketplaceShops();
-        
-        // Koordinaten für jeden Shop hinzufügen
-        const shopsWithCoordinates = await enrichShopsWithCoordinates(shopsData);
-        
-        // Nach Entfernung sortieren, wenn Benutzerstandort bekannt ist
-        let filteredShops = shopsWithCoordinates;
-        
-        // Filtern nach Branche, wenn eine ausgewählt ist
-        if (selectedIndustry) {
-          filteredShops = filteredShops.filter(shop => shop.industry === selectedIndustry);
-        }
-        
-        // Filtern und sortieren nach Entfernung
-        const sortedShops = userPosition
-          ? filteredShops
-              .filter(shop => shop.coordinates) // Nur Shops mit gültigen Koordinaten
-              .map(shop => {
-                // Berechne die Entfernung zum Benutzer
-                let distance = undefined;
-                if (shop.coordinates) {
-                  distance = calculateDistance(
-                    userPosition[0], userPosition[1],
-                    shop.coordinates.latitude, shop.coordinates.longitude
-                  );
-                }
-                return { ...shop, distance };
-              })
-              .filter(shop => shop.distance === undefined || shop.distance <= maxDistance)
-              .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
-          : filteredShops;
-        
-        setShops(sortedShops);
-        
-        // Services für die Shops laden
-        if (sortedShops.length > 0) {
-          const shopIds = sortedShops.map(shop => shop.id);
-          const servicesData = await getServicesForShops(shopIds);
-          setServices(servicesData);
-        }
-      } catch (error) {
-        console.error('Error loading shops with coordinates:', error);
-        setLoadError(error);
-      } finally {
-        setLoading(false);
-      }
+    if (ort && ort.name === wo) return;
+    const ausListe = /^berlin$/i.test(wo.trim()) ? BERLIN : ortAusListe(wo, ORTE);
+    if (ausListe) {
+      setOrt(ausListe);
+      setOrtStatus('ok');
+      setZaehler((z) => z + 1);
+      return;
+    }
+    let aktuell = true;
+    setOrtStatus('sucht');
+    ortAufloesen(wo)
+      .then((o) => {
+        if (!aktuell) return;
+        setOrt(o ? { ...o, name: wo } : null);
+        setOrtStatus(o ? 'ok' : 'nicht');
+        setZaehler((z) => z + 1);
+      })
+      .catch(() => aktuell && setOrtStatus('fehler'));
+    return () => {
+      aktuell = false;
     };
-    
-    loadShopsAndCoordinates();
-  }, [userPosition, maxDistance, selectedIndustry]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zustand.wo]);
 
-  // Bei Eingabe im Suchfeld
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
-  };
+  const bereich: Bereich | null = kartenBereich
+    ? { grenzen: kartenBereich }
+    : ort
+      ? { mitte: ort, radiusKm: RADIUS_KM[ort.typ], ort }
+      : nahe
+        ? { mitte: nahe, radiusKm: RADIUS_KM.nahe }
+        : null;
+  const anfrage = { was: zustand.was, bereich, filter: zustand.filter, sortierung: zustand.sortierung };
+  const laeden = daten?.laeden ?? [];
+  const frei = useFreieZeiten(daten ? zeitenFuer(laeden, anfrage) : [], zustand.was);
+  const e = daten ? ergebnis(laeden, daten.salons, anfrage, frei, jetzt) : null;
+  const alleTreffer = e ? [...e.treffer, ...e.weiter] : [];
+  const woAnzeige = kartenBereich ? t('Kartenausschnitt') : ort ? ort.name : nahe ? t('In deiner Nähe') : '';
 
-  // Suchfunktion ausführen
-  const handleSearch = async () => {
-    setLoading(true);
-    try {
-      if (searchInput.trim()) {
-        // Nach Adresse suchen und Karte zentrieren
-        const coordinates = await geocodeAddress(searchInput);
-        if (coordinates) {
-          setMapCenter(coordinates);
-          setSearchCenter(coordinates);
-          // Wir setzen nicht den userPosition, um die Unterscheidung zwischen
-          // tatsächlichem Standort und Suchposition zu bewahren
-          
-          // Shops nach Entfernung zur Suchadresse filtern
-          const shopsWithDistance = shops.map(shop => {
-            if (shop.coordinates) {
-              // Berechne Entfernung zur Suchadresse
-              const distance = calculateDistance(
-                coordinates[0], coordinates[1],
-                shop.coordinates.latitude, shop.coordinates.longitude
-              );
-              return { ...shop, distance };
-            }
-            return shop;
-          });
-          
-          // Filtern nach maximaler Entfernung und sortieren
-          const filteredShops = shopsWithDistance
-            .filter(shop => shop.distance === undefined || shop.distance <= maxDistance)
-            .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
-          
-          setShops(filteredShops);
-        } else {
-          // Wenn keine Koordinaten gefunden wurden, verwenden wir textbasierte Suche
-          const filters: ShopSearchFilters = { location: searchInput };
-          const filteredShops = await searchShops(filters);
-          // Anreichern mit Koordinaten und Entfernung (wenn Benutzerstandort bekannt)
-          const enrichedShops = await enrichShopsWithCoordinates(filteredShops);
-          setShops(enrichedShops);
-        }
-      }
-    } catch (error) {
-      console.error('Error during search:', error);
-    } finally {
-      setLoading(false);
+  const standortHolen = () => {
+    if (!navigator.geolocation) {
+      setNaheStatus('abgelehnt');
+      return;
     }
+    setNaheStatus('sucht');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNahe({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setNaheStatus('an');
+        setKartenBereich(null);
+        setOrt(null);
+        setzeZustand({ wo: '' });
+        setZaehler((z) => z + 1);
+      },
+      () => setNaheStatus('abgelehnt'),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
   };
+
+  const suchen = (was: string, wo: WoWahl) => {
+    setKartenBereich(null);
+    setGewaehlt(null);
+    if (wo.art === 'nahe') {
+      setzeZustand({ was });
+      standortHolen();
+      return;
+    }
+    if (wo.art === 'gleich') {
+      setzeZustand({ was });
+    } else if (wo.art === 'leer') {
+      setNahe(null);
+      setNaheStatus('aus');
+      setzeZustand({ was, wo: '' });
+    } else if (wo.art === 'ort') {
+      setNahe(null);
+      setNaheStatus('aus');
+      setOrt(wo.ort);
+      setOrtStatus('ok');
+      setzeZustand({ was, wo: wo.ort.name });
+    } else {
+      setNahe(null);
+      setNaheStatus('aus');
+      setzeZustand({ was, wo: wo.text });
+    }
+    setZaehler((z) => z + 1);
+  };
+
+  const filterUmschalten = (f: Filter) =>
+    setzeZustand({ filter: zustand.filter.includes(f) ? zustand.filter.filter((x) => x !== f) : [...zustand.filter, f] }, true);
+
+  // Klick auf eine Stecknadel: am Rechner zur Karte in der Liste scrollen, am Handy unten zeigen
+  const waehlen = (id: string) => {
+    setGewaehlt(id);
+    setAktiv(id);
+    if (window.matchMedia('(min-width: 1024px)').matches) karten.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  const gewaehlterTreffer = alleTreffer.find((x) => x.laden.id === gewaehlt);
+  const anzahl = e?.treffer.length ?? 0;
+  const ueberschrift = !e
+    ? ''
+    : bereich && anzahl === 0 && !zustand.filter.length && !zustand.was
+      ? t('In {ort} gibt es noch keinen Laden mit Dranzeit.', { ort: woAnzeige })
+      : kartenBereich
+        ? tn(anzahl, '{n} Laden im Kartenausschnitt', '{n} Läden im Kartenausschnitt')
+        : bereich
+          ? tn(anzahl, '{n} Laden in {ort}', '{n} Läden in {ort}', { ort: woAnzeige })
+        : tn(anzahl, '{n} Laden mit Dranzeit', '{n} Läden mit Dranzeit');
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] sm:text-5xl">{t('Läden finden')}</h1>
-        <p className="text-muted-foreground">{t('Such nach Ort oder PLZ – oder lass dir zeigen, was in deiner Nähe ist.')}</p>
+    <div className="flex flex-col">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pb-4 pt-6 sm:px-6">
+        {/* Am Handy in der Kartenansicht ohne Überschrift: die Karte bekommt den Platz */}
+        <div className={cn('flex flex-col gap-1', ansicht === 'karte' && 'hidden lg:flex')}>
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{t('Läden finden')}</h1>
+          <p className="text-muted-foreground">{t('Nummer ziehen oder Termin buchen – bei Friseuren und Barbershops in deiner Nähe.')}</p>
+        </div>
+        <SuchLeiste was={zustand.was} wo={woAnzeige} laeden={laeden} onSuchen={suchen} />
+
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label={t('Filter')}>
+          <button
+            type="button"
+            onClick={standortHolen}
+            aria-pressed={naheStatus === 'an' && !zustand.wo && !kartenBereich}
+            className={cn(
+              'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
+              naheStatus === 'an' && !zustand.wo && !kartenBereich ? 'border-foreground bg-foreground text-signal' : 'border-border bg-card hover:border-foreground',
+            )}
+          >
+            <LocateFixed className="h-4 w-4" aria-hidden="true" />
+            {naheStatus === 'sucht' ? t('Standort wird gesucht …') : t('In meiner Nähe')}
+          </button>
+          {(Object.keys(FILTER_TEXT) as Filter[]).map((f) => {
+            const an = zustand.filter.includes(f);
+            return (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={an}
+                onClick={() => filterUmschalten(f)}
+                className={cn(
+                  'inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
+                  an ? 'border-signal bg-signal text-signal-foreground' : 'border-border bg-card hover:border-foreground',
+                )}
+              >
+                {t(FILTER_TEXT[f])}
+              </button>
+            );
+          })}
+          <label className="ms-auto inline-flex shrink-0 items-center gap-2 ps-2 text-sm text-muted-foreground">
+            {t('Sortieren')}
+            <select
+              className="h-9 rounded-full border border-border bg-card px-3 text-sm font-medium text-foreground"
+              value={zustand.sortierung}
+              onChange={(ev) => setzeZustand({ sortierung: ev.target.value as Sortierung }, true)}
+            >
+              {(Object.keys(SORT_TEXT) as Sortierung[])
+                .filter((s) => s !== 'entfernung' || bereich)
+                .map((s) => (
+                  <option key={s} value={s}>
+                    {t(SORT_TEXT[s])}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </div>
+        {naheStatus === 'abgelehnt' && (
+          <p className="rounded-2xl bg-muted p-3 text-sm">{t('Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.')}</p>
+        )}
+        {ortStatus === 'nicht' && <p className="rounded-2xl bg-muted p-3 text-sm">{t('„{ort}“ haben wir nicht gefunden. Versuch es mit einer Postleitzahl oder einem Bezirk.', { ort: zustand.wo })}</p>}
+        {ortStatus === 'fehler' && <p className="rounded-2xl bg-muted p-3 text-sm">{t('Die Ortssuche ist gerade nicht erreichbar. Versuch es gleich noch einmal oder wähl einen Bezirk.')}</p>}
       </div>
 
-      <form
-        role="search"
-        className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSearch();
-        }}
-      >
-        <div className="flex flex-col gap-2 md:flex-row">
-          <label htmlFor="karte-suche" className="sr-only">{t('Adresse, Ort oder PLZ')}</label>
-          <div className="relative flex-grow">
-            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input id="karte-suche" className="ps-10" placeholder={t('Adresse, Ort oder PLZ')} value={searchInput} onChange={handleSearchChange} />
-          </div>
-          <Button type="submit">{t('Suchen')}</Button>
-          <Button type="button" variant="outline" onClick={getUserLocation} className="whitespace-nowrap">
-            <MapPin className="me-2 h-4 w-4" aria-hidden="true" />
-            {t('In meiner Nähe')}
-          </Button>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-entfernung">{t('Umkreis: {km} km', { km: maxDistance })}</Label>
-            <input
-              id="karte-entfernung"
-              type="range"
-              min="1"
-              max="50"
-              value={maxDistance}
-              onChange={(e) => setMaxDistance(parseInt(e.target.value))}
-              className="w-full accent-foreground"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="karte-branche">{t('Branche')}</Label>
-            <select
-              id="karte-branche"
-              className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
-              value={selectedIndustry}
-              onChange={(e) => setSelectedIndustry(e.target.value)}
-            >
-              <option value="">{t('Alle Branchen')}</option>
-              {INDUSTRIES.map((industry) => (
-                <option key={industry.id} value={industry.id}>
-                  {industry.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {locationPermission === 'denied' && (
-          <p className="rounded-2xl bg-muted p-3 text-sm">
-            {t('Du hast den Standort nicht freigegeben. Gib einfach oben einen Ort oder eine PLZ ein.')}
-          </p>
-        )}
-      </form>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-3 lg:col-span-1">
-          <h2 className="font-display text-xl font-bold">
-            {userPosition ? tn(shops.length, '{n} Laden gefunden', '{n} Läden gefunden') : t('Alle Läden')}
-          </h2>
-          {loadError ? (
-            <ConnectionProblem error={loadError} />
-          ) : loading ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Läden werden geladen')}>
-              <div className="h-40 animate-pulse rounded-3xl bg-muted" />
-              <div className="h-40 animate-pulse rounded-3xl bg-muted" />
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-10 sm:px-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+        {/* Liste */}
+        <section aria-label={t('Ergebnisse')} className={cn('flex min-w-0 flex-col gap-3', ansicht === 'karte' && 'hidden lg:flex')}>
+          {fehler ? (
+            <div className="flex flex-col gap-3">
+              <ConnectionProblem error={fehler} />
+              <button type="button" className="self-start text-sm font-semibold underline" onClick={nochmal}>
+                {t('Nochmal versuchen')}
+              </button>
             </div>
-          ) : shops.length === 0 && visibleSalons.length === 0 ? (
-            <p className="rounded-3xl border border-border bg-card p-5 text-muted-foreground">{t('Hier ist noch kein Laden. Vergrößer den Umkreis oder such woanders.')}</p>
+          ) : !e ? (
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t('Läden werden geladen')}>
+              <div className="h-44 animate-pulse rounded-3xl bg-muted" />
+              <div className="h-44 animate-pulse rounded-3xl bg-muted" />
+            </div>
           ) : (
-            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pe-1">
-              {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} services={services[shop.id] || []} distanceKm={shop.distance} wartende={wartende[shop.id]} />
+            <>
+              <h2 className="font-display text-lg font-bold" aria-live="polite">
+                {ortStatus === 'sucht' ? t('Ort wird gesucht …') : ueberschrift}
+              </h2>
+              {e.wartetAufZeiten && <p className="text-sm text-muted-foreground">{t('Freie Zeiten werden geladen …')}</p>}
+              {e.treffer.map((x) => (
+                <TrefferKarte
+                  key={x.laden.id}
+                  ref={(el) => (karten.current[x.laden.id] = el)}
+                  treffer={x}
+                  frei={frei[x.laden.id]}
+                  jetzt={jetzt}
+                  aktiv={aktiv === x.laden.id || gewaehlt === x.laden.id}
+                  onHover={setAktiv}
+                />
               ))}
-              {visibleSalons.length > 0 && (
+              {e.treffer.length === 0 && !e.wartetAufZeiten && (zustand.filter.length > 0 || !!zustand.was || !bereich) && (
+                <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-5">
+                  <p className="font-semibold">
+                    {zustand.filter.length > 0 ? t('Mit diesen Filtern passt gerade kein Laden.') : t('Dazu haben wir keinen Laden gefunden.')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {zustand.filter.length > 0 && (
+                      <button type="button" className="text-sm font-semibold underline" onClick={() => setzeZustand({ filter: [] }, true)}>
+                        {t('Filter zurücksetzen')}
+                      </button>
+                    )}
+                    {zustand.was && (
+                      <button type="button" className="text-sm font-semibold underline" onClick={() => setzeZustand({ was: '' })}>
+                        {t('Alle Leistungen zeigen')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {e.weiter.length > 0 && (
                 <>
-                  <h3 className="pt-2 font-display text-lg font-bold">{t('Weitere Salons')}</h3>
-                  <p className="-mt-2 text-sm text-muted-foreground">{t('Hier geht noch keine Online-Nummer – Adresse, Zeiten und Preise findest du trotzdem.')}</p>
-                  {visibleSalons.map((s) => (
-                    <div key={s.id} className="flex flex-col rounded-3xl border border-border bg-card transition-colors hover:bg-muted/40">
-                      <a href={s.pfad} className="flex flex-col gap-0.5 p-4 pb-2">
-                        <span className="font-display font-bold">{s.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {[s.street, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
-                          {s.distance !== undefined && ` · ${s.distance.toFixed(1)} km`}
-                        </span>
-                      </a>
-                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="self-start px-4 pb-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
-                        {t('Dein Salon? Übernehmen')}
-                      </Link>
-                    </div>
+                  <h3 className="pt-2 font-display text-base font-bold">{t('Etwas weiter weg')}</h3>
+                  {e.weiter.map((x) => (
+                    <TrefferKarte
+                      key={x.laden.id}
+                      ref={(el) => (karten.current[x.laden.id] = el)}
+                      treffer={x}
+                      frei={frei[x.laden.id]}
+                      jetzt={jetzt}
+                      aktiv={aktiv === x.laden.id || gewaehlt === x.laden.id}
+                      onHover={setAktiv}
+                    />
                   ))}
                 </>
               )}
+              {e.salons.length > 0 && (
+                <>
+                  <h3 className="pt-3 font-display text-base font-bold">{t('Weitere Salons in der Nähe')}</h3>
+                  <p className="-mt-1 text-sm text-muted-foreground">{t('Noch ohne Dranzeit – Adresse, Zeiten und Preise auf ihrer Seite.')}</p>
+                  {e.salons.slice(0, 20).map((s) => (
+                    <SalonZeile key={s.salon.id} treffer={s} />
+                  ))}
+                </>
+              )}
+              <p className="pt-2 text-sm text-muted-foreground">
+                {t('Dein Laden fehlt?')}{' '}
+                <Link to="/features" className="font-semibold text-foreground underline">
+                  {t('So kommst du zu Dranzeit')}
+                </Link>
+              </p>
+            </>
+          )}
+        </section>
+
+        {/* Karte: am Rechner rechts und mitlaufend, am Handy über den Knopf unten */}
+        <div className={cn('min-w-0 lg:sticky lg:top-20 lg:block lg:h-[calc(100dvh-6.5rem)]', ansicht === 'karte' ? 'relative h-[calc(100dvh-14rem)]' : 'hidden')}>
+          {daten && (
+            <SuchKarte
+              treffer={alleTreffer}
+              salons={e?.salons ?? []}
+              frei={frei}
+              jetzt={jetzt}
+              aktivId={aktiv ?? gewaehlt}
+              onAktiv={setAktiv}
+              onWaehlen={waehlen}
+              mitte={bereich && 'mitte' in bereich ? bereich.mitte : null}
+              nahe={nahe}
+              fokus={e && bereich ? (e.treffer.length ? e.treffer : e.weiter.slice(0, 1)).map((x) => x.laden.id) : undefined}
+              zaehler={zaehler}
+              onBereichSuchen={(g) => {
+                setKartenBereich(g);
+                setGewaehlt(null);
+              }}
+            />
+          )}
+          {/* Handy: gewählter Laden unten über der Karte */}
+          {ansicht === 'karte' && gewaehlterTreffer && (
+            <div className="absolute inset-x-2 bottom-2 z-[1000] pt-4 lg:hidden">
+              <div className="relative">
+                <button
+                  type="button"
+                  className="absolute -top-4 end-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card shadow-md"
+                  aria-label={t('Schließen')}
+                  onClick={() => setGewaehlt(null)}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <TrefferKarte treffer={gewaehlterTreffer} frei={frei[gewaehlterTreffer.laden.id]} jetzt={jetzt} kompakt />
+              </div>
             </div>
           )}
         </div>
-        
-        {/* Rechte Spalte: Karte – am Handy über der Liste und niedriger, sonst steht sie erst unter allen Läden */}
-        <div className="order-first lg:order-none lg:col-span-2">
-          <div className="h-[42vh] overflow-hidden rounded-3xl border border-border lg:h-[calc(100vh-260px)]">
-            <MapContainer 
-              center={mapCenter} 
-              zoom={userPosition ? 13 : 6} 
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              {userPosition && (
-                <Marker position={userPosition}>
-                  <Popup>
-                    {t('Du bist hier')}
-                  </Popup>
-                </Marker>
-              )}
-              
-              {shops.filter(shop => shop.coordinates).map(shop => (
-                <Marker 
-                  key={shop.id} 
-                  position={[shop.coordinates.latitude, shop.coordinates.longitude]}
-                  eventHandlers={{
-                    click: () => {
-                      // Hier kann man z.B. den ausgewählten Shop hervorheben
-                    }
-                  }}
-                >
-                  <Popup>
-                    <div className="text-center">
-                      <h3 className="font-display font-bold">{shop.name}</h3>
-                      <p className="text-sm">
-                        {shop.street || shop.city || shop.postalCode ? (
-                          // Wenn neue Adressfelder vorhanden sind, zeige diese
-                          [shop.street, shop.postalCode, shop.city].filter(Boolean).join(', ')
-                        ) : (
-                          // Ansonsten zeige Legacy-Adresse oder Standardtext
-                          shop.address || ''
-                        )}
-                      </p>
-                      {shop.distance !== undefined && (
-                        <p className="text-sm">
-                          {t('{km} km entfernt', { km: shop.distance.toFixed(1) })}
-                        </p>
-                      )}
-                      <div className="mt-2">
-                        <Button 
-                          size="sm" 
-                          className="w-full" 
-                          onClick={() => navigate(`/public-join-queue?shopId=${shop.id}`)}
-                        >
-                          {t('Nummer ziehen')}
-                        </Button>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-              
-              {visibleSalons.map((s) => (
-                <Marker key={`v-${s.id}`} position={[s.latitude, s.longitude]} icon={verzeichnisIcon}>
-                  <Popup>
-                    <div className="text-center">
-                      <h3 className="font-display font-bold">{s.name}</h3>
-                      <p className="text-sm">{[s.street, s.postalCode, s.city].filter(Boolean).join(', ')}</p>
-                      <p className="text-sm text-muted-foreground">{t('Noch nicht online buchbar')}</p>
-                      <a href={s.pfad} className="mt-1 inline-block text-sm font-semibold underline">
-                        {t('Ansehen')}
-                      </a>
-                      <Link to={`/uebernehmen?eintrag=${encodeURIComponent(s.id)}`} className="mt-1 block text-xs !text-muted-foreground underline">
-                        {t('Dein Salon? Übernehmen')}
-                      </Link>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-
-              <KarteAusschnitt mitte={reference} punkte={kartenPunkte} />
-            </MapContainer>
-          </div>
-        </div>
       </div>
+
+      {/* Handy: zwischen Liste und Karte wechseln */}
+      {daten && (
+        <button
+          type="button"
+          onClick={() => setAnsicht((a) => (a === 'liste' ? 'karte' : 'liste'))}
+          className={cn(
+            'fixed bottom-5 left-1/2 z-40 inline-flex h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 font-semibold text-signal shadow-lg lg:hidden',
+            ansicht === 'karte' && gewaehlterTreffer && 'hidden',
+          )}
+        >
+          {ansicht === 'liste' ? <KartenIcon className="h-4 w-4" aria-hidden="true" /> : <List className="h-4 w-4" aria-hidden="true" />}
+          {ansicht === 'liste' ? t('Karte') : t('Liste')}
+        </button>
+      )}
     </div>
   );
 };

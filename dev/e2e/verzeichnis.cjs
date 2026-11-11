@@ -158,9 +158,11 @@ run(async () => {
   // --- Karte: graue Salons aus dem Verzeichnis ---
   const map = await newPage(browser, { viewport: { width: 1280, height: 900 } });
   const mapErrors = collectErrors(map);
-  await map.route('**/routes/verzeichnis/karte', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salons: [
-      { id: 'nord', name: 'Salon Nord (Test)', kategorie: 'friseur', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin', ortsteil: 'Wedding', latitude: 52.55, longitude: 13.35, pfad: '/friseur/berlin/nord' },
+  // Läden finden holt Läden und Salons seit der neuen Suche aus /routes/suche/laeden (backend/app/apis/suche)
+  await map.route('**/routes/suche/laeden', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ laeden: [], salons: [
+      { id: 'nord', name: 'Salon Nord (Test)', kategorie: 'friseur', street: 'Müllerstr. 1', postalCode: '13353', city: 'Berlin', ortsteil: 'Wedding', bezirk: 'Mitte',
+        lat: 52.55, lng: 13.35, pfad: '/friseur/berlin/nord', leistungen: [] },
     ] }) }),
   );
   await map.route('**/routes/verzeichnis/nord/vorschau', (route) =>
@@ -175,8 +177,10 @@ run(async () => {
   rows.push({ name: 'Karte: Salon in der Liste mit Link', pass: (await card.getAttribute('href')) === '/friseur/berlin/nord' });
   const uebernehmen = map.getByRole('link', { name: 'Dein Salon? Übernehmen' });
   rows.push({ name: 'Karte: Übernehmen in der Liste', pass: (await uebernehmen.first().getAttribute('href')) === '/uebernehmen?eintrag=nord' });
-  rows.push({ name: 'Karte: grauer Marker', pass: (await map.locator('img.leaflet-marker-icon.grayscale').count()) === 1 });
-  await map.locator('img.leaflet-marker-icon.grayscale').click({ force: true });
+  // Salons ohne Dranzeit sind kleine graue Punkte (CircleMarker), Dranzeit-Läden Sprechblasen mit Live-Angabe
+  const grau = map.locator('.leaflet-overlay-pane path.leaflet-interactive');
+  rows.push({ name: 'Karte: grauer Punkt', pass: (await grau.count()) === 1 && (await grau.getAttribute('fill')) === '#8a8a80' });
+  await grau.click({ force: true });
   rows.push({ name: 'Karte: Hinweis im Marker', pass: await map.getByText('Noch nicht online buchbar').isVisible() });
   await shot(map, 'verzeichnis-karte', false);
   // Sichtbar, aber nicht im Fokus: klein, nicht fett, gedämpft, in der Liste und im Marker gleich
