@@ -328,4 +328,10 @@ TEXTE: dict = {
     'Der Assistent von {laden} hat diesen Monat {minuten} Minuten telefoniert, das sind {betrag} € netto. Bei {deckel} € ({grenze} Minuten) hört er bis zum Monatsende auf.': "The assistant for {laden} has been on the phone for {minuten} minutes this month, that's €{betrag} net. At €{deckel} ({grenze} minutes) it stops until the end of the month.",
     'Den Deckel kannst du jederzeit ändern.': 'You can change the cap at any time.',
     'Ab dem {datum} nimmt er wieder ab. Soll er schon vorher weitermachen, erhöh den Deckel.': 'From {datum} it answers again. If you want it to carry on before then, raise the cap.',
+    # Tablet am Tresen koppeln (app/apis/geraete, databutton_app/mw/auth_mw.py)
+    'Am Tresen-Tablet geht das nicht. Melde dich dafür auf deinem eigenen Gerät an.': "That isn't possible on the front desk tablet. Sign in on your own device for this.",
+    'Dieser Code gilt nicht mehr. Am Tablet erscheint gleich ein neuer – scanne den.': 'This code is no longer valid. A new one will appear on the tablet in a moment – scan that one.',
+    'Ein Tablet koppeln kann nur, wer einen Laden bei Dranzeit hat.': 'Only someone with a shop on Dranzeit can pair a tablet.',
+    'Wähl den Laden, für den das Tablet ist.': 'Choose the shop the tablet is for.',
+    'Dieses Tablet ist schon abgemeldet.': 'This tablet is already signed out.',
 }
