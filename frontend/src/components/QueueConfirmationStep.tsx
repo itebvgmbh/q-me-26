@@ -57,6 +57,8 @@ export interface QueueConfirmationStepProps {
   calendarKey?: number;
   /** Über „Termin buchen“ gekommen: sagen, wenn der Laden online keine festen Termine nimmt */
   wunschEntry?: boolean;
+  /** Aus „Läden finden“ mit einer freien Uhrzeit gekommen: die im Kalender gleich wählen */
+  vorwahl?: Date | null;
 }
 
 export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
@@ -88,6 +90,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
   calendarStaffIds,
   calendarKey = 0,
   wunschEntry = false,
+  vorwahl = null,
 }) => {
   const shop = shops.find((s) => s.id === selectedShop);
   const service = services.find((s) => s.id === selectedService);
@@ -149,6 +152,7 @@ export const QueueConfirmationStep: React.FC<QueueConfirmationStepProps> = ({
           selectedSlot={wunschSlot}
           onTimeSlotSelect={onWunschSlotChange}
           forceRefresh={calendarKey > 0}
+          vorwahl={calendarKey === 0 ? vorwahl : null}
         />
       ) : (
         <div className="flex flex-col gap-1 rounded-2xl bg-signal p-5 text-signal-foreground" aria-live="polite">

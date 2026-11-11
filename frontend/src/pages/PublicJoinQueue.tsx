@@ -66,6 +66,12 @@ const PublicJoinQueue = () => {
   const shopIdFromQR = searchParams.get('shopId');
   const serviceIdFromURL = searchParams.get('serviceId');
   const staffIdFromURL = searchParams.get('staffId');
+  // Aus „Läden finden“ mit einer freien Uhrzeit (pages/ShopMap.tsx): der Kalender wählt sie, wenn sie noch frei ist
+  const vorwahl = useMemo(() => {
+    const zeit = searchParams.get('zeit');
+    const d = zeit ? new Date(zeit) : null;
+    return d && !Number.isNaN(d.getTime()) && d.getTime() > Date.now() ? d : null;
+  }, [searchParams]);
   // Nummer oder Termin steht in der Adresse: so passen Menü, Überschrift und Neuladen immer zur Wahl
   const wann: Wann = /^\/book-?appointment\/?$/.test(pathname) || searchParams.get('wann') === 'wunsch' ? 'wunsch' : 'sofort';
   const setWann = (next: Wann) => {
@@ -439,6 +445,7 @@ const PublicJoinQueue = () => {
           onWunschSlotChange={setWunschSlot}
           calendarStaffIds={calendarStaffIds}
           calendarKey={calendarKey}
+          vorwahl={vorwahl}
           wunschEntry={wann === 'wunsch'}
         />
       );

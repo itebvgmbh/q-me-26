@@ -19,6 +19,8 @@ interface Props {
   forceRefresh?: boolean;
   /** Tag, mit dem der Kalender anfängt (z. B. der jetzige Termin bei „Platz ändern“); früher als heute zählt heute */
   initialDate?: Date;
+  /** Diese Uhrzeit gleich wählen, wenn sie frei ist (aus „Läden finden“: ?zeit=…); nur einmal */
+  vorwahl?: Date | null;
 }
 
 type Slot = TimeSlot & { staffOptions?: string[] };
@@ -43,14 +45,17 @@ const mergeSlots = (staffIds: string[], perStaff: TimeSlot[][]): Slot[] => {
 };
 
 /** Wochenleiste + freie Uhrzeiten eines Tages */
-export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selectedSlot, onTimeSlotSelect, forceRefresh = false, initialDate }: Props) => {
+export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selectedSlot, onTimeSlotSelect, forceRefresh = false, initialDate, vorwahl }: Props) => {
   const firstDay = () => {
-    const day = initialDate ? new Date(new Date(initialDate).setHours(0, 0, 0, 0)) : startOfToday();
+    const start = initialDate ?? vorwahl;
+    const day = start ? new Date(new Date(start).setHours(0, 0, 0, 0)) : startOfToday();
     return day < startOfToday() ? startOfToday() : day;
   };
   const [currentDate, setCurrentDate] = useState(firstDay);
   const [selectedDate, setSelectedDate] = useState<Date>(firstDay);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
+  // Die Vorwahl gilt nur für den ersten Tag, der geladen wird – wer selbst blättert, wählt selbst
+  const vorwahlOffen = useRef(!!vorwahl);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +121,7 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
   );
 
   // Ist heute Ruhetag, gleich den nächsten offenen Tag zeigen – aber nur, solange niemand selbst gewählt hat
-  const pickedByUser = useRef(false);
+  const pickedByUser = useRef(!!vorwahl);
   useEffect(() => {
     if (!dayRules || pickedByUser.current || !closedReason(selectedDate)) return;
     const day = firstOpenDay(selectedDate);
@@ -137,6 +142,9 @@ export const CustomerCalendar = ({ shopId, serviceId, staffId, staffIds, selecte
         const timeSlots = await slotsFor(selectedDate, shouldForceRefresh);
         if (!active) return;
         setAvailableSlots(timeSlots.filter((slot) => slot.start > new Date()));
+        const gewuenscht = vorwahlOffen.current && vorwahl ? timeSlots.find((slot) => slot.isAvailable && slot.start.getTime() === vorwahl.getTime()) : undefined;
+        if (gewuenscht) onTimeSlotSelect({ start: gewuenscht.start, end: gewuenscht.end, staffOptions: gewuenscht.staffOptions });
+        vorwahlOffen.current = false;
       } catch (err) {
         console.error('Error fetching available slots:', err);
         if (active) setError(t('Die freien Zeiten konnten nicht geladen werden. Versuch es gleich noch einmal.'));

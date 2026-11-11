@@ -41,7 +41,7 @@ export const OEFFENTLICHE_SEITEN: Record<string, Kopf> = {
   '/shop-map': {
     title: 'Friseure und Barbershops in deiner Nähe finden | Dranzeit',
     description:
-      'Läden auf der Karte finden, Öffnungszeiten und Preise ansehen und bei Dranzeit-Läden online eine Nummer ziehen.',
+      'Friseure und Barbershops nach Leistung und Ort suchen, live sehen, wie viele gerade warten, und online eine Nummer ziehen oder einen Termin buchen.',
   },
   '/impressum': { title: 'Impressum | Dranzeit', description: 'Anbieter von Dranzeit: ITEBV GmbH, Berlin. Anschrift, Kontakt und Registerangaben.' },
   '/datenschutz': {
