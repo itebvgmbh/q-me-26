@@ -76,6 +76,11 @@ def test_standard_leistung():
     assert suche.standard_leistung(leistungen, "bart")["id"] == "b"
     assert suche.standard_leistung(leistungen, "dauerwelle")["id"] == "h", "nichts passt: die übliche"
     assert suche.standard_leistung([]) is None
+    # Wie bei Testbarb (11.11.): nicht der kürzeste Schnitt, sondern der Herrenschnitt; Kinder zuletzt
+    testbarb = [{"id": "k", "name": "Kinderhaarschnitt", "duration": 20}, {"id": "hb", "name": "Haarschnitt und Bart", "duration": 45},
+                {"id": "h", "name": "Herrenhaarschnitt", "duration": 30}, {"id": "w", "name": "Waschen, Schneiden, Föhnen", "duration": 45}]
+    assert suche.standard_leistung(testbarb)["id"] == "h"
+    assert suche.standard_leistung([x for x in testbarb if x["id"] != "h"])["id"] == "hb"
 
 
 def test_freie_zeiten_nummer_und_termine():
