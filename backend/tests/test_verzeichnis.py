@@ -320,8 +320,12 @@ def test_orte():
     page = seiten.render_ort("friseur", "berlin-mitte", o["berlin-mitte"], d)
     assert "<h1>Friseure in Mitte</h1>" in page and "2 Friseure und Barbershops in Berlin-Mitte" in page
     assert "/friseur/berlin-pankow" in page  # andere Teile der Stadt
+    assert 'href="/shop-map?wo=Mitte"' in page and "In Mitte auf der Karte suchen" in page  # Suche mit dem Ort
     page = seiten.render_ort("barbershop", "berlin-pankow", o["berlin-pankow"], d)
     assert 'content="noindex,follow"' in page  # ein Salon reicht nicht für eine eigene Ortsseite bei Google
+    assert 'href="/shop-map?wo=Pankow&amp;was=Herrenhaarschnitt"' in page
+    assert seiten.suche_pfad("friseur", "Prenzlauer Berg") == "/shop-map?wo=Prenzlauer+Berg"
+    assert 'href="/shop-map"' in seiten.render_index("friseur", d)
 
 
 def test_routen_und_sitemap():

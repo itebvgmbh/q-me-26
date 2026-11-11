@@ -20,6 +20,7 @@ Fertiges HTML wie die Stadtseiten (app/seo.py); Caddy leitet /friseur und /barbe
 
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -63,6 +64,7 @@ details{margin-top:12px}summary{cursor:pointer}
 .form label{display:grid;gap:4px;font-size:14px}.form label.check{display:flex;gap:8px;align-items:flex-start}
 .knoepfe{display:flex;flex-wrap:wrap;gap:8px}
 .form textarea,.form input[type=email]{font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.zursuche{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 8px}.zursuche .klein{font-size:14px}
 """
 
 
@@ -476,6 +478,20 @@ def render_salon(s: dict, d: dict, now: Optional[datetime] = None, gewuenscht: b
 # --- Ortsseiten ----------------------------------------------------------------------------------------------------
 
 
+def suche_pfad(kat: str, wo: str = "") -> str:
+    """„Läden finden“ mit vorausgefülltem Ort (frontend/src/pages/ShopMap.tsx); Barbershops suchen den Herrenschnitt"""
+    q = {"wo": wo} if wo else {}
+    if kat == "barbershop":
+        q["was"] = "Herrenhaarschnitt"
+    return "/shop-map" + (f"?{urlencode(q)}" if q else "")
+
+
+def suche_knopf(kat: str, wo: str = "") -> str:
+    text = f"In {wo} auf der Karte suchen" if wo else "Auf der Karte suchen"
+    return (f"<p class=\"zursuche\"><a class=\"btn main\" href=\"{_e(suche_pfad(kat, wo))}\">{_e(text)}</a>"
+            "<span class=\"klein\">mit Live-Wartezeit und freien Terminen</span></p>")
+
+
 def render_ort(kat: str, slug: str, o: dict, d: dict, now: Optional[datetime] = None, waiting: Optional[dict] = None) -> str:
     waiting = waiting or {}
     seiten = [s for s in o["seiten"] if kat == "friseur" or s["kategorie"] == "barbershop"]
@@ -514,7 +530,8 @@ def render_ort(kat: str, slug: str, o: dict, d: dict, now: Optional[datetime] = 
         "<div class=\"cta\"><strong>Dein Salon fehlt oder soll hier Nummern vergeben?</strong> Mit Dranzeit reihen sich deine Kunden "
         "online ein und warten, wo sie wollen. <a href=\"/preise\">30 Tage kostenlos testen</a></div>"
     )
-    body = f"{brotkrumen_html(krumen)}<h1>{_e(mehrzahl)} in {_e(wo)}</h1><p class=\"lead\">{_e(lead)}</p>{''.join(teile)}"
+    body = (f"{brotkrumen_html(krumen)}<h1>{_e(mehrzahl)} in {_e(wo)}</h1><p class=\"lead\">{_e(lead)}</p>"
+            f"{suche_knopf(kat, wo)}{''.join(teile)}")
     title = f"{mehrzahl} in {o['voll']} – Öffnungszeiten & Preise | Dranzeit"
     description = lead if len(lead) <= 160 else lead[:157].rsplit(" ", 1)[0] + " …"
     ld = {
@@ -546,6 +563,7 @@ def render_index(kat: str, d: dict) -> str:
     body = (
         f"<h1>{_e(mehrzahl)} finden</h1><p class=\"lead\">Adressen, Öffnungszeiten und Preise – und bei Dranzeit-Salons "
         "online eine Nummer ziehen statt im Laden warten.</p>"
+        + suche_knopf(kat)
         + ("".join(teile) or "<p>Bald gibt es hier die ersten Salons.</p>")
     )
     return _page(f"{mehrzahl} finden – Öffnungszeiten & Preise | Dranzeit",

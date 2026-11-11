@@ -22,7 +22,7 @@ import {
   type Sortierung,
   type Zustand,
 } from '../utils/suche';
-import { ORTE, ortAufloesen, useFreieZeiten, useSuchDaten } from '../utils/suche-daten';
+import { ORTE, ortAufloesen, suchGruppe, useFreieZeiten, useSuchDaten } from '../utils/suche-daten';
 
 const FILTER_TEXT: Record<Filter, string> = {
   offen: merke('Jetzt geöffnet'),
@@ -114,9 +114,11 @@ const ShopMap = () => {
       : nahe
         ? { mitte: nahe, radiusKm: RADIUS_KM.nahe }
         : null;
-  const anfrage = { was: zustand.was, bereich, filter: zustand.filter, sortierung: zustand.sortierung };
+  // „Herrenschnitt“, „Men's haircut“ oder ein gewählter Vorschlag: alle Leistungen dieser Gruppe zählen
+  const gruppe = suchGruppe(zustand.was);
+  const anfrage = { was: zustand.was, gruppe, bereich, filter: zustand.filter, sortierung: zustand.sortierung };
   const laeden = daten?.laeden ?? [];
-  const frei = useFreieZeiten(daten ? zeitenFuer(laeden, anfrage) : [], zustand.was);
+  const frei = useFreieZeiten(daten ? zeitenFuer(laeden, anfrage) : [], zustand.was, gruppe?.key);
   const e = daten ? ergebnis(laeden, daten.salons, anfrage, frei, jetzt) : null;
   const alleTreffer = e ? [...e.treffer, ...e.weiter] : [];
   const woAnzeige = kartenBereich ? t('Kartenausschnitt') : ort ? ort.name : nahe ? t('In deiner Nähe') : '';
@@ -199,7 +201,7 @@ const ShopMap = () => {
           <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{t('Läden finden')}</h1>
           <p className="text-muted-foreground">{t('Nummer ziehen oder Termin buchen – bei Friseuren und Barbershops in deiner Nähe.')}</p>
         </div>
-        <SuchLeiste was={zustand.was} wo={woAnzeige} laeden={laeden} onSuchen={suchen} />
+        <SuchLeiste was={zustand.was} wo={woAnzeige} laeden={laeden} salons={daten?.salons} onSuchen={suchen} />
 
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label={t('Filter')}>
           <button

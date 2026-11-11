@@ -64,6 +64,23 @@ const texte: Texte = {
   "Laden, Leistung oder Ort": "Salon, hizmet veya yer",
   "Auf der Karte suchen": "Haritada ara",
   "Nach Entfernung zu {ort} sortiert": "{ort} yerine uzaklığa göre sıralandı",
+  // Leistungsgruppen (data/leistungsgruppen.json) und „In der Suche unter“ bei den Leistungen
+  "Damenhaarschnitt": "Kadın saç kesimi",
+  "Haarschnitt": "Saç kesimi",
+  "Bart & Rasur": "Sakal ve tıraş",
+  "Färben & Strähnen": "Boya ve röfle",
+  "Föhnen & Styling": "Fön ve şekillendirme",
+  "Gelnägel & Modellage": "Jel tırnak ve protez tırnak",
+  "Gesichtsbehandlung": "Yüz bakımı",
+  "Wimpern & Augenbrauen": "Kirpik ve kaş",
+  "Physiotherapie": "Fizyoterapi",
+  "In der Suche unter": "Aramada şu grupta",
+  "Automatisch: {gruppe}": "Otomatik: {gruppe}",
+  "Automatisch: keine passende Gruppe": "Otomatik: uygun grup yok",
+  "Keiner Gruppe zuordnen": "Hiçbir gruba atama",
+  "Darunter findet man die Leistung bei „Läden finden“, auch wenn sie bei dir anders heißt.": "Hizmet sende farklı bir adla geçse bile „Salon bul“ bölümünde bu grupta bulunur.",
+  "In der Suche unter „{gruppe}“": "Aramada „{gruppe}“ grubunda",
+  "In der Suche nur unter dem eigenen Namen": "Aramada yalnızca kendi adıyla",
 };
 
 export default texte;

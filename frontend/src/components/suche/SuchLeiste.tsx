@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { LocateFixed, MapPin, Scissors, Search, Store, X } from 'lucide-react';
+import { LocateFixed, MapPin, Scissors, Search, Store, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/i18n';
-import { istPlz, ortVorschlaege, wasVorschlaege, type Ort, type SuchLaden } from '../../utils/suche';
-import { ORTE } from '../../utils/suche-daten';
+import { istPlz, ortVorschlaege, wasVorschlaege, type Ort, type SuchLaden, type SuchSalon } from '../../utils/suche';
+import { gruppenWahl, ORTE } from '../../utils/suche-daten';
 
 /** Was gewählt wurde: ein Ort aus der Liste, eigener Standort, freier Text (PLZ, Adresse) oder nichts */
 /** gleich: Ort nicht angefasst, nur „Was?“ geändert */
@@ -163,12 +163,15 @@ export function SuchLeiste({
   was,
   wo,
   laeden,
+  salons = [],
   onSuchen,
 }: {
   was: string;
   /** Anzeige des gewählten Orts („Pankow“, „In deiner Nähe“, „Kartenausschnitt“) */
   wo: string;
   laeden: SuchLaden[];
+  /** Salons ohne Dranzeit: ihre Leistungsgruppen kommen in die Vorschläge */
+  salons?: SuchSalon[];
   onSuchen: (was: string, wo: WoWahl) => void;
 }) {
   const id = useId();
@@ -196,8 +199,16 @@ export function SuchLeiste({
     setVollbild(false);
   };
 
-  const wasListe = wasVorschlaege(eWas, laeden);
+  // Erst die festen Leistungsgruppen (passen über alle Läden), dann einzelne Leistungen, dann Läden
+  const wasListe = wasVorschlaege(eWas, laeden, 5, gruppenWahl(), salons);
   const wasVorschlaegeListe: Vorschlag[] = [
+    ...wasListe.gruppen.map((g) => ({
+      id: `g-${g.key}`,
+      text: g.name,
+      icon: <Tag className="h-4 w-4" />,
+      gruppe: eWas.trim() ? t('Leistungen') : t('Oft gesucht'),
+      waehlen: () => setEWas(g.name),
+    })),
     ...wasListe.leistungen.map((name) => ({
       id: `l-${name}`,
       text: name,

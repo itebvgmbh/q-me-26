@@ -48,6 +48,7 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
     setupTime?: number;
     price: number;
     category: string;
+    gruppe: string;
   }) => {
     try {
       const serviceWithShopId = {
@@ -84,6 +85,7 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
           submitLabel={t('Leistung anlegen')}
+          kontext={shop.name}
         />
       </DialogContent>
     </Dialog>
@@ -96,6 +98,8 @@ export const AddServiceDialog: React.FC<AddServiceDialogProps> = ({ shop, onServ
 export interface EditServiceDialogProps {
   /** The service to edit */
   service: Service;
+  /** Name des Ladens (für die automatische Leistungsgruppe) */
+  kontext?: string;
   /** Callback function when a service is updated successfully */
   onServiceUpdated: (success: boolean) => void;
 }
@@ -105,7 +109,7 @@ export interface EditServiceDialogProps {
  * 
  * Uses the shared ServiceForm component for form fields and validation
  */
-export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, onServiceUpdated }) => {
+export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, onServiceUpdated, kontext }) => {
   const [open, setOpen] = useState(false);
 
   const handleSubmit = useCallback(async (serviceData: {
@@ -115,6 +119,7 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
     setupTime?: number;
     price: number;
     category: string;
+    gruppe: string;
   }) => {
     try {
       await updateService(service.id, serviceData);
@@ -147,6 +152,7 @@ export const EditServiceDialog: React.FC<EditServiceDialogProps> = ({ service, o
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
           submitLabel={t('Änderungen speichern')}
+          kontext={kontext}
         />
       </DialogContent>
     </Dialog>

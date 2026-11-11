@@ -48,7 +48,7 @@ const ServiceManagement = () => {
           </Link>
         </p>
       ) : (
-        <ServicesList services={services} onServiceUpdated={refresh} />
+        <ServicesList services={services} onServiceUpdated={refresh} kontext={shop.name} />
       )}
     </div>
   );

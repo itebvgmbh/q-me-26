@@ -1,20 +1,36 @@
 import React from 'react';
 import { toast } from 'sonner';
+import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Service, offeredServices, restoreService } from '../utils/firestore';
 import { DeleteServiceDialog, EditServiceDialog } from './ServiceDialogs';
+import { GRUPPEN } from '../utils/suche-daten';
 import { intlSprache, t } from '@/i18n';
 
 export interface ServicesListProps {
   /** alle Leistungen des Ladens, auch gelöschte (archived) */
   services: Service[];
   onServiceUpdated: (success: boolean) => void;
+  /** Name des Ladens (für die automatische Leistungsgruppe) */
+  kontext?: string;
 }
+
+/** Unter welcher Leistungsgruppe man die Leistung bei „Läden finden“ findet (ändern unter „Bearbeiten“) */
+const SuchGruppe = ({ service, kontext }: { service: Service; kontext: string }) => {
+  const key = GRUPPEN.wirksam(service, kontext);
+  const name = key ? GRUPPEN.gruppe(key)?.name : undefined;
+  return (
+    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Search className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {name ? t('In der Suche unter „{gruppe}“', { gruppe: t(name) }) : t('In der Suche nur unter dem eigenen Namen')}
+    </p>
+  );
+};
 
 const euro = (value: number) => `${Number(value || 0).toLocaleString(intlSprache(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /** Leistungen als Liste: Name, Dauer, Preis, Bearbeiten, Löschen; darunter die gelöschten zum Zurückholen */
-export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceUpdated }) => {
+export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceUpdated, kontext = '' }) => {
   const offered = offeredServices(services);
   const archived = services.filter((s) => s.archived);
 
@@ -45,6 +61,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceU
                 {(service.category || service.description) && (
                   <p className="text-sm text-muted-foreground">{[service.category, service.description].filter(Boolean).join(' · ')}</p>
                 )}
+                <SuchGruppe service={service} kontext={kontext} />
               </div>
               <p className="font-mono text-[15px]">
                 {service.setupTime
@@ -53,7 +70,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services, onServiceU
               </p>
               <p className="w-24 text-end font-mono text-[15px] font-semibold">{euro(service.price)}</p>
               <div className="flex gap-1">
-                <EditServiceDialog service={service} onServiceUpdated={onServiceUpdated} />
+                <EditServiceDialog service={service} onServiceUpdated={onServiceUpdated} kontext={kontext} />
                 <DeleteServiceDialog service={service} onServiceUpdated={onServiceUpdated} />
               </div>
             </li>

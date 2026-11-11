@@ -5,7 +5,7 @@ import { Shop } from '../utils/firestore/types';
 import { QueueOption, QueueStepShell } from './queue/QueueStepShell';
 import { oeffnungJetzt } from '../utils/laden-live';
 import { hatLage, km, ladenPasst, normSuche, ortVorschlaege, passt, type Punkt, type SuchLaden } from '../utils/suche';
-import { kmText, ORTE, useSuchDaten } from '../utils/suche-daten';
+import { kmText, ORTE, suchGruppe, useSuchDaten } from '../utils/suche-daten';
 import { cn } from '@/lib/utils';
 import { t } from '@/i18n';
 
@@ -36,6 +36,8 @@ export const ShopSelectionStep: React.FC<ShopSelectionStepProps> = ({ shops, sel
   const ort = eingabe.trim().length >= 3 ? ortVorschlaege(eingabe, ORTE, 1)[0] : undefined;
   const ortPasst = ort && normSuche(ort.name).startsWith(normSuche(eingabe));
   const mitte: Punkt | null = ortPasst && ort ? ort : nahe;
+  // „Herrenschnitt“ findet auch Läden, die ihn „Maschinenschnitt“ nennen (Leistungsgruppen)
+  const gruppe = ortPasst ? null : suchGruppe(eingabe);
 
   const liste = shops
     .map((shop) => {
@@ -46,7 +48,7 @@ export const ShopSelectionStep: React.FC<ShopSelectionStepProps> = ({ shops, sel
     .filter(({ shop, s }) => {
       if (!eingabe.trim() || ortPasst) return true;
       const text = [shop.name, address(shop), s?.ortsteil, s?.bezirk].filter(Boolean).join(' ');
-      return passt(text, eingabe) || (!!s && ladenPasst(s, eingabe));
+      return passt(text, eingabe) || (!!s && ladenPasst(s, eingabe, gruppe));
     })
     .sort((a, b) => (mitte ? (a.entfernung ?? Infinity) - (b.entfernung ?? Infinity) : 0) || a.shop.name.localeCompare(b.shop.name, 'de'));
 

@@ -1,10 +1,27 @@
 import { useEffect, useState } from 'react';
-import type { Frei, Ort, SuchLaden, SuchSalon } from './suche';
+import type { Frei, Ort, SuchGruppe, SuchLaden, SuchSalon } from './suche';
 import ORTE_BERLIN from '../data/orte-berlin.json';
+import GRUPPEN_DATEN from '../data/leistungsgruppen.json';
+import { leistungsgruppen, type GruppenDaten } from './leistungsgruppen';
 import { intlSprache, t } from '@/i18n';
 
 /** Berliner Bezirke und Ortsteile mit Mittelpunkt (einmal aus OpenStreetMap geholt, © OpenStreetMap-Mitwirkende) */
 export const ORTE = ORTE_BERLIN as Ort[];
+
+/** Leistungsgruppen (Herrenhaarschnitt, Bart & Rasur …) mit den Regeln aus data/leistungsgruppen.json */
+export const GRUPPEN = leistungsgruppen(GRUPPEN_DATEN as GruppenDaten);
+
+/** Die mit „Was?“ gemeinte Gruppe (Name in jeder Sprache oder per Stichwort), sonst null */
+export const suchGruppe = (was: string): SuchGruppe | null => {
+  const key = GRUPPEN.ausText(was, (name) => t(name));
+  return key ? { key, menge: GRUPPEN.menge(key) } : null;
+};
+
+/** Für wasVorschlaege: Gruppen mit übersetztem Namen */
+export const gruppenWahl = () => ({
+  liste: GRUPPEN.liste.map((g) => ({ key: g.key, name: t(g.name) })),
+  ausText: (text: string) => GRUPPEN.ausText(text, (name) => t(name)),
+});
 
 type Laeden = { laeden: SuchLaden[]; salons: SuchSalon[] };
 
@@ -34,15 +51,15 @@ export const useSuchDaten = () => {
  * Freie Zeiten, Nummer und Wartende je Laden (höchstens 12 auf einmal, wie das Backend); alle 2 Minuten neu, solange
  * die Seite sichtbar ist. Schon geholte bleiben stehen, bis neue da sind – sonst flackert die Liste.
  */
-export const useFreieZeiten = (ids: string[], was: string): Record<string, Frei> => {
-  const key = `${[...new Set(ids)].sort().join(',')}|${was.trim().toLowerCase()}`;
+export const useFreieZeiten = (ids: string[], was: string, gruppe?: string | null): Record<string, Frei> => {
+  const key = `${[...new Set(ids)].sort().join(',')}|${was.trim().toLowerCase()}|${gruppe ?? ''}`;
   const [frei, setFrei] = useState<Record<string, Frei>>({});
   useEffect(() => {
-    const [liste, leistung] = key.split('|');
+    const [liste, leistung, g] = key.split('|');
     if (!liste) return;
     let aktuell = true;
     const laden = () =>
-      fetch(`/routes/suche/frei?${new URLSearchParams({ ids: liste, leistung })}`)
+      fetch(`/routes/suche/frei?${new URLSearchParams({ ids: liste, leistung, ...(g ? { gruppe: g } : {}) })}`)
         .then((res) => (res.ok ? (res.json() as Promise<{ frei?: Record<string, Frei> }>) : null))
         .then((d) => {
           if (aktuell && d?.frei) setFrei((alt) => ({ ...alt, ...d.frei }));

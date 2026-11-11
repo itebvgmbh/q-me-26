@@ -17,6 +17,7 @@ import {
   zustandAus,
   zustandParams,
 } from '../frontend/src/utils/suche.ts';
+import { leistungsgruppen } from '../frontend/src/utils/leistungsgruppen.ts';
 
 const rows = [];
 const check = (name, pass, detail = '') => rows.push({ name, pass, detail });
@@ -115,6 +116,52 @@ const salons = [
   const ohneZeiten = ergebnis(laeden, salons, anfrage(['heute']), {}, MITTWOCH_10);
   check('Filter wartet auf freie Zeiten', ohneZeiten.wartetAufZeiten === true && ohneZeiten.treffer.length === 0);
   check('Zeiten zuerst für die nächsten', zeitenFuer(laeden, { was: '', bereich: { mitte: { lat: 52.59, lng: 13.28 }, radiusKm: 2 }, filter: [], sortierung: 'empfohlen' }).join() === 'halit,test,mitte', 'nach Entfernung, ohne Lage nicht');
+}
+
+// 7. Leistungsgruppen (dieselben Fälle prüft backend/tests/test_leistungsgruppen.py)
+{
+  const DATEN = JSON.parse(fs.readFileSync(new URL('../frontend/src/data/leistungsgruppen.json', import.meta.url), 'utf8'));
+  const FAELLE = JSON.parse(fs.readFileSync(new URL('./leistungsgruppen-faelle.json', import.meta.url), 'utf8'));
+  const G = leistungsgruppen(DATEN);
+  const falsch = FAELLE.faelle.filter((f) => G.auto({ name: f.name, category: f.kategorie }, f.kontext) !== f.gruppe);
+  check(`Zuordnung per Stichwort (${FAELLE.faelle.length} Fälle)`, falsch.length === 0, JSON.stringify(falsch.map((f) => [f.name, f.gruppe, G.auto({ name: f.name, category: f.kategorie }, f.kontext)])));
+  const regelnGueltig = [...DATEN.name, ...DATEN.kategorie].every((r) => G.gruppe(r.gruppe)) && G.gruppe(DATEN.schnitt.gruppe)
+    && DATEN.gruppen.every((g) => (g.auch ?? []).every((a) => G.gruppe(a)))
+    && Object.values(DATEN.ohneLeistungen).flat().every((k) => G.gruppe(k));
+  check('Regeln nennen nur bekannte Gruppen', !!regelnGueltig);
+  check('Stichwörter schon normalisiert', [...DATEN.name, ...DATEN.kategorie, DATEN.schnitt].every((r) => [...r.woerter, ...(r.und ?? []), ...(r.nicht ?? [])].every((w) => normSuche(w.replace(/^_/, '')) === w.replace(/^_/, ''))));
+  check('Inhaber legt fest', G.wirksam({ name: 'Herrenhaarschnitt', gruppe: 'bart' }) === 'bart' && G.wirksam({ name: 'Herrenhaarschnitt', gruppe: 'keine' }) === null
+    && G.wirksam({ name: 'Herrenhaarschnitt', gruppe: 'quatsch' }) === 'herren' && G.wirksam({ name: 'Herrenhaarschnitt', gruppe: '' }) === 'herren');
+  check('Herrenhaarschnitt zählt Haarschnitt mit', G.menge('herren').includes('haarschnitt') && !G.menge('kinder').includes('haarschnitt') && G.menge('haarschnitt').includes('kinder'));
+  const tuerkisch = (n) => ({ 'Bart & Rasur': 'Sakal & Tıraş' })[n] ?? n;
+  check('Was gemeint ist', G.ausText('Herrenhaarschnitt') === 'herren' && G.ausText('herrenschnitt') === 'herren' && G.ausText("Men's haircut") === 'herren'
+    && G.ausText('Sakal & Tıraş', tuerkisch) === 'bart' && G.ausText('Halit') === null && G.ausText('  ') === null && G.ausText('balayage') === 'farbe');
+
+  const mit = (laden) => ({ ...laden, leistungen: laden.leistungen.map((l) => ({ ...l, gruppe: G.wirksam(l, laden.name) })) });
+  const barbier = mit({ id: 'b', name: 'KaNa Barbers', lat: 52.587, lng: 13.285, termine: true, businessHoursByDay: offen(),
+    leistungen: [L('b1', 'Haare & Bart', 35, { duration: 45 }), L('b2', 'Maschinenschnitt', 15, { duration: 20 }), L('b3', 'Trockenschnitt', 18, { duration: 30 }),
+      L('b4', 'Konturen', 5, { duration: 10 }), L('b5', 'Bartrasur', 12, { duration: 20 })] });
+  const unisex = mit({ id: 'u', name: 'Haarwerk', lat: 52.52, lng: 13.40, termine: true, businessHoursByDay: offen(),
+    leistungen: [L('u1', 'Haarschnitt', 30), L('u2', 'Strähnen / Balayage', 80, { duration: 120 })] });
+  const herren = { key: 'herren', menge: G.menge('herren') };
+  const damen = { key: 'damen', menge: G.menge('damen') };
+  check('Barbier: Trockenschnitt ist Herrenschnitt', barbier.leistungen[2].gruppe === 'herren');
+  check('Gruppe findet anders benannte Leistung', ladenPasst(barbier, 'Herrenhaarschnitt', herren) && !ladenPasst(barbier, 'Herrenhaarschnitt'));
+  check('Übliche Leistung der Gruppe: mind. 15 Min., die kürzeste', passendeLeistung(barbier, 'Herrenhaarschnitt', herren)?.id === 'b2', passendeLeistung(barbier, 'Herrenhaarschnitt', herren)?.name);
+  check('Name mit dem Suchtext zuerst', passendeLeistung(barbier, 'Trockenschnitt', herren)?.id === 'b3');
+  check('Damenschnitt findet allgemeinen Haarschnitt', ladenPasst(unisex, 'Damenhaarschnitt', damen) && passendeLeistung(unisex, 'Damenhaarschnitt', damen)?.id === 'u1' && !ladenPasst(barbier, 'Damenhaarschnitt', damen));
+
+  const wahl = { liste: DATEN.gruppen.map((g) => ({ key: g.key, name: g.name })), ausText: (t) => G.ausText(t) };
+  const ohne = wasVorschlaege('', [barbier, unisex], 5, wahl);
+  check('Oft gesucht: Gruppen, die es gibt, häufige zuerst', ohne.gruppen[0]?.key === 'herren' && !ohne.gruppen.some((g) => g.key === 'massage') && ohne.leistungen.length === 0, JSON.stringify(ohne.gruppen));
+  const bala = wasVorschlaege('bala', [barbier, unisex], 5, wahl);
+  check('Teil eines Leistungsnamens findet die Gruppe', bala.gruppen.map((g) => g.key).join() === 'farbe' && bala.leistungen.includes('Strähnen / Balayage'), JSON.stringify(bala));
+  const hs = wasVorschlaege('herrenschnitt', [barbier, unisex], 5, wahl);
+  check('Text, den die Stichwörter einordnen', hs.gruppen[0]?.key === 'herren', JSON.stringify(hs));
+  const salonsG = [{ ...salons[0], gruppen: ['haarschnitt', 'farbe', 'styling'] }, { ...salons[0], id: 'e2', name: 'Barber Ali', kategorie: 'barbershop', leistungen: [], gruppen: ['herren', 'bart'] }];
+  const e = ergebnis([barbier, unisex], salonsG, { was: 'Bart & Rasur', gruppe: { key: 'bart', menge: G.menge('bart') }, bereich: null, filter: [], sortierung: 'empfohlen' }, {}, MITTWOCH_10);
+  check('Gruppe filtert Läden und Salons', e.treffer.map((t) => t.laden.id).join() === 'b' && e.salons.map((x) => x.salon.id).join() === 'e2' && e.treffer[0].leistung?.id === 'b5',
+    JSON.stringify([e.treffer.map((t) => t.laden.id), e.salons.map((x) => x.salon.id)]));
 }
 
 // 6. Adresse der Seite

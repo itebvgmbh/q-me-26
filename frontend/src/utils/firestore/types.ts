@@ -74,6 +74,9 @@ export interface Service {
   setupTime?: number; // in minutes - Rüstzeit
   price: number;
   category?: string;
+  /** Leistungsgruppe für „Läden finden“: leer = automatisch per Stichwort, „keine“ oder ein Schlüssel aus
+   *  data/leistungsgruppen.json (utils/leistungsgruppen.ts) */
+  gruppe?: string | null;
   /** Gelöscht: nicht mehr buchbar, bleibt aber für bestehende Termine erhalten (utils/firestore/services.ts) */
   archived?: boolean;
   archivedAt?: Timestamp;

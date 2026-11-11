@@ -1,9 +1,9 @@
 ---
 titel: Leistungen anlegen und ändern
-kurz: Was man bei dir buchen kann: Name, Dauer, Vor- und Nachbereitung, Preis, wer welche Leistung macht und wie du eine löschst.
+kurz: Was man bei dir buchen kann: Name, Dauer, Vor- und Nachbereitung, Preis, Begriff für die Suche, wer welche Leistung macht und wie du eine löschst.
 thema: laden
 reihenfolge: 1
-stichworte: leistung, leistungen, service, dienstleistung, preis, preise, dauer, preisliste, haarschnitt, kategorie, vorbereitung, nachbereitung, rüstzeit, löschen, entfernen, zurückholen
+stichworte: leistung, leistungen, service, dienstleistung, preis, preise, dauer, preisliste, haarschnitt, kategorie, vorbereitung, nachbereitung, rüstzeit, löschen, entfernen, zurückholen, suche, gefunden, läden finden, gruppe
 ---
 Leistungen sind das, was Kunden beim Nummer-Ziehen und Buchen auswählen. Am wichtigsten ist die **Dauer**: Daraus rechnet Dranzeit, wann jemand dran ist.
 
@@ -22,6 +22,13 @@ Die Felder:
 - **Preis (€):** auch 0 ist erlaubt, z. B. für ein Erstgespräch.
 - **Beschreibung:** steht auf deiner Ladenseite neben der Leistung. Gut für Hinweise wie „Preis ab 40 €, je nach Haarlänge“.
 - **Kategorie:** zum Ordnen, z. B. Damen oder Herren. Sie steht nur in deiner Liste, Kunden sehen sie nicht.
+- **In der Suche unter:** der Begriff, unter dem Kunden die Leistung bei [Läden finden](/shop-map) finden, z. B. „Herrenhaarschnitt“ oder „Bart & Rasur“. Mehr dazu im nächsten Abschnitt.
+
+## Unter welchem Begriff man deine Leistung findet
+
+Jeder Laden nennt seine Leistungen anders. Damit die Suche trotzdem passt, ordnet Dranzeit jede Leistung einem festen Begriff zu, etwa „Herrenhaarschnitt“, „Färben & Strähnen“ oder „Maniküre“. Dafür reichen meist der Name und die Kategorie. So findet, wer nach „Herrenhaarschnitt“ sucht, auch deinen „Maschinenschnitt“. In der Liste steht bei jeder Leistung, unter welchem Begriff sie gefunden wird.
+
+Passt die Zuordnung nicht, tipp auf **„Bearbeiten“** und wähl bei **„In der Suche unter“** den richtigen Begriff. Mit **„Keiner Gruppe zuordnen“** findet man die Leistung nur unter ihrem eigenen Namen. Mit **„Automatisch“** ordnet Dranzeit sie wieder selbst zu.
 
 ## Leistung ändern
 

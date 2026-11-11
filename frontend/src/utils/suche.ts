@@ -7,11 +7,15 @@
  * filtert – sofort, ohne Laden. Orte für „Wo?“ aus data/orte-berlin.json (Bezirke und Ortsteile mit Mittelpunkt);
  * Postleitzahlen und Adressen löst das Backend auf (GET /routes/suche/ort).
  *
+ * Leistungsgruppen (utils/leistungsgruppen.ts): Jede Leistung hat vom Backend ihre Gruppe (gruppe), Salons ohne Dranzeit
+ * ihre Gruppen (gruppen). Meint „Was?“ eine Gruppe, zählen alle Leistungen dieser Gruppe, egal wie der Laden sie nennt.
+ *
  * Datenschutz: Der eigene Standort und der Kartenausschnitt stehen nie in der Adresse der Seite, nur was und wo
  * jemand eingetippt hat.
  */
 
-export type Leistung = { id: string; name: string; price: number; duration: number; category?: string };
+/** gruppe: wirksame Leistungsgruppe (vom Inhaber festgelegt oder per Stichwort), null = keine */
+export type Leistung = { id: string; name: string; price: number; duration: number; category?: string; gruppe?: string | null };
 export type Tag = { dayOfWeek?: unknown; isOpen?: boolean; openTime?: string; closeTime?: string; breaks?: { startTime?: string; endTime?: string }[] };
 
 export type SuchLaden = {
@@ -46,7 +50,12 @@ export type SuchSalon = {
   lat: number;
   lng: number;
   leistungen: string[];
+  /** Leistungsgruppen (aus der Leistungsliste, sonst die üblichen der Kategorie) */
+  gruppen?: string[];
 };
+
+/** Gesuchte Leistungsgruppe: key und die Gruppen, die mitzählen (menge aus utils/leistungsgruppen.ts) */
+export type SuchGruppe = { key: string; menge: string[] };
 
 export type Frei = {
   warten: number;
@@ -102,12 +111,35 @@ export const passt = (text: string, suche: string): boolean => {
 
 const leistungText = (l: Leistung) => `${l.name} ${l.category ?? ''}`;
 
-export const ladenPasst = (laden: SuchLaden, was: string): boolean =>
-  !normSuche(was) || passt(laden.name, was) || laden.leistungen.some((l) => passt(leistungText(l), was));
+const inGruppe = (l: Leistung, gruppe: SuchGruppe | null | undefined) => !!gruppe && !!l.gruppe && gruppe.menge.includes(l.gruppe);
 
-/** Die gesuchte Leistung dieses Ladens (für Preis und freie Zeiten); ohne Suche keine */
-export const passendeLeistung = (laden: SuchLaden, was: string): Leistung | undefined =>
-  normSuche(was) ? laden.leistungen.find((l) => passt(leistungText(l), was)) : undefined;
+/** Passt zu „Was?“: Name des Ladens, eine Leistung der gesuchten Gruppe oder eine Leistung mit dem Text */
+export const ladenPasst = (laden: SuchLaden, was: string, gruppe?: SuchGruppe | null): boolean =>
+  !normSuche(was) || passt(laden.name, was) || laden.leistungen.some((l) => inGruppe(l, gruppe) || passt(leistungText(l), was));
+
+/**
+ * Die gesuchte Leistung dieses Ladens (für Preis und freie Zeiten); ohne Suche keine. Bei einer Gruppe: erst genau
+ * diese Gruppe (vor mitzählenden wie „Haarschnitt“), dann wessen Name den Text enthält, dann die übliche – mindestens
+ * 15 Minuten, die kürzeste, die günstigere. Gleich im Backend: standard_leistung in app/apis/suche.
+ */
+export const passendeLeistung = (laden: SuchLaden, was: string, gruppe?: SuchGruppe | null): Leistung | undefined => {
+  if (!normSuche(was)) return undefined;
+  const inG = laden.leistungen.filter((l) => inGruppe(l, gruppe));
+  if (!inG.length) return laden.leistungen.find((l) => passt(leistungText(l), was));
+  const rang = (l: Leistung) => [
+    l.gruppe === gruppe?.key ? 0 : 1,
+    passt(l.name, was) ? 0 : 1,
+    Math.max(l.duration || 0, 10) < 15 ? 1 : 0,
+    l.duration || 0,
+    l.price || 0,
+  ];
+  const vergleich = (a: Leistung, b: Leistung) => {
+    const [ra, rb] = [rang(a), rang(b)];
+    const i = ra.findIndex((x, j) => x !== rb[j]);
+    return i < 0 ? normSuche(a.name).localeCompare(normSuche(b.name)) : ra[i] - rb[i];
+  };
+  return [...inG].sort(vergleich)[0];
+};
 
 /** Kleinster Preis über 0 € */
 export const abPreis = (laden: SuchLaden): number | null => {
@@ -179,11 +211,45 @@ export const ortAusListe = (name: string, orte: Ort[]): Ort | undefined => {
 
 export const istPlz = (text: string) => /^\d{5}$/.test(text.trim());
 
+/** Für wasVorschlaege: die Gruppen (Name schon übersetzt, in fester Reihenfolge) und wie ein Text eingeordnet wird */
+export type GruppenWahl = { liste: { key: string; name: string }[]; ausText: (text: string) => string | null };
+
 /**
- * Vorschläge für „Was?“: Leistungen (gleicher Name zählt einmal, häufige zuerst) und Läden nach Namen.
- * Ohne Eingabe die häufigsten Leistungen.
+ * Vorschläge für „Was?“: erst Leistungsgruppen (nur solche, die ein Laden oder Salon anbietet; ohne Eingabe die
+ * häufigsten), dann einzelne Leistungen (gleicher Name zählt einmal), dann Läden nach Namen. Eine Gruppe passt, wenn
+ * ihr Name passt, der Text sie meint („Herrenschnitt“) oder eine ihrer Leistungen den Text enthält („Bala…“ →
+ * Färben & Strähnen). Ohne Gruppen wie früher: die häufigsten Leistungen.
  */
-export const wasVorschlaege = (eingabe: string, laeden: SuchLaden[], max = 5): { leistungen: string[]; laeden: SuchLaden[] } => {
+export const wasVorschlaege = (
+  eingabe: string,
+  laeden: SuchLaden[],
+  max = 5,
+  gruppen?: GruppenWahl,
+  salons: SuchSalon[] = [],
+): { gruppen: { key: string; name: string }[]; leistungen: string[]; laeden: SuchLaden[] } => {
+  const e = normSuche(eingabe);
+  // Wie viele Läden eine Gruppe anbieten (Salons ohne Dranzeit zählen nur, dass es sie gibt)
+  const anbieter = new Map<string, number>();
+  for (const laden of laeden) {
+    for (const g of new Set(laden.leistungen.map((l) => l.gruppe))) if (g) anbieter.set(g, (anbieter.get(g) ?? 0) + 1);
+  }
+  for (const s of salons) for (const g of s.gruppen ?? []) if (!anbieter.has(g)) anbieter.set(g, 0);
+  const gemeint = gruppen && e ? gruppen.ausText(eingabe) : null;
+  const passendeGruppen = (gruppen?.liste ?? [])
+    .map((g, i) => ({ ...g, i, n: anbieter.get(g.key) }))
+    .filter((g) => g.n !== undefined)
+    .filter(
+      (g) =>
+        !e ||
+        g.key === gemeint ||
+        passt(g.name, eingabe) ||
+        normSuche(g.name).split(' ').some((w) => w.startsWith(e)) ||
+        laeden.some((l) => l.leistungen.some((x) => x.gruppe === g.key && passt(x.name, eingabe))),
+    )
+    .sort((a, b) => (e ? 0 : (b.n ?? 0) - (a.n ?? 0)) || a.i - b.i)
+    .slice(0, e ? 4 : max + 1)
+    .map(({ key, name }) => ({ key, name }));
+  const gruppenNamen = new Set(passendeGruppen.map((g) => normSuche(g.name)));
   const zaehler = new Map<string, { name: string; n: number }>();
   for (const laden of laeden) {
     const schonGezaehlt = new Set<string>();
@@ -196,14 +262,17 @@ export const wasVorschlaege = (eingabe: string, laeden: SuchLaden[], max = 5): {
       else zaehler.set(key, { name: l.name.trim(), n: 1 });
     }
   }
-  const e = normSuche(eingabe);
-  const leistungen = [...zaehler.values()]
-    .filter((x) => !e || passt(x.name, eingabe))
-    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'de'))
-    .map((x) => x.name)
-    .slice(0, max);
+  // Ohne Eingabe stehen die Gruppen für „Oft gesucht“; einzelne Leistungen nur, wenn es keine Gruppen gibt
+  const leistungen =
+    !e && passendeGruppen.length
+      ? []
+      : [...zaehler.values()]
+          .filter((x) => (!e || passt(x.name, eingabe)) && !gruppenNamen.has(normSuche(x.name)))
+          .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'de'))
+          .map((x) => x.name)
+          .slice(0, passendeGruppen.length ? Math.max(2, max - passendeGruppen.length) : max);
   const passendeLaeden = e ? laeden.filter((l) => passt(l.name, eingabe)).slice(0, max) : [];
-  return { leistungen, laeden: passendeLaeden };
+  return { gruppen: passendeGruppen, leistungen, laeden: passendeLaeden };
 };
 
 // --- Öffnungszeiten ---------------------------------------------------------------------------------------------------
@@ -241,7 +310,8 @@ export type Ergebnis = {
   wartetAufZeiten: boolean;
 };
 
-export type Anfrage = { was: string; bereich: Bereich | null; filter: Filter[]; sortierung: Sortierung };
+/** gruppe: die mit „Was?“ gemeinte Leistungsgruppe (GRUPPEN.ausText), sonst nur Textsuche */
+export type Anfrage = { was: string; gruppe?: SuchGruppe | null; bereich: Bereich | null; filter: Filter[]; sortierung: Sortierung };
 
 const BRAUCHT_ZEITEN: Filter[] = ['heute', 'kurz'];
 
@@ -257,15 +327,17 @@ export const filterPasst = (t: Treffer, filter: Filter[], frei: Record<string, F
 
 const preisVon = (t: Treffer) => t.leistung?.price || abPreis(t.laden) || Infinity;
 
-export const sortieren = (liste: Treffer[], sortierung: Sortierung, frei: Record<string, Frei>, jetzt: Date): Treffer[] => {
+/** gruppe: gesuchte Leistungsgruppe – wer sie genau anbietet, steht vor dem, der nur „Haarschnitt“ hat */
+export const sortieren = (liste: Treffer[], sortierung: Sortierung, frei: Record<string, Frei>, jetzt: Date, gruppe?: string): Treffer[] => {
   const entfernung = (t: Treffer) => t.km ?? Infinity;
+  const ungenau = (t: Treffer) => (gruppe && t.leistung?.gruppe && t.leistung.gruppe !== gruppe ? 1 : 0);
   const name = (a: Treffer, b: Treffer) => a.laden.name.localeCompare(b.laden.name, 'de');
   const vergleich: Record<Sortierung, (a: Treffer, b: Treffer) => number> = {
     // Offen vor zu, dann wer heute noch etwas frei hat, dann die Nähe
     empfohlen: (a, b) => {
       const punkte = (t: Treffer) =>
         (offenJetzt(t.laden, jetzt) ? 0 : 2) + (frei[t.laden.id]?.nummer || terminHeute(frei[t.laden.id], jetzt) ? 0 : 1);
-      return punkte(a) - punkte(b) || entfernung(a) - entfernung(b) || name(a, b);
+      return punkte(a) - punkte(b) || ungenau(a) - ungenau(b) || entfernung(a) - entfernung(b) || name(a, b);
     },
     entfernung: (a, b) => entfernung(a) - entfernung(b) || name(a, b),
     warten: (a, b) => (frei[a.laden.id]?.warten ?? Infinity) - (frei[b.laden.id]?.warten ?? Infinity) || entfernung(a) - entfernung(b) || name(a, b),
@@ -281,11 +353,11 @@ export const ergebnis = (
   frei: Record<string, Frei>,
   jetzt: Date,
 ): Ergebnis => {
-  const { was, bereich, filter, sortierung } = anfrage;
+  const { was, gruppe, bereich, filter, sortierung } = anfrage;
   const mitte = bereich ? mitteVon(bereich) : null;
   const alle: Treffer[] = laeden
-    .filter((l) => ladenPasst(l, was))
-    .map((laden) => ({ laden, km: mitte && hatLage(laden) ? km(laden, mitte) : null, leistung: passendeLeistung(laden, was) }));
+    .filter((l) => ladenPasst(l, was, gruppe))
+    .map((laden) => ({ laden, km: mitte && hatLage(laden) ? km(laden, mitte) : null, leistung: passendeLeistung(laden, was, gruppe) }));
   const drin = bereich ? alle.filter((t) => drinnen(t.laden, bereich)) : alle;
   const gefiltert = drin.filter((t) => filterPasst(t, filter, frei, jetzt));
   let weiter: Treffer[] = [];
@@ -301,19 +373,24 @@ export const ergebnis = (
     filter.length > 0
       ? []
       : salons
-          .filter((s) => !normSuche(was) || passt(`${s.name} ${s.leistungen.join(' ')}`, was))
+          .filter(
+            (s) =>
+              !normSuche(was) ||
+              passt(`${s.name} ${s.leistungen.join(' ')}`, was) ||
+              (!!gruppe && (s.gruppen ?? []).some((g) => gruppe.menge.includes(g))),
+          )
           .filter((s) => !bereich || drinnen(s, bereich))
           .map((salon) => ({ salon, km: mitte ? km(salon, mitte) : null }))
           .sort((a, b) => (a.km ?? 0) - (b.km ?? 0) || a.salon.name.localeCompare(b.salon.name, 'de'));
   const wartetAufZeiten = filter.some((f) => BRAUCHT_ZEITEN.includes(f)) && drin.some((t) => !frei[t.laden.id]);
-  return { treffer: sortieren(gefiltert, sortierung, frei, jetzt), weiter, salons: salonTreffer, wartetAufZeiten };
+  return { treffer: sortieren(gefiltert, sortierung, frei, jetzt, gruppe?.key), weiter, salons: salonTreffer, wartetAufZeiten };
 };
 
 /** Für welche Läden die Seite freie Zeiten holt: erst die gezeigten, dann (für Filter) die übrigen im Bereich */
 export const zeitenFuer = (laeden: SuchLaden[], anfrage: Anfrage, max = 12): string[] => {
   const mitte = anfrage.bereich ? mitteVon(anfrage.bereich) : null;
   return laeden
-    .filter((l) => ladenPasst(l, anfrage.was))
+    .filter((l) => ladenPasst(l, anfrage.was, anfrage.gruppe))
     .filter((l) => !anfrage.bereich || (hatLage(l) && km(l, mitte as Punkt) <= WEITER_KM))
     .sort((a, b) => (mitte && hatLage(a) && hatLage(b) ? km(a, mitte) - km(b, mitte) : a.name.localeCompare(b.name, 'de')))
     .slice(0, max)

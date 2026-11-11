@@ -4,8 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HilfeLink } from './HilfeLink';
+import { GRUPPEN } from '../utils/suche-daten';
 import { t } from '@/i18n';
+
+/** Wert im Auswahlfeld für „automatisch“ (gespeichert wird ein leeres gruppe) */
+const AUTO = 'auto';
 
 /**
  * Props for the ServiceForm component
@@ -21,11 +26,15 @@ export interface ServiceFormProps {
     setupTime?: number;
     price: number;
     category: string;
+    /** Leistungsgruppe für „Läden finden“: '' = automatisch, 'keine' oder ein Schlüssel (utils/leistungsgruppen.ts) */
+    gruppe: string;
   }) => Promise<unknown>;
   /** Called when the form is cancelled */
   onCancel: () => void;
   /** Submit button text */
   submitLabel?: string;
+  /** Name des Ladens: beim Barbier gilt ein Schnitt ohne Angabe als Herrenschnitt (wie im Backend) */
+  kontext?: string;
 }
 
 /**
@@ -39,6 +48,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   onSubmit,
   onCancel,
   submitLabel = t('Speichern'),
+  kontext = '',
 }) => {
   // Form state
   const [name, setName] = React.useState(initialService.name || '');
@@ -54,6 +64,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     initialService.price != null ? initialService.price.toString() : ''
   );
   const [category, setCategory] = React.useState(initialService.category || '');
+  const [gruppe, setGruppe] = React.useState(initialService.gruppe || '');
+  // Was automatisch gälte – ändert sich mit Name und Kategorie
+  const autoGruppe = GRUPPEN.auto({ name, category }, kontext);
+  const autoName = autoGruppe ? GRUPPEN.gruppe(autoGruppe)?.name : undefined;
   
   // Form validation and submission
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -106,13 +120,14 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         setupTime: setupTime ? parseInt(setupTime) : 0,
         price: parseFloat(price),
         category,
+        gruppe,
       });
     } catch (error) {
       console.error('Form submission error:', error);
     } finally {
       setIsSubmitting(false);
     }
-  }, [name, description, duration, setupTime, price, category, onSubmit]);
+  }, [name, description, duration, setupTime, price, category, gruppe, onSubmit]);
 
   return (
     <div className="grid gap-4 py-4">
@@ -200,6 +215,29 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           placeholder={t('z.B. Haare')}
           disabled={isSubmitting}
         />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="gruppe">{t('In der Suche unter')}</Label>
+        <Select value={gruppe || AUTO} onValueChange={(v) => setGruppe(v === AUTO ? '' : v)} disabled={isSubmitting}>
+          <SelectTrigger id="gruppe">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={AUTO}>
+              {autoName ? t('Automatisch: {gruppe}', { gruppe: t(autoName) }) : t('Automatisch: keine passende Gruppe')}
+            </SelectItem>
+            {GRUPPEN.liste.map((g) => (
+              <SelectItem key={g.key} value={g.key}>
+                {t(g.name)}
+              </SelectItem>
+            ))}
+            <SelectItem value="keine">{t('Keiner Gruppe zuordnen')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground">
+          {t('Darunter findet man die Leistung bei „Läden finden“, auch wenn sie bei dir anders heißt.')}
+        </p>
       </div>
       
       <div className="flex justify-end gap-2 mt-2">

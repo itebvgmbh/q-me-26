@@ -188,6 +188,13 @@ def test_leistungen_nur_inhaber():
     assert sid != "geklaut" and daten["services"][sid]["price"] == 12.5
     assert c.post("/routes/team/leistungen", json={"leistung": {"shopId": "laden1", "name": "Ohne Dauer"}}).status_code == 400
     assert c.post("/routes/team/leistungen", json={"leistung": {"shopId": "laden1", "name": "X", "duration": -5}}).status_code == 400
+    # Leistungsgruppe für „Läden finden“: leer, „keine“ oder eine der festen Gruppen
+    assert c.post(f"/routes/team/leistungen/{sid}", json={"aenderung": {"gruppe": "herren"}}).status_code == 200
+    assert daten["services"][sid]["gruppe"] == "herren"
+    assert c.post(f"/routes/team/leistungen/{sid}", json={"aenderung": {"gruppe": "keine"}}).status_code == 200
+    assert c.post(f"/routes/team/leistungen/{sid}", json={"aenderung": {"gruppe": ""}}).status_code == 200
+    assert c.post(f"/routes/team/leistungen/{sid}", json={"aenderung": {"gruppe": "Erfunden"}}).status_code == 400
+    assert c.post("/routes/team/leistungen", json={"leistung": {"shopId": "laden1", "name": "Z", "duration": 10, "gruppe": 5}}).status_code == 400
     # ausblenden mit Zeitpunkt, wiederherstellen, Laden bleibt
     c.post(f"/routes/team/leistungen/{sid}", json={"aenderung": {"archived": True, "shopId": "laden2"}})
     assert daten["services"][sid]["archived"] is True and isinstance(daten["services"][sid]["archivedAt"], datetime) and daten["services"][sid]["shopId"] == "laden1"
