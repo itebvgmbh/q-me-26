@@ -120,7 +120,8 @@ def suche_laeden(response: Response) -> dict:
 
 
 def standard_leistung(leistungen: list, suche: str = "") -> dict | None:
-    """Für die freien Zeiten: die gesuchte Leistung, sonst die übliche (Haarschnitt vor allem anderen), sonst die erste"""
+    """Für die freien Zeiten: die gesuchte Leistung, sonst die übliche (Herrenschnitt, dann ein anderer Schnitt außer für
+    Kinder, dann etwas mit Haar), sonst die erste"""
     if suche:
         treffer = [s for s in leistungen if passt(f"{s['name']} {s.get('category') or ''}", suche)]
         if treffer:
@@ -130,7 +131,9 @@ def standard_leistung(leistungen: list, suche: str = "") -> dict | None:
 
     def rang(s: dict):
         n = norm(s["name"])
-        return (0 if "schnitt" in n else 1 if "haar" in n else 2, max(s.get("duration") or 0, 10) < 15, s.get("duration") or 0, n)
+        kinder = "kinder" in n or "kids" in n
+        stufe = 0 if "herren" in n and "schnitt" in n else 1 if "schnitt" in n and not kinder else 2 if "haar" in n and not kinder else 3
+        return (stufe, max(s.get("duration") or 0, 10) < 15, s.get("duration") or 0, n)
 
     return sorted(leistungen, key=rang)[0]
 
