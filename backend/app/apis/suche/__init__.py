@@ -2,14 +2,19 @@
 Läden finden (frontend/src/pages/Finden.tsx), öffentlich, ohne Anmeldung:
 
     GET /suche/laeden                       alle Läden für Liste und Karte, dazu die Salons ohne Dranzeit (grau)
-    GET /suche/frei?ids=a,b&leistung=…      je Laden: wie viele warten, wann man mit einer Nummer ungefähr dran
-                                            wäre, die nächsten freien Termine (7 Tage) – für die gesuchte Leistung
+    GET /suche/frei?ids=a,b&leistung=…&gruppe=…   je Laden: wie viele warten, wann man mit einer Nummer ungefähr
+                                            dran wäre, die nächsten freien Termine (7 Tage) – für die gesuchte
+                                            Leistung bzw. Leistungsgruppe
     GET /suche/ort?q=13507                  Postleitzahl, Ort oder Adresse → Mittelpunkt (OpenStreetMap, gemerkt)
 
 Die Liste ist klein genug, dass der Browser Filter, Entfernung und Kartenausschnitt selbst rechnet (sofort, ohne
 Laden). Teuer sind nur die freien Zeiten; die fragt die Seite für die gezeigten Läden (höchstens MAX_IDS) und das
 Backend merkt sie sich eine Minute. Freie Zeiten nach denselben Regeln wie beim Buchen und am Telefon
 (app/libs/online_platz.py: Vorlauf für Termine, Nummern hinter der Schlange).
+
+Jede Leistung bekommt ihre Leistungsgruppe mit (app/libs/leistungsgruppen.py: vom Inhaber festgelegt oder per
+Stichwort), Salons ohne Dranzeit die Gruppen ihrer Leistungen – so findet „Herrenhaarschnitt“ auch den
+„Maschinenschnitt“ eines Barbiers.
 
 Vorschläge beim Tippen kommen aus eigenen Listen (Läden, Leistungen, Berliner Bezirke und Ortsteile im Frontend):
 Nominatim erlaubt keine Suche bei jedem Tastendruck. Nur wer etwas anderes abschickt (PLZ, Straße, andere Stadt),
@@ -24,6 +29,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 from app import seo, store
 from app.libs import laeden as ld
+from app.libs import leistungsgruppen as lg
 from app.libs.plans import has_feature
 from app.libs.schedule import BERLIN, aware
 from app.libs.throttle import throttle
@@ -61,9 +67,10 @@ def _personen(db, shop_id: str) -> list:
     return [(d.id, d.to_dict() or {}) for d in db.collection("staff").where("shopId", "==", shop_id).stream()]
 
 
-def _leistung_kurz(s: dict) -> dict:
+def _leistung_kurz(s: dict, kontext: str = "") -> dict:
+    # kontext (Ladenname): ein Schnitt ohne Angabe beim Barbier ist ein Herrenschnitt
     return {"id": s["id"], "name": s["name"], "price": s.get("price") or 0, "duration": s.get("duration") or 0,
-            "category": s.get("category") or ""}
+            "category": s.get("category") or "", "gruppe": lg.wirksam(s, kontext)}
 
 
 def _verzeichnis() -> dict:
@@ -88,7 +95,8 @@ def laeden_daten() -> dict:
                 continue
             seite = nach_laden.get(shop["id"], {})
             lage = shop.get("coordinates") or seite.get("coordinates") or {}
-            leistungen = [_leistung_kurz(s) for s in _leistungen(db, shop["id"])
+            # Wie in der Leistungsverwaltung (ServiceForm): nur der Name des Ladens, damit beide dasselbe zeigen
+            leistungen = [_leistung_kurz(s, shop["name"]) for s in _leistungen(db, shop["id"])
                           if not s.get("archived") and s.get("name")]
             laeden.append({
                 "id": shop["id"], **{k: shop[k] for k in LADEN_FELDER if shop.get(k) is not None},
@@ -102,11 +110,13 @@ def laeden_daten() -> dict:
             lage = s.get("coordinates") or {}
             if s.get("typ") != "eintrag" or lage.get("latitude") is None:
                 continue
+            namen = [x.get("name") for x in (s.get("services") or []) if isinstance(x, dict) and x.get("name")][:40]
+            kategorie = s.get("kategorie") or "friseur"
             salons.append({
-                "id": s["id"], "name": s["name"], "kategorie": s.get("kategorie") or "friseur",
+                "id": s["id"], "name": s["name"], "kategorie": kategorie,
                 **{k: s.get(k) or "" for k in ("street", "postalCode", "city", "ortsteil", "bezirk", "pfad")},
                 "lat": lage["latitude"], "lng": lage["longitude"],
-                "leistungen": [x.get("name") for x in (s.get("services") or []) if isinstance(x, dict) and x.get("name")][:40],
+                "leistungen": namen, "gruppen": lg.salon_gruppen(namen, kategorie, s["name"]),
             })
         return {"laeden": laeden, "salons": salons}
 
@@ -119,9 +129,21 @@ def suche_laeden(response: Response) -> dict:
     return laeden_daten()
 
 
-def standard_leistung(leistungen: list, suche: str = "") -> dict | None:
+def standard_leistung(leistungen: list, suche: str = "", gruppe: str = "") -> dict | None:
     """Für die freien Zeiten: die gesuchte Leistung, sonst die übliche (Herrenschnitt, dann ein anderer Schnitt außer für
-    Kinder, dann etwas mit Haar), sonst die erste"""
+    Kinder, dann etwas mit Haar), sonst die erste.
+
+    Mit Leistungsgruppe wie passendeLeistung in frontend/src/utils/suche.ts: erst genau diese Gruppe (vor mitzählenden
+    wie „Haarschnitt“), dann wessen Name den Text enthält, dann mindestens 15 Minuten, die kürzeste, die günstigere."""
+    menge = lg.menge(gruppe) if gruppe else set()
+    in_gruppe = [s for s in leistungen if s.get("gruppe") in menge]
+    if in_gruppe:
+        def rang_gruppe(s: dict):
+            dauer = s.get("duration") or 0
+            return (s.get("gruppe") != gruppe, not passt(s["name"], suche), max(dauer, 10) < 15, dauer, s.get("price") or 0,
+                    norm(s["name"]))
+
+        return sorted(in_gruppe, key=rang_gruppe)[0]
     if suche:
         treffer = [s for s in leistungen if passt(f"{s['name']} {s.get('category') or ''}", suche)]
         if treffer:
@@ -147,12 +169,12 @@ def _iso(dt: datetime) -> str:
     return aware(dt).astimezone(BERLIN).isoformat()
 
 
-def frei_fuer(shop_id: str, laden: dict, suche: str = "", now: datetime | None = None) -> dict:
+def frei_fuer(shop_id: str, laden: dict, suche: str = "", now: datetime | None = None, gruppe: str = "") -> dict:
     """warten, leistung, nummer (ungefähre Zeit, wann man heute dran wäre) und termine (die nächsten drei)"""
     from app.libs.online_platz import naechste_plaetze
 
     out: dict = {"warten": seo.waiting_now(shop_id), "leistung": None, "nummer": None, "termine": []}
-    leistung = standard_leistung(laden.get("leistungen") or [], suche)
+    leistung = standard_leistung(laden.get("leistungen") or [], suche, gruppe)
     if not leistung:
         return out
     out["leistung"] = leistung
@@ -178,9 +200,10 @@ def frei_fuer(shop_id: str, laden: dict, suche: str = "", now: datetime | None =
 
 
 @router.get("/suche/frei")
-def suche_frei(ids: str, response: Response, leistung: str = "") -> dict:
+def suche_frei(ids: str, response: Response, leistung: str = "", gruppe: str = "") -> dict:
     response.headers["Cache-Control"] = "public, max-age=30"
     suche = norm(leistung)[:60]
+    gruppe = gruppe if gruppe in lg.keys() else ""
     gefragt = [i for i in dict.fromkeys(ids.split(",")) if ID.match(i)][:MAX_IDS]
     bekannt = {l["id"]: l for l in laeden_daten()["laeden"]}
     ergebnis = {}
@@ -188,7 +211,8 @@ def suche_frei(ids: str, response: Response, leistung: str = "") -> dict:
         if shop_id not in bekannt:
             continue
         try:
-            ergebnis[shop_id] = seo._cached(f"suche:frei:{shop_id}:{suche}", lambda i=shop_id: frei_fuer(i, bekannt[i], suche))
+            ergebnis[shop_id] = seo._cached(f"suche:frei:{shop_id}:{suche}:{gruppe}",
+                                            lambda i=shop_id: frei_fuer(i, bekannt[i], suche, gruppe=gruppe))
         except Exception:
             log.exception("Suche: freie Zeiten für %s nicht berechnet", shop_id)
     return {"frei": ergebnis}

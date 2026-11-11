@@ -64,6 +64,23 @@ const texte: Texte = {
   "Laden, Leistung oder Ort": "محل أو خدمة أو مكان",
   "Auf der Karte suchen": "ابحث على الخريطة",
   "Nach Entfernung zu {ort} sortiert": "مرتبة حسب المسافة إلى {ort}",
+  // Leistungsgruppen (data/leistungsgruppen.json) und „In der Suche unter“ bei den Leistungen
+  "Damenhaarschnitt": "قص شعر نسائي",
+  "Haarschnitt": "قص الشعر",
+  "Bart & Rasur": "اللحية والحلاقة",
+  "Färben & Strähnen": "الصبغة والخصل",
+  "Föhnen & Styling": "التجفيف والتصفيف",
+  "Gelnägel & Modellage": "أظافر الجل والتركيب",
+  "Gesichtsbehandlung": "العناية بالوجه",
+  "Wimpern & Augenbrauen": "الرموش والحواجب",
+  "Physiotherapie": "العلاج الطبيعي",
+  "In der Suche unter": "يظهر في البحث ضمن",
+  "Automatisch: {gruppe}": "تلقائيًا: {gruppe}",
+  "Automatisch: keine passende Gruppe": "تلقائيًا: لا توجد فئة مناسبة",
+  "Keiner Gruppe zuordnen": "عدم التعيين لأي فئة",
+  "Darunter findet man die Leistung bei „Läden finden“, auch wenn sie bei dir anders heißt.": "ضمن هذه الفئة يجدون الخدمة في „ابحث عن محل“، حتى لو كان اسمها لديك مختلفًا.",
+  "In der Suche unter „{gruppe}“": "في البحث ضمن „{gruppe}“",
+  "In der Suche nur unter dem eigenen Namen": "في البحث باسمها فقط",
 };
 
 export default texte;

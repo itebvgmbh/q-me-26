@@ -132,6 +132,15 @@ if (!filter.length || filter.some((f) => "components/Navigation.tsx".startsWith(
   }
 }
 
+// Namen der Leistungsgruppen stehen in data/leistungsgruppen.json (übersetzt mit t(gruppe.name), utils/suche-daten.ts)
+if (!filter.length || filter.some((f) => "utils/suche-daten.ts".startsWith(f) || f === "leistungsgruppen.json")) {
+  const gruppen = JSON.parse(fs.readFileSync(path.join(WURZEL, "data", "leistungsgruppen.json"), "utf8")).gruppen;
+  for (const g of gruppen) {
+    if (!verwendet.has(g.name)) verwendet.set(g.name, []);
+    verwendet.get(g.name).push(`leistungsgruppen.json:${g.key}`);
+  }
+}
+
 // --- Kataloge laden ---
 const kataloge = {};
 const herkunft = {}; // sprache -> schlüssel -> [bereiche]

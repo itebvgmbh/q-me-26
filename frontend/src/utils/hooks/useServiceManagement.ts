@@ -50,6 +50,7 @@ export const useServiceManagement = (shop: Shop | null) => {
     setupTime?: number;
     price: number;
     category: string;
+    gruppe?: string;
   }) => {
     if (!shop) {
       toast.error(t('Kein Laden ausgewählt'));
@@ -82,6 +83,7 @@ export const useServiceManagement = (shop: Shop | null) => {
     setupTime?: number;
     price: number;
     category: string;
+    gruppe?: string;
   }) => {
     try {
       await updateService(serviceId, serviceData);

@@ -1,0 +1,72 @@
+{
+  "_info": [
+    "Feste Gruppen für „Läden finden“: Jeder Laden nennt seine Leistungen anders („Herrenschnitt“, „Maschinenschnitt“, „Cut & Go Herren“) –",
+    "über die Gruppe findet die Suche sie trotzdem. Gelesen von frontend/src/utils/leistungsgruppen.ts und backend/app/libs/leistungsgruppen.py.",
+    "Ein Inhaber kann die Gruppe einer Leistung selbst festlegen (Feld gruppe: Schlüssel oder „keine“), sonst gilt die Zuordnung per Stichwort.",
+    "Stichwörter vergleichen mit kleinem Text ohne Akzente, ä→ae, ß→ss, Satzzeichen als Leerzeichen. „_x“: ein Wort fängt mit x an, sonst irgendwo im Text.",
+    "Reihenfolge: erst name (erste passende Regel), dann kategorie (das Feld „Kategorie“ der Leistung), dann schnitt (allgemeiner Haarschnitt).",
+    "Fälle zum Prüfen: dev/leistungsgruppen-faelle.json (beide Seiten testen dieselben)."
+  ],
+  "gruppen": [
+    { "key": "herren", "name": "Herrenhaarschnitt", "auch": ["haarschnitt"] },
+    { "key": "damen", "name": "Damenhaarschnitt", "auch": ["haarschnitt"] },
+    { "key": "kinder", "name": "Kinderhaarschnitt" },
+    { "key": "haarschnitt", "name": "Haarschnitt", "auch": ["herren", "damen", "kinder"] },
+    { "key": "bart", "name": "Bart & Rasur" },
+    { "key": "farbe", "name": "Färben & Strähnen" },
+    { "key": "styling", "name": "Föhnen & Styling" },
+    { "key": "manikuere", "name": "Maniküre" },
+    { "key": "naegel", "name": "Gelnägel & Modellage" },
+    { "key": "pedikuere", "name": "Pediküre" },
+    { "key": "gesicht", "name": "Gesichtsbehandlung" },
+    { "key": "augen", "name": "Wimpern & Augenbrauen" },
+    { "key": "haarentfernung", "name": "Haarentfernung" },
+    { "key": "makeup", "name": "Make-up" },
+    { "key": "massage", "name": "Massage" },
+    { "key": "physio", "name": "Physiotherapie" }
+  ],
+  "name": [
+    { "gruppe": "kinder", "woerter": ["kinder", "kids", "_kind", "_jungen", "maedchen", "_baby"] },
+    { "gruppe": "augen", "woerter": ["wimper", "braue", "_brow", "_lash", "_henna"] },
+    { "gruppe": "makeup", "woerter": ["make up", "makeup", "schmink", "visag"] },
+    { "gruppe": "haarentfernung", "woerter": ["wachs", "wax", "sugaring", "haarentfernung", "enthaar", "epilat", "_ipl", "laser"] },
+    { "gruppe": "pedikuere", "woerter": ["pedik", "pedic", "fusspflege", "fuesse", "_fussbad"] },
+    { "gruppe": "manikuere", "woerter": ["manik", "manic", "shellac", "nagellack", "_lack", "handpflege"] },
+    { "gruppe": "naegel", "woerter": ["nagel", "naegel", "_gel", "acryl", "modellage", "_nail"] },
+    { "gruppe": "massage", "woerter": ["massage", "hot stone", "hotstone", "reflexzon", "shiatsu", "_thai", "ayurved"] },
+    { "gruppe": "physio", "woerter": ["physio", "krankengymn", "_kg", "manuelle", "lymph", "fango", "waermether", "befund", "osteopath", "_reha"] },
+    { "gruppe": "gesicht", "woerter": ["gesicht", "facial", "kosmetik", "peeling", "hydrafacial", "microneedl", "akne", "ausreinig", "_anti ag"] },
+    { "gruppe": "farbe", "woerter": ["faerb", "farbe", "color", "colour", "straehn", "balayage", "blond", "ansatz", "_toen", "gloss", "highlight", "ombre", "foilyage"] },
+    { "gruppe": "herren", "woerter": ["bart", "rasur", "rasier", "beard", "shave"], "und": ["haar", "waschen", "kopf", "maschinen", "_cut"] },
+    { "gruppe": "bart", "woerter": ["bart", "rasur", "rasier", "beard", "shave"] },
+    { "gruppe": "herren", "woerter": ["herren", "maenner", "_mann", "_men", "_gent", "barber", "maschinen", "_fade", "flattop", "_buzz"] },
+    { "gruppe": "damen", "woerter": ["damen", "_frau", "_ladies", "_lady", "women"] },
+    { "gruppe": "styling", "woerter": ["foehn", "styling", "_style", "hochsteck", "_braut", "flecht", "_zopf", "_locke", "lockwell", "_waves", "glaett", "dauerwell", "keratin", "extension", "verlaenger"], "nicht": ["schnitt", "schneid", "_cut"] }
+  ],
+  "kategorie": [
+    { "gruppe": "herren", "woerter": ["herren", "maenner", "_men", "barber", "_gent"] },
+    { "gruppe": "damen", "woerter": ["damen", "frauen", "_ladies", "women"] },
+    { "gruppe": "kinder", "woerter": ["kinder", "kids"] },
+    { "gruppe": "farbe", "woerter": ["farbe", "faerb", "color", "colour"] },
+    { "gruppe": "styling", "woerter": ["anlass", "styling"] },
+    { "gruppe": "manikuere", "woerter": ["haende", "_hand", "manik"] },
+    { "gruppe": "naegel", "woerter": ["naegel", "nagel", "_nail"] },
+    { "gruppe": "pedikuere", "woerter": ["fuesse", "_fuss", "pedik"] },
+    { "gruppe": "augen", "woerter": ["augen", "wimper", "braue", "_lash", "_brow"] },
+    { "gruppe": "gesicht", "woerter": ["gesicht", "kosmetik", "facial"] },
+    { "gruppe": "haarentfernung", "woerter": ["haarentfernung", "wax"] },
+    { "gruppe": "massage", "woerter": ["massage", "wellness"] },
+    { "gruppe": "physio", "woerter": ["therapie", "physio", "krankengymn"] }
+  ],
+  "schnitt": {
+    "woerter": ["schnitt", "schneid", "_cut", "haircut", "_trim", "_pony", "spliss"],
+    "gruppe": "haarschnitt",
+    "_herren": "Steht im Namen des Ladens oder in seiner Kategorie im Verzeichnis eines davon, ist ein Schnitt ohne Angabe ein Herrenschnitt",
+    "herren": ["barber", "barbier", "herrenfriseur", "_men", "_gent"]
+  },
+  "_ohneLeistungen": "Salons im Verzeichnis ohne Leistungsliste: diese Gruppen je Kategorie",
+  "ohneLeistungen": {
+    "friseur": ["haarschnitt", "farbe", "styling"],
+    "barbershop": ["herren", "bart"]
+  }
+}

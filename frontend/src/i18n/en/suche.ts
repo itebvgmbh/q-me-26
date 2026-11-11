@@ -64,6 +64,23 @@ const texte: Texte = {
   "Laden, Leistung oder Ort": "Shop, service or place",
   "Auf der Karte suchen": "Search on the map",
   "Nach Entfernung zu {ort} sortiert": "Sorted by distance to {ort}",
+  // Leistungsgruppen (data/leistungsgruppen.json) und „In der Suche unter“ bei den Leistungen
+  "Damenhaarschnitt": "Women's haircut",
+  "Haarschnitt": "Haircut",
+  "Bart & Rasur": "Beard & shave",
+  "Färben & Strähnen": "Colour & highlights",
+  "Föhnen & Styling": "Blow-dry & styling",
+  "Gelnägel & Modellage": "Gel nails & extensions",
+  "Gesichtsbehandlung": "Facial",
+  "Wimpern & Augenbrauen": "Lashes & brows",
+  "Physiotherapie": "Physiotherapy",
+  "In der Suche unter": "Shown in search under",
+  "Automatisch: {gruppe}": "Automatic: {gruppe}",
+  "Automatisch: keine passende Gruppe": "Automatic: no matching group",
+  "Keiner Gruppe zuordnen": "Don't assign to a group",
+  "Darunter findet man die Leistung bei „Läden finden“, auch wenn sie bei dir anders heißt.": "This is where people find the service in “Find shops”, even if you call it something else.",
+  "In der Suche unter „{gruppe}“": "In search under “{gruppe}”",
+  "In der Suche nur unter dem eigenen Namen": "In search only under its own name",
 };
 
 export default texte;

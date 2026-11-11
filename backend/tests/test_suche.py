@@ -67,6 +67,9 @@ def test_laeden_mit_lage_ortsteil_und_leistungen():
     assert [s["name"] for s in l["leistungen"]] == ["Bart", "Herrenschnitt"], "archivierte Leistung fehlt"
     assert "owner" not in l and "trialEndsAt" not in l
     assert [s["name"] for s in d["salons"]] == ["Salon Nord"] and d["salons"][0]["leistungen"] == ["Damenschnitt"]
+    # Leistungsgruppen: je Leistung die wirksame, je Salon die seiner Leistungen
+    assert {s["name"]: s["gruppe"] for s in l["leistungen"]} == {"Bart": "bart", "Herrenschnitt": "herren"}
+    assert d["salons"][0]["gruppen"] == ["damen"]
 
 
 def test_standard_leistung():
@@ -81,6 +84,21 @@ def test_standard_leistung():
                 {"id": "h", "name": "Herrenhaarschnitt", "duration": 30}, {"id": "w", "name": "Waschen, Schneiden, Föhnen", "duration": 45}]
     assert suche.standard_leistung(testbarb)["id"] == "h"
     assert suche.standard_leistung([x for x in testbarb if x["id"] != "h"])["id"] == "hb"
+
+
+def test_standard_leistung_mit_gruppe():
+    barbier = [{"id": "hb", "name": "Haare & Bart", "duration": 45, "gruppe": "herren"},
+               {"id": "m", "name": "Maschinenschnitt", "duration": 20, "price": 15, "gruppe": "herren"},
+               {"id": "t", "name": "Trockenschnitt", "duration": 30, "gruppe": "herren"},
+               {"id": "k", "name": "Konturen", "duration": 10, "gruppe": "herren"},
+               {"id": "b", "name": "Bartrasur", "duration": 20, "gruppe": "bart"},
+               {"id": "s", "name": "Schnitt", "duration": 25, "gruppe": "haarschnitt"}]
+    # Wie passendeLeistung im Frontend (dev/suche.test.mjs)
+    assert suche.standard_leistung(barbier, "herrenhaarschnitt", "herren")["id"] == "m", "mind. 15 Minuten, die kürzeste"
+    assert suche.standard_leistung(barbier, "trockenschnitt", "herren")["id"] == "t", "Name mit dem Suchtext zuerst"
+    assert suche.standard_leistung(barbier, "damenhaarschnitt", "damen")["id"] == "s", "Haarschnitt zählt für Damen mit"
+    assert suche.standard_leistung(barbier, "", "bart")["id"] == "b"
+    assert suche.standard_leistung(barbier, "", "massage")["id"] == "m", "Gruppe gibt es hier nicht: die übliche"
 
 
 def test_freie_zeiten_nummer_und_termine():
@@ -113,12 +131,16 @@ def test_frei_nur_fuer_bekannte_laeden_und_zwischengespeichert():
     client, _, _ = setup()
     gerechnet = []
     echt = suche.frei_fuer
-    suche.frei_fuer = lambda i, l, s, now=None: gerechnet.append((i, s)) or {"warten": 0, "leistung": None, "nummer": None, "termine": []}
+    suche.frei_fuer = lambda i, l, s, now=None, gruppe="": gerechnet.append((i, s, gruppe)) or {"warten": 0, "leistung": None, "nummer": None, "termine": []}
     try:
         r = client.get("/routes/suche/frei", params={"ids": "laden,zu,../x,erfunden,laden", "leistung": "Bärte!"})
         assert r.status_code == 200 and list(r.json()["frei"]) == ["laden"]
         client.get("/routes/suche/frei", params={"ids": "laden", "leistung": "baerte"})
-        assert gerechnet == [("laden", "baerte")], gerechnet
+        assert gerechnet == [("laden", "baerte", "")], gerechnet
+        # Gruppe: nur bekannte, eigener Zwischenspeicher
+        client.get("/routes/suche/frei", params={"ids": "laden", "leistung": "baerte", "gruppe": "bart"})
+        client.get("/routes/suche/frei", params={"ids": "laden", "leistung": "baerte", "gruppe": "<script>"})
+        assert gerechnet == [("laden", "baerte", ""), ("laden", "baerte", "bart")], gerechnet
     finally:
         suche.frei_fuer = echt
 

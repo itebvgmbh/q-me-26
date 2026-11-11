@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from app import store
 from app.i18n import merke
+from app.libs import leistungsgruppen
 from app.libs.team import member_ref, set_member
 
 STAFF = "staff"
@@ -222,6 +223,9 @@ def _leistung_pruefen(daten: dict, neu: bool) -> None:
         if feld in daten and daten[feld] is not None and (isinstance(daten[feld], bool) or not isinstance(daten[feld], (int, float)) or daten[feld] < 0):
             raise TeamFehler(400, merke("Ungültige Angaben zur Leistung."))
     if neu and not isinstance(daten.get("duration"), (int, float)):
+        raise TeamFehler(400, merke("Ungültige Angaben zur Leistung."))
+    # Leistungsgruppe für „Läden finden“: leer = automatisch, „keine“ oder eine der festen Gruppen
+    if "gruppe" in daten and not leistungsgruppen.gueltig(daten["gruppe"]):
         raise TeamFehler(400, merke("Ungültige Angaben zur Leistung."))
 
 
