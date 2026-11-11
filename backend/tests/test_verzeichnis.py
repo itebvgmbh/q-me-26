@@ -274,7 +274,10 @@ def test_seite_eines_salons_ohne_dranzeit():
     assert "<h1>Haarwerk &lt;Müller&gt;</h1>" in page and "<Müller>" not in page.split("application/ld+json")[0]
     assert "Friseur in Berlin-Prenzlauer Berg · Heute 09:00–18:30 Uhr" in page
     assert "noch keine Nummer ziehen" in page and "/routes/verzeichnis/e1/wunsch" in page and "/routes/verzeichnis/e1/entfernen" in page
-    assert "public-join-queue" not in page  # keine Buchung – auch nicht bei Dranzeit-Läden in der Nähe (neutral)
+    # keine Buchung – auch nicht bei Dranzeit-Läden in der Nähe (neutral). Die Kopfzeile (app/kopfzeile.py) ist das
+    # allgemeine Menü der Seite und nennt keinen Laden.
+    kopf, inhalt = page.split("</header>", 1)
+    assert "public-join-queue" not in inhalt and "shopId" not in kopf
     assert "ab 25 €" in page and "Stand Oktober 2026" in page and "tel:03012345" in page
     assert "09:00–12:00, 13:00–18:30" in page and "Salon Nord" in page  # in der Nähe
     assert 'name="robots"' not in page and 'rel="canonical" href="https://dranzeit.de/friseur/berlin/haarwerk-mueller"' in page

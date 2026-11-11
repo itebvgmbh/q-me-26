@@ -1,0 +1,42 @@
+{
+  "_hinweis": "Menüpunkte der Kopfzeile – für die App (components/Navigation.tsx) und die Seiten vom Backend (backend/app/kopfzeile.py: Hilfe, /friseur …). to: Adresse; label: deutscher Text (Übersetzung über t(), geprüft von dev/i18n-pruefen.mjs); server: Seite kommt vom Backend, normaler Link statt Router-Link; also: Seiten, die zu diesem Bereich gehören; ab: in der Kopfzeile erst ab dieser Breite (xl = 1280 px), sonst steht der Punkt nur in der Fußzeile",
+  "verkauf": ["/preise", "/tarif"],
+  "links": {
+    "guest": [
+      { "to": "/shop-map", "label": "Läden finden", "also": ["/friseur", "/barbershop"] },
+      { "to": "/public-join-queue", "label": "Nummer ziehen" },
+      { "to": "/book-appointment", "label": "Termin buchen" },
+      { "to": "/features", "label": "Für Läden" },
+      { "to": "/preise", "label": "Preise", "ab": "xl" },
+      { "to": "/hilfe", "label": "Hilfe", "server": true, "ab": "xl" }
+    ],
+    "customer": [
+      { "to": "/my-bookings", "label": "Meine Termine" },
+      { "to": "/public-join-queue", "label": "Nummer ziehen" },
+      { "to": "/book-appointment", "label": "Termin buchen" },
+      { "to": "/shop-map", "label": "Läden finden", "also": ["/friseur", "/barbershop"] }
+    ],
+    "shopOwner": [
+      { "to": "/shop-dashboard", "label": "Heute" },
+      { "to": "/kalender", "label": "Kalender" },
+      {
+        "to": "/shop-profile",
+        "label": "Laden",
+        "also": ["/staff-management", "/service-management", "/tarif", "/telefon-assistent", "/schnittstelle", "/auswertung", "/plakat", "/shop-setup", "/employee-dashboard"]
+      }
+    ],
+    "employee": [
+      { "to": "/employee-dashboard", "label": "Mein Tag" },
+      { "to": "/my-bookings", "label": "Meine Termine" }
+    ],
+    "tresen": [
+      { "to": "/shop-dashboard", "label": "Heute" },
+      { "to": "/kalender", "label": "Kalender" }
+    ]
+  },
+  "profil": {
+    "customer": "/customer-profile",
+    "shopOwner": "/profile",
+    "employee": "/profile"
+  }
+}
