@@ -5,25 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Einbau-Test – Beispiel-Salonseite</title>
-<!-- Nur zum Testen des Kastens „Auf deiner Webseite“ (Mein Laden → Einbau). Nicht verlinkt, nicht bei Google. -->
+<!-- Nur zum Testen von „Mein Laden → Auf deiner Webseite“ (Kasten, Knopf, QR-Karte). Nicht verlinkt, nicht bei Google.
+     Der Code der Abschnitte ist genau der, den ein Laden dort kopiert (frontend/src/components/WebseiteEinbau.tsx). -->
 <style>
   body { margin: 0; font-family: Georgia, serif; background: #f6f1ea; color: #2b2420; }
   header { background: #2b2420; color: #f6f1ea; padding: 28px 16px; text-align: center; }
   header h1 { margin: 0; font-size: 28px; letter-spacing: .04em; }
   main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
-  h2 { font-size: 20px; margin: 32px 0 8px; }
-  p { line-height: 1.6; }
+  h2 { font-size: 20px; margin: 40px 0 6px; }
+  p { line-height: 1.6; margin: 0 0 14px; }
   .hinweis { font-family: system-ui, sans-serif; font-size: 13px; background: #fff3c4; border: 1px solid #e6cf72; padding: 8px 12px; border-radius: 6px; }
+  .klein { font-family: system-ui, sans-serif; font-size: 13px; color: #7a6d63; }
 </style>
 </head>
 <body>
-<header><h1>Beispiel-Salon</h1><p>So sähe der Kasten auf der Webseite eines Salons aus</p></header>
+<header><h1>Beispiel-Salon</h1><p>So sähe Dranzeit auf der Webseite eines Salons aus</p></header>
 <main>
-  <p class="hinweis">Testseite von Dranzeit für den Einbau-Kasten (BarbeRik). Nicht öffentlich verlinkt.</p>
-  <h2>Willkommen</h2>
-  <p>Ein Absatz Text, wie er auf einer typischen Salonseite steht: Öffnungszeiten, Team, ein paar Worte zum Laden.</p>
-  <h2>Jetzt eine Nummer ziehen</h2>
+  <p class="hinweis">Testseite von Dranzeit für „Auf deiner Webseite“: Kasten, Knopf und QR-Karte. Nicht öffentlich verlinkt.</p>
+
+  <h2>1. Kasten – BarbeRik</h2>
+  <p class="klein">Genau der Code aus „Mein Laden“. BarbeRik ist gerade gesperrt, deshalb der weiße Hinweis statt Ticket.</p>
   <iframe src="https://dranzeit.de/einbau/1wxfB9TPtKL4aVxU69Ij" title="Nummer ziehen bei BarbeRik" width="100%" height="300" style="border:0;width:100%;max-width:560px;height:300px" loading="lazy"></iframe>
+
+  <h2>1b. Kasten – ein Laden, der offen ist</h2>
+  <p class="klein">Zum Vergleich Halit's Barber Shop: gelbes Ticket mit Live-Zahl, Knöpfen und QR-Code am Abriss.</p>
+  <iframe src="https://dranzeit.de/einbau/8qEvsUzYxTFaMacmu5EX" title="Nummer ziehen bei Halit's Barber Shop" width="100%" height="300" style="border:0;width:100%;max-width:560px;height:300px" loading="lazy"></iframe>
+
+  <h2>2. Knopf</h2>
+  <p class="klein">Ein einfacher Link, lädt nichts von Dranzeit, bis jemand klickt.</p>
+  <p><a href="https://dranzeit.de/public-join-queue?shopId=1wxfB9TPtKL4aVxU69Ij" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;padding:15px 26px;border-radius:999px;background:#141414;color:#ffc83d;font:700 16px/1.2 'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-decoration:none;box-shadow:0 6px 16px rgba(20,20,20,.18)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>Nummer ziehen</a></p>
+
+  <h2>3. QR-Karte</h2>
+  <p class="klein">Zum Herunterladen unter „Mein Laden → Auf deiner Webseite → QR-Code“, für Webseite, Schaufenster oder Flyer.</p>
+  <img src="https://dranzeit.de/einbau/1wxfB9TPtKL4aVxU69Ij/qr-karte.svg" alt="QR-Code: Nummer ziehen bei BarbeRik" width="280" height="392" style="display:block;filter:drop-shadow(0 8px 18px rgba(20,20,20,.18))">
+
   <h2>Preise</h2>
   <p>Herrenschnitt 25 € · Bart 15 € · Maschinenschnitt 18 €</p>
 </main>

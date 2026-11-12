@@ -241,6 +241,8 @@ const texte: Texte = {
   "Link kopieren": "Bağlantıyı kopyala",
   "QR-Code: Nummer ziehen bei {name}": "QR kod: Sıra numarası al – {name}",
   "Derselbe Code wie auf dem Plakat: Wer ihn scannt, zieht eine Nummer. Für deine Webseite, Flyer, Visitenkarten oder das Schaufenster.": "Afişteki kodun aynısı: Tarayan kişi sıra numarası alır. Web siteniz, el ilanları, kartvizitler veya vitrin için.",
+  "QR-Karte herunterladen": "QR kartını indir",
+  "Die Karte mit deinem Namen passt auf die Webseite, ins Schaufenster oder auf den Flyer. Nur den Code ohne Rahmen gibt es hier:": "Adının yazdığı kart web siten, vitrinin veya el ilanın için uygundur. Çerçevesiz kodun kendisi burada:",
   "PNG herunterladen": "PNG indir",
   "SVG herunterladen": "SVG indir",
   "PNG passt für Webseite und Word. SVG lässt sich beliebig groß drucken – gut für die Druckerei.": "PNG web sitesi ve Word için uygundur. SVG istenen her boyutta basılabilir – matbaa için ideal.",

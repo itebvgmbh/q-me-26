@@ -98,6 +98,23 @@ def test_qr_fuehrt_zum_nummer_ziehen():
     assert einbau.join_path("abc123") == "/public-join-queue?shopId=abc123"
 
 
+def test_kasten_im_dranzeit_design():
+    page = einbau.render_box(TRIAL, 3, MONDAY_NOON)
+    assert "Bricolage Grotesque" in page and "/schrift/" in page  # Schriften der App
+    assert "#ffc83d" in page and 'class="k ticket"' in page  # gelbes Ticket mit Abriss
+    assert 'class="eyebrow"' in page
+
+
+def test_qr_karte():
+    c = _client()
+    r = c.get("/einbau/abc123/qr-karte.svg")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml")
+    assert 'filename="dranzeit-qr-karte-salon-eva.svg"' in r.headers["content-disposition"]
+    assert r.text.startswith("<svg") and "Salon &lt;Eva&gt;" in r.text and "<Eva>" not in r.text
+    assert "Nummer ziehen" in r.text and "dranzeit.de" in r.text and r.text.count("<svg") == 2  # QR als eingebettetes svg
+    assert c.get("/einbau/gibtsnicht/qr-karte.svg").status_code == 404
+
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_")]
     for t in tests:
