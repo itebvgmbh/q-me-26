@@ -592,6 +592,11 @@ Meldungen alle 5 Minuten nach. Der Webhook braucht dafür keine neuen Ereignisse
 `deploy/telefon-stripe-probe.py`: Es legt einen Wegwerf-Kunden mit Testkarte an, meldet 120 und dann 148 Minuten,
 erwartet in der Vorschau der Rechnung 9,60 € für die Minuten und löscht den Kunden wieder.
 
+**Abo-Ablauf ohne Checkout-Seite** (die hat einen Bot-Schutz): `deploy/abo-sandbox-probe.py` spielt für den Testladen
+„Testbarb“ (auf Sandbox) Abschluss, Tarifwechsel, abgelehnte Zahlung im Folgemonat (Testuhr) und Kündigung über die
+Stripe-API durch und prüft jedes Mal, was der Webhook am Laden gespeichert hat; danach räumt es auf und setzt den
+Testladen zurück. Aufruf als root: `cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/abo-sandbox-probe.py`.
+
 Zum Durchspielen im Testmodus: Laden im Betreiber-Bereich auf die Sandbox umstellen, als Inhaber unter „Tarif“ ein
 Abo mit der Testkarte abschließen, dann unter „Laden“ → „Telefon-Assistent“ auf „Zubuchen“. Vor der Öffnung für alle
 braucht der Laden dafür die Freigabe im Betreiber-Bereich (Laden → „Telefon-Assistent“).
