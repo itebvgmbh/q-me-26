@@ -67,6 +67,8 @@ node dev/e2e/hilfe-bilder.cjs               # Bilder für die Hilfe nach fronten
 node dev/e2e/platz-aendern.cjs              # Termin ohne Konto buchen → „Platz ändern“ → absagen (Backend /nummer/termin und /verschieben, geht auch mit QME_URL=https://dranzeit.de)
 node dev/e2e/kunden-wege.cjs                # Kunden übers Backend: Nummer ohne/mit Konto ziehen und zurückgeben, Termin mit Konto buchen und absagen (Wegwerf-Konto)
 node dev/e2e/laden-wahl.cjs                 # Ladenauswahl in der Kopfzeile: ein Laden keine, zwei Läden genau eine oben, alle Seiten folgen, Handy/Tablet ohne Überlauf, Bilder in dev/out (Wegwerf-Konto mit zwei Läden)
+node dev/e2e/api-live.cjs                   # Termin-API (/api/v1) ganz: Schlüssel, Laden, Leistungen, Kunden ohne Doppel, freie Zeiten, online/Tresen, 409, Verschieben, Absagen, Webhook-Zustellungen, Widerruf (Wegwerf-Laden, braucht QME_BACKEND=https://dranzeit.de)
+node dev/e2e/kundenkartei-live.cjs          # Kundenkartei echt: Kunde über die API, Nummer ohne Konto per Handynummer zugeordnet, Tresen lösen/zuordnen, Notizen, Handy (Wegwerf-Laden; nur Mo–Fr 9–17 Uhr)
 
 # 4. Testladen wieder löschen
 python dev/fixtures.py loeschen
@@ -78,6 +80,7 @@ Ohne Testladen, gegen ITEBV GmbH (ändert nichts):
 node dev/e2e/seiten.cjs                     # alle Seiten Handy + Desktop: JS-Fehler, Überlauf, Fotos in dev/out/
 node dev/e2e/durchlauf-warteschlange.cjs    # QR-Link bis zur Bestätigung
 node dev/e2e/durchlauf-buchung.cjs          # Termin buchen bis zur Zusammenfassung
+node dev/e2e/suche-live.cjs                 # „Läden finden“ auf dranzeit.de (Standard-QME_URL): Oft gesucht, Tegel + Herrenschnitt, freie Zeit → Buchen, Karte am Handy, Ortsseite, Hilfe-Menü
 node dev/e2e/ladezeit.cjs handy             # Ladezeit im langsamen Handynetz
 node dev/bundle-groesse.cjs                 # JavaScript je Seite (roh, gzip) und größte Bausteine; baut dafür selbst (ohne Browser)
 node dev/e2e/verbindung.cjs                 # Verbindungsart: iPhone/Safari gleich einfach (Long-Polling); Nummernseite kommt vom Backend, auch wenn Firestore hängt (nur lesend)
