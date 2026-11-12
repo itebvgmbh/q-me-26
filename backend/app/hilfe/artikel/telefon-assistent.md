@@ -21,13 +21,13 @@ Bucht jemand am Telefon, legt der Assistent ihn in deiner Kundenliste an, mit de
 
 Ruft er wieder an, begrüßt ihn der Assistent mit Namen, fragt nicht noch einmal danach und bietet ihm die Leistung vom letzten Mal an. Er kennt auch seine kommenden Termine und kann sie nennen.
 
-Alle Termine einer Person siehst du unter **„Laden“ → „Mein Tag“ → „Kundenliste“**: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 12 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
+Alle Termine einer Person siehst du unter **„Kunden“** oben im Menü: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Mehr: [Kunden: deine Kundenkartei](/hilfe/kunden) Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 12 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
 
 ## Anrufliste und zurückrufen
 
 Unter **„Laden“ → „Telefon-Assistent“** siehst du unter **„Anrufe“**, wer angerufen hat und was daraus wurde: der gebuchte Termin, die gezogene Nummer, „Frage beantwortet“, „Anliegen offen“, „Aufgelegt“ oder „Kein Termin gebucht“. Darunter fasst die KI das Gespräch in ein, zwei Sätzen zusammen, etwa was der Anrufer wollte, wenn der Assistent nicht helfen konnte. Die Zusammenfassung ist immer auf Deutsch und kann Fehler enthalten. Steht dort „Nur Ansage“, hat der Anrufer nur die kurze Ansage gehört, zum Beispiel weil die Testminuten aufgebraucht waren.
 
-Wo kein Termin herauskam, kannst du mit **„Zurückrufen“** direkt anrufen. Bei „Anliegen offen“ ist der Knopf hervorgehoben. Die Liste zeigt die Anrufe der letzten 90 Tage, ältere löscht Dranzeit samt Zusammenfassung. Löschst du einen Kunden aus der Kundenliste, verschwinden seine Anrufe mit.
+Wo kein Termin herauskam, kannst du mit **„Zurückrufen“** direkt anrufen. Bei „Anliegen offen“ ist der Knopf hervorgehoben. Die Liste zeigt die Anrufe der letzten 90 Tage, ältere löscht Dranzeit samt Zusammenfassung. Löschst du einen Kunden unter „Kunden“, verschwinden seine Anrufe mit.
 
 Telefonieren gerade sehr viele Läden gleichzeitig mit dem Assistenten, hört der Anrufer kurz „Einen Moment bitte“ und wird dann verbunden. Klappt es auch dann nicht, hört er eine Ansage, dass alle Leitungen belegt sind, und der Anruf steht in deiner Liste.
 

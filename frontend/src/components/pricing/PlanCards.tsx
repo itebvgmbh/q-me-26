@@ -13,6 +13,7 @@ const INCLUDES: Record<PlanId, string[]> = {
     merke('Früher dran'),
     merke('„Gleich dran“-Nachricht per Push oder E-Mail'),
     merke('Termin-Erinnerungen'),
+    merke('Kundenkartei mit Besuchen, Umsatz und Notizen'),
   ],
   laden: [merke('bis 4 Personen'), merke('alles aus Solo'), merke('Team mit „Mein Tag“'), merke('Wartezimmer-Bildschirm'), merke('Auswertung: Wartezeit, Kunden pro Tag')],
   team: [merke('bis 10 Personen'), merke('alles aus Laden'), merke('bevorzugter Support')],

@@ -83,6 +83,8 @@ jobs:
         run: .venv/bin/python tests/test_team_termine.py
       - name: Team und Leistungen (app/apis/team_laden)
         run: .venv/bin/python tests/test_team_laden.py
+      - name: Kundenkartei (app/libs/kartei.py)
+        run: .venv/bin/python tests/test_kartei.py
       - name: Pausen (app/apis/pausen)
         run: .venv/bin/python tests/test_pausen.py
       - name: Läden, Bilder, Kunden, Konto (app/libs/laeden.py)

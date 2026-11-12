@@ -15,7 +15,10 @@ Hilfe (backend/app/hilfe/artikel/datenschutz.md). Wer hier etwas ändert, änder
   die Anrufe einer Nummer auch, wenn der Laden den Kunden mit dieser Nummer löscht, alle mit dem Laden.
 
 "Mit Konto" heißt: Die customerId des Termins ist ein bestehendes Firebase-Konto. Kunden-Einträge des Ladens haben eigene
-IDs aus customers, Laufkunden "walk-in", Nummern ohne Konto isAnonymous.
+IDs aus customers, Laufkunden "walk-in", Nummern ohne Konto isAnonymous. Nummern und Termine ohne Konto, die einem Eintrag
+zugeordnet sind (per Handynummer oder am Tresen), tragen dessen ID in kundeId (app/libs/kartei.py): Sie zählen für die
+12 Monate mit und verlieren beim Löschen des Eintrags Namen und Kontaktdaten wie seine eigenen Termine. Die Notizen der
+Kundenkartei stehen am Eintrag und gehen mit ihm.
 
 Der Lauf über die Termine merkt sich, bis zu welchem Termin er schon war (databutton-Speicher, .local_data),
 damit er nicht jeden Tag alle alten Termine neu liest.
@@ -89,14 +92,14 @@ def customer_expired(customer: dict, last_appointment: Optional[datetime], now: 
     return last is None or last < now - timedelta(days=CUSTOMER_RETENTION_DAYS)
 
 
-def _forget_appointments(firestore_db, appointments, now: datetime) -> dict:
+def _forget_appointments(firestore_db, appointments, now: datetime, extra: Optional[dict] = None) -> dict:
     """Name und Kontaktdaten sofort entfernen, kommende Termine absagen (Kunde oder Konto gelöscht)"""
     from app.libs.public_appointments import write_public
 
     anonymized = cancelled = 0
     for doc in appointments:
         appt = doc.to_dict() or {}
-        update = {"customerName": ANONYMIZED_NAME, "anonymizedAt": now, **{f: None for f in CONTACT_FIELDS}}
+        update = {"customerName": ANONYMIZED_NAME, "anonymizedAt": now, **{f: None for f in CONTACT_FIELDS}, **(extra or {})}
         start = _utc(appt.get("startTime"))
         if appt.get("status") == "scheduled" and start and start > now:
             update.update({"status": "cancelled", "updatedAt": now})
@@ -115,6 +118,14 @@ def forget_customer(firestore_db, customer_ref, customer: dict, now: Optional[da
     result = {"anonymized": 0, "cancelled": 0}
     if not customer.get("userId"):
         result = _forget_appointments(firestore_db, firestore_db.collection("appointments").where("customerId", "==", customer_ref.id).stream(), now)
+    # Zugeordnete Nummern und Termine ohne Konto (kundeId, app/libs/kartei.py) wie die eigenen; auch bei verbundenem
+    # Konto, denn sie gehören nicht dem Konto. Danach hängen sie an keinem Eintrag mehr.
+    eigene = {customer_ref.id, *([customer["userId"]] if customer.get("userId") else [])}
+    zugeordnet = [d for d in firestore_db.collection("appointments").where("kundeId", "==", customer_ref.id).stream()
+                  if (d.to_dict() or {}).get("customerId") not in eigene]
+    if zugeordnet:
+        mehr = _forget_appointments(firestore_db, zugeordnet, now, extra={"kundeId": None})
+        result = {k: result[k] + mehr[k] for k in result}
     if customer.get("shopId") and customer.get("phone"):
         from app.libs.telefon_anrufliste import vergessen
 
@@ -200,7 +211,9 @@ def delete_stale_customers(firestore_db, now: datetime | None = None, accounts: 
     for doc, customer in rows:
         if customer.get("userId") in known or not customer_expired(customer, None, now):
             continue
-        starts = [_utc((a.to_dict() or {}).get("startTime")) for a in firestore_db.collection("appointments").where("customerId", "==", doc.id).stream()]
+        termine = [*firestore_db.collection("appointments").where("customerId", "==", doc.id).stream(),
+                   *firestore_db.collection("appointments").where("kundeId", "==", doc.id).stream()]
+        starts = [_utc((a.to_dict() or {}).get("startTime")) for a in termine]
         latest = max((s for s in starts if s), default=None)
         if customer_expired(customer, latest, now):
             forget_customer(firestore_db, doc.reference, {**customer, "userId": None}, now)

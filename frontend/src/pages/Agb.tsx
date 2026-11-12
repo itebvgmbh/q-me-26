@@ -133,12 +133,13 @@ export default function Agb() {
         <ul>
           <li>
             <strong>Gegenstand und Zweck:</strong> Betrieb der Warteschlange und Terminbuchung, Benachrichtigungen und
-            Erinnerungen an die Kunden des Ladens. Nutzt der Kunde den Telefon-Assistenten, außerdem die Annahme
+            Erinnerungen an die Kunden des Ladens, seine Kundenliste mit dem Verlauf der Termine und Notizen. Nutzt der Kunde den Telefon-Assistenten, außerdem die Annahme
             umgeleiteter Anrufe durch die KI, Buchungen am Telefon, das Wiedererkennen bekannter Anrufer und die Anrufliste.
           </li>
           <li>
             <strong>Daten und Betroffene:</strong> Name, Telefonnummer, E-Mail-Adresse, Termine und Wartenummern der Kunden
-            des Ladens; Name und E-Mail-Adresse der Mitarbeitenden. Beim Telefon-Assistenten außerdem die Rufnummer der
+            des Ladens und die Notizen, die der Laden zu ihnen und ihren Besuchen festhält; Name und E-Mail-Adresse der
+            Mitarbeitenden. Beim Telefon-Assistenten außerdem die Rufnummer der
             Anrufer, der Inhalt der Gespräche, der live in Text umgewandelt wird, deren Mitschrift sowie Zeitpunkt, Dauer
             und Ergebnis der Anrufe.
           </li>
@@ -165,7 +166,7 @@ export default function Agb() {
           </li>
           <li>
             <strong>Löschung:</strong> Namen und Kontaktdaten bei Nummern und Terminen ohne Konto entfernen wir 90 Tage nach
-            dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir 12 Monate nach ihrem letzten Termin; der
+            dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir samt Notizen 12 Monate nach ihrem letzten Termin; der
             Kunde kann sie jederzeit selbst löschen. Anrufe in der Anrufliste des Telefon-Assistenten löschen wir 90 Tage nach
             dem Anruf, Mitschriften und Protokolle bei Vapi werden nach 14 Tagen gelöscht. Nach Vertragsende löschen wir die
             Daten des Ladens innerhalb von 30 Tagen,

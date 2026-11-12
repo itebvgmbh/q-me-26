@@ -1,14 +1,14 @@
 ---
 titel: Günüm: zaman çizelgen
 kurz: “Günüm” bölümünde her kişi yalnızca kendi müşterilerini bir zaman çizelgesinde görür – eklemek, taşımak ve tamamlamak için.
-stichworte: günüm, zaman çizelgesi, takvim, hafta, günler, taşı, sürükle, çakışma, mesai saatleri, durum, çalışan, ekip, müşteri ekle, müşteri listesi, müşteri sil
-quelle: bf50a81d2e91
+stichworte: günüm, zaman çizelgesi, takvim, hafta, günler, taşı, sürükle, çakışma, mesai saatleri, durum, çalışan, ekip, müşteri ekle, müşteriler
+quelle: edc94a008a73
 ---
 “Günüm”, ekipteki her kişi için hazırlanmış görünümdür. Yalnızca kişinin kendi sıra numaralarını ve randevularını saat saat gösterir. Resepsiyon tüm salonu gösterir, “Günüm” ise yalnızca seni.
 
 Çalışan olarak “Günüm” sayfasını en üstteki menüde bulursun. Birden fazla salonun ekibinde olan kişi, üstten salonu seçer.
 
-Salon sahibi olarak onu **“Salon”** → **“Günüm”** altında açarsın: haftan, mesai saatlerin, **“Müşteri ekle”** ve **“Müşteri listesi”** için. Bugünkü gün için **“Bugün”** ile **“Sadece ben”** daha kolaydır; müşterilerini orada çağırırsın da. Kendin de çalışıyorsan **“Salon”** → **“Ekip”** altında kendini e-posta adresinle ekle. Yoksa “Günüm” bölümünde “Ekibinizin randevularını resepsiyonda görürsünüz.” yazar ve “Sadece ben” görünmez. Başkalarını nasıl ekleyeceğin: [Ekibi davet et](/hilfe/team-einladen).
+Salon sahibi olarak onu **“Salon”** → **“Günüm”** altında açarsın: haftan, mesai saatlerin ve **“Müşteri ekle”** için. Bugünkü gün için **“Bugün”** ile **“Sadece ben”** daha kolaydır; müşterilerini orada çağırırsın da. Kendin de çalışıyorsan **“Salon”** → **“Ekip”** altında kendini e-posta adresinle ekle. Yoksa “Günüm” bölümünde “Ekibinizin randevularını resepsiyonda görürsünüz.” yazar ve “Sadece ben” görünmez. Başkalarını nasıl ekleyeceğin: [Ekibi davet et](/hilfe/team-einladen).
 
 ## Zaman aralığını seç
 
@@ -33,15 +33,9 @@ Ardından Dranzeit bir bağlantı gösterir. Bağlantıyı kişiye **“Bağlant
 
 Sende hesabıyla sıra numarası veya randevu alan kişi, sonrasında kendiliğinden ve hesabına bağlı olarak **“Kayıtlı müşteri”** altında görünür. Kişiyi daha önce aynı e-postayla eklediysen ve adresi hesabında onaylıysa (doğrulama e-postamızdaki bağlantı üzerinden) Dranzeit senin kaydını onun hesabına bağlar. Değilse ona bağlantıyı gönder.
 
-## Bir müşterinin randevuları
+## Bir müşterinin randevuları ve notları
 
-Üstte **“Müşteri listesi”** düğmesine, ardından ada dokun. Altında bu kişinin salonundaki tüm randevuları, en yeniler önce, hizmet ve kişiyle birlikte görünür. Telefon asistanı üzerinden alınan randevuların yanında bir telefon simgesi vardır. Telefonla randevu alan kişi listede kendiliğinden yer alır: [Telefon asistanı](/hilfe/telefon-assistent)
-
-## Müşteri sil
-
-Üstte **“Müşteri listesi”** düğmesine dokun. Orada salonunun tüm müşterileri yer alır. Müşterinin yanındaki **“Sil”** düğmesine dokun ve **“Evet, sil”** ile onayla. Müşterinin gelecek randevuları iptal edilir, geçmiş randevular adsız olarak kalır. Müşteri hesabını bağladıysa yalnızca kayıt senin listenden kaybolur, randevular onun hesabında kalır.
-
-Dranzeit, hesabı bağlı olmayan müşterileri 12 ay boyunca onlarla hiç randevu olmadıysa kendiliğinden siler. Daha fazlası: [Veri koruma](/hilfe/datenschutz)
+Salonunun tüm müşterileri üstteki menüde **“Müşteriler”** altında; tüm randevuları, cirosu ve boya formülü gibi notlarla birlikte yer alır. Bir müşteriyi de orada silersin. Daha fazlası: [Müşteriler: müşteri kartların](/hilfe/kunden)
 
 ## Taşı
 

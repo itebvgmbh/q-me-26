@@ -1,14 +1,14 @@
 ---
 titel: My day: your timeline
 kurz: Under “My day”, each person sees only their own customers as a timeline – for adding, moving and ticking them off.
-stichworte: my day, timeline, calendar, schedule, week, days, move, drag, conflict, working hours, status, employee, staff, team, add customer, customer list, delete customer
-quelle: bf50a81d2e91
+stichworte: my day, timeline, calendar, schedule, week, days, move, drag, conflict, working hours, status, employee, staff, team, add customer, customers
+quelle: edc94a008a73
 ---
 “My day” is the view for each person on the team. It shows only their own numbers and appointments, hour by hour. The front desk shows the whole shop, “My day” only you.
 
 As an employee, you'll find “My day” in the menu at the top. If you're on the team at several shops, choose the shop at the top.
 
-As the owner, you open it under **“Shop”** → **“My day”**: for your week, your working hours, **“Add customer”** and the **“Customer list”**. For today, it's easier to use **“Today”** with **“Only me”**, where you also call your customers. If you serve customers yourself, add yourself under **“Shop”** → **“Team”** with your email. Otherwise “My day” shows “Your team's appointments are at the front desk.”, and “Only me” is missing. How to bring others on board: [Invite your team](/hilfe/team-einladen).
+As the owner, you open it under **“Shop”** → **“My day”**: for your week, your working hours and **“Add customer”**. For today, it's easier to use **“Today”** with **“Only me”**, where you also call your customers. If you serve customers yourself, add yourself under **“Shop”** → **“Team”** with your email. Otherwise “My day” shows “Your team's appointments are at the front desk.”, and “Only me” is missing. How to bring others on board: [Invite your team](/hilfe/team-einladen).
 
 ## Choose the time range
 
@@ -33,15 +33,9 @@ Dranzeit then shows a link. Send it to the person with **“Copy link”** or **
 
 Anyone who takes a number or books an appointment with you using an account automatically appears under **“Existing customer”** afterwards, already linked to their account. If you added the person beforehand with the same email, Dranzeit links your entry to their account once their address is confirmed there (via the link in our confirmation email). Otherwise, send them the link.
 
-## A customer's appointments
+## A customer's appointments and notes
 
-Tap **“Customer list”** at the top, then the name. Below it, you'll see all of this person's appointments at your shop, newest first, with the service and team member. Appointments made via the phone assistant have a phone icon. People who book by phone appear in the list automatically: [Phone assistant](/hilfe/telefon-assistent)
-
-## Delete a customer
-
-Tap **“Customer list”** at the top. All your shop's customers are listed there. Tap **“Delete”** next to the customer and confirm with **“Yes, delete”**. The customer's upcoming appointments are cancelled; past ones remain, without a name. If the customer has linked their account, only the entry disappears from your list, and the appointments stay in their account.
-
-Dranzeit automatically deletes customers without a linked account if they haven't had an appointment with you for 12 months. More: [Privacy](/hilfe/datenschutz)
+All your shop's customers are listed under **“Customers”** in the menu at the top, with all their appointments, revenue and notes such as the colour formula. That's also where you delete a customer. More: [Customers: your customer file](/hilfe/kunden)
 
 ## Moving appointments
 

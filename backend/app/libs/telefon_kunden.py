@@ -44,9 +44,11 @@ def zur_nummer(db, shop_id: str, anrufer) -> Tuple[Optional[str], dict]:
     return max(treffer, key=lambda e: (bool(e[1].get("userId")), _zeit(e[1].get("updatedAt") or e[1].get("createdAt"))))
 
 
-def fuer_termin(db, shop_id: str, anrufer, name: str) -> Tuple[Optional[str], Optional[dict]]:
-    """customerId für einen Termin am Telefon und, wenn es noch keinen gibt, der neue Eintrag. Den speichert anlegen()
-    erst, wenn der Termin steht – geht der Platz weg, bleibt nichts zurück. Ohne lesbare Nummer (None, None)."""
+def fuer_termin(db, shop_id: str, anrufer, name: str, quelle: str = QUELLE) -> Tuple[Optional[str], Optional[dict]]:
+    """ID des Eintrags für einen Termin und, wenn es noch keinen gibt, der neue Eintrag. Den speichert anlegen()
+    erst, wenn der Termin steht – geht der Platz weg, bleibt nichts zurück. Ohne lesbare Nummer (None, None).
+    Am Telefon wird die ID zur customerId; bei Nummern und Terminen ohne Konto aus dem Browser zur kundeId
+    (quelle "online", app/apis/nummer)."""
     nummer = t.e164(anrufer)
     if not nummer:
         return None, None
@@ -56,7 +58,7 @@ def fuer_termin(db, shop_id: str, anrufer, name: str) -> Tuple[Optional[str], Op
     ref = db.collection(KUNDEN).document()
     jetzt = datetime.now(timezone.utc)
     return ref.id, {"id": ref.id, "shopId": shop_id, "name": name, "email": "", "phone": nummer, "isActive": False,
-                    "source": QUELLE, "createdAt": jetzt, "updatedAt": jetzt}
+                    "source": quelle, "createdAt": jetzt, "updatedAt": jetzt}
 
 
 def anlegen(db, eintrag: Optional[dict]) -> None:
@@ -89,15 +91,16 @@ def anrede(name: str) -> str:
 
 
 def termine_von(db, shop_id: str, kunde_id: str, kunde: dict) -> List[Tuple[str, dict]]:
-    """Alle Termine dieser Person in diesem Laden, neueste zuerst: über den Eintrag und, ist ein Konto verbunden,
-    auch die mit dem Konto gebuchten"""
-    ids = [kunde_id] + ([kunde["userId"]] if kunde.get("userId") else [])
+    """Alle Termine dieser Person in diesem Laden, neueste zuerst: über den Eintrag (customerId), über das verbundene
+    Konto und die zugeordneten ohne Konto (kundeId, app/libs/kartei.py). Ist ein Termin einem anderen Eintrag
+    zugeordnet, gehört er dorthin."""
     termine = {}
-    for kid in ids:
-        for d in db.collection("appointments").where("customerId", "==", kid).stream():
+    for feld, kid in [("customerId", kunde_id), *([("customerId", kunde["userId"])] if kunde.get("userId") else []), ("kundeId", kunde_id)]:
+        for d in db.collection("appointments").where(feld, "==", kid).stream():
             a = d.to_dict() or {}
-            if a.get("shopId") == shop_id:
-                termine[d.id] = a
+            if a.get("shopId") != shop_id or (a.get("kundeId") and a["kundeId"] != kunde_id):
+                continue
+            termine[d.id] = a
     return sorted(termine.items(), key=lambda e: _zeit(e[1].get("startTime")), reverse=True)
 
 

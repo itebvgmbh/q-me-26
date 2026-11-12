@@ -39,9 +39,17 @@ export default function Datenschutz() {
             einträgt, zu deinem Konto (Art. 6 Abs. 1 lit. b DSGVO).
           </li>
           <li>
-            <strong>Vom Laden angelegt:</strong> Trägt ein Laden dich in seine Kundenliste ein, speichern wir den Namen,
+            <strong>Kundenliste des Ladens:</strong> Trägt ein Laden dich in seine Kundenliste ein, speichern wir den Namen,
             die E-Mail-Adresse und, wenn angegeben, die Telefonnummer, die der Laden einträgt, und die Termine, die er für
-            dich vereinbart (Art. 6 Abs. 1 lit. b DSGVO).
+            dich vereinbart (Art. 6 Abs. 1 lit. b DSGVO). Buchst du ohne Konto einen Termin oder ziehst eine Nummer und
+            gibst dabei Namen und Handynummer an, stehst du danach ebenfalls in seiner Kundenliste; steht deine Nummer
+            dort schon, kommt der Termin zu diesem Eintrag. Der Laden sieht dort deine Termine bei ihm mit Leistung und
+            Preis laut seiner Preisliste, daraus berechnete Angaben wie die Zahl deiner Besuche, und er kann Notizen
+            festhalten, etwa zu deinen Wünschen beim Haarschnitt oder zur verwendeten Farbe. Diese Notizen sieht nur der
+            Laden. Verantwortlich ist der Laden, wir verarbeiten die Daten in seinem Auftrag. Rechtsgrundlage für die
+            Kundenliste und die Notizen ist Art. 6 Abs. 1 lit. f DSGVO: Der Laden möchte seine Kunden wiedererkennen und
+            wissen, was sie sich wünschen. Möchtest du das nicht, sag es dem Laden; er kann dich jederzeit aus seiner
+            Kundenliste löschen.
           </li>
           <li id="telefon-assistent">
             <strong>Telefon-Assistent eines Ladens:</strong> Leitet ein Laden seine Anrufe zu unserem Telefon-Assistenten
@@ -230,9 +238,9 @@ export default function Datenschutz() {
             Auswertung des Ladens.
           </li>
           <li>
-            Kunden, die ein Laden angelegt hat, auch über seinen Telefon-Assistenten nach einer Buchung am Telefon,
-            löschen wir 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach dem Anlegen, solange kein Konto
-            verbunden ist. Der Laden kann sie jederzeit selbst löschen.
+            Einträge in der Kundenliste eines Ladens, auch die nach einer Buchung am Telefon oder ohne Konto angelegten,
+            löschen wir samt Notizen 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach dem Anlegen, solange
+            kein Konto verbunden ist. Der Laden kann sie jederzeit selbst löschen.
           </li>
           <li>
             Anrufe beim Telefon-Assistenten eines Ladens löschen wir samt Zusammenfassung 90 Tage nach dem Anruf aus

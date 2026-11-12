@@ -29,6 +29,7 @@ from app.i18n import merke, sprache_von
 from app.libs.buchung import PlatzWeg, create_appointment, pick_reference_code, reference_codes_of_day, run_transaction
 from app.libs.online_platz import (MonatVoll, freier_platz, jetzt, leistung_im_laden, monatsgrenze, naechste_plaetze, ortszeit,
                                    person_fuer_leistung, vorlauf_minuten)
+from app.libs import telefon_kunden
 from app.libs.plans import has_feature, is_suspended
 from app.libs.public_appointments import write_public
 from app.libs.schedule import BERLIN, SHOP_DAYS, Placement, aware, day_key, placement_of, read_placement
@@ -257,6 +258,31 @@ def _kunde(db, uid: Optional[str], body) -> dict:
             **({"customerPhone": phone} if phone else {})}
 
 
+def _karteieintrag(db, shop_id: str, kunde: dict):
+    """Ohne Konto mit Handynummer: der Eintrag in der Kundenliste des Ladens zu dieser Nummer, sonst ein neuer (wie am
+    Telefon, app/libs/telefon_kunden.py). Er kommt als kundeId an den Termin, nicht als customerId – die bleibt leer,
+    damit die Nummer mit ihrem Schlüssel absagbar und übernehmbar bleibt (app/libs/kartei.py). Den neuen Eintrag
+    speichert erst _eintrag_speichern, wenn der Termin steht. Wirft nie: Die Buchung zählt, der Eintrag ist Beiwerk."""
+    if not kunde.get("isAnonymous") or not kunde.get("customerPhone"):
+        return {}, None
+    try:
+        name = kunde.get("customerName") if kunde.get("customerName") != "Unbekannter Kunde" else ""
+        kunde_id, neu = telefon_kunden.fuer_termin(db, shop_id, kunde["customerPhone"], name or "", quelle="online")
+        if neu is not None and not name:
+            return {}, None  # ohne Namen kein neuer Eintrag, nur ein vorhandener
+        return ({"kundeId": kunde_id} if kunde_id else {}), neu
+    except Exception as e:
+        print(f"Kundenliste {shop_id}: Eintrag zur Handynummer nicht gefunden: {e}")
+        return {}, None
+
+
+def _eintrag_speichern(db, created: dict, neu) -> None:
+    try:
+        telefon_kunden.anlegen(db, neu)
+    except Exception as e:
+        print(f"Kundenliste {created.get('shopId')}: Kunde zu Termin {created.get('id')} nicht angelegt: {e}")
+
+
 def _frueher_dran_wunsch(body, uid: Optional[str], now: datetime) -> dict:
     """„Früher dran“ gibt es nur mit Konto – ohne Konto fehlt der Weg, ein Angebot anzunehmen"""
     on = bool(body.check_earlier and uid)
@@ -291,9 +317,10 @@ def book_appointment(body: TerminRequest, request: Request) -> dict:
         raise HTTPException(status_code=404, detail=NO_SERVICE)
     plaetze = _plaetze(db, body.shop_id, shop, body.service_id, body.staff_ids, body.start)
     now = datetime.now(timezone.utc)
+    kartei, neu = _karteieintrag(db, body.shop_id, kunde)
     data = {
         "shopId": body.shop_id, "serviceId": body.service_id, "status": "scheduled", "type": "booked",
-        "language": sprache_von(body.language), **kunde, **_frueher_dran_wunsch(body, uid, now),
+        "language": sprache_von(body.language), **kunde, **kartei, **_frueher_dran_wunsch(body, uid, now),
         # Inhaber und gebuchte Person bekommen Bescheid wie bei jeder Online-Buchung (app/libs/team_notify.py)
         **notice_fields({}, "new", now),
     }
@@ -301,6 +328,7 @@ def book_appointment(body: TerminRequest, request: Request) -> dict:
         created = create_appointment(db, data, plaetze, needs_code=not uid)
     except PlatzWeg:
         raise HTTPException(status_code=409, detail=TAKEN)
+    _eintrag_speichern(db, created, neu)
     _nach_dem_anlegen(created)
     wer = "mit Konto" if uid else "ohne Konto"
     print(f"Termin {wer} {created['id']} in {body.shop_id}: {created['startTime']:%d.%m. %H:%M} bei {created['staffId']}")
@@ -340,9 +368,10 @@ def pull_number(body: ZiehenRequest, request: Request) -> dict:
     shown = ortszeit(body.start) if body.start else None
     ab = datetime.combine(shown.date(), datetime.min.time()) if shown and shown.date() > now_local.date() else None
     now = datetime.now(timezone.utc)
+    kartei, neu = _karteieintrag(db, body.shop_id, kunde)
     data = {
         "shopId": body.shop_id, "serviceId": body.service_id, "status": "scheduled", "type": "queue",
-        "language": sprache_von(body.language), **kunde, **_frueher_dran_wunsch(body, uid, now),
+        "language": sprache_von(body.language), **kunde, **kartei, **_frueher_dran_wunsch(body, uid, now),
         **notice_fields({}, "new", now),
     }
     created = None
@@ -357,6 +386,7 @@ def pull_number(body: ZiehenRequest, request: Request) -> dict:
             continue
     if created is None:
         raise HTTPException(status_code=409, detail=RUSH)
+    _eintrag_speichern(db, created, neu)
     _nach_dem_anlegen(created)
     start, end = aware(created["startTime"]), aware(created["endTime"])
     wer = "mit Konto" if uid else "ohne Konto"

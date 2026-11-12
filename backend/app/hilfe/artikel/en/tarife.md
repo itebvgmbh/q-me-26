@@ -2,7 +2,7 @@
 titel: Which plan suits me?
 kurz: Free, Solo, Shop or Team: what each plan includes, what it costs and who it's for.
 stichworte: price, prices, pricing, cost, costs, plan, plans, comparison, compare, free, solo, shop, team, net, gross, vat, small business, kleinunternehmer, commission, yearly, annual
-quelle: 6010259f7626
+quelle: 11742db527eb
 ---
 If you work alone, Free or Solo is enough. If there are two to four of you, take Shop; for up to ten people, Team. Everyone who serves customers at your shop counts as a person, including you. There's no commission: you pay a fixed price, no matter how many customers come via Dranzeit.
 
@@ -18,6 +18,7 @@ For one person, unlimited customers. Plus:
 - Earlier slot
 - “Almost your turn” message by push or email
 - Appointment reminders
+- Customer file with visits, revenue and notes: [Customers](/hilfe/kunden)
 
 ## Shop – €39 a month
 

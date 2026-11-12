@@ -34,6 +34,8 @@ PLAN_FELDER = ("plan", "billing", "trialEndsAt", "founder", "founderSince", "gra
 ABO_FELDER = ("plan", "interval", "status", "cancelAtPeriodEnd", "currentPeriodEnd")
 ROLLEN = ("customer", "shopOwner", "employee")
 KUNDE_GEHEIM = ("activationTokenHash", "activationToken", "activationExpires")
+# Notizen der Kundenkartei: nur über die Kartei (app/libs/kartei.py), nicht in der Kundenliste, die auch das Tablet liest
+KUNDE_NOTIZEN = ("notiz", "notizGeaendert", "besuchsnotizen")
 MAX_BILD = 5 * 1024 * 1024
 BILDNAME = re.compile(r"^[a-f0-9]{32}\.(png|jpg|webp)$")
 
@@ -157,7 +159,7 @@ def bild_pfad(shop_id: str, name: str) -> Path | None:
 
 
 def kunde_fuers_team(kunde_id: str, daten: dict) -> dict:
-    return {**{k: v for k, v in daten.items() if k not in KUNDE_GEHEIM}, "id": kunde_id}
+    return {**{k: v for k, v in daten.items() if k not in KUNDE_GEHEIM and k not in KUNDE_NOTIZEN}, "id": kunde_id}
 
 
 def kunden(db, shop_id: str) -> list[dict]:
@@ -167,7 +169,8 @@ def kunden(db, shop_id: str) -> list[dict]:
 
 def kunde_anlegen(db, daten: dict) -> dict:
     """Neuer Eintrag in der Kundenliste, nie mit einem Konto verbunden. Gibt es die E-Mail im Laden schon, diesen Eintrag."""
-    daten = {k: v for k, v in daten.items() if k not in (*KUNDE_GEHEIM, "userId", "isActive", "id", "createdAt", "updatedAt", "activatedAt")}
+    daten = {k: v for k, v in daten.items()
+             if k not in (*KUNDE_GEHEIM, *KUNDE_NOTIZEN, "userId", "isActive", "id", "createdAt", "updatedAt", "activatedAt")}
     if not isinstance(daten.get("name"), str) or not daten["name"].strip():
         raise LadenFehler(400, merke("Bitte gib einen Namen ein."))
     email = daten.get("email")

@@ -19,6 +19,7 @@ Für eine Person, unbegrenzt Kunden. Dazu kommen:
 - Früher dran
 - „Gleich dran“-Nachricht per Push oder E-Mail
 - Termin-Erinnerungen
+- Kundenkartei mit Besuchen, Umsatz und Notizen: [Kunden](/hilfe/kunden)
 
 ## Laden – 39 € im Monat
 

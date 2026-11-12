@@ -339,6 +339,7 @@ TEXTE: dict = {
     "Heute": "Today",
     "Hilfe": "Help",
     "Kalender": "Calendar",
+    "Kunden": "Customers",
     "Laden": "Shop",
     "Läden finden": "Find shops",
     "Mein Tag": "My day",
@@ -402,4 +403,14 @@ TEXTE: dict = {
     "Bitte einen Ort oder eine Postleitzahl eingeben.": "Please enter a place or postcode.",
     "Diesen Ort haben wir nicht gefunden.": "We couldn’t find this place.",
     "Die Ortssuche ist gerade nicht erreichbar.": "Place search isn’t available right now.",
+    # Kundenkartei (app/libs/kartei.py)
+    "Diesen Termin gibt es bei diesem Kunden nicht.": "This customer doesn’t have this appointment.",
+    "Notizen gehören zum Tarif Solo.": "Notes are part of the Solo plan.",
+    "Die Notiz ist zu lang (höchstens 2000 Zeichen).": "The note is too long (2000 characters at most).",
+    "Das lässt sich hier nicht ändern.": "This can’t be changed here.",
+    "Diese Telefonnummer ist zu lang.": "This phone number is too long.",
+    "Diese Telefonnummer können wir nicht lesen.": "We can’t read this phone number.",
+    "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "The email address belongs to the linked account and can’t be changed here.",
+    "Bitte gib eine gültige E-Mail-Adresse ein.": "Please enter a valid email address.",
+    "Diese E-Mail-Adresse ist zu lang.": "This email address is too long.",
 }

@@ -26,6 +26,7 @@ const LADEN_SEITEN = [
   '/auswertung',
   '/plakat',
   '/employee-dashboard',
+  '/kunden',
 ];
 
 export const istLadenSeite = (pathname: string) => LADEN_SEITEN.some((p) => pathname === p || pathname.startsWith(`${p}/`));

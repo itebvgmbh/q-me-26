@@ -6,8 +6,9 @@ import { intlSprache, merke } from '@/i18n';
 
 export type PlanId = 'gratis' | 'solo' | 'laden' | 'team';
 /** telefon: Telefon-Assistent testen und zubuchen (eigenes Abo, backend/app/libs/telefon_abrechnung.py)
- *  api: Termin-API mit Schlüssel je Laden (backend/app/schnittstelle) */
-export type Feature = 'termine' | 'frueherDran' | 'benachrichtigung' | 'erinnerung' | 'team' | 'bildschirm' | 'auswertung' | 'telefon' | 'api';
+ *  api: Termin-API mit Schlüssel je Laden (backend/app/schnittstelle)
+ *  kartei: Kundenkartei mit Kennzahlen, Umsatz und Notizen (pages/Kunden.tsx, backend/app/libs/kartei.py) */
+export type Feature = 'termine' | 'frueherDran' | 'benachrichtigung' | 'erinnerung' | 'team' | 'bildschirm' | 'auswertung' | 'telefon' | 'api' | 'kartei';
 
 export interface PlanInfo {
   id: PlanId;
@@ -23,7 +24,7 @@ export interface PlanInfo {
   features: Feature[];
 }
 
-const SOLO_FEATURES: Feature[] = ['termine', 'frueherDran', 'benachrichtigung', 'erinnerung', 'telefon', 'api'];
+const SOLO_FEATURES: Feature[] = ['termine', 'frueherDran', 'benachrichtigung', 'erinnerung', 'telefon', 'api', 'kartei'];
 const LADEN_FEATURES: Feature[] = [...SOLO_FEATURES, 'team', 'bildschirm', 'auswertung'];
 
 export const PLANS: Record<PlanId, PlanInfo> = {

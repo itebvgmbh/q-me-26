@@ -2,7 +2,7 @@
 titel: Privacy: what data Dranzeit stores
 kurz: Which of your customers' data Dranzeit stores, when it's deleted, which service providers are involved and where the data processing agreement is.
 stichworte: privacy, data protection, gdpr, dsgvo, data, customer data, delete, deletion, 90 days, 12 months, customer list, delete account, mobile number, phone number, data processing, data processing agreement, dpa, avv, server, hetzner, firebase, google, stripe, resend, cookies
-quelle: 81bf679c0fbd
+quelle: f22be156f154
 ---
 From your customers, Dranzeit only stores what's needed for numbers and appointments: their first name and, if the customer wants, a mobile number or email address. You're responsible for this data; Dranzeit processes it on your behalf. This is a summary, not legal advice. What counts are the [privacy policy](/datenschutz) and the [terms and conditions (AGB)](/agb).
 
@@ -10,7 +10,7 @@ From your customers, Dranzeit only stores what's needed for numbers and appointm
 
 - **Number or appointment without an account:** service, person and time, plus the first name. Mobile number and email address are optional. You see the mobile number at the front desk so you can call.
 - **Customers with an account:** email address, name, mobile number if they wish, and their appointments. You see the mobile number from their profile with their appointments.
-- **Customers you add:** name, email address and, if you wish, phone number for your customer list under “Shop” → “My day”.
+- **Your customer list under “Customers”:** name, email address and phone number of the customers you add. Plus anyone who books or takes a number with you using an account, or with their name and mobile number. Each customer comes with their appointments, with the price according to your price list, and your team's notes. Only your team sees notes. Don't enter any health information such as allergies there; you'd need the customer's explicit consent for that. More: [Customers](/hilfe/kunden)
 - **Phone assistant:** If you use it, the callers' numbers and the conversation are added. The conversation is converted to text live and answered by an AI; it isn't recorded. Anyone who books then appears in your customer list, and every call appears in your call list, with a short summary the AI writes after the call. More: [Phone assistant](/hilfe/telefon-assistent)
 - **Push notifications:** If a customer allows them, Dranzeit stores the address that their browser generates for this.
 - **Your shop:** details of the shop and the services, the names and email addresses of the people in your team, and the billing data for your subscription.
@@ -21,7 +21,7 @@ Dranzeit doesn't use advertising cookies. Statistics with Google Analytics only 
 
 - For numbers and appointments without an account, Dranzeit removes names and contact details 90 days after the appointment, including for customers you've added. Time, service and person are kept for the statistics; the name then shows as “Gelöscht” (German for “deleted”).
 - For appointments with an account, the name stays; the mobile number and email address on the appointment are also removed after 90 days.
-- Dranzeit deletes customers in your customer list who have no linked account once there hasn't been an appointment with them for 12 months. Before that, you delete them yourself under “Shop” → “My day” → **“Customer list”**: upcoming appointments are cancelled, past ones lose the name. More: [My day](/hilfe/mein-tag)
+- Dranzeit deletes customers in your customer list who have no linked account, together with their notes, once there hasn't been an appointment with them for 12 months. Before that, you delete them yourself under **“Customers”**: upcoming appointments are cancelled, past ones lose the name. More: [Customers](/hilfe/kunden)
 - Dranzeit deletes calls in the phone assistant's call list, including their summary, after 90 days, and when you delete the customer with that number from the customer list.
 - Customers with an account delete their account themselves under “My profile”. Their upcoming appointments with you are then cancelled, and the name disappears from past ones.
 - After your contract ends, Dranzeit deletes your shop's data within 30 days, unless there's a legal obligation to keep it.
