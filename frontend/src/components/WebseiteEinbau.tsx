@@ -32,10 +32,17 @@ export const kastenCode = (shop: Pick<Shop, 'id' | 'name'>) =>
   `<iframe src="${PUBLIC_ORIGIN}/einbau/${encodeURIComponent(shop.id)}" title="${escapeHtml(`Nummer ziehen bei ${shop.name}`)}" ` +
   'width="100%" height="300" style="border:0;width:100%;max-width:560px;height:300px" loading="lazy"></iframe>';
 
-/** Schlichter Link-Knopf: Bis jemand klickt, geht nichts an Dranzeit */
+// Wartemarke als Symbol im Knopf (wie im Kasten, backend/app/einbau.py TICKET) – nur Linien, kein Text
+const TICKET_SVG =
+  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" ' +
+  'stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7' +
+  'a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>';
+
+/** Link-Knopf im Dranzeit-Design (schwarz mit gelber Schrift, Wartemarke davor): Bis jemand klickt, geht nichts an Dranzeit */
 export const knopfCode = (href: string, text: string) =>
-  `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 24px;border-radius:999px;` +
-  `background:#ffc83d;color:#141414;font:700 16px/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-decoration:none">` +
+  `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;` +
+  `padding:15px 26px;border-radius:999px;background:#141414;color:#ffc83d;font:700 16px/1.2 'DM Sans',system-ui,-apple-system,` +
+  `'Segoe UI',Roboto,sans-serif;text-decoration:none;box-shadow:0 6px 16px rgba(20,20,20,.18)">${TICKET_SVG}` +
   `${escapeHtml(text)}</a>`;
 
 const copy = (text: string, done?: string) =>
@@ -177,12 +184,13 @@ export const WebseiteEinbau = ({ shop }: { shop: Shop }) => {
         </TabsContent>
 
         <TabsContent value="qr" className="mt-0 flex flex-col gap-4 sm:flex-row sm:items-start">
+          {/* QR-Karte im Dranzeit-Design (backend/app/einbau.py render_qr_card), darunter der reine Code */}
           <img
-            src={`/routes/seo/einbau/${id}/qr.svg`}
+            src={`/routes/seo/einbau/${id}/qr-karte.svg`}
             alt={t('QR-Code: Nummer ziehen bei {name}', { name: shop.name })}
-            width={176}
-            height={176}
-            className="self-start rounded-2xl border border-border bg-white"
+            width={240}
+            height={336}
+            className="self-start drop-shadow-md"
           />
           <div className="flex flex-col gap-3">
             <p className="text-sm">
@@ -190,6 +198,15 @@ export const WebseiteEinbau = ({ shop }: { shop: Shop }) => {
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="signal" asChild>
+                <a href={`/routes/seo/einbau/${id}/qr-karte.svg`} download>
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  {t('QR-Karte herunterladen')}
+                </a>
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">{t('Die Karte mit deinem Namen passt auf die Webseite, ins Schaufenster oder auf den Flyer. Nur den Code ohne Rahmen gibt es hier:')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
                 <a href={`/routes/seo/einbau/${id}/qr.png`} download>
                   <Download className="h-4 w-4" aria-hidden="true" />
                   {t('PNG herunterladen')}

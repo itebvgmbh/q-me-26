@@ -241,6 +241,8 @@ const texte: Texte = {
   "Link kopieren": "Copy link",
   "QR-Code: Nummer ziehen bei {name}": "QR code: take a number at {name}",
   "Derselbe Code wie auf dem Plakat: Wer ihn scannt, zieht eine Nummer. Für deine Webseite, Flyer, Visitenkarten oder das Schaufenster.": "The same code as on the poster: whoever scans it takes a number. For your website, flyers, business cards or shop window.",
+  "QR-Karte herunterladen": "Download QR card",
+  "Die Karte mit deinem Namen passt auf die Webseite, ins Schaufenster oder auf den Flyer. Nur den Code ohne Rahmen gibt es hier:": "The card with your name works on your website, in the shop window or on a flyer. The plain code without a frame is here:",
   "PNG herunterladen": "Download PNG",
   "SVG herunterladen": "Download SVG",
   "PNG passt für Webseite und Word. SVG lässt sich beliebig groß drucken – gut für die Druckerei.": "PNG works for websites and Word. SVG can be printed at any size – ideal for the print shop.",
