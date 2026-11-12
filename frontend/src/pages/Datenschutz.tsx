@@ -5,7 +5,7 @@ import { cookieEinstellungenOeffnen, statistikMoeglich } from '../utils/statisti
 
 export default function Datenschutz() {
   return (
-    <LegalPage title="Datenschutz" updated="09.11.2026">
+    <LegalPage title="Datenschutz" updated="12.11.2026">
       <section>
         <h2>Wer verantwortlich ist</h2>
         <p>
@@ -122,7 +122,7 @@ export default function Datenschutz() {
         <ul>
           <li>
             <strong>Welche Daten:</strong> aufgerufene Seiten, Zeitpunkt und Dauer, die Seite, von der du kommst,
-            ungefährer Standort (Land, Region, Stadt), Gerät, Browser, Betriebssystem, Bildschirmgröße und Sprache, eine
+            Kampagnenangaben im Link (etwa, dass du über eine unserer Anzeigen gekommen bist), ungefährer Standort (Land, Region, Stadt), Gerät, Browser, Betriebssystem, Bildschirmgröße und Sprache, eine
             zufällige Kennung in einem Cookie sowie Ereignisse wie „Laden angemeldet“ oder „Nummer gezogen“. Namen,
             E-Mail-Adressen, Telefonnummern, Termine oder den gewählten Laden geben wir nicht an Google weiter.
           </li>
@@ -164,6 +164,60 @@ export default function Datenschutz() {
             </button>
           </p>
         )}
+      </section>
+
+      <section id="facebook-instagram">
+        <h2>Dranzeit auf Facebook und Instagram</h2>
+        <p>
+          Wir haben eine Seite bei Facebook und ein Profil bei Instagram. Beide Dienste betreibt die Meta Platforms
+          Ireland Limited, Merrion Road, Dublin 4, D04 X2K5, Irland („Meta“). Was Meta beim Besuch dieser Seiten mit
+          deinen Daten macht, steht in der{' '}
+          <a href="https://www.facebook.com/privacy/policy" target="_blank" rel="noopener noreferrer">
+            Datenschutzrichtlinie von Meta
+          </a>
+          .
+        </p>
+        <ul>
+          <li>
+            <strong>Statistiken:</strong> Aus Aufrufen und Reaktionen (etwa „Gefällt mir“, Kommentare, Klicks) erstellt
+            Meta für uns zusammengefasste Statistiken („Insights“). Dafür sind wir mit Meta gemeinsam verantwortlich (Art.
+            26 DSGVO). Nach der{' '}
+            <a href="https://www.facebook.com/legal/terms/page_controller_addendum" target="_blank" rel="noopener noreferrer">
+              Vereinbarung mit Meta
+            </a>{' '}
+            übernimmt Meta die Hauptverantwortung, vor allem für die Information, für deine Rechte und für die
+            Sicherheit der Daten. Wir sehen nur zusammengefasste Zahlen, nicht, wer dahintersteht. Rechtsgrundlage ist
+            unser berechtigtes Interesse, Dranzeit bekannt zu machen und zu sehen, welche Beiträge ankommen (Art. 6 Abs.
+            1 lit. f DSGVO).
+          </li>
+          <li>
+            <strong>Nachrichten und Kommentare:</strong> Schreibst du uns dort, nutzen wir deinen Namen und deine
+            Nachricht, um dir zu antworten (Art. 6 Abs. 1 lit. b DSGVO, wenn es um einen Vertrag geht, sonst lit. f).
+            Wenn das nicht über Meta laufen soll, schreib uns an{' '}
+            <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.
+          </li>
+          <li>
+            <strong>Anzeigen:</strong> Wir schalten auf Facebook und Instagram Anzeigen für Läden. Wer sie sieht,
+            wählt Meta nach Ort, Alter und Interessen aus, die wir vorgeben. Wir erhalten nur zusammengefasste Zahlen
+            wie Reichweite und Klicks.
+          </li>
+          <li>
+            <strong>Kein Meta-Pixel auf dranzeit.de:</strong> Auf unseren Seiten binden wir nichts von Meta ein, kein
+            Meta-Pixel, keine Conversions API und keine „Gefällt mir“-Knöpfe. Verlinken wir unsere Profile, dann als
+            einfachen Link: Meta erfährt erst etwas, wenn du ihn anklickst. Der Link in unseren Anzeigen enthält
+            Kampagnenangaben, die Google Analytics nur mit deiner Einwilligung auswertet (siehe „Statistik mit Google
+            Analytics“).
+          </li>
+          <li>
+            <strong>Übermittlung in die USA:</strong> Meta kann Daten an die Meta Platforms, Inc. in den USA
+            übermitteln. Sie ist nach dem EU-US Data Privacy Framework zertifiziert.
+          </li>
+          <li>
+            <strong>Deine Rechte:</strong> Am schnellsten erreichst du Meta direkt, etwa über die Einstellungen deines
+            Kontos. Du kannst dich auch an uns wenden; Anfragen zu den Statistiken leiten wir innerhalb von sieben Tagen
+            an Meta weiter.
+          </li>
+        </ul>
       </section>
 
       <section>

@@ -14,6 +14,9 @@
  *   für fremde Webseiten (/einbau/…, backend/app/einbau.py) bindet diese Datei gar nicht ein.
  * - Nur diese eine Mess-ID. Kein Google-Ads-Tag, kein Meta-Pixel.
  * - Seitenaufrufe in der React-App zählt GA4 selbst (Optimierte Messung: Seitenwechsel über den Browserverlauf).
+ * - Ereignisse: sign_up (Laden registriert), laden_eingerichtet (Einrichtung fertig), generate_lead (Nummer/Termin).
+ * - Anzeigen auf Facebook/Instagram kommen mit utm_*-Angaben (Plan: dranzeit-marketing/meta-2026-11). Stimmt jemand
+ *   erst nach einem Seitenwechsel zu, gibt starten() die Angaben der Einstiegsseite mit (kampagne).
  */
 (function () {
   var ID = 'G-RG8P11CJNJ';
@@ -58,12 +61,28 @@
     s.src = 'https://www.googletagmanager.com/gtag/js?id=' + ID;
     document.head.appendChild(s);
   }
+  // Kampagnenangaben (utm_*) der Einstiegsadresse, z. B. aus einer Anzeige auf Facebook oder Instagram. Wer erst auf
+  // einer späteren Seite der React-App zustimmt, wird so trotzdem der Kampagne zugeordnet. Nur im Speicher dieser
+  // Seite, nie in localStorage/sessionStorage (das bräuchte vor der Einwilligung selbst eine, § 25 TDDDG).
+  var FELDER = { utm_source: 'campaign_source', utm_medium: 'campaign_medium', utm_campaign: 'campaign_name',
+    utm_content: 'campaign_content', utm_term: 'campaign_term', utm_id: 'campaign_id' };
+  function kampagneIn(suche) {
+    var q = new URLSearchParams(suche);
+    if (!q.get('utm_source')) return null;
+    var k = {};
+    for (var f in FELDER) if (q.get(f)) k[FELDER[f]] = q.get(f).slice(0, 100);
+    return k;
+  }
+  var kampagne = kampagneIn(location.search);
+
   // gtag.js erst nach dem Laden der Seite (Ladezeit auf dem Handy). Aufrufe davor warten in dataLayer.
   function starten(sofort) {
     if (gestartet || aus) return;
     gestartet = true;
     gtag('js', new Date());
-    gtag('config', ID);
+    // Steht die Kampagne noch in der Adresse, liest GA4 sie selbst
+    if (kampagne && !kampagneIn(location.search)) gtag('config', ID, kampagne);
+    else gtag('config', ID);
     if (sofort && document.readyState === 'complete') return laden();
     var spaeter = function () {
       setTimeout(function () {

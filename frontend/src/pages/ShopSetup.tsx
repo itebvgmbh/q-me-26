@@ -41,6 +41,7 @@ import { entwurfAus, offeneUebernahme, verbindeSeite, Verbindung, vergissUeberna
 import type { ShopSetupStatusData } from '../brain/data-contracts';
 import { intlSprache, merke, t, tn, tTeile } from '@/i18n';
 import { inStoreApp } from '../utils/app-shell';
+import { ereignis } from '../utils/statistik';
 
 /**
  * Laden einrichten – eine Frage pro Bildschirm, wie bei einer Steuer-App:
@@ -321,6 +322,9 @@ const ShopSetup = () => {
         setDraft((d) => (d ? { ...d, progress } : d)); // landet über saveDraft auch im Browser
       });
       clearDraft(user.uid);
+      // GA4: Laden fertig eingerichtet (nur mit Einwilligung, ohne persönliche Daten) – zeigt, welche Anmeldungen
+      // wirklich loslegen, z. B. aus einer Anzeige
+      ereignis('laden_eingerichtet', { weg: draft.verzeichnis ? 'verzeichnis' : 'neu' });
       if (draft.verzeichnis) {
         setCreating(t('Seite verbinden …'));
         setSeite(await verbindeSeite(draft.verzeichnis, res.shop.id)); // wirft nicht; Fehler zeigt die Fertig-Seite
