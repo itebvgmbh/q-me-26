@@ -467,6 +467,23 @@ const texte: Texte = {
   "Assistent ausgeschaltet": "المساعد متوقف",
   "Zahlung offen": "الدفع معلّق",
   "Noch nicht freigeschaltet": "لم يُفعَّل بعد",
+  // Logo von der Webseite (components/setup/LogoVonWebseite.tsx, pages/ShopSetup.tsx, components/EditShopForm.tsx)
+  "Logo speichern …": "جارٍ حفظ الشعار …",
+  "Logo von der Webseite holen": "جلب الشعار من الموقع الإلكتروني",
+  "Trag oben deine Webseite ein, dann hole ich das Logo von dort.": "أدخل موقعك الإلكتروني في الأعلى، وسأجلب الشعار منه.",
+  "Das Logo ließ sich nicht speichern. Du kannst es unter „Laden“ → „Bearbeiten“ nachtragen.": "تعذّر حفظ الشعار. يمكنك إضافته من «المحل» ثم «تعديل».",
+  "Ich suche das Logo auf {seite} …": "أبحث عن الشعار على {seite} …",
+  "Auf {seite} habe ich kein Logo gefunden. Du kannst es später unter „Laden“ → „Bearbeiten“ hochladen.": "لم أجد شعارًا على {seite}. يمكنك رفعه لاحقًا من «المحل» ثم «تعديل».",
+  "Auf {seite} habe ich kein Logo gefunden.": "لم أجد شعارًا على {seite}.",
+  "Das Logo von {seite} ließ sich nicht holen.": "تعذّر جلب الشعار من {seite}.",
+  "Dieses Logo lässt sich hier nicht übernehmen. Nimm ein anderes oder lade es selbst hoch.": "لا يمكن استخدام هذا الشعار هنا. اختر شعارًا آخر أو ارفعه بنفسك.",
+  "Auf {seite} habe ich mehrere Bilder gefunden. Tipp das passende Logo an.": "وجدت عدة صور على {seite}. اضغط على الشعار المناسب.",
+  "Das habe ich auf {seite} gefunden.": "هذا ما وجدته على {seite}.",
+  "Logos von {seite}": "شعارات من {seite}",
+  "Logo {nr} von {seite}": "الشعار {nr} من {seite}",
+  "Logo gespeichert": "تم حفظ الشعار",
+  "Dieses Logo speichern": "احفظ هذا الشعار",
+  "Von der Webseite holen": "جلب من الموقع الإلكتروني",
 };
 
 export default texte;

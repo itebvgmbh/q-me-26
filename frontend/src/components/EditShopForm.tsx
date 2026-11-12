@@ -9,8 +9,10 @@ import { toast } from 'sonner';
 import { t } from '@/i18n';
 import { Shop as ShopProfileType, updateShop } from '../utils/firestore';
 import { uploadImage } from '../utils/firestore/storage';
+import { dataUrlAlsDatei } from '../utils/logo-bild';
 import { INDUSTRIES } from '../utils/industries';
-import { Loader2, Upload, X } from 'lucide-react';
+import { Globe, Loader2, Upload, X } from 'lucide-react';
+import { LogoVonWebseite } from './setup/LogoVonWebseite';
 import { OpeningHoursEditor } from './OpeningHoursEditor';
 import { defaultHours, hoursFromLegacy, hoursProblem, normalizeHours } from '../utils/opening-hours';
 import { MAX_ONLINE_LEAD_MINUTES, onlineLeadMinutes } from '../utils/booking-rules';
@@ -42,8 +44,22 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
   
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [logoVonWebseite, setLogoVonWebseite] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Logo von der Webseite: kommt schon als PNG (im Browser gerastert), wird hochgeladen wie eine gewählte Datei
+  const saveWebsiteLogo = async (logo: { dataUrl: string }) => {
+    setIsUploading(true);
+    try {
+      const logoUrl = await uploadImage(dataUrlAlsDatei(logo.dataUrl, 'logo.png'), `shop-logos/${shop.id}`);
+      setFormData((prev) => ({ ...prev, logoUrl }));
+      setLogoVonWebseite(false);
+      toast.success(t('Logo hochgeladen.'));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Optimierte Logo-Upload-Funktion
   const handleLogoUpload = async (file: File) => {
     if (!file) return;
@@ -314,11 +330,12 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
         <div className="flex flex-col space-y-3">
           {/* Aktuelles Logo anzeigen */}
           {formData.logoUrl && (
-            <div className="relative w-24 h-24 rounded-md overflow-hidden border border-border">
-              <img 
-                src={formData.logoUrl} 
-                alt={t('Logo des Ladens')} 
-                className="w-full h-full object-cover"
+            <div className="relative w-24 h-24 rounded-md overflow-hidden border border-border bg-white">
+              {/* contain: Logos von Webseiten sind oft breit */}
+              <img
+                src={formData.logoUrl}
+                alt={t('Logo des Ladens')}
+                className="w-full h-full object-contain"
               />
               <button 
                 type="button"
@@ -331,10 +348,10 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
             </div>
           )}
           
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <Button 
-              type="button" 
-              variant="outline" 
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isSubmitting}
               className="flex items-center space-x-2 rtl:space-x-reverse"
@@ -351,8 +368,23 @@ export const EditShopForm = ({ shop, onUpdate, onCancel }: Props) => {
                 </>
               )}
             </Button>
+            {formData.website?.trim() && (
+              <Button
+                type="button"
+                variant="outline"
+                aria-expanded={logoVonWebseite}
+                onClick={() => setLogoVonWebseite((offen) => !offen)}
+                disabled={isUploading || isSubmitting}
+              >
+                <Globe className="w-4 h-4" aria-hidden="true" />
+                {t('Von der Webseite holen')}
+              </Button>
+            )}
           </div>
-          
+          {logoVonWebseite && formData.website?.trim() && (
+            <LogoVonWebseite url={formData.website} onSave={saveWebsiteLogo} spaeterHochladen={false} />
+          )}
+
           <input
             type="file"
             id="logo"

@@ -317,8 +317,6 @@ const texte: Texte = {
   "Deine eigene Woche, wenn du selbst mitarbeitest": "أسبوعك الخاص، إن كنت تعمل بنفسك",
   "Kunden, Wartezeit und Umsatz": "العملاء ووقت الانتظار والإيرادات",
   "Dein Tarif und Rechnungen": "باقتك والفواتير",
-  "Weiterer Laden": "محل آخر",
-  "Noch einen Laden einrichten": "إعداد محل آخر",
   "Verwalten": "الإدارة",
   "Auf diesem Gerät": "على هذا الجهاز",
   "Dieses Gerät ist: {rolle}": "هذا الجهاز: {rolle}",

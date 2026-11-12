@@ -4,6 +4,8 @@ Ohne Google, Claude und Firebase lauffähig, ohne pytest:
 
     cd backend && TZ=Europe/Berlin .venv/bin/python tests/test_shop_setup.py
 """
+import base64
+import json
 import os
 import socket
 import sys
@@ -180,6 +182,22 @@ class _Handler(BaseHTTPRequestHandler):
                     time.sleep(0.5)
             except OSError:
                 pass
+        elif self.path == '/logo-start':
+            self._html('<header><img class="logo" src="/umleitung-logo" alt="Salon"></header>'
+                       '<link rel="apple-touch-icon" href="/riesig.png"><link rel="icon" type="image/svg+xml" href="/zeichen.svg">')
+        elif self.path == '/umleitung-logo':
+            self.send_response(302)
+            self.send_header('Location', '/bilder/logo.png')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+        elif self.path in ('/bilder/logo.png', '/riesig.png', '/zeichen.svg'):
+            # falscher Content-Type mit Absicht: geprüft wird der Inhalt
+            body = {'/bilder/logo.png': png(300, 100), '/riesig.png': png(300, 100, b'\x00' * 5000), '/zeichen.svg': SVG}[self.path]
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
 
 def with_local_server(fn):
@@ -237,6 +255,189 @@ def test_umlaut_domain_und_zugangsdaten_in_der_adresse():
     assert url == 'https://www.xn--mller-kva.de/preise', url
     url, _ = setup.check_public_url('http://nutzer:geheim@salon.example/', resolve=fake_dns('93.184.216.34'))
     assert url == 'http://salon.example/', url
+
+
+# --- Logo von der Webseite --------------------------------------------------------------------------
+
+def png(breite, hoehe, rest=b''):
+    return b'\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR' + breite.to_bytes(4, 'big') + hoehe.to_bytes(4, 'big') + b'\x08\x06\x00\x00\x00' + b'\x00' * 4 + rest
+
+
+def jpeg(breite, hoehe):
+    app0 = b'\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00'
+    sof = b'\xff\xc0\x00\x11\x08' + hoehe.to_bytes(2, 'big') + breite.to_bytes(2, 'big') + b'\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01'
+    return b'\xff\xd8' + app0 + sof + b'\xff\xd9'
+
+
+def gif(breite, hoehe):
+    return b'GIF89a' + breite.to_bytes(2, 'little') + hoehe.to_bytes(2, 'little') + b'\x00' * 6
+
+
+def webp_verlustfrei(breite, hoehe):
+    bits = (breite - 1) | ((hoehe - 1) << 14)
+    return b'RIFF\x00\x00\x00\x00WEBPVP8L\x00\x00\x00\x00\x2f' + bits.to_bytes(4, 'little') + b'\x00' * 10
+
+
+SVG = b'<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><rect width="100" height="40"/></svg>'
+ICO = b'\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00\x01\x00\x20\x00' + b'\x00' * 40
+
+LOGO_SEITE = """<html><head>
+<link rel="icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" sizes="120x120" href="/touch-120.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/touch-180.png">
+<link rel="mask-icon" href="/maske.svg">
+<meta property="og:image" content="https://salon.example/titelbild.jpg">
+<meta property="og:image" content="https://salon.example/salon-logo-og.png">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [
+  {"@type": "WebSite", "@id": "https://salon.example/#website", "publisher": {"@id": "https://salon.example/#org"}},
+  {"@type": ["Organization", "HairSalon"], "@id": "https://salon.example/#org", "logo": {"@id": "https://salon.example/#logo"}},
+  {"@type": "ImageObject", "@id": "https://salon.example/#logo", "url": "https://salon.example/wp-content/logo-quadrat.png"}]}</script>
+<script type="application/ld+json">{ kaputt </script>
+</head><body>
+<footer><img src="/paypal-logo.png" alt="PayPal"></footer>
+<header class="site-header"><a href="/" class="custom-logo-link"><img src="/wp-content/logo.svg" class="custom-logo" alt="Salon Schnittig"></a>
+<nav><a class="navbar-brand" href="/"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="/marke.webp"></a>
+<a href="/logout"><img src="/icons/logout.png"></a></nav></header>
+<main><img src="/team.jpg" alt="Unser Team"><img src="/wp-content/logo-quadrat.png#oben" alt="Logo"></main>
+</body></html>"""
+
+
+def test_logo_kandidaten_in_sinnvoller_reihenfolge():
+    gefunden = setup.logo_candidates(LOGO_SEITE, 'https://salon.example/')
+    assert gefunden == [
+        ('https://salon.example/wp-content/logo-quadrat.png', 'json-ld'),  # aus @graph per @id, später als <img> nicht doppelt
+        ('https://salon.example/wp-content/logo.svg', 'img'),  # WordPress custom-logo
+        ('https://salon.example/marke.webp', 'img'),  # nachgeladen, in der Navigation (navbar-brand)
+        ('https://salon.example/touch-180.png', 'apple-touch-icon'),  # nur das größte
+        ('https://salon.example/icon.svg', 'icon'),  # SVG vor großem PNG, kein .ico, kein 32 px
+        ('https://salon.example/icon-192.png', 'icon'),
+        ('https://salon.example/salon-logo-og.png', 'og:image'),  # og:image nur mit "logo" in der Adresse
+    ], gefunden
+
+
+def test_logo_aus_json_ld_varianten():
+    def ld(daten):
+        return f'<script type="application/ld+json">{json.dumps(daten)}</script>'
+    html = (ld({'@type': 'LocalBusiness', 'logo': '/a.png'})
+            + ld([{'@type': 'Organization', 'logo': {'@type': 'ImageObject', 'contentUrl': 'https://cdn.example/b.png', 'url': 'https://cdn.example/b-alt.png'}}])
+            + ld({'@type': 'HairSalon', 'logo': [{'url': '//cdn.example/c.png'}], 'image': '/kein-logo.jpg'})
+            + ld({'@type': 'Organization', 'logo': 'javascript:alert(1)'}))
+    adressen = [a for a, _ in setup.logo_candidates(html, 'https://salon.example/start')]
+    assert adressen == ['https://salon.example/a.png', 'https://cdn.example/b.png', 'https://cdn.example/c.png'], adressen
+
+
+def test_bild_nach_inhalt_nicht_nach_endung():
+    assert setup.bild_art(png(200, 80)) == 'png' and setup.bild_groesse(png(200, 80), 'png') == (200, 80)
+    assert setup.bild_art(jpeg(640, 320)) == 'jpeg' and setup.bild_groesse(jpeg(640, 320), 'jpeg') == (640, 320)
+    assert setup.bild_art(webp_verlustfrei(300, 100)) == 'webp' and setup.bild_groesse(webp_verlustfrei(300, 100), 'webp') == (300, 100)
+    assert setup.bild_art(gif(16, 16)) == 'gif' and setup.winzig(setup.bild_groesse(gif(16, 16), 'gif'))
+    assert setup.bild_art(SVG) == 'svg' and setup.bild_groesse(SVG, 'svg') is None and not setup.winzig(None)
+    assert setup.bild_art('﻿  <svg xmlns="http://www.w3.org/2000/svg"/>'.encode()) == 'svg'
+    assert setup.bild_art(ICO) is None  # Favicons als ICO nicht
+    assert setup.bild_art(b'<!doctype html><html><body><svg></svg></body></html>') is None  # Fehlerseite statt Bild
+    assert setup.bild_art(b'') is None and setup.bild_art(b'GIF8') is None
+    assert setup.winzig((300, 4)) and setup.winzig((31, 31)) and not setup.winzig((120, 40))
+
+
+class _Attrappe:
+    """fetch_page, fetch_image und die Rollenprüfung kurz ersetzen"""
+
+    def __init__(self, html, bilder, seite='https://salon.example/'):
+        self.html, self.bilder, self.seite, self.geladen = html, bilder, seite, []
+
+    def __enter__(self):
+        self.alt = (setup.fetch_page, setup.fetch_image, setup._require_owner, os.environ.pop('ANTHROPIC_API_KEY', None))
+        setup.fetch_page = self.seite_holen
+        setup.fetch_image = self.bild_holen
+        setup._require_owner = lambda user: None
+        return self
+
+    def __exit__(self, *args):
+        setup.fetch_page, setup.fetch_image, setup._require_owner, schluessel = self.alt
+        if schluessel is not None:
+            os.environ['ANTHROPIC_API_KEY'] = schluessel
+
+    def seite_holen(self, url, deadline=None):
+        if isinstance(self.html, Exception):
+            raise self.html
+        return self.seite, self.html
+
+    def bild_holen(self, url, deadline=None):
+        self.geladen.append(url)
+        if url not in self.bilder:
+            raise ValueError('Die Webseite antwortet mit Fehler 404.')
+        return url, self.bilder[url]
+
+
+def test_logo_endpunkt_ueberspringt_unbrauchbares_und_versucht_hoechstens_fuenf():
+    html = """<script type="application/ld+json">{"@type": "Organization", "logo": "/favicon.ico"}</script>
+      <header><img class="logo" src="/winzig.png"><img class="logo" src="/logo.png"><img class="logo" src="/fehlt.png"></header>
+      <link rel="apple-touch-icon" href="/touch.png"><link rel="icon" type="image/svg+xml" href="/logo.svg">"""
+    s = 'https://salon.example'
+    bilder = {f'{s}/favicon.ico': ICO, f'{s}/winzig.png': png(16, 16), f'{s}/logo.png': png(240, 80),
+              f'{s}/touch.png': png(240, 80), f'{s}/logo.svg': SVG}  # touch.png ist dasselbe Bild wie logo.png
+    with _Attrappe(html, bilder) as attrappe:
+        antwort = setup.shop_setup_website_logo(setup.WebsiteLogoRequest(url='salon.example'), SimpleNamespace(sub='logo-test-1'))
+    assert attrappe.geladen == [f'{s}/favicon.ico', f'{s}/winzig.png', f'{s}/logo.png', f'{s}/fehlt.png', f'{s}/touch.png'], attrappe.geladen
+    assert antwort.seite == 'https://salon.example/'
+    assert [(logo.art, logo.quelle) for logo in antwort.logos] == [('png', f'{s}/logo.png')], antwort.logos
+    assert base64.b64decode(antwort.logos[0].dataUrl.removeprefix('data:image/png;base64,')) == png(240, 80)
+
+
+def test_logo_endpunkt_hoechstens_drei_und_svg_als_vorschau():
+    s = 'https://salon.example'
+    html = ''.join(f'<img class="logo" src="/l{i}.png">' for i in range(3)) + '<link rel="icon" type="image/svg+xml" href="/l.svg">'
+    html = '<link rel="apple-touch-icon" href="/start.svg">' + html
+    bilder = {f'{s}/l{i}.png': png(100 + i, 50) for i in range(3)}
+    bilder[f'{s}/start.svg'] = SVG
+    with _Attrappe(html, bilder) as attrappe:
+        antwort = setup.shop_setup_website_logo(setup.WebsiteLogoRequest(url='https://salon.example'), SimpleNamespace(sub='logo-test-2'))
+    assert len(antwort.logos) == 3 and len(attrappe.geladen) == 3, attrappe.geladen
+    assert [logo.art for logo in antwort.logos] == ['png', 'png', 'png']  # <img> vor Apple-Touch-Icon
+    with _Attrappe('<link rel="apple-touch-icon" href="/start.svg">', bilder):
+        antwort = setup.shop_setup_website_logo(setup.WebsiteLogoRequest(url='salon.example'), SimpleNamespace(sub='logo-test-2'))
+    assert antwort.logos[0].art == 'svg' and antwort.logos[0].dataUrl.startswith('data:image/svg+xml;base64,')
+
+
+def test_logo_endpunkt_ohne_logo_und_mit_fehler():
+    with _Attrappe('<p>Willkommen</p>', {}):
+        antwort = setup.shop_setup_website_logo(setup.WebsiteLogoRequest(url='salon.example'), SimpleNamespace(sub='logo-test-3'))
+    assert antwort.logos == [] and antwort.seite == 'https://salon.example/'
+    fehler = ValueError(setup.merke('Diese Webseite gibt es nicht (Adresse nicht gefunden).'))
+    with _Attrappe(fehler, {}):
+        try:
+            setup.shop_setup_website_logo(setup.WebsiteLogoRequest(url='gibts-nicht.example'), SimpleNamespace(sub='logo-test-3'))
+            assert False, 'hätte 400 geben müssen'
+        except setup.HTTPException as e:
+            assert e.status_code == 400 and e.detail == 'Diese Webseite gibt es nicht (Adresse nicht gefunden).', e.detail
+    assert setup.LIMITS['logo'] >= 10 and setup.DAY_LIMITS['logo'] >= 100
+
+
+def test_logo_ueber_den_testserver():
+    """Echte Abrufe: Weiterleitung, falscher Content-Type, zu großes Bild, SVG; HTML-Abruf lehnt Bilder ab"""
+    saved = setup.MAX_IMAGE_BYTES
+    setup.MAX_IMAGE_BYTES = 2000
+
+    def run(base):
+        seite, logos = setup.find_logos(base + '/logo-start')
+        try:
+            setup.fetch_page(base + '/bilder/logo.png')
+            keine_seite = 'kein Fehler'
+        except ValueError as e:
+            keine_seite = str(e)
+        return seite, logos, keine_seite
+    try:
+        seite, logos, keine_seite = with_local_server(run)
+    finally:
+        setup.MAX_IMAGE_BYTES = saved
+    assert seite.endswith('/logo-start'), seite
+    assert [logo['art'] for logo in logos] == ['png', 'svg'], logos  # riesig.png fehlt: zu groß
+    assert logos[0]['quelle'].endswith('/bilder/logo.png'), logos[0]['quelle']
+    assert base64.b64decode(logos[0]['dataUrl'].split(',', 1)[1]) == png(300, 100)
+    assert keine_seite == 'Das ist keine Webseite.', keine_seite
 
 
 # --- Leistungen ------------------------------------------------------------------------------------

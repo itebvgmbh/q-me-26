@@ -294,8 +294,10 @@ def test_cleanup(ov: dict) -> dict:
 
 
 def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: set = frozenset(),
-                  admin_uids: set = frozenset(), now=None) -> dict:
-    """Was beim Löschen passiert. Liest nur. Bricht ab, wenn etwas nicht sicher ist."""
+                  admin_uids: set = frozenset(), now=None, gekuendigt_ok: bool = False) -> dict:
+    """Was beim Löschen passiert. Liest nur. Bricht ab, wenn etwas nicht sicher ist.
+    gekuendigt_ok: ein Abo, das zum Laufzeitende gekündigt und bezahlt ist, hält nicht auf (Inhaber löscht selbst,
+    app/libs/laden_loeschen.py) – es läuft aus, der Stripe-Webhook überspringt Abos ohne Laden."""
     from app.libs.plans import ACTIVE_BILLING
 
     now = now or datetime.now(timezone.utc)
@@ -312,13 +314,16 @@ def plan_deletion(fs, uids: list, shop_ids: list, accounts: dict, admin_emails: 
         from app.libs.shop_privat import LIVE, stripe_link
 
         stripe_mode, ids = stripe_link(fs, sid, shop)
-        if (shop.get("billing") or {}).get("status") in ACTIVE_BILLING and stripe_mode == LIVE:  # Sandbox-Abos kosten nichts
+        billing = shop.get("billing") or {}
+        laeuft_aus = gekuendigt_ok and billing.get("cancelAtPeriodEnd") and billing.get("status") != "past_due"
+        if billing.get("status") in ACTIVE_BILLING and stripe_mode == LIVE and not laeuft_aus:  # Sandbox-Abos kosten nichts
             problems.append(f"„{shop.get('name')}“ hat ein laufendes Abo ({shop['billing']['status']}) – erst in Stripe kündigen "
                             f"(Kunde {ids.get('customerId') or '?'}, Abo {ids.get('subscriptionId') or '?'}, „sofort“).")
         from app.libs import telefon as tel
 
         tz = tel.zusatz((fs.collection(tel.LAEDEN).document(sid).get().to_dict() or {}))
-        if tz.get("status") in (*tel.GEBUCHT, *tel.ZAHLUNG_OFFEN) and (tz.get("modus") or LIVE) == LIVE:
+        tel_laeuft_aus = gekuendigt_ok and tz.get("cancelAtPeriodEnd") and tz.get("status") in tel.GEBUCHT
+        if tz.get("status") in (*tel.GEBUCHT, *tel.ZAHLUNG_OFFEN) and (tz.get("modus") or LIVE) == LIVE and not tel_laeuft_aus:
             problems.append(f"„{shop.get('name')}“ hat den Telefon-Assistenten gebucht ({tz['status']}) – erst in Stripe kündigen "
                             f"(Abo {tz.get('subscriptionId') or '?'}, „sofort“).")
         related = {name: where(fs, name, "shopId", sid) for name in SHOP_COLLECTIONS}
@@ -422,6 +427,19 @@ def backup_data(plan: dict, selection: str, list_file: str) -> dict:
     }
 
 
+def _bilder_weg(shop_id: str) -> None:
+    """Hochgeladene Bilder des Ladens (Logo, Fotos des Teams) liegen auf dem Server, nicht in der Datenbank"""
+    import shutil
+
+    from app.libs.laeden import dateien_dir
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", shop_id or ""):
+        return
+    ordner = dateien_dir() / shop_id
+    if ordner.is_dir():
+        shutil.rmtree(ordner, ignore_errors=True)
+
+
 def execute(fs, plan: dict, delete_auth_user) -> dict:
     """Erst die Läden, dann die Konten – so liest delete_account_data nur noch, was in bleibenden Läden liegt"""
     from app.libs.privacy import delete_account_data
@@ -437,6 +455,7 @@ def execute(fs, plan: dict, delete_auth_user) -> dict:
             for m in snaps:
                 m.reference.delete()
         fs.collection("shops").document(s["id"]).delete()
+        _bilder_weg(s["id"])
         # Vermerk wie in firestore.rules: unter dieser ID legt niemand mehr einen Laden an (frische Testphase)
         fs.collection("deleted_shops").document(s["id"]).set({"owner": s["data"].get("owner") or "", "deletedAt": now})
         result["shops"] += 1

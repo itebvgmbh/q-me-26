@@ -12,6 +12,7 @@ import { QueueOption } from '../components/queue/QueueStepShell';
 import { OpeningHoursEditor } from '../components/OpeningHoursEditor';
 import { PlaceSearch } from '../components/setup/PlaceSearch';
 import { ServicePicker } from '../components/setup/ServicePicker';
+import { LogoVonWebseite } from '../components/setup/LogoVonWebseite';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { HilfeLink } from '../components/HilfeLink';
 import { INDUSTRIES, getIndustryById } from '../utils/industries';
@@ -253,6 +254,11 @@ const ShopSetup = () => {
               hilfe: (inhalt) => <HilfeLink hilfe="in-10-minuten-startklar">{inhalt}</HilfeLink>,
             })}
           </p>
+          {result.logoProblem && (
+            <p className="text-muted-foreground" role="status">
+              {t('Das Logo ließ sich nicht speichern. Du kannst es unter „Laden“ → „Bearbeiten“ nachtragen.')}
+            </p>
+          )}
         </div>
         {seite && (
           <SeiteBox
@@ -424,6 +430,24 @@ const ShopSetup = () => {
               value={draft.website}
               onChange={(e) => patch({ website: e.target.value })}
             />
+          </div>
+          {/* Logo braucht keine KI – das Häkchen gibt es auch ohne status.ai */}
+          <div className="flex flex-col gap-3 sm:col-span-6">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="h-5 w-5 shrink-0"
+                checked={Boolean(draft.logoHolen)}
+                onChange={(e) => patch(e.target.checked ? { logoHolen: true } : { logoHolen: false, logo: undefined })}
+              />
+              {t('Logo von der Webseite holen')}
+            </label>
+            {draft.logoHolen &&
+              (draft.website.trim() ? (
+                <LogoVonWebseite url={draft.website} gespeichert={draft.logo?.quelle} onSave={(logo) => patch({ logo })} />
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('Trag oben deine Webseite ein, dann hole ich das Logo von dort.')}</p>
+              ))}
           </div>
           {draft.source === 'verzeichnis' && (
             <Button
@@ -730,11 +754,18 @@ const ShopSetup = () => {
       body = (
         <div className="flex flex-col gap-3">
           <Section label={t('Laden')} to="check">
-            <p className="font-semibold">{draft.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {[draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || t('ohne Adresse')}
-              {industryName ? ` · ${industryName}` : ''}
-            </p>
+            <div className="flex items-center gap-3">
+              {draft.logo && (
+                <img src={draft.logo.dataUrl} alt={t('Logo des Ladens')} className="h-12 w-12 shrink-0 rounded-lg border border-border bg-white object-contain p-1" />
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold">{draft.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {[draft.street, [draft.postalCode, draft.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || t('ohne Adresse')}
+                  {industryName ? ` · ${industryName}` : ''}
+                </p>
+              </div>
+            </div>
           </Section>
           <Section label={t('Öffnungszeiten')} to="hours">
             <dl className="grid grid-cols-[3rem_1fr] gap-x-3 gap-y-1 text-sm">

@@ -1,6 +1,8 @@
 import brain from 'brain';
-import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteServicesData } from '../brain/data-contracts';
+import type { PlaceDetailsData, PlaceSearchData, ShopSetupStatusData, SuggestedService, WebsiteLogoData, WebsiteServicesData } from '../brain/data-contracts';
 import { createService, createShop, createStaff, updateShop } from './firestore';
+import { uploadImage } from './firestore/storage';
+import { dataUrlAlsDatei } from './logo-bild';
 import { createStaffInvite } from './staff-invitation';
 import type { BusinessHoursDay } from './firestore/types';
 import { defaultHours, normalizeHours, workingHoursFromOpening } from './opening-hours';
@@ -35,6 +37,8 @@ export interface SetupProgress {
   staffKeys: string[];
   /** emailSent: Einladung ging per E-Mail raus; sonst steht in emailProblem, warum nicht */
   invitations: { name: string; email: string; link: string; emailSent?: boolean; emailProblem?: string }[];
+  /** Logo hochgeladen und am Laden eingetragen */
+  logoUrl?: string;
 }
 
 export interface DraftPerson {
@@ -80,6 +84,10 @@ export interface ShopDraft {
   services: DraftService[];
   /** Webseite wurde schon ausgelesen (nicht noch einmal automatisch) */
   websiteRead: string;
+  /** Häkchen „Logo von der Webseite holen“ */
+  logoHolen?: boolean;
+  /** Gewähltes Logo, schon im Browser zu PNG gerastert (≤ 400 px, der Entwurf liegt im localStorage) */
+  logo?: { dataUrl: string; quelle: string };
   ownerWorks: boolean | null;
   /** So sehen Kunden den Inhaber, wenn er selbst Termine annimmt */
   ownerName: string;
@@ -185,6 +193,10 @@ export const placeDetails = (placeId: string, sessionToken: string) =>
 export const websiteServices = (url: string, industry?: string) =>
   call<WebsiteServicesData>(brain.shop_setup_website_services({ url, industry: industry || null }));
 
+/** Logo-Vorschläge von der Webseite (ohne KI, auch ohne status.ai) */
+export const websiteLogo = (url: string, signal?: AbortSignal) =>
+  call<WebsiteLogoData>(brain.shop_setup_website_logo({ url }, { signal }));
+
 /** Google-Entwurf in den eigenen Entwurf übernehmen (eigene Eingaben wie E-Mail bleiben) */
 export const applyPlace = (draft: ShopDraft, place: PlaceDetailsData): ShopDraft => {
   const hours = place.businessHoursByDay?.length ? normalizeHours(place.businessHoursByDay) : draft.hours;
@@ -281,6 +293,8 @@ export const unassignedServices = (draft: ShopDraft): DraftService[] => {
 export interface SetupResult {
   shop: { id: string; name: string };
   invitations: SetupProgress['invitations'];
+  /** Logo ließ sich nicht speichern – der Laden ist trotzdem eröffnet */
+  logoProblem?: boolean;
 }
 
 export const emptyProgress = (): SetupProgress => ({ serviceIds: {}, staffKeys: [], invitations: [] });
@@ -324,6 +338,21 @@ export const createFromDraft = async (
     save();
   }
   const shopId = progress.shopId;
+
+  // Logo von der Webseite: Scheitert es, wird der Laden trotzdem eröffnet (nachtragen unter „Laden“ → „Bearbeiten“)
+  let logoProblem = false;
+  if (draft.logo && !progress.logoUrl) {
+    onProgress(t('Logo speichern …'));
+    try {
+      const logoUrl = await uploadImage(dataUrlAlsDatei(draft.logo.dataUrl, 'logo.png'), `shop-logos/${shopId}`);
+      await updateShop(shopId, { logoUrl });
+      progress.logoUrl = logoUrl;
+      save();
+    } catch (error) {
+      console.error('Logo speichern fehlgeschlagen:', error);
+      logoProblem = true;
+    }
+  }
 
   onProgress(t('Leistungen eintragen …'));
   const chosen = draft.services.filter((s) => s.selected && s.name.trim());
@@ -382,6 +411,6 @@ export const createFromDraft = async (
     }
     save();
   }
-  return { shop: { id: shopId, name: shopData.name }, invitations: progress.invitations };
+  return { shop: { id: shopId, name: shopData.name }, invitations: progress.invitations, logoProblem };
 };
 

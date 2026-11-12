@@ -467,6 +467,23 @@ const texte: Texte = {
   "Assistent ausgeschaltet": "Asistan kapalı",
   "Zahlung offen": "Ödeme bekliyor",
   "Noch nicht freigeschaltet": "Henüz etkinleştirilmedi",
+  // Logo von der Webseite (components/setup/LogoVonWebseite.tsx, pages/ShopSetup.tsx, components/EditShopForm.tsx)
+  "Logo speichern …": "Logo kaydediliyor …",
+  "Logo von der Webseite holen": "Logoyu web sitesinden al",
+  "Trag oben deine Webseite ein, dann hole ich das Logo von dort.": "Yukarıya web sitenizi girin, logoyu oradan alayım.",
+  "Das Logo ließ sich nicht speichern. Du kannst es unter „Laden“ → „Bearbeiten“ nachtragen.": "Logo kaydedilemedi. “Salon” → “Düzenle” bölümünden ekleyebilirsiniz.",
+  "Ich suche das Logo auf {seite} …": "{seite} üzerinde logo aranıyor …",
+  "Auf {seite} habe ich kein Logo gefunden. Du kannst es später unter „Laden“ → „Bearbeiten“ hochladen.": "{seite} üzerinde logo bulamadım. Daha sonra “Salon” → “Düzenle” bölümünden yükleyebilirsiniz.",
+  "Auf {seite} habe ich kein Logo gefunden.": "{seite} üzerinde logo bulamadım.",
+  "Das Logo von {seite} ließ sich nicht holen.": "{seite} adresinden logo alınamadı.",
+  "Dieses Logo lässt sich hier nicht übernehmen. Nimm ein anderes oder lade es selbst hoch.": "Bu logo burada kullanılamıyor. Başka birini seçin ya da kendiniz yükleyin.",
+  "Auf {seite} habe ich mehrere Bilder gefunden. Tipp das passende Logo an.": "{seite} üzerinde birkaç görsel buldum. Doğru logoya dokunun.",
+  "Das habe ich auf {seite} gefunden.": "{seite} üzerinde bunu buldum.",
+  "Logos von {seite}": "{seite} logoları",
+  "Logo {nr} von {seite}": "{seite} logosu {nr}",
+  "Logo gespeichert": "Logo kaydedildi",
+  "Dieses Logo speichern": "Bu logoyu kaydet",
+  "Von der Webseite holen": "Web sitesinden al",
 };
 
 export default texte;

@@ -467,6 +467,23 @@ const texte: Texte = {
   "Assistent ausgeschaltet": "Assistant switched off",
   "Zahlung offen": "Payment outstanding",
   "Noch nicht freigeschaltet": "Not activated yet",
+  // Logo von der Webseite (components/setup/LogoVonWebseite.tsx, pages/ShopSetup.tsx, components/EditShopForm.tsx)
+  "Logo speichern …": "Saving logo …",
+  "Logo von der Webseite holen": "Get logo from website",
+  "Trag oben deine Webseite ein, dann hole ich das Logo von dort.": "Enter your website above and I'll get the logo from there.",
+  "Das Logo ließ sich nicht speichern. Du kannst es unter „Laden“ → „Bearbeiten“ nachtragen.": "The logo couldn't be saved. You can add it under “Shop” → “Edit”.",
+  "Ich suche das Logo auf {seite} …": "Looking for the logo on {seite} …",
+  "Auf {seite} habe ich kein Logo gefunden. Du kannst es später unter „Laden“ → „Bearbeiten“ hochladen.": "I couldn't find a logo on {seite}. You can upload it later under “Shop” → “Edit”.",
+  "Auf {seite} habe ich kein Logo gefunden.": "I couldn't find a logo on {seite}.",
+  "Das Logo von {seite} ließ sich nicht holen.": "Couldn't get the logo from {seite}.",
+  "Dieses Logo lässt sich hier nicht übernehmen. Nimm ein anderes oder lade es selbst hoch.": "This logo can't be used here. Pick another one or upload it yourself.",
+  "Auf {seite} habe ich mehrere Bilder gefunden. Tipp das passende Logo an.": "I found several images on {seite}. Tap the right logo.",
+  "Das habe ich auf {seite} gefunden.": "This is what I found on {seite}.",
+  "Logos von {seite}": "Logos from {seite}",
+  "Logo {nr} von {seite}": "Logo {nr} from {seite}",
+  "Logo gespeichert": "Logo saved",
+  "Dieses Logo speichern": "Save this logo",
+  "Von der Webseite holen": "Get from website",
 };
 
 export default texte;
