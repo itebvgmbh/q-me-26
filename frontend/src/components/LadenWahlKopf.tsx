@@ -1,15 +1,20 @@
 import { Store } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { t } from '@/i18n';
 import type { KopfLadenWahl } from '../utils/laden-kontext';
 
 /**
  * Ladenauswahl in der Kopfzeile, gleich neben dem Logo – kein Menüpunkt, sondern „in welchem Laden bin ich“.
- * Nachgeladen (Navigation.tsx), nur wer mehrere Läden hat, braucht sie.
+ * Nachgeladen (Navigation.tsx), nur wer mehrere Läden hat, braucht sie. Unten: „Alle Läden …“ (pages/Laeden.tsx).
  */
-const LadenWahlKopf = ({ wahl, className }: { wahl: KopfLadenWahl; className?: string }) => (
-  <Select value={wahl.laden.id} onValueChange={wahl.waehle}>
+const ALLE = '__alle__';
+
+const LadenWahlKopf = ({ wahl, className }: { wahl: KopfLadenWahl; className?: string }) => {
+  const navigate = useNavigate();
+  return (
+  <Select value={wahl.laden.id} onValueChange={(id) => (id === ALLE ? navigate('/laeden') : wahl.waehle(id))}>
     <SelectTrigger
       aria-label={t('Laden wechseln')}
       className={cn(
@@ -29,8 +34,11 @@ const LadenWahlKopf = ({ wahl, className }: { wahl: KopfLadenWahl; className?: s
           {s.name}
         </SelectItem>
       ))}
+      <SelectSeparator />
+      <SelectItem value={ALLE}>{t('Alle Läden …')}</SelectItem>
     </SelectContent>
   </Select>
-);
+  );
+};
 
 export default LadenWahlKopf;

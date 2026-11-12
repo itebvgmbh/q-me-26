@@ -23,7 +23,7 @@
       {
         "to": "/shop-profile",
         "label": "Laden",
-        "also": ["/staff-management", "/service-management", "/tarif", "/telefon-assistent", "/schnittstelle", "/auswertung", "/plakat", "/shop-setup", "/employee-dashboard"]
+        "also": ["/staff-management", "/service-management", "/tarif", "/telefon-assistent", "/schnittstelle", "/auswertung", "/plakat", "/shop-setup", "/employee-dashboard", "/laeden"]
       }
     ],
     "employee": [

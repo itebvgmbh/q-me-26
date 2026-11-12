@@ -31,6 +31,9 @@ const LADEN_SEITEN = [
 
 export const istLadenSeite = (pathname: string) => LADEN_SEITEN.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+/** „Meine Läden“ (pages/Laeden.tsx) braucht die Läden auch, aber keine Auswahl in der Kopfzeile */
+const brauchtLaeden = (pathname: string) => istLadenSeite(pathname) || pathname === '/laeden';
+
 export type LadenWahl = {
   /** Läden des Kontos; null, solange sie laden */
   laeden: Shop[] | null;
@@ -42,6 +45,8 @@ export type LadenWahl = {
   waehle: (shopId: string) => void;
   /** Nach dem Bearbeiten den geänderten Laden übernehmen (Name in der Kopfzeile) */
   ersetze: (shop: Shop) => void;
+  /** Nach dem Löschen: Laden aus der Liste nehmen; war er gewählt, gilt wieder der nächste */
+  entferne: (shopId: string) => void;
 };
 
 const Kontext = createContext<LadenWahl | null>(null);
@@ -53,14 +58,15 @@ export const LadenProvider = ({ children }: { children: ReactNode }) => {
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const aufLadenSeite = istLadenSeite(pathname);
+  const laedenNoetig = brauchtLaeden(pathname);
   const uid = user?.uid;
   const inhaber = profile?.role !== 'employee';
 
   // Erst laden, wenn eine Seite des Ladens gebraucht wird – Kunden und Startseite fragen nichts nach
-  const [gebraucht, setGebraucht] = useState(aufLadenSeite);
+  const [gebraucht, setGebraucht] = useState(laedenNoetig);
   useEffect(() => {
-    if (aufLadenSeite) setGebraucht(true);
-  }, [aufLadenSeite]);
+    if (laedenNoetig) setGebraucht(true);
+  }, [laedenNoetig]);
 
   const [stand, setStand] = useState<Stand | null>(null);
   const [fehler, setFehler] = useState(false);
@@ -155,7 +161,15 @@ export const LadenProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  const wert = useMemo<LadenWahl>(() => ({ laeden, laden, fehler, inhaber, waehle, ersetze }), [laeden, laden, fehler, inhaber, waehle, ersetze]);
+  const entferne = useCallback((shopId: string) => {
+    setStand((s) => (s ? { ...s, laeden: s.laeden.filter((l) => l.id !== shopId) } : s));
+    setGewaehlt((g) => (g === shopId ? null : g));
+  }, []);
+
+  const wert = useMemo<LadenWahl>(
+    () => ({ laeden, laden, fehler, inhaber, waehle, ersetze, entferne }),
+    [laeden, laden, fehler, inhaber, waehle, ersetze, entferne],
+  );
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;
 };
 

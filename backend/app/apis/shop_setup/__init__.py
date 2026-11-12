@@ -6,10 +6,14 @@ Laden einrichten: Daten für den Einrichtungsassistenten holen, damit der Betrie
 - Webseite des Ladens: Preisliste lesen und mit Claude in Leistungen mit Dauer und Preis umwandeln
   (ANTHROPIC_API_KEY in /etc/q-me.env, Modell abweichend über QME_SETUP_MODEL; gilt der Schlüssel für
   mehrere Workspaces, zusätzlich ANTHROPIC_WORKSPACE_ID, sonst lehnt Claude jede Anfrage ab)
+- Webseite des Ladens: Logo suchen (ohne KI) und als Vorschau zurückgeben; der Browser rastert es zu PNG und
+  speichert es über den Bild-Upload (app/libs/laeden.py) – SVG landet so nie auf dem Server
 
 Fehlt ein Schlüssel, meldet /shop-setup/status das, und der Assistent fragt die Angaben einfach ab.
 Gespeichert wird hier nichts – der Assistent schreibt den fertigen Laden selbst nach Firestore.
 """
+import base64
+import hashlib
 import ipaddress
 import json
 import os
@@ -18,7 +22,7 @@ import socket
 import threading
 import time
 from collections import defaultdict, deque
-from typing import List, Optional
+from typing import Callable, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import certifi
@@ -73,12 +77,14 @@ LIMITS = {  # Aufrufe je Konto und Stunde
     "search": 300,
     "details": 40,
     "website": 12,
+    "logo": 30,
 }
 # Und für alle Konten zusammen am Tag: Mehr richten an einem Tag nicht neu ein; darüber hinaus füllt man von Hand aus
 DAY_LIMITS = {
     "search": 5000,
     "details": 600,
     "website": 150,
+    "logo": 300,
 }
 _day_calls: dict = defaultdict(deque)
 
@@ -287,8 +293,15 @@ def _decode(body: bytes, content_type: str) -> str:
     return dammit.unicode_markup or body.decode("utf-8", errors="replace")
 
 
-def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
-    """(endgültige URL, HTML) – Weiterleitungen einzeln geprüft, Größe und Zeit begrenzt."""
+def fetch_resource(url: str, deadline: Optional[float] = None, *, accept: str = "text/html,*/*;q=0.5",
+                   max_bytes: int = MAX_BYTES, pruefe_typ: Optional[Callable[[str], None]] = None,
+                   ganz: bool = False) -> tuple:
+    """(endgültige URL, Inhalt, Content-Type) – nur öffentliche Adressen, Weiterleitungen einzeln geprüft, Größe und
+    Zeit begrenzt.
+
+    pruefe_typ(content_type) wirft ValueError, wenn sich das Lesen nicht lohnt (z. B. keine Webseite).
+    ganz: Größer als max_bytes ist ein Fehler (ein halbes Bild nützt nichts); sonst wird abgeschnitten.
+    """
     deadline = min(deadline or float("inf"), time.monotonic() + PAGE_SECONDS)
     current, ip = check_public_url(url)
     for _ in range(5):
@@ -305,7 +318,7 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
             pool = urllib3.HTTPConnectionPool(ip, port=parsed.port or 80, timeout=timeout, retries=False)
         path = (parsed.path or "/") + (f"?{parsed.query}" if parsed.query else "")
         headers = {"Host": parsed.netloc, "User-Agent": USER_AGENT, "Accept-Language": "de",
-                   "Accept": "text/html,*/*;q=0.5", "Accept-Encoding": "gzip, deflate"}
+                   "Accept": accept, "Accept-Encoding": "gzip, deflate"}
         try:
             resp = pool.urlopen("GET", path, headers=headers, redirect=False, preload_content=False)
         except urllib3.exceptions.HTTPError as e:
@@ -316,9 +329,15 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
                 continue
             if resp.status >= 400:
                 raise ValueError(f"Die Webseite antwortet mit Fehler {resp.status}.")
-            content_type = resp.headers.get("content-type", "text/html")
-            if "html" not in content_type:
-                raise ValueError(merke("Das ist keine Webseite."))
+            content_type = resp.headers.get("content-type", "")
+            if pruefe_typ:
+                pruefe_typ(content_type)
+            try:
+                angekuendigt = int(resp.headers.get("content-length") or 0)
+            except ValueError:
+                angekuendigt = 0
+            if ganz and angekuendigt > max_bytes:
+                raise ValueError(f"Zu groß ({angekuendigt} Bytes).")
             body = b""
             try:
                 while True:
@@ -327,17 +346,30 @@ def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
                     if not chunk:
                         break
                     body += chunk
-                    if len(body) > MAX_BYTES:
+                    if len(body) > max_bytes:
+                        if ganz:
+                            raise ValueError(f"Zu groß (über {max_bytes} Bytes).")
                         break
                     if time.monotonic() > deadline:
                         raise ValueError(merke("Die Webseite antwortet zu langsam."))
             except urllib3.exceptions.HTTPError as e:
                 raise ValueError(f"Die Webseite ließ sich nicht vollständig lesen ({type(e).__name__}).")
-            return current, _decode(body, content_type)
+            return current, body, content_type
         finally:
             resp.release_conn()
             pool.close()
     raise ValueError(merke("Zu viele Weiterleitungen."))
+
+
+def _nur_html(content_type: str) -> None:
+    if content_type and "html" not in content_type.lower():
+        raise ValueError(merke("Das ist keine Webseite."))
+
+
+def fetch_page(url: str, deadline: Optional[float] = None) -> tuple:
+    """(endgültige URL, HTML) – Weiterleitungen einzeln geprüft, Größe und Zeit begrenzt."""
+    current, body, content_type = fetch_resource(url, deadline, pruefe_typ=_nur_html)
+    return current, _decode(body, content_type)
 
 
 def page_text(html: str) -> str:
@@ -395,6 +427,251 @@ def collect_website_text(url: str) -> tuple:
     ordered = parts[1:] + parts[:1]
     text = "\n\n".join(ordered)
     return pages, text[:MAX_TEXT]
+
+
+# --- Logo von der Webseite (ohne KI) -------------------------------------------------------------
+
+MAX_IMAGE_BYTES = 2_000_000
+LOGO_SECONDS = 25  # Startseite und Bilder zusammen
+LOGO_VERSUCHE = 5  # höchstens so viele Bilder laden
+LOGO_HOECHSTENS = 3  # so viele gültige zurückgeben
+# Kein AVIF und kein ICO: Das eine kann der Upload nicht, das andere sind meist winzige Favicons
+IMAGE_ACCEPT = "image/webp,image/png,image/svg+xml,image/jpeg,image/gif;q=0.9,*/*;q=0.1"
+MIME = {"png": "image/png", "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif", "svg": "image/svg+xml"}
+LOGO_WORT = re.compile(r"logo(?!ut)", re.I)  # nicht "logout"
+KOPF = re.compile(r"header|navbar|masthead|kopf", re.I)
+FUSS = re.compile(r"footer|fusszeile", re.I)
+JPEG_SOF = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
+
+
+def _groesste_seite(sizes: str) -> int:
+    """sizes="180x180" oder "16x16 32x32" → 180 bzw. 32; "any" (SVG) zählt als groß"""
+    if "any" in (sizes or "").lower():
+        return 10_000
+    return max((int(m) for m in re.findall(r"(\d+)\s*[xX]\s*\d+", sizes or "")), default=0)
+
+
+def _json_ld_logos(soup) -> List[str]:
+    """logo aus JSON-LD (Organization, LocalBusiness, HairSalon …): Adresse, ImageObject oder Verweis per @id"""
+    knoten: List[dict] = []
+
+    def sammle(wert):
+        if isinstance(wert, dict):
+            knoten.append(wert)
+            for v in wert.values():
+                sammle(v)
+        elif isinstance(wert, list):
+            for v in wert:
+                sammle(v)
+
+    for script in soup.find_all("script", type=re.compile(r"ld\+json", re.I)):
+        try:
+            sammle(json.loads(script.string or ""))
+        except ValueError:
+            continue  # kaputtes JSON-LD gibt es oft
+    nach_id = {k["@id"]: k for k in knoten if isinstance(k.get("@id"), str)}
+
+    def adressen(wert, tiefe=0) -> List[str]:
+        if isinstance(wert, str):
+            return [wert]
+        if isinstance(wert, list):
+            return [a for w in wert for a in adressen(w, tiefe)]
+        if isinstance(wert, dict) and tiefe < 3:
+            for feld in ("contentUrl", "url"):
+                if isinstance(wert.get(feld), str):
+                    return [wert[feld]]
+            ziel = nach_id.get(wert.get("@id"))  # Yoast: "logo": {"@id": "…#/schema/logo/image/"}
+            if ziel is not None and ziel is not wert:
+                return adressen(ziel, tiefe + 1)
+        return []
+
+    return [a for k in knoten if "logo" in k for a in adressen(k["logo"])]
+
+
+def _merkmale(tag) -> str:
+    werte = [tag.get(feld) for feld in ("class", "id", "alt", "src", "itemprop", "title", "data-src")]
+    return " ".join(" ".join(w) if isinstance(w, list) else str(w) for w in werte if w)
+
+
+def _innerhalb(tag, namen: tuple, muster: re.Pattern) -> bool:
+    for eltern in tag.parents:
+        if eltern.name in namen or muster.search(" ".join(eltern.get("class") or []) + " " + str(eltern.get("id") or "")):
+            return True
+    return False
+
+
+def _bild_adresse(img) -> str:
+    """src – bei nachgeladenen Bildern steht die echte Adresse in data-src o. ä., src ist dann ein Platzhalter"""
+    src = (img.get("src") or "").strip()
+    for feld in ("data-src", "data-lazy-src", "data-original"):
+        echt = (img.get(feld) or "").strip()
+        if echt and (not src or src.startswith("data:")):
+            return echt
+    if not src:
+        srcset = (img.get("srcset") or img.get("data-srcset") or "").strip()
+        src = srcset.split(",")[0].strip().split(" ")[0] if srcset else ""
+    return src
+
+
+def logo_candidates(html: str, base_url: str) -> List[tuple]:
+    """[(Adresse, Fundort)] – was auf der Startseite nach Logo aussieht, das Wahrscheinlichste zuerst:
+    JSON-LD, <img> mit "logo" (WordPress custom-logo, dann Kopf/Navigation, Fußzeile zuletzt), Apple-Touch-Icon,
+    großes oder SVG-Icon, og:image mit "logo" in der Adresse. Ohne Doppelte."""
+    soup = BeautifulSoup(html, "html.parser")
+    reihe = [(a, "json-ld") for a in _json_ld_logos(soup)]
+
+    bilder = []
+    for i, img in enumerate(soup.find_all("img")):
+        src = _bild_adresse(img)
+        selbst = _merkmale(img)
+        drumherum = " ".join(_merkmale(e) for e in list(img.parents)[:3])  # <a class="logo"> oder "navbar-brand"
+        if not src or not (LOGO_WORT.search(selbst) or LOGO_WORT.search(drumherum) or "brand" in drumherum.lower()):
+            continue
+        if "custom-logo" in selbst:
+            punkte = 4
+        elif _innerhalb(img, ("footer",), FUSS):
+            punkte = 0  # Zahlungsarten, Partner, Siegel
+        elif _innerhalb(img, ("header", "nav"), KOPF):
+            punkte = 3
+        else:
+            punkte = 1
+        bilder.append((-punkte, i, src))
+    reihe += [(src, "img") for _, _, src in sorted(bilder)[:3]]
+
+    touch, icons = [], []
+    for link in soup.find_all("link", href=True):
+        rel = [r.lower() for r in (link.get("rel") or [])]
+        href = link["href"].strip()
+        groesse = _groesste_seite(link.get("sizes") or "")
+        if any(r.startswith("apple-touch-icon") for r in rel):
+            touch.append((-groesse, href))
+        elif "icon" in rel and not urlparse(href).path.lower().endswith(".ico"):
+            svg = "svg" in (link.get("type") or "").lower() or urlparse(href).path.lower().endswith(".svg")
+            if svg or groesse >= 96:
+                icons.append((0 if svg else 1, -groesse, href))
+    reihe += [(href, "apple-touch-icon") for _, href in sorted(touch)[:1]]
+    reihe += [(href, "icon") for _, _, href in sorted(icons)[:2]]
+
+    for meta in soup.find_all("meta"):
+        if (meta.get("property") or meta.get("name") or "").lower() == "og:image":
+            inhalt = (meta.get("content") or "").strip()
+            if LOGO_WORT.search(inhalt):
+                reihe.append((inhalt, "og:image"))
+
+    ergebnis, gesehen = [], set()
+    for adresse, fundort in reihe:
+        adresse = adresse.strip()
+        if not adresse.startswith("data:"):
+            adresse = urljoin(base_url, adresse).split("#")[0]
+            if urlparse(adresse).scheme not in ("http", "https"):
+                continue
+        if adresse not in gesehen:
+            gesehen.add(adresse)
+            ergebnis.append((adresse, fundort))
+    return ergebnis
+
+
+def bild_art(inhalt: bytes) -> Optional[str]:
+    """Dateiart nach dem Inhalt, nicht nach Endung oder Content-Type: PNG, JPEG, WebP, GIF, SVG – kein ICO"""
+    if inhalt.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if inhalt.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if len(inhalt) > 12 and inhalt[:4] == b"RIFF" and inhalt[8:12] == b"WEBP":
+        return "webp"
+    if inhalt[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    kopf = inhalt[:4096].decode("utf-8", errors="ignore").lstrip("﻿ \t\r\n").lower()
+    if kopf.startswith("<") and "<svg" in kopf and "<html" not in kopf:
+        return "svg"
+    return None
+
+
+def bild_groesse(inhalt: bytes, art: str) -> Optional[tuple]:
+    """(Breite, Höhe) aus dem Dateikopf, wo das einfach geht; SVG und Unlesbares: None"""
+    if art == "png" and inhalt[12:16] == b"IHDR":
+        return int.from_bytes(inhalt[16:20], "big"), int.from_bytes(inhalt[20:24], "big")
+    if art == "gif" and len(inhalt) >= 10:
+        return int.from_bytes(inhalt[6:8], "little"), int.from_bytes(inhalt[8:10], "little")
+    if art == "webp" and len(inhalt) >= 30:
+        chunk = inhalt[12:16]
+        if chunk == b"VP8X":
+            return 1 + int.from_bytes(inhalt[24:27], "little"), 1 + int.from_bytes(inhalt[27:30], "little")
+        if chunk == b"VP8L":
+            bits = int.from_bytes(inhalt[21:25], "little")
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+        if chunk == b"VP8 " and inhalt[23:26] == b"\x9d\x01\x2a":
+            return int.from_bytes(inhalt[26:28], "little") & 0x3FFF, int.from_bytes(inhalt[28:30], "little") & 0x3FFF
+    if art == "jpeg":
+        i = 2
+        while i + 9 <= len(inhalt):
+            if inhalt[i] != 0xFF:
+                return None
+            marker = inhalt[i + 1]
+            if marker == 0xFF:  # Füllbyte
+                i += 1
+            elif marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:  # ohne Länge
+                i += 2
+            elif marker in JPEG_SOF:
+                return int.from_bytes(inhalt[i + 7:i + 9], "big"), int.from_bytes(inhalt[i + 5:i + 7], "big")
+            else:
+                i += 2 + int.from_bytes(inhalt[i + 2:i + 4], "big")
+    return None
+
+
+def winzig(groesse: Optional[tuple]) -> bool:
+    """Favicons in 16 px, Zählpixel, Trennlinien – kein Logo. Unbekannte Größe (SVG) zählt nicht als winzig."""
+    return bool(groesse) and (max(groesse) < 32 or min(groesse) < 8)
+
+
+def fetch_image(url: str, deadline: Optional[float] = None) -> tuple:
+    """(endgültige URL, Inhalt) – ganzes Bild bis MAX_IMAGE_BYTES, gleicher Schutz wie bei Seiten"""
+    current, body, _ = fetch_resource(url, deadline, accept=IMAGE_ACCEPT, max_bytes=MAX_IMAGE_BYTES, ganz=True)
+    return current, body
+
+
+def _aus_data_url(adresse: str) -> bytes:
+    """Ins HTML eingebettetes Bild (data:image/…;base64,…)"""
+    treffer = re.match(r"data:image/[\w.+-]+;base64,(.+)$", adresse, re.I | re.S)
+    if not treffer or len(adresse) > MAX_IMAGE_BYTES * 4 // 3 + 100:
+        raise ValueError("Kein lesbares eingebettetes Bild.")
+    try:
+        return base64.b64decode(treffer.group(1))
+    except ValueError:
+        raise ValueError("Kein lesbares eingebettetes Bild.")
+
+
+def find_logos(url: str) -> tuple:
+    """(gelesene Startseite, [{dataUrl, quelle, art}]) – bis zu LOGO_HOECHSTENS Logos; geladen werden höchstens
+    LOGO_VERSUCHE Bilder, alles zusammen höchstens LOGO_SECONDS. quelle: Adresse des Bildes, art: png, jpeg, webp,
+    gif oder svg. Fehler der Startseite als ValueError, kaputte Bilder werden still übersprungen."""
+    deadline = time.monotonic() + LOGO_SECONDS
+    seite, html = fetch_page(url, deadline)
+    logos: List[dict] = []
+    gesehen = set()
+    for adresse, fundort in logo_candidates(html, seite)[:LOGO_VERSUCHE]:
+        if len(logos) >= LOGO_HOECHSTENS or time.monotonic() > deadline - 1:
+            break
+        try:
+            quelle, inhalt = (seite, _aus_data_url(adresse)) if adresse.startswith("data:") else fetch_image(adresse, deadline)
+        except ValueError as e:
+            print(f"shop-setup: Logo übersprungen ({fundort}, {adresse[:120]}): {e}")
+            continue
+        art = bild_art(inhalt)
+        if art is None or winzig(bild_groesse(inhalt, art)):
+            grund = f"{art} zu klein" if art else "kein PNG, JPEG, WebP, GIF oder SVG"
+            print(f"shop-setup: Logo übersprungen ({fundort}, {adresse[:120]}): {grund}")
+            continue
+        pruefsumme = hashlib.sha256(inhalt).hexdigest()  # dasselbe Bild unter zwei Adressen
+        if pruefsumme in gesehen:
+            continue
+        gesehen.add(pruefsumme)
+        logos.append({
+            "dataUrl": f"data:{MIME[art]};base64,{base64.b64encode(inhalt).decode('ascii')}",
+            "quelle": quelle,
+            "art": art,
+        })
+    return seite, logos
 
 
 # --- Leistungen mit Claude herausziehen ------------------------------------------------------------
@@ -558,6 +835,21 @@ class WebsiteServicesResponse(BaseModel):
     pages: List[str]
 
 
+class WebsiteLogoRequest(BaseModel):
+    url: str
+
+
+class WebsiteLogo(BaseModel):
+    dataUrl: str  # data:image/…;base64,… – nur zur Vorschau, gespeichert wird ein im Browser gerastertes PNG
+    quelle: str  # Adresse des Bildes
+    art: str  # png, jpeg, webp, gif, svg
+
+
+class WebsiteLogoResponse(BaseModel):
+    logos: List[WebsiteLogo]
+    seite: str
+
+
 @router.get("/shop-setup/status")
 def shop_setup_status(user: AuthorizedUser) -> SetupStatus:
     """Welche Abkürzungen der Assistent anbieten kann."""
@@ -647,3 +939,22 @@ def shop_setup_website_services(body: WebsiteServicesRequest, user: AuthorizedUs
     services = extract_services(text, industry)
     print(f"shop-setup: {len(services)} Leistungen aus {len(pages)} Seiten ({len(text)} Zeichen)")
     return WebsiteServicesResponse(services=[SuggestedService(**s) for s in services], pages=pages)
+
+
+@router.post("/shop-setup/website-logo")
+def shop_setup_website_logo(body: WebsiteLogoRequest, user: AuthorizedUser) -> WebsiteLogoResponse:
+    """Logo von der Webseite des Ladens als Vorschlag (ohne KI). Gespeichert wird hier nichts."""
+    _require_owner(user)
+    _rate_limit(user, "logo")
+    if not _website_slots.acquire(timeout=2):
+        raise HTTPException(status_code=503, detail="Gerade lesen viele gleichzeitig. Bitte in einer Minute noch einmal.")
+    try:
+        try:
+            seite, logos = find_logos(body.url)
+        except ValueError as e:
+            print(f"shop-setup: Webseite für Logo nicht lesbar ({body.url}): {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        _website_slots.release()
+    print(f"shop-setup: {len(logos)} Logos von {seite} ({', '.join(logo['art'] for logo in logos) or '–'})")
+    return WebsiteLogoResponse(logos=[WebsiteLogo(**logo) for logo in logos], seite=seite)

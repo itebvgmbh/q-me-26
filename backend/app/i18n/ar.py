@@ -443,4 +443,11 @@ TEXTE: dict = {
     "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "عنوان البريد الإلكتروني يخص الحساب المرتبط ولا يمكن تغييره هنا.",
     "Bitte gib eine gültige E-Mail-Adresse ein.": "يرجى إدخال عنوان بريد إلكتروني صالح.",
     "Diese E-Mail-Adresse ist zu lang.": "عنوان البريد الإلكتروني هذا طويل جدًا.",
+    # Laden löschen (app/libs/laden_loeschen.py)
+    "Diesen Laden kann man hier nicht löschen.": "لا يمكن حذف هذا المحل من هنا.",
+    "Für diesen Laden ist noch eine Zahlung offen. Bring das unter „Tarif“ in Ordnung – danach kannst du ihn löschen.": "ما زالت هناك دفعة مستحقة لهذا المحل. سوِّها أولًا في «الباقة» – بعدها يمكنك حذف المحل.",
+    "Für diesen Laden läuft noch ein Abo. Kündige es zuerst unter „Tarif“ – danach kannst du den Laden löschen.": "ما زال اشتراك هذا المحل ساريًا. ألغِه أولًا في «الباقة» – بعدها يمكنك حذف المحل.",
+    "Für diesen Laden ist der Telefon-Assistent gebucht. Kündige ihn zuerst unter „Telefon-Assistent“.": "مساعد الهاتف مفعّل لهذا المحل. ألغِه أولًا في «مساعد الهاتف».",
+    "Dieser Laden lässt sich gerade nicht löschen. Schreib uns an hilfe@dranzeit.de.": "لا يمكن حذف هذا المحل الآن. راسلنا على hilfe@dranzeit.de.",
+    "Zum Löschen tipp genau den Namen des Ladens ein: {name}": "للحذف اكتب اسم المحل كما هو تمامًا: {name}",
 }

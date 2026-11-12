@@ -413,4 +413,11 @@ TEXTE: dict = {
     "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "The email address belongs to the linked account and can’t be changed here.",
     "Bitte gib eine gültige E-Mail-Adresse ein.": "Please enter a valid email address.",
     "Diese E-Mail-Adresse ist zu lang.": "This email address is too long.",
+    # Laden löschen (app/libs/laden_loeschen.py)
+    "Diesen Laden kann man hier nicht löschen.": "This shop can’t be deleted here.",
+    "Für diesen Laden ist noch eine Zahlung offen. Bring das unter „Tarif“ in Ordnung – danach kannst du ihn löschen.": "A payment for this shop is still outstanding. Sort it out under “Plan” – then you can delete the shop.",
+    "Für diesen Laden läuft noch ein Abo. Kündige es zuerst unter „Tarif“ – danach kannst du den Laden löschen.": "This shop still has a running subscription. Cancel it under “Plan” first – then you can delete the shop.",
+    "Für diesen Laden ist der Telefon-Assistent gebucht. Kündige ihn zuerst unter „Telefon-Assistent“.": "The phone assistant is booked for this shop. Cancel it under “Phone assistant” first.",
+    "Dieser Laden lässt sich gerade nicht löschen. Schreib uns an hilfe@dranzeit.de.": "This shop can’t be deleted right now. Write to us at hilfe@dranzeit.de.",
+    "Zum Löschen tipp genau den Namen des Ladens ein: {name}": "To delete, type the shop’s name exactly: {name}",
 }

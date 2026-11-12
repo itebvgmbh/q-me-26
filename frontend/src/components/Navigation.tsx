@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
-import { CircleHelp, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { CircleHelp, LayoutGrid, Menu, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { anmeldung, nurTresen } from 'app';
 import { Button } from '@/components/ui/button';
 import {
@@ -179,6 +179,12 @@ export function Navigation() {
                     {t('Mein Profil')}
                   </DropdownMenuItem>
                 )}
+                {profile?.role === 'shopOwner' && !tresen && (
+                  <DropdownMenuItem onSelect={() => navigate('/laeden')}>
+                    <LayoutGrid className="me-2 h-4 w-4" aria-hidden="true" />
+                    {t('Meine Läden')}
+                  </DropdownMenuItem>
+                )}
                 {betreiber && !tresen && (
                   <DropdownMenuItem onSelect={() => navigate('/betreiber')}>
                     <ShieldCheck className="me-2 h-4 w-4" aria-hidden="true" />
@@ -228,6 +234,11 @@ export function Navigation() {
                 {profile && !tresen && (
                   <NavLink to={PROFILE_PATH[profile.role]} onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
                     {t('Mein Profil')}
+                  </NavLink>
+                )}
+                {profile?.role === 'shopOwner' && !tresen && (
+                  <NavLink to="/laeden" onClick={() => setOpen(false)} className="flex h-12 items-center rounded-xl px-4 text-lg font-medium hover:bg-foreground/5">
+                    {t('Meine Läden')}
                   </NavLink>
                 )}
                 {betreiber && !tresen && (

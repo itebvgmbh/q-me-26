@@ -321,6 +321,25 @@ export interface WebsiteServicesData {
   pages: string[];
 }
 
+export interface WebsiteLogoRequest {
+  url: string;
+}
+
+export interface WebsiteLogo {
+  /** data:image/…;base64,… – nur zur Vorschau; gespeichert wird ein im Browser gerastertes PNG */
+  dataUrl: string;
+  /** Adresse des Bildes */
+  quelle: string;
+  art: 'png' | 'jpeg' | 'webp' | 'gif' | 'svg';
+}
+
+export interface WebsiteLogoData {
+  /** bis zu drei, das wahrscheinlichste zuerst */
+  logos: WebsiteLogo[];
+  /** gelesene Startseite */
+  seite: string;
+}
+
 /** UpdateUserIdRequest */
 export interface UpdateUserIdRequest {
   /** Appointment Id */

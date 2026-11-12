@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import { ShopLogo } from '../components/brand/ShopLogo';
 import { EditShopForm } from '../components/EditShopForm';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
 import { WebseiteEinbau } from '../components/WebseiteEinbau';
 import { LadenUebersicht } from '../components/LadenUebersicht';
+import { LadenLoeschenDialog } from '../components/LadenLoeschenDialog';
 import { useInhaberLaden } from '../utils/laden-kontext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,8 +30,10 @@ const Block = ({ title, children }: { title: string; children: React.ReactNode }
  * Laden, QR-Code mit Plakat und Wartezimmer-Bildschirm, Einbau auf der eigenen Webseite. Welcher Laden: oben in der Kopfzeile.
  */
 const ShopProfile = () => {
-  const { laeden: shops, laden: shop, ersetze: replaceShop, fehler: failed } = useInhaberLaden();
+  const { laeden: shops, laden: shop, ersetze: replaceShop, entferne, fehler: failed } = useInhaberLaden();
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [loeschen, setLoeschen] = useState(false);
+  const navigate = useNavigate();
 
   if (shops === null) {
     return (
@@ -112,6 +116,29 @@ const ShopProfile = () => {
       </div>
 
       <WebseiteEinbau key={shop.id} shop={shop} />
+
+      <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6" aria-labelledby="laden-loeschen">
+        <div className="flex flex-col gap-1">
+          <h2 id="laden-loeschen" className="font-display text-xl font-bold">
+            {t('Laden löschen')}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t('Löscht diesen Laden mit Terminen, Team, Leistungen und Kundenliste. Dein Konto bleibt.')}</p>
+        </div>
+        <Button variant="outline" className="self-start sm:self-auto" onClick={() => setLoeschen(true)}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          {t('Laden löschen …')}
+        </Button>
+      </section>
+
+      <LadenLoeschenDialog
+        shop={loeschen ? { id: shop.id, name: shop.name } : null}
+        onClose={() => setLoeschen(false)}
+        onDeleted={(id) => {
+          setLoeschen(false);
+          entferne(id);
+          navigate('/laeden');
+        }}
+      />
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-xl">

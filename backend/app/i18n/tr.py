@@ -411,4 +411,11 @@ TEXTE: dict = {
     "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "E-posta adresi bağlı hesaba ait ve burada değiştirilemez.",
     "Bitte gib eine gültige E-Mail-Adresse ein.": "Lütfen geçerli bir e-posta adresi gir.",
     "Diese E-Mail-Adresse ist zu lang.": "Bu e-posta adresi çok uzun.",
+    # Laden löschen (app/libs/laden_loeschen.py)
+    "Diesen Laden kann man hier nicht löschen.": "Bu salon burada silinemez.",
+    "Für diesen Laden ist noch eine Zahlung offen. Bring das unter „Tarif“ in Ordnung – danach kannst du ihn löschen.": "Bu salon için hâlâ açık bir ödeme var. Önce „Paket“ bölümünde bunu düzelt – sonra salonu silebilirsin.",
+    "Für diesen Laden läuft noch ein Abo. Kündige es zuerst unter „Tarif“ – danach kannst du den Laden löschen.": "Bu salonun aboneliği hâlâ devam ediyor. Önce „Paket“ bölümünden iptal et – sonra salonu silebilirsin.",
+    "Für diesen Laden ist der Telefon-Assistent gebucht. Kündige ihn zuerst unter „Telefon-Assistent“.": "Bu salon için telefon asistanı alınmış. Önce „Telefon asistanı“ bölümünden iptal et.",
+    "Dieser Laden lässt sich gerade nicht löschen. Schreib uns an hilfe@dranzeit.de.": "Bu salon şu anda silinemiyor. Bize hilfe@dranzeit.de adresinden yaz.",
+    "Zum Löschen tipp genau den Namen des Ladens ein: {name}": "Silmek için salonun adını aynen yaz: {name}",
 }

@@ -54,6 +54,7 @@ const ShopDashboard = lazyPage(() => import("./pages/ShopDashboard.tsx"));
 const ShopDetails = lazyPage(() => import("./pages/ShopDetails.tsx"));
 const ShopMap = lazyPage(() => import("./pages/ShopMap.tsx"));
 const ShopProfile = lazyPage(() => import("./pages/ShopProfile.tsx"));
+const Laeden = lazyPage(() => import("./pages/Laeden.tsx"));
 const ShopSetup = lazyPage(() => import("./pages/ShopSetup.tsx"));
 const StaffManagement = lazyPage(() => import("./pages/StaffManagement.tsx"));
 const StaffRegistration = lazyPage(() => import("./pages/StaffRegistration.tsx"));
@@ -151,6 +152,7 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/shop-map", element: <ShopMap />},
 	{ path: "/shopmap", element: <ShopMap />},
 	{ path: "/shop-profile", element: <UserGuard><ShopProfile /></UserGuard>},
+	{ path: "/laeden", element: <UserGuard><Laeden /></UserGuard>},
 	{ path: "/shop-setup", element: <UserGuard><ShopSetup /></UserGuard>},
 	{ path: "/shopsetup", element: <UserGuard><ShopSetup /></UserGuard>},
 	{ path: "/laden-einrichten", element: <UserGuard><ShopSetup /></UserGuard>},

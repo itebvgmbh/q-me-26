@@ -292,8 +292,6 @@ const texte: Texte = {
   "Deine eigene Woche, wenn du selbst mitarbeitest": "Kendiniz de çalışıyorsanız kendi haftanız",
   "Kunden, Wartezeit und Umsatz": "Müşteriler, bekleme süresi ve ciro",
   "Dein Tarif und Rechnungen": "Tarifeniz ve faturalar",
-  "Weiterer Laden": "Başka salon",
-  "Noch einen Laden einrichten": "Başka bir salon kurun",
   "Verwalten": "Yönet",
   "Auf diesem Gerät": "Bu cihazda",
   "Dieses Gerät ist: {rolle}": "Bu cihaz: {rolle}",

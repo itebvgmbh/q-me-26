@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CreditCard, KeyRound, Monitor, Phone, Plus, Scissors, Store, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, CreditCard, KeyRound, LayoutGrid, Monitor, Phone, Scissors, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GeraetWahl } from './GeraetWahl';
 import { GekoppelteTablets } from './GekoppelteTablets';
@@ -21,7 +21,7 @@ const KACHELN: Kachel[] = [
   { to: '/auswertung', icon: BarChart3, titel: merke('Auswertung'), text: merke('Kunden, Wartezeit und Umsatz') },
   { to: '/tarif', icon: CreditCard, titel: merke('Tarif'), text: merke('Dein Tarif und Rechnungen'), verkauf: true },
   { to: '/schnittstelle', icon: KeyRound, titel: merke('Schnittstelle (API)'), text: merke('Webseite oder Kasse mit Dranzeit verbinden') },
-  { to: '/shop-setup', icon: Plus, titel: merke('Weiterer Laden'), text: merke('Noch einen Laden einrichten') },
+  { to: '/laeden', icon: LayoutGrid, titel: merke('Meine Läden'), text: merke('Alle Läden im Überblick, weiteren einrichten oder löschen') },
 ];
 const TELEFON: Kachel = { to: '/telefon-assistent', icon: Phone, titel: merke('Telefon-Assistent'), text: merke('Nimmt Anrufe an, wenn im Laden niemand rangeht') };
 

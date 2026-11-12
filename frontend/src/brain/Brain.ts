@@ -44,6 +44,8 @@ import {
   ShopSetupStatusData,
   SlotFreedData,
   SlotFreedRequest,
+  WebsiteLogoData,
+  WebsiteLogoRequest,
   WebsiteServicesData,
   WebsiteServicesRequest,
   StartSchedulerData,
@@ -170,6 +172,20 @@ export class Brain<SecurityDataType = unknown> extends HttpClient<SecurityDataTy
   shop_setup_website_services = (data: WebsiteServicesRequest, params: RequestParams = {}) =>
     this.request<WebsiteServicesData, any>({
       path: `/routes/shop-setup/website-services`,
+      method: "POST",
+      body: data,
+      type: ContentType.Json,
+      ...params,
+    });
+
+  /**
+   * @description Laden einrichten: Logo von der Webseite als Vorschlag (ohne KI)
+   *
+   * @request POST:/routes/shop-setup/website-logo
+   */
+  shop_setup_website_logo = (data: WebsiteLogoRequest, params: RequestParams = {}) =>
+    this.request<WebsiteLogoData, any>({
+      path: `/routes/shop-setup/website-logo`,
       method: "POST",
       body: data,
       type: ContentType.Json,

@@ -295,8 +295,6 @@ const texte: Texte = {
   "Deine eigene Woche, wenn du selbst mitarbeitest": "Your own week, if you work in the shop yourself",
   "Kunden, Wartezeit und Umsatz": "Customers, waiting time and revenue",
   "Dein Tarif und Rechnungen": "Your plan and invoices",
-  "Weiterer Laden": "Another shop",
-  "Noch einen Laden einrichten": "Set up another shop",
   "Verwalten": "Manage",
   "Auf diesem Gerät": "On this device",
   "Dieses Gerät ist: {rolle}": "This device is: {rolle}",
