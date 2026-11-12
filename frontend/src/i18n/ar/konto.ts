@@ -241,6 +241,8 @@ const texte: Texte = {
   "Link kopieren": "نسخ الرابط",
   "QR-Code: Nummer ziehen bei {name}": "رمز QR: خذ رقم انتظار لدى {name}",
   "Derselbe Code wie auf dem Plakat: Wer ihn scannt, zieht eine Nummer. Für deine Webseite, Flyer, Visitenkarten oder das Schaufenster.": "الرمز نفسه الموجود على الملصق: من يمسحه يأخذ رقم انتظار. لموقعك الإلكتروني والنشرات وبطاقات العمل أو واجهة المحل.",
+  "QR-Karte herunterladen": "تنزيل بطاقة رمز QR",
+  "Die Karte mit deinem Namen passt auf die Webseite, ins Schaufenster oder auf den Flyer. Nur den Code ohne Rahmen gibt es hier:": "البطاقة التي تحمل اسمك مناسبة لموقعك الإلكتروني أو واجهة المحل أو المنشورات. الرمز وحده بدون إطار تجده هنا:",
   "PNG herunterladen": "تنزيل PNG",
   "SVG herunterladen": "تنزيل SVG",
   "PNG passt für Webseite und Word. SVG lässt sich beliebig groß drucken – gut für die Druckerei.": "PNG مناسب للموقع الإلكتروني وWord. ويمكن طباعة SVG بأي حجم – مثالي للمطبعة.",
