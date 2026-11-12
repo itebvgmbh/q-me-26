@@ -3,7 +3,7 @@
 
 Bis zu diesem Stand legte "Nummer ziehen" mit Konto einen NICHT verbundenen Eintrag in customers an. Wählt der Laden
 so jemanden in "Mein Tag" als "Bestandskunde", geht der Termin an die ID des Eintrags statt ans Konto, und der
-Datenschutz-Lauf löscht den Eintrag nach 12 Monaten. Neu verbindet POST /routes/customer-link/{shopId} beim Buchen.
+Datenschutz-Lauf löscht den Eintrag nach 24 Monaten. Neu verbindet POST /routes/customer-link/{shopId} beim Buchen.
 
 Nur lesen, nichts ändern. Gibt nur Zahlen aus, keine Namen oder Adressen. Auf dem Server als root:
     cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/kunden-eintraege-pruefen.py
@@ -96,7 +96,7 @@ def main() -> None:
             1 for a in on_entry if a.get("status") == "scheduled" and (utc(a.get("startTime")) or now) > now
         )
         last = max([d for d in (utc(c.get("createdAt")), utc(c.get("updatedAt"))) if d], default=None)
-        stats["  älter als 12 Monate ohne Änderung (fiele unter die Löschfrist)"] += bool(last and (now - last).days > 365)
+        stats["  älter als 24 Monate ohne Änderung (fiele unter die Löschfrist)"] += bool(last and (now - last).days > 730)
 
     for name in [
         "Konto zur E-Mail",
@@ -110,7 +110,7 @@ def main() -> None:
         "  Einträge mit Terminen auf der Eintrags-ID (fehlen unter Meine Termine)",
         "    Termine auf der Eintrags-ID",
         "    davon kommend und geplant",
-        "  älter als 12 Monate ohne Änderung (fiele unter die Löschfrist)",
+        "  älter als 24 Monate ohne Änderung (fiele unter die Löschfrist)",
     ]:
         print(f"{name}: {stats[name]}")
     print("Je Laden (nicht verbunden, Konto zur E-Mail):")

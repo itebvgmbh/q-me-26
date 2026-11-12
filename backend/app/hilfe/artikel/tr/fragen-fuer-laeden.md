@@ -2,7 +2,7 @@
 titel: Salonlardan sık gelen sorular
 kurz: Maliyet, deneme süresi, iptal, cihazlar, akıllı telefonu olmayan müşteriler, internet ve veri koruma: en önemli sorulara kısa yanıtlar.
 stichworte: sss, sık sorulan sorular, sorular, maliyet, ücret, fiyat, komisyon, uygulama, hesap, akıllı telefon, cep telefonu, cihaz, tablet, deneme, iptal, internet, çevrimdışı, wifi, wi-fi, veri koruma, iletişim
-quelle: e47dddb29a1b
+quelle: b5ffe9df1c6d
 ---
 Salonların başlamadan önce en sık sorduğu sorulara kısa yanıtlar. Sorun burada yoksa bize [hilfe@dranzeit.de](mailto:hilfe@dranzeit.de) adresine yaz.
 
@@ -46,7 +46,7 @@ Dranzeit tarayıcıda çalışır ve internete ihtiyaç duyar; çevrimdışı mo
 
 ### Veri koruma ne olacak?
 
-Müşterilerin yalnızca adlarını girer, cep telefonu numarası ve e-posta adresi isteğe bağlıdır. Hesapsız numara ve randevularda ad ve iletişim bilgilerini randevudan 90 gün sonra kaldırırız. Müşteri listendeki, bağlı hesabı olmayan müşterileri, 12 ay boyunca onlarla randevu olmadıysa sileriz; ya da sen onları daha önce **“Müşteriler”** altında silersin. Veri işleme sözleşmesi (Auftragsverarbeitung), [Kullanım koşullarının (AGB)](/agb) 7. bölümünde yer alır. Daha fazlası: [Veri koruma: Dranzeit hangi verileri saklar](/hilfe/datenschutz)
+Müşterilerin yalnızca adlarını girer, cep telefonu numarası ve e-posta adresi isteğe bağlıdır. Hesapsız numara ve randevularda ad ve iletişim bilgilerini randevudan 90 gün sonra kaldırırız. Müşteri listendeki, bağlı hesabı olmayan müşterileri, 24 ay boyunca onlarla randevu olmadıysa sileriz; ya da sen onları daha önce **“Müşteriler”** altında silersin. Veri işleme sözleşmesi (Auftragsverarbeitung), [Kullanım koşullarının (AGB)](/agb) 7. bölümünde yer alır. Daha fazlası: [Veri koruma: Dranzeit hangi verileri saklar](/hilfe/datenschutz)
 
 ### Yeni müşteriler beni nasıl bulur?
 

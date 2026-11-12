@@ -171,7 +171,7 @@ export default function Kunden() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        {t('Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 12 Monate kein Termin war.')}
+        {t('Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 24 Monate kein Termin war.')}
       </p>
 
       <CreateCustomerDialog

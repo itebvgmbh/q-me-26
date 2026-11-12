@@ -222,7 +222,6 @@ const texte: Texte = {
   "Wird angelegt …": "جارٍ الإضافة …",
 
   // components/CustomerListDialog.tsx
-  "Kunden, die in deinem Laden angelegt wurden, auch vom Telefon-Assistenten nach einer Buchung. Tipp auf einen Namen, dann siehst du die Termine. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "العملاء الذين أُضيفوا في محلّك، ومنهم من أضافه مساعد الهاتف بعد الحجز. اضغط على اسم لترى مواعيده. إذا لم يكن هناك حساب مرتبط، يحذف Dranzeit الإدخال تلقائيًا بعد 12 شهرًا دون أي موعد.",
   "Vom Telefon-Assistenten angelegt": "أضافه مساعد الهاتف",
   "Die Termine konnten nicht geladen werden. Versuch es gleich noch einmal.": "تعذّر تحميل المواعيد. حاول مرة أخرى بعد قليل.",
   "Noch keine Termine.": "لا توجد مواعيد بعد.",
@@ -428,7 +427,7 @@ const texte: Texte = {
   "Notiz zum Besuch": "ملاحظة الزيارة",
   "Nächster Termin: {zeit}": "الموعد القادم: {zeit}",
   "Ohne Konto gebucht und zugeordnet": "حُجز بدون حساب ورُبط",
-  "Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 12 Monate kein Termin war.": "بدون حساب مرتبط، يحذف Dranzeit العميل تلقائيًا إذا لم يكن له موعد لمدة 12 شهرًا.",
+  "Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 24 Monate kein Termin war.": "بدون حساب مرتبط، يحذف Dranzeit العميل تلقائيًا إذا لم يكن له موعد لمدة 24 شهرًا.",
   "Passt vielleicht": "قد يكون مطابقًا",
   "Sieht nur dein Team, nie der Kunde. Bitte keine Angaben zur Gesundheit wie Allergien: Dafür bräuchtest du seine ausdrückliche Einwilligung.": "يراها فريقك فقط، ولا يراها العميل أبدًا. من فضلك لا تكتب معلومات صحية مثل الحساسية: فذلك يتطلب موافقته الصريحة.",
   "Stammkunden": "العملاء الدائمون",

@@ -8,7 +8,9 @@ Hilfe (backend/app/hilfe/artikel/datenschutz.md). Wer hier etwas ändert, änder
 - Termine mit Konto: Der Name bleibt (er steht unter "Meine Termine"), Handynummer und E-Mail für die Benachrichtigung
   gehen ebenfalls nach 90 Tagen.
 - Kunden, die ein Laden unter "Kunde anlegen" eingetragen hat (Sammlung customers): Ohne verbundenes Konto wird der
-  Eintrag gelöscht, wenn 12 Monate kein Termin mehr war (bei Kunden ohne Termin 12 Monate nach dem Anlegen).
+  Eintrag gelöscht, wenn 24 Monate kein Termin mehr war (bei Kunden ohne Termin 24 Monate nach dem Anlegen).
+  Bis 12.11.2026 waren es 12 Monate; Stefan hat verlängert, damit Kunden, die einmal im Jahr kommen, ihre Notizen
+  (etwa die Farbrezeptur) behalten.
   Der Laden kann ihn auch selbst löschen (forget_customer, app/apis/datenschutz).
 - Kunden-Konto löschen (delete_account_data, app/apis/datenschutz): sofort, kommende Termine werden abgesagt.
 - Anrufliste des Telefon-Assistenten (app/libs/telefon_anrufliste.py), mit Zusammenfassung: nach 90 Tagen gelöscht,
@@ -17,7 +19,7 @@ Hilfe (backend/app/hilfe/artikel/datenschutz.md). Wer hier etwas ändert, änder
 "Mit Konto" heißt: Die customerId des Termins ist ein bestehendes Firebase-Konto. Kunden-Einträge des Ladens haben eigene
 IDs aus customers, Laufkunden "walk-in", Nummern ohne Konto isAnonymous. Nummern und Termine ohne Konto, die einem Eintrag
 zugeordnet sind (per Handynummer oder am Tresen), tragen dessen ID in kundeId (app/libs/kartei.py): Sie zählen für die
-12 Monate mit und verlieren beim Löschen des Eintrags Namen und Kontaktdaten wie seine eigenen Termine. Die Notizen der
+24 Monate mit und verlieren beim Löschen des Eintrags Namen und Kontaktdaten wie seine eigenen Termine. Die Notizen der
 Kundenkartei stehen am Eintrag und gehen mit ihm.
 
 Der Lauf über die Termine merkt sich, bis zu welchem Termin er schon war (databutton-Speicher, .local_data),
@@ -30,7 +32,7 @@ from typing import Callable, Iterable, Optional
 import databutton as db
 
 RETENTION_DAYS = 90
-CUSTOMER_RETENTION_DAYS = 365
+CUSTOMER_RETENTION_DAYS = 730  # 24 Monate
 ANONYMIZED_NAME = "Gelöscht"
 CONTACT_FIELDS = ("customerPhone", "customerEmail", "notifyEmail")
 # Adresse für Datenschutz-Anfragen, wie COMPANY.email in frontend/src/constants/legal.ts (test_privacy.py prüft das)
@@ -87,7 +89,7 @@ def last_activity(customer: dict, last_appointment: Optional[datetime]) -> Optio
 
 
 def customer_expired(customer: dict, last_appointment: Optional[datetime], now: datetime) -> bool:
-    """Kunden-Eintrag ohne Konto, bei dem 12 Monate nichts mehr war?"""
+    """Kunden-Eintrag ohne Konto, bei dem 24 Monate nichts mehr war?"""
     last = last_activity(customer, last_appointment)
     return last is None or last < now - timedelta(days=CUSTOMER_RETENTION_DAYS)
 
@@ -199,7 +201,7 @@ def anonymize_old_appointments(firestore_db, now: datetime | None = None, batch_
 
 
 def delete_stale_customers(firestore_db, now: datetime | None = None, accounts: Accounts = existing_accounts) -> int:
-    """Kunden-Einträge ohne Konto löschen, bei denen 12 Monate nichts mehr war. Gibt die Zahl zurück.
+    """Kunden-Einträge ohne Konto löschen, bei denen 24 Monate nichts mehr war. Gibt die Zahl zurück.
 
     Liest alle Einträge (die legt der Laden von Hand an, es sind wenige); Termine nur bei Einträgen, die älter als
     die Frist sind."""

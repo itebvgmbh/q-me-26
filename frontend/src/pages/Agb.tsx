@@ -166,7 +166,7 @@ export default function Agb() {
           </li>
           <li>
             <strong>Löschung:</strong> Namen und Kontaktdaten bei Nummern und Terminen ohne Konto entfernen wir 90 Tage nach
-            dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir samt Notizen 12 Monate nach ihrem letzten Termin; der
+            dem Termin. Einträge der Kundenliste ohne verbundenes Konto löschen wir samt Notizen 24 Monate nach ihrem letzten Termin; der
             Kunde kann sie jederzeit selbst löschen. Anrufe in der Anrufliste des Telefon-Assistenten löschen wir 90 Tage nach
             dem Anruf, Mitschriften und Protokolle bei Vapi werden nach 14 Tagen gelöscht. Nach Vertragsende löschen wir die
             Daten des Ladens innerhalb von 30 Tagen,

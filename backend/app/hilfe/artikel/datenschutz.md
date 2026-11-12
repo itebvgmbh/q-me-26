@@ -22,7 +22,7 @@ Werbe-Cookies setzt Dranzeit nicht ein. Statistik mit Google Analytics läuft nu
 
 - Bei Nummern und Terminen ohne Konto entfernt Dranzeit Namen und Kontaktdaten 90 Tage nach dem Termin, auch bei Kunden, die du angelegt hast. Uhrzeit, Leistung und Person bleiben für die Auswertung erhalten, als Name steht dann „Gelöscht“.
 - Bei Terminen mit Konto bleibt der Name, Handynummer und E-Mail-Adresse am Termin verschwinden ebenfalls nach 90 Tagen.
-- Kunden aus deiner Kundenliste ohne verbundenes Konto löscht Dranzeit samt Notizen, wenn 12 Monate kein Termin mit ihnen war. Vorher löschst du sie selbst unter **„Kunden“**: Kommende Termine werden abgesagt, frühere verlieren den Namen. Mehr: [Kunden](/hilfe/kunden)
+- Kunden aus deiner Kundenliste ohne verbundenes Konto löscht Dranzeit samt Notizen, wenn 24 Monate kein Termin mit ihnen war. Vorher löschst du sie selbst unter **„Kunden“**: Kommende Termine werden abgesagt, frühere verlieren den Namen. Mehr: [Kunden](/hilfe/kunden)
 - Anrufe in der Anrufliste des Telefon-Assistenten löscht Dranzeit samt Zusammenfassung nach 90 Tagen, und wenn du den Kunden mit dieser Nummer aus der Kundenliste löschst.
 - Kunden mit Konto löschen ihr Konto selbst unter „Mein Profil“. Dann werden ihre kommenden Termine bei dir abgesagt, und bei früheren verschwindet der Name.
 - Nach Ende deines Vertrags löscht Dranzeit die Daten deines Ladens innerhalb von 30 Tagen, soweit keine Aufbewahrungspflicht besteht.

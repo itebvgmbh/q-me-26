@@ -1,8 +1,8 @@
 ---
 titel: Veri koruma: Dranzeit hangi verileri saklar
 kurz: Dranzeit müşterilerinin hangi verilerini saklar, ne zaman silinir, hangi hizmet sağlayıcılar yer alır ve veri işleme sözleşmesi nerede.
-stichworte: veri koruma, gizlilik, dsgvo, gdpr, veri, müşteri verileri, silme, 90 gün, 12 ay, müşteri listesi, hesabı sil, telefon numarası, veri işleme, veri işleme sözleşmesi, avv, sunucu, hetzner, firebase, google, stripe, resend, çerez
-quelle: f22be156f154
+stichworte: veri koruma, gizlilik, dsgvo, gdpr, veri, müşteri verileri, silme, 90 gün, 24 ay, müşteri listesi, hesabı sil, telefon numarası, veri işleme, veri işleme sözleşmesi, avv, sunucu, hetzner, firebase, google, stripe, resend, çerez
+quelle: caffb337025b
 ---
 Dranzeit müşterilerinden yalnızca numara ve randevu için gerekenleri saklar: adı ve müşteri isterse cep telefonu numarasını veya e-posta adresini. Bu verilerden sen sorumlusun, Dranzeit onları senin adına işler. Bu bir özettir, hukuki danışmanlık değildir. Bağlayıcı olan [Gizlilik politikası (Datenschutzerklärung)](/datenschutz) ve [Kullanım koşulları (AGB)](/agb) metinleridir.
 
@@ -21,7 +21,7 @@ Dranzeit reklam çerezi kullanmaz. Google Analytics ile istatistik yalnızca bir
 
 - Hesapsız numara ve randevularda Dranzeit, ad ve iletişim bilgilerini randevudan 90 gün sonra kaldırır; senin eklediğin müşterilerde de. Saat, hizmet ve kişi istatistikler için kalır, ad olarak o zaman “Gelöscht” (silindi) yazar.
 - Hesaplı randevularda ad kalır; randevudaki cep telefonu numarası ve e-posta adresi de 90 gün sonra kaldırılır.
-- Müşteri listendeki, bağlı bir hesabı olmayan müşterileri Dranzeit, 12 ay boyunca onlarla hiç randevu olmadıysa notlarıyla birlikte siler. Öncesinde onları kendin **“Müşteriler”** altında silebilirsin: Yaklaşan randevular iptal edilir, geçmiş randevulardan ad kaldırılır. Daha fazlası: [Müşteriler](/hilfe/kunden)
+- Müşteri listendeki, bağlı bir hesabı olmayan müşterileri Dranzeit, 24 ay boyunca onlarla hiç randevu olmadıysa notlarıyla birlikte siler. Öncesinde onları kendin **“Müşteriler”** altında silebilirsin: Yaklaşan randevular iptal edilir, geçmiş randevulardan ad kaldırılır. Daha fazlası: [Müşteriler](/hilfe/kunden)
 - Telefon asistanının arama listesindeki aramaları Dranzeit özetleriyle birlikte 90 gün sonra siler; bu numaraya sahip müşteriyi müşteri listesinden sildiğinde de.
 - Hesabı olan müşteriler hesaplarını “Profilim” altında kendileri siler. O zaman sendeki yaklaşan randevuları iptal edilir, geçmiş randevularda da ad kaybolur.
 - Sözleşmen sona erdikten sonra Dranzeit, saklama yükümlülüğü olmadığı sürece salonunun verilerini 30 gün içinde siler.

@@ -11,7 +11,7 @@ Ruft dieselbe Nummer wieder an, kennt der Eingang (app/apis/telefon_eingang) den
 Namen, und der Assistent bekommt Namen, letzten Besuch und kommende Termine gleich zum Gesprächsbeginn mit (bekannt).
 Unterdrückte Nummern bleiben ohne Eintrag, wie bisher.
 
-Löschen wie jeder Eintrag der Kundenliste (app/libs/privacy.py): ohne verbundenes Konto 12 Monate nach dem letzten
+Löschen wie jeder Eintrag der Kundenliste (app/libs/privacy.py): ohne verbundenes Konto 24 Monate nach dem letzten
 Termin, Name und Nummer an den Terminen nach 90 Tagen. Der Laden kann ihn jederzeit selbst löschen.
 """
 from datetime import date, datetime, timedelta, timezone
