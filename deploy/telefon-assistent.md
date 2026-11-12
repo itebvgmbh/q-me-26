@@ -302,6 +302,24 @@ fragt Twilio noch einmal nach (`?laden=…&versuch=2`), dann kommt die Ansage �
 belegt sind, schreibt der Eingang bei jedem Anruf ins Log: `journalctl -u q-me | grep Vapi-Leitungen`. Jeder Anruf steht
 in der Anrufliste des Ladens (`telefon_anrufliste`, 90 Tage).
 
+**Bericht nach dem Gespräch:** Für Zusammenfassung und Ergebnis in der Anrufliste gibt der Eingang Vapi bei jedem Anruf
+zusätzlich mit (`assistantOverrides`, gebaut in `backend/app/libs/telefon_anrufliste.py`, `bericht_auftrag`):
+
+- `server`: die Adresse `https://dranzeit.de/routes/telefon-eingang/bericht?anruf=<CallSid>` und in der Kopfzeile
+  `X-Dranzeit-Bericht` einen Schlüssel nur für diesen Anruf. In der Datenbank steht nur sein Hash, er gilt einmal.
+- `serverMessages`: nur `end-of-call-report`, keine Meldungen während des Gesprächs.
+- `artifactPlan`: Aufnahme aus (`recordingEnabled: false`, auch wenn sie beim Assistenten an wäre) und eine Auswertung
+  `dranzeit_anruf` mit `zusammenfassung` (deutsch) und `ergebnis` (`termin`, `nummer`, `frage`, `offen`, `aufgelegt`).
+
+Bei Vapi muss dafür nichts eingestellt werden, und es gibt keinen neuen Schlüssel. Seit dem 23.09.2026 schickt Vapi bei
+Adressen aus der Anfrage keine gespeicherten Credentials mit, deshalb steckt der Schlüssel in `server.headers`. Lehnt
+Vapi die Angaben ab (400), geht der Anruf ohne sie durch. In der Anrufliste fehlt dann nur die Zusammenfassung, und im
+Log steht `Vapi lehnt den Bericht für die Anrufliste ab`. Prüfen:
+
+- Eingang: `journalctl -u q-me | grep "Bericht zu Anruf"` zeigt jeden eingetragenen Bericht.
+- Ablehnungen: Abgelehnte Berichte stehen dort mit `abgelehnt (…)`.
+- Bei Vapi: Unter „Logs“ → Anruf steht der Aufruf der Adresse mit der Antwort 204.
+
 ### Probe
 
 1. **Im Browser:** Beim Assistenten „Chat“ (Text) oder „Talk“ (Sprache). Dabei kommt keine Rufnummer an: Ohne Laden-ID und
@@ -373,8 +391,6 @@ Danach entscheiden wir über den Anbieter und die Preise (siehe „Offen“ in d
 ## Was noch fehlt (kommt nach dem Probelauf)
 
 - Rückrufbitte und Durchstellen aufs Handy, SMS-Bestätigung
-- Anrufliste im Dashboard, Kennzeichen „per Telefon“ in der Oberfläche
-- Zubuchen im Tarif, Abrechnung nach Minuten, Kostendeckel und Ansage ohne KI
-- Zusatz im Tarif statt Zulassung im Betreiber-Bereich: bezahlter Zusatz über Stripe, Kostendeckel
+- Kennzeichen „per Telefon“ in Kalender und am Tresen
 - Umleitung im Festnetz prüfen (`ForwardedFrom`, siehe „Prüfen“). Kommt die Salonnummer nicht verlässlich an, bleibt eine
   eigene Nummer oder Durchwahl je Laden

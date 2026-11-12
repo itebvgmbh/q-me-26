@@ -3,7 +3,7 @@ titel: Telefon-Assistent einrichten
 kurz: Eine KI nimmt Anrufe an, wenn im Laden niemand rangeht, nennt freie Termine und bucht sie. So testest du sie, buchst sie zu und richtest sie ein.
 thema: laden
 reihenfolge: 6
-stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen, stammkunden, kundenliste, wiedererkennen, anrufliste, zurückrufen, rückruf, verpasst, belegt
+stichworte: telefon, anruf, anrufe, ki, assistent, telefonassistent, rufumleitung, umleitung, weiterleitung, anrufweiterschaltung, mailbox, fritzbox, telekom, probeanruf, testminuten, zubuchen, kostendeckel, deckel, minuten, kündigen, stammkunden, kundenliste, wiedererkennen, anrufliste, zusammenfassung, zurückrufen, rückruf, verpasst, belegt, aufgelegt
 ---
 Geht im Laden niemand ran, nimmt der Telefon-Assistent den Anruf an. Deine Kunden wählen weiter deine normale Nummer. Du richtest bei deinem Telefonanbieter nur eine Umleitung ein.
 
@@ -25,9 +25,9 @@ Alle Termine einer Person siehst du unter **„Laden“ → „Mein Tag“ → �
 
 ## Anrufliste und zurückrufen
 
-Unter **„Laden“ → „Telefon-Assistent“** siehst du unter **„Anrufe“**, wer angerufen hat und was daraus wurde: der gebuchte Termin, die gezogene Nummer oder „Kein Termin gebucht“. Steht dort „Nur Ansage“, hat der Anrufer nur die kurze Ansage gehört, zum Beispiel weil die Testminuten aufgebraucht waren.
+Unter **„Laden“ → „Telefon-Assistent“** siehst du unter **„Anrufe“**, wer angerufen hat und was daraus wurde: der gebuchte Termin, die gezogene Nummer, „Frage beantwortet“, „Anliegen offen“, „Aufgelegt“ oder „Kein Termin gebucht“. Darunter fasst die KI das Gespräch in ein, zwei Sätzen zusammen, etwa was der Anrufer wollte, wenn der Assistent nicht helfen konnte. Die Zusammenfassung ist immer auf Deutsch und kann Fehler enthalten. Steht dort „Nur Ansage“, hat der Anrufer nur die kurze Ansage gehört, zum Beispiel weil die Testminuten aufgebraucht waren.
 
-Wo kein Termin herauskam, kannst du mit **„Zurückrufen“** direkt anrufen. Die Liste zeigt die Anrufe der letzten 90 Tage, ältere löscht Dranzeit. Löschst du einen Kunden aus der Kundenliste, verschwinden seine Anrufe mit.
+Wo kein Termin herauskam, kannst du mit **„Zurückrufen“** direkt anrufen. Bei „Anliegen offen“ ist der Knopf hervorgehoben. Die Liste zeigt die Anrufe der letzten 90 Tage, ältere löscht Dranzeit samt Zusammenfassung. Löschst du einen Kunden aus der Kundenliste, verschwinden seine Anrufe mit.
 
 Telefonieren gerade sehr viele Läden gleichzeitig mit dem Assistenten, hört der Anrufer kurz „Einen Moment bitte“ und wird dann verbunden. Klappt es auch dann nicht, hört er eine Ansage, dass alle Leitungen belegt sind, und der Anruf steht in deiner Liste.
 

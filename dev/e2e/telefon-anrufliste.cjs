@@ -1,4 +1,4 @@
-// Anrufliste auf /telefon-assistent: wer angerufen hat, was daraus wurde, Zurückrufen
+// Anrufliste auf /telefon-assistent: wer angerufen hat, was daraus wurde, Zusammenfassung der KI, Zurückrufen
 // (GET /routes/telefon-einrichtung/{id}/anrufe, backend/app/libs/telefon_anrufliste.py).
 // Anmeldung, Inhaber und Backend nachgebildet: kein Testkonto nötig, es ändert sich nichts. Braucht den Entwicklungsserver
 // (npm run dev). Regeln im Backend: backend/tests/test_telefon_anrufliste.py.
@@ -15,14 +15,19 @@ const morgen = { __zeit: new Date(Date.now() + 26 * 3600000).toISOString() };
 const ANRUFE = [
   { id: 'CA7', beginn: vor(1), sekunden: 0, laeuft: true, anrufer: '+491577777777', name: null, ergebnis: 'assistent', grund: null, termine: [] },
   { id: 'CA6', beginn: vor(20), sekunden: 108, laeuft: false, anrufer: '+491511111111', name: 'Alex Muster', ergebnis: 'assistent', grund: null,
+    zusammenfassung: 'Alex hat für morgen einen Herrenschnitt bei Kim gebucht.', ausgang: 'termin',
     termine: [{ id: 't1', startTime: morgen, status: 'scheduled', type: 'booked', nummer: '12', leistung: 'Herrenschnitt', person: 'Kim' }] },
-  { id: 'CA5', beginn: vor(40), sekunden: 35, laeuft: false, anrufer: '+491522222222', name: 'Herr Krause', ergebnis: 'assistent', grund: null, termine: [] },
+  { id: 'CA5', beginn: vor(40), sekunden: 35, laeuft: false, anrufer: '+491522222222', name: 'Herr Krause', ergebnis: 'assistent', grund: null, termine: [],
+    zusammenfassung: 'Herr Krause möchte seinen Termin am Freitag verschieben und bittet um Rückruf.', ausgang: 'offen' },
   { id: 'CA4', beginn: vor(60), sekunden: 50, laeuft: false, anrufer: null, name: null, ergebnis: 'assistent', grund: null,
     termine: [{ id: 't2', status: 'scheduled', type: 'queue', nummer: '23', leistung: 'Bart', person: 'Robin' }] },
   { id: 'CA3', beginn: vor(90), sekunden: 12, laeuft: false, anrufer: '+491533333333', name: null, ergebnis: 'ansage', grund: 'test_verbraucht', termine: [] },
   { id: 'CA2', beginn: vor(26 * 60), sekunden: 20, laeuft: false, anrufer: '+491544444444', name: null, ergebnis: 'belegt', grund: null, termine: [] },
   { id: 'CA1', beginn: vor(5 * 24 * 60), sekunden: 70, laeuft: false, anrufer: '+491555555555', name: 'Eva', ergebnis: 'assistent', grund: null,
     termine: [{ id: 't3', startTime: morgen, status: 'cancelled', type: 'booked', leistung: 'Herrenschnitt', person: '' }] },
+  { id: 'CA0', beginn: vor(6 * 24 * 60), sekunden: 41, laeuft: false, anrufer: null, name: null, ergebnis: 'assistent', grund: null, termine: [],
+    zusammenfassung: 'Fragte, ob samstags geöffnet ist.', ausgang: 'frage' },
+  { id: 'CA00', beginn: vor(7 * 24 * 60), sekunden: 6, laeuft: false, anrufer: null, name: null, ergebnis: 'assistent', grund: null, termine: [], ausgang: 'aufgelegt' },
 ];
 
 run(async () => {
@@ -68,11 +73,16 @@ run(async () => {
   await liste.getByText('Alex Muster').waitFor({ timeout: 30000 });
   const eintraege = liste.locator('ul > li').filter({ has: page.locator('p.font-semibold') });
   const texte = await eintraege.allInnerTexts();
-  check('Sieben Anrufe, neueste zuerst', texte.length === 7 && texte[0].includes('01577777777') && texte[6].includes('Eva'), JSON.stringify(texte));
+  check('Neun Anrufe, neueste zuerst', texte.length === 9 && texte[0].includes('01577777777') && texte[6].includes('Eva'), JSON.stringify(texte));
   check('Laufendes Gespräch', texte[0].includes('Gespräch läuft gerade') && texte[0].startsWith('Heute'), texte[0]);
   check('Gebucht: Name, Nummer, Termin, Leistung bei Person', texte[1].includes('Alex Muster') && texte[1].includes('01511111111') && texte[1].includes('Termin gebucht:') && texte[1].includes('Herrenschnitt bei Kim'), texte[1]);
   check('Dauer in Minuten', texte[1].includes('1:48 Min.'), texte[1]);
-  check('Ohne Termin', texte[2].includes('Herr Krause') && texte[2].includes('Kein Termin gebucht'), texte[2]);
+  check('Anliegen offen mit Zusammenfassung', texte[2].includes('Herr Krause') && texte[2].includes('Anliegen offen') && texte[2].includes('KI-Zusammenfassung: Herr Krause möchte seinen Termin am Freitag verschieben'), texte[2]);
+  check('Gebucht mit Zusammenfassung', texte[1].includes('KI-Zusammenfassung: Alex hat für morgen'), texte[1]);
+  check('Ohne Bericht keine Zusammenfassung', !texte[3].includes('KI-Zusammenfassung') && !texte[6].includes('KI-Zusammenfassung'), `${texte[3]} | ${texte[6]}`);
+  check('Frage beantwortet', texte[7].includes('Frage beantwortet') && texte[7].includes('Fragte, ob samstags geöffnet ist.'), texte[7]);
+  check('Aufgelegt, ohne Zusammenfassung', texte[8].includes('Aufgelegt') && !texte[8].includes('KI-Zusammenfassung') && !texte[8].includes('Kein Termin gebucht'), texte[8]);
+  check('Zusammenfassung als Deutsch ausgezeichnet', (await liste.locator('span[lang="de"]').count()) === 3);
   check('Nummer gezogen, unterdrückte Nummer', texte[3].includes('Unterdrückte Nummer') && texte[3].includes('Nummer 23 gezogen') && texte[3].includes('Bart bei Robin'), texte[3]);
   check('Nur Ansage mit Grund', texte[4].includes('Nur Ansage: Testminuten aufgebraucht'), texte[4]);
   check('Belegt, gestern', texte[5].includes('Alle Leitungen waren belegt') && texte[5].startsWith('Gestern'), texte[5]);
@@ -85,6 +95,8 @@ run(async () => {
     JSON.stringify(ziele) === JSON.stringify(['tel:+491522222222', 'tel:+491533333333', 'tel:+491544444444', 'tel:+491555555555']),
     JSON.stringify(ziele),
   );
+  const hervor = await zurueck.evaluateAll((els) => els.filter((a) => a.className.includes('bg-primary')).map((a) => a.getAttribute('href')));
+  check('Bei offenem Anliegen ist Zurückrufen hervorgehoben', JSON.stringify(hervor) === JSON.stringify(['tel:+491522222222']), JSON.stringify(hervor));
   check('Hinweis auf 90 Tage', await liste.getByText('Anrufe der letzten 90 Tage. Ältere löschen wir.').isVisible());
 
   const vorher = abrufe;
@@ -122,6 +134,9 @@ run(async () => {
   const calls = page.getByRole('region', { name: 'Calls' });
   await calls.getByText('Alex Muster').waitFor({ timeout: 30000 });
   check('Englisch: übersetzt', (await calls.getByText('Appointment booked:').count()) === 2 && (await calls.getByRole('link', { name: 'Call back' }).count()) === 4);
+  check('Englisch: Ergebnisse und Hinweis, dass die Zusammenfassung deutsch ist',
+    (await calls.getByText('Request still open').count()) === 1 && (await calls.getByText('Question answered').count()) === 1 &&
+      (await calls.getByText('Hung up').count()) === 1 && (await calls.getByText('AI summary (in German):').count()) === 3);
   await seite('ar');
   check('Arabisch: Nummern bleiben links nach rechts', (await page.locator('[dir="ltr"]', { hasText: '01511111111' }).count()) >= 1);
 

@@ -131,7 +131,91 @@ def test_ende_traegt_die_dauer_ein():
     assert "unbekannt" not in d[tal.SAMMLUNG]
 
 
+# --- Bericht nach dem Gespräch ----------------------------------------------------------------------------------------------
+
+
+def vapi(result=None, summary=None, messages=None, name=tal.BERICHT_NAME, **mehr):
+    artefakt = {"messages": messages if messages is not None else [{"role": "bot", "message": "Hallo"}, {"role": "user", "message": "Hi"}]}
+    if result is not None:
+        artefakt["structuredOutputs"] = {"0c1d-uuid": {"name": name, "result": result}}
+    return {"type": "end-of-call-report", "endedReason": "customer-ended-call", "artifact": artefakt,
+            "analysis": {"summary": summary} if summary else {}, **mehr}
+
+
+def test_auswertung_aus_dem_bericht():
+    assert tal.auswerten(vapi({"zusammenfassung": "Fragte nach den Öffnungszeiten.", "ergebnis": "frage"})) == ("Fragte nach den Öffnungszeiten.", "frage")
+    assert tal.auswerten(vapi({"zusammenfassung": "  Will   Chef\nsprechen. ", "ergebnis": "offen"})) == ("Will Chef sprechen.", "offen")
+
+
+def test_ohne_auswertung_bleibt_die_zusammenfassung_von_vapi():
+    assert tal.auswerten(vapi(summary="Der Anrufer fragte nach Preisen.")) == ("Der Anrufer fragte nach Preisen.", None)
+    assert tal.auswerten(vapi({"zusammenfassung": "", "ergebnis": "frage"}, summary="Ersatz")) == ("Ersatz", "frage")
+    assert tal.auswerten(vapi({"zusammenfassung": "x", "ergebnis": "erfunden"})) == ("x", None)  # nur bekannte Ausgänge
+    assert tal.auswerten(vapi({"zusammenfassung": "fremd", "ergebnis": "frage"}, name="anderes")) == (None, None)
+    assert tal.auswerten({"type": "end-of-call-report"}) == (None, None)
+
+
+def test_auswertung_auch_unter_ihrem_namen_oder_im_anruf():
+    nachricht = {"type": "end-of-call-report",
+                 "call": {"artifact": {"structuredOutputs": {tal.BERICHT_NAME: {"result": {"zusammenfassung": "Gebucht.", "ergebnis": "termin"}}}}}}
+    assert tal.auswerten(nachricht) == ("Gebucht.", "termin")
+
+
+def test_hat_der_anrufer_nichts_gesagt_hat_er_aufgelegt():
+    stumm = [{"role": "system", "message": "…"}, {"role": "bot", "message": "Hallo, hier ist der KI-Assistent"}]
+    assert tal.auswerten(vapi({"zusammenfassung": "Niemand sprach.", "ergebnis": "frage"}, messages=stumm)) == ("Niemand sprach.", "aufgelegt")
+    assert tal.auswerten(vapi(messages=[]))[1] == "aufgelegt"
+
+
+def test_lange_zusammenfassung_wird_gekuerzt():
+    text, _ = tal.auswerten(vapi({"zusammenfassung": "Wort " * 300, "ergebnis": "frage"}))
+    assert len(text) <= tal.ZUSAMMENFASSUNG_MAX + 2 and text.endswith(" …") and "Wort Wort" in text
+
+
+def test_bericht_nur_mit_dem_schluessel_des_anrufs():
+    d = daten()
+    db = FakeDb(d)
+    schluessel, hash_ = tal.bericht_schluessel()
+    tal.merken(db, "CA9", "laden", "+491511111111", tal.ASSISTENT, bericht_hash=hash_)
+    assert d[tal.SAMMLUNG]["CA9"]["berichtHash"] == hash_ and hash_ != schluessel
+    assert tal.bericht(db, "CA9", "falsch", vapi({"zusammenfassung": "x", "ergebnis": "frage"})) == "kein_zugang"
+    assert tal.bericht(db, "CA9", None, vapi({"zusammenfassung": "x", "ergebnis": "frage"})) == "kein_zugang"
+    assert tal.bericht(db, "CA0", schluessel, vapi()) == "unbekannt"
+    assert tal.bericht(db, "CA9", schluessel, {"type": "status-update"}) == "ignoriert"
+    assert tal.bericht(db, "CA9", schluessel, vapi({"zusammenfassung": "Wollte Preise wissen.", "ergebnis": "frage"})) == "ok"
+    e = d[tal.SAMMLUNG]["CA9"]
+    assert e["zusammenfassung"] == "Wollte Preise wissen." and e["ausgang"] == "frage" and e["berichtHash"] is None
+    assert tal.bericht(db, "CA9", schluessel, vapi({"zusammenfassung": "nochmal", "ergebnis": "offen"})) == "kein_zugang"
+    assert tal.bericht(db, "CA1", schluessel, vapi()) == "kein_zugang"  # alter Eintrag ohne Schlüssel
+
+
+def test_zweiter_versuch_bekommt_den_schluessel_dazu():
+    d = {tal.SAMMLUNG: {}}
+    db = FakeDb(d)
+    tal.merken(db, "CA9", "laden", None, tal.BELEGT)
+    assert d[tal.SAMMLUNG]["CA9"]["berichtHash"] is None
+    tal.merken(db, "CA9", "laden", None, tal.ASSISTENT, bericht_hash="abc")
+    assert d[tal.SAMMLUNG]["CA9"]["berichtHash"] == "abc"
+    tal.merken(db, "CA9", "laden", None, tal.ASSISTENT)  # ohne neuen Schlüssel bleibt der alte
+    assert d[tal.SAMMLUNG]["CA9"]["berichtHash"] == "abc"
+
+
+def test_liste_zeigt_zusammenfassung_und_ausgang_aber_keinen_schluessel():
+    d = daten()
+    d[tal.SAMMLUNG]["CA2"].update({"zusammenfassung": "Wollte den Chef sprechen.", "ausgang": "offen", "berichtHash": "geheim"})
+    liste = {a["id"]: a for a in tal.liste(FakeDb(d), "laden", JETZT)}
+    assert liste["CA2"]["zusammenfassung"] == "Wollte den Chef sprechen." and liste["CA2"]["ausgang"] == "offen"
+    assert liste["CA1"]["zusammenfassung"] is None and liste["CA1"]["ausgang"] is None
+    assert all("berichtHash" not in a and "geheim" not in str(a) for a in liste.values())
+
+
 # --- Löschen -------------------------------------------------------------------------------------------------------------
+
+
+def test_laden_geloescht_anrufliste_auch():
+    from app.libs import konten
+
+    assert tal.SAMMLUNG in konten.SHOP_COLLECTIONS and t.ANRUFE in konten.SHOP_COLLECTIONS
 
 
 def test_nach_90_tagen_geloescht():

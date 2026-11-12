@@ -74,9 +74,9 @@ class Db:
         eingang.get_firestore_db = lambda: self.db
         eingang._assistent = self._assistent
 
-    def _assistent(self, shop_id, name, begruessung, daten, anrufer):
+    def _assistent(self, shop_id, name, begruessung, daten, anrufer, bericht=None):
         self.vapi.append((shop_id, name, anrufer))
-        self.begruessung, self.daten = begruessung, json.loads(daten)
+        self.begruessung, self.daten, self.bericht = begruessung, json.loads(daten), bericht
         return "<Response><Connect/></Response>"
 
 
@@ -612,6 +612,139 @@ def test_vapi_meldet_belegte_leitungen():
             raise AssertionError("Störung ist nicht „belegt“")
         except RuntimeError:
             pass
+    finally:
+        eingang.requests.post = alt
+
+
+# --- Bericht nach dem Gespräch: Zusammenfassung für die Anrufliste -----------------------------------------------------
+
+SID = "CA" + "0123456789abcdef" * 2
+FREI = {"phoneCallProviderDetails": {"twiml": "<Response/>"}}
+
+
+def bericht_senden(nachricht, schluessel, sid=SID):
+    kopf = {tal.BERICHT_KOPF: schluessel} if schluessel else {}
+    return client.post(f"/routes/telefon-eingang/bericht?anruf={sid}", json={"message": nachricht}, headers=kopf)
+
+
+def ende_bericht(zusammenfassung="Alex wollte morgen einen Herrenschnitt und hat 14 Uhr 30 bei Kim gebucht.", ergebnis="termin"):
+    return {
+        "type": "end-of-call-report", "endedReason": "customer-ended-call", "cost": 0.42,
+        "costs": [{"type": "model", "cost": 0.1}],
+        "analysis": {"summary": "The caller booked a haircut."},
+        "artifact": {
+            "messages": [{"role": "bot", "message": "Hallo"}, {"role": "user", "message": "Ich hätte gern einen Termin"}],
+            "structuredOutputs": {"5f0c-uuid": {"name": tal.BERICHT_NAME, "result": {"zusammenfassung": zusammenfassung, "ergebnis": ergebnis}}},
+        },
+    }
+
+
+def test_vapi_bekommt_adresse_und_schluessel_fuer_den_bericht():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    server = d.bericht["server"]
+    assert server["url"] == f"{BASIS}/telefon-eingang/bericht?anruf={SID}"
+    schluessel = server["headers"][tal.BERICHT_KOPF]
+    assert len(schluessel) >= 40 and d.bericht["serverMessages"] == ["end-of-call-report"]
+    assert d.bericht["artifactPlan"]["recordingEnabled"] is False  # keine Tonaufnahme, auch wenn sie bei Vapi an wäre
+    [auswertung] = d.bericht["artifactPlan"]["structuredOutputs"]
+    assert auswertung["name"] == tal.BERICHT_NAME and auswertung["schema"]["properties"]["ergebnis"]["enum"] == list(tal.AUSGAENGE)
+    e = d.data[tal.SAMMLUNG][SID]
+    assert e["berichtHash"] == hashlib.sha256(schluessel.encode()).hexdigest() and schluessel not in json.dumps(e, default=str)
+
+
+def test_jeder_anruf_hat_seinen_eigenen_schluessel():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    erster = d.bericht["server"]["headers"][tal.BERICHT_KOPF]
+    anruf(ForwardedFrom=SALON, CallSid="CA" + "f" * 32)
+    assert d.bericht["server"]["headers"][tal.BERICHT_KOPF] != erster
+
+
+def test_ohne_callsid_kein_bericht():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid="")
+    assert d.bericht is None and d.vapi
+
+
+def test_bericht_kommt_in_die_anrufliste_einmal():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    schluessel = d.bericht["server"]["headers"][tal.BERICHT_KOPF]
+    antwort = bericht_senden(ende_bericht(), schluessel)
+    assert antwort.status_code == 204, antwort.text
+    e = d.data[tal.SAMMLUNG][SID]
+    assert e["zusammenfassung"].startswith("Alex wollte morgen") and e["ausgang"] == "termin" and e["berichtHash"] is None
+    assert "cost" not in json.dumps(e, default=str)  # Einkaufspreise bleiben draußen
+    assert bericht_senden(ende_bericht("Anders"), schluessel).status_code == 403  # gilt nur einmal
+    assert d.data[tal.SAMMLUNG][SID]["zusammenfassung"].startswith("Alex")
+
+
+def test_bericht_ohne_oder_mit_falschem_schluessel_zaehlt_nicht():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    schluessel = d.bericht["server"]["headers"][tal.BERICHT_KOPF]
+    assert bericht_senden(ende_bericht(), None).status_code == 403
+    assert bericht_senden(ende_bericht(), schluessel + "x").status_code == 403
+    assert bericht_senden(ende_bericht(), schluessel, sid="CA" + "9" * 32).status_code == 404
+    assert bericht_senden(ende_bericht(), schluessel, sid="..%2Fx").status_code == 404
+    assert "zusammenfassung" not in d.data[tal.SAMMLUNG][SID]
+    assert bericht_senden(ende_bericht(), schluessel).status_code == 204  # der richtige geht danach noch
+
+
+def test_bericht_bei_ansage_gibt_es_nicht():
+    d = Db(aktiv(sekunden=1800))
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    assert d.data[tal.SAMMLUNG][SID]["berichtHash"] is None
+    assert bericht_senden(ende_bericht(), "irgendwas").status_code == 403
+
+
+def test_andere_meldungen_von_vapi_verbrauchen_den_schluessel_nicht():
+    d = Db(aktiv())
+    anruf(ForwardedFrom=SALON, CallSid=SID)
+    schluessel = d.bericht["server"]["headers"][tal.BERICHT_KOPF]
+    assert bericht_senden({"type": "status-update", "status": "in-progress"}, schluessel).status_code == 204
+    assert bericht_senden(ende_bericht(), schluessel).status_code == 204
+    assert d.data[tal.SAMMLUNG][SID]["ausgang"] == "termin"
+
+
+def test_bericht_ohne_nachricht_ist_ein_fehler():
+    Db(aktiv())
+    antwort = client.post(f"/routes/telefon-eingang/bericht?anruf={SID}", content=b"kaputt", headers={"Content-Type": "application/json"})
+    assert antwort.status_code == 400
+    assert client.post(f"/routes/telefon-eingang/bericht?anruf={SID}", json={"nichts": 1}).status_code == 400
+
+
+def test_vapi_bekommt_den_bericht_mit_und_lehnt_ihn_ab_anruf_geht_trotzdem():
+    alt = eingang.requests.post
+    gesendet = []
+    auftrag = tal.bericht_auftrag("https://dranzeit.de/routes/telefon-eingang/bericht?anruf=CA1", "schluessel")
+
+    def post(url, json=None, **_):
+        gesendet.append(json)
+        if "server" in json["assistantOverrides"]:
+            return VapiAntwort(400, {"message": ["assistantOverrides.property server should not exist"], "statusCode": 400})
+        return VapiAntwort(201, FREI)
+
+    try:
+        eingang.requests.post = post
+        assert ECHT("salon", "Salon", "Hallo", "{}", ANRUFER, auftrag) == "<Response/>"
+        assert len(gesendet) == 2 and gesendet[0]["assistantOverrides"]["serverMessages"] == ["end-of-call-report"]
+        zweiter = gesendet[1]["assistantOverrides"]
+        assert set(zweiter) == {"firstMessage", "variableValues"} and zweiter["variableValues"]["laden_id"] == "salon"
+        assert gesendet[1]["customer"] == {"number": ANRUFER}
+        gesendet.clear()
+        eingang.requests.post = lambda url, json=None, **_: gesendet.append(json) or VapiAntwort(201, FREI)
+        assert ECHT("salon", "Salon", "Hallo", "{}", ANRUFER, auftrag) == "<Response/>"
+        assert len(gesendet) == 1 and gesendet[0]["assistantOverrides"]["artifactPlan"]["recordingEnabled"] is False
+        # Ohne Bericht kein zweiter Versuch: ein Fehler bleibt ein Fehler
+        gesendet.clear()
+        eingang.requests.post = lambda url, json=None, **_: gesendet.append(json) or VapiAntwort(400, {"message": "kaputt"})
+        try:
+            ECHT("salon", "Salon", "Hallo", "{}", ANRUFER)
+            raise AssertionError("Fehler verschluckt")
+        except RuntimeError:
+            assert len(gesendet) == 1
     finally:
         eingang.requests.post = alt
 
