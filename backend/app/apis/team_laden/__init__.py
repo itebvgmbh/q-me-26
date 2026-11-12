@@ -222,7 +222,7 @@ def laden_fuers_team(shop_id: str, user: AuthorizedUser, response: Response) -> 
 @router.post("/team/laeden")
 def laden_anlegen(body: LadenAnlegen, user: AuthorizedUser) -> dict:
     try:
-        return live.json_wert({"laden": ld.laden_anlegen(store.db(), user.sub, _daten(body.laden))})
+        return live.json_wert({"laden": ld.laden_anlegen(store.db(), user.sub, _daten(body.laden), user.email or "")})
     except ld.LadenFehler as e:
         raise _laden_fehler(e)
 

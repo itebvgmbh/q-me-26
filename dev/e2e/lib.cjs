@@ -123,7 +123,9 @@ const tempShop = async (page, name, state = {}) => {
 };
 
 /**
- * Wegwerf-Laden aufräumen. Läden löscht der Browser seit Stufe 2 nicht mehr selbst (nur das Backend, mit Sicherung):
+ * Wegwerf-Laden aufräumen. Läden löscht der Browser seit Stufe 2 nicht mehr selbst (nur das Backend, mit Sicherung).
+ * Öffentlich sichtbar ist er nie: Läden von Testkonten legt das Backend gleich ohne Ladenliste an (laden_anlegen).
+ *
  * Konto und Laden (Inhaber q-me-test-…@example.com) bleiben stehen, bis der Betreiber „Konten aufräumen“ laufen lässt
  * (deploy/konten-aufraeumen.py oder Betreiber-Bereich → Löschen). Das Konto bleibt absichtlich, daran erkennt man den
  * Testladen.

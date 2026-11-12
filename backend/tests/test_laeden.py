@@ -59,7 +59,7 @@ def daten():
     }
 
 
-def client(d, uid):
+def client(d, uid, email=None):
     import app.apis.firebase_utils as fu
     import app.apis.konto as konto
     import app.apis.live as live_api
@@ -73,7 +73,7 @@ def client(d, uid):
     app = FastAPI()
     for r in (team.router, konto.router, live_api.router):
         app.include_router(r, prefix="/routes")
-    app.dependency_overrides[get_authorized_user] = lambda: SimpleNamespace(sub=uid, email=f"{uid}@example.com", email_verified=False)
+    app.dependency_overrides[get_authorized_user] = lambda: SimpleNamespace(sub=uid, email=email or f"{uid}@example.com", email_verified=False)
     return TestClient(app)
 
 
@@ -135,6 +135,16 @@ def test_laden_anlegen_nur_gratis_mit_testphase():
     assert s["owner"] == "neu-konto" and s["plan"] == "gratis" and "billing" not in s and "founder" not in s
     assert timedelta(days=29) < s["trialEndsAt"] - JETZT < timedelta(days=31)
     assert client(d, "neu-konto").post("/routes/team/laeden", json={"laden": {"name": " "}}).status_code == 400
+
+
+def test_laden_eines_testkontos_bleibt_aus_der_ladenliste():
+    """Wegwerf-Läden der automatischen Tests (q-me-test-…@example.com) tauchen nie in Suche, Karte, Ortsseiten auf"""
+    d = daten()
+    test = client(d, "test-konto", "q-me-test-1794397411219-m1fy@example.com").post("/routes/team/laeden", json={"laden": {"name": "Koppeln-Test"}})
+    echt = client(d, "echt-konto", "salon@gmx.de").post("/routes/team/laeden", json={"laden": {"name": "Salon Echt", "unlisted": True}})
+    assert test.status_code == 200 and echt.status_code == 200, (test.text, echt.text)
+    assert d["shops"][test.json()["laden"]["id"]].get("unlisted") is True
+    assert not d["shops"][echt.json()["laden"]["id"]].get("unlisted")  # echter Laden: sichtbar, auch wenn er es anders schickt
 
 
 def test_laden_aendern_nur_inhaber_ohne_tarif_felder():

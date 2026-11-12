@@ -78,9 +78,13 @@ def eigene_laeden(db, uid: str) -> list[dict]:
     return sorted(({"id": d.id, **(d.to_dict() or {})} for d in abfrage.stream()), key=lambda s: s["id"])
 
 
-def laden_anlegen(db, uid: str, daten: dict) -> dict:
-    """Neuer Laden für das eigene Konto: Gratis mit Testphase (wie newShopPlanFields im Browser)"""
-    daten = {k: v for k, v in daten.items() if k not in (*PLAN_FELDER, "owner", "createdAt", "updatedAt", "id")}
+def laden_anlegen(db, uid: str, daten: dict, email: str = "") -> dict:
+    """Neuer Laden für das eigene Konto: Gratis mit Testphase (wie newShopPlanFields im Browser).
+    Läden von Testkonten (z. B. q-me-test-…@example.com aus dev/e2e) kommen nie in Suche, Karte und Ortsseiten;
+    aus der Ladenliste nehmen kann sonst nur der Betreiber."""
+    from app.libs.onboarding_mail import is_test_address
+
+    daten = {k: v for k, v in daten.items() if k not in (*PLAN_FELDER, "owner", "createdAt", "updatedAt", "id", "unlisted")}
     if not isinstance(daten.get("name"), str) or not daten["name"].strip():
         raise LadenFehler(400, merke("Bitte gib einen Namen ein."))
     ref = db.collection(SHOPS).document()
@@ -89,6 +93,8 @@ def laden_anlegen(db, uid: str, daten: dict) -> dict:
     jetzt = _jetzt()
     eintrag = {**daten, "plan": "gratis", "trialEndsAt": jetzt + timedelta(days=TRIAL_DAYS), "owner": uid,
                "createdAt": jetzt, "updatedAt": jetzt}
+    if email and is_test_address(email):
+        eintrag["unlisted"] = True
     ref.set(eintrag)
     return {"id": ref.id, **eintrag}
 
