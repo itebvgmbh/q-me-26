@@ -3,13 +3,13 @@ titel: Mein Tag: deine Zeitleiste
 kurz: Unter „Mein Tag“ sieht jede Person nur ihre eigenen Kunden als Zeitleiste – zum Eintragen, Verschieben und Abhaken.
 thema: tresen
 reihenfolge: 4
-stichworte: mein tag, zeitleiste, kalender, woche, tage, verschieben, ziehen, konflikt, arbeitszeiten, status, mitarbeiter, team, kunde anlegen, kundenliste, kunde löschen
+stichworte: mein tag, zeitleiste, kalender, woche, tage, verschieben, ziehen, konflikt, arbeitszeiten, status, mitarbeiter, team, kunde anlegen, kunden
 ---
 „Mein Tag“ ist die Ansicht für jede Person im Team. Sie zeigt nur die eigenen Nummern und Termine, Stunde für Stunde. Der Tresen zeigt den ganzen Laden, „Mein Tag“ nur dich.
 
 Als Mitarbeiter findest du „Mein Tag“ oben im Menü. Wer in mehreren Läden im Team ist, wählt oben den Laden.
 
-Als Inhaber öffnest du es unter **„Laden“** → **„Mein Tag“**: für deine Woche, deine Arbeitszeiten, **„Kunde anlegen“** und die **„Kundenliste“**. Für den heutigen Tag nimmst du einfacher **„Heute“** mit **„Nur ich“**, dort rufst du deine Kunden auch auf. Arbeitest du selbst mit, trag dich unter **„Laden“** → **„Team“** mit deiner E-Mail ein. Sonst steht in „Mein Tag“ „Die Termine deines Teams stehen am Tresen.“, und „Nur ich“ fehlt. Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
+Als Inhaber öffnest du es unter **„Laden“** → **„Mein Tag“**: für deine Woche, deine Arbeitszeiten und **„Kunde anlegen“**. Für den heutigen Tag nimmst du einfacher **„Heute“** mit **„Nur ich“**, dort rufst du deine Kunden auch auf. Arbeitest du selbst mit, trag dich unter **„Laden“** → **„Team“** mit deiner E-Mail ein. Sonst steht in „Mein Tag“ „Die Termine deines Teams stehen am Tresen.“, und „Nur ich“ fehlt. Wie du andere dazuholst: [Team einladen](/hilfe/team-einladen).
 
 ## Zeitraum wählen
 
@@ -34,15 +34,9 @@ Danach zeigt Dranzeit einen Link. Schick ihn der Person mit **„Link kopieren�
 
 Wer bei dir mit Konto eine Nummer zieht oder einen Termin bucht, steht danach von selbst unter **„Bestandskunde“**, schon mit dem Konto verbunden. Hast du die Person vorher mit derselben E-Mail angelegt, verbindet Dranzeit deinen Eintrag mit ihrem Konto, wenn ihre Adresse dort bestätigt ist (über den Link in unserer Bestätigungs-Mail). Sonst schick ihr den Link.
 
-## Termine eines Kunden
+## Termine und Notizen eines Kunden
 
-Tipp oben auf **„Kundenliste“** und dann auf den Namen. Darunter stehen alle Termine dieser Person in deinem Laden, die neuesten zuerst, mit Leistung und Person. Termine über den Telefon-Assistenten haben ein Telefon-Zeichen. Wer am Telefon bucht, steht von selbst in der Liste: [Telefon-Assistent](/hilfe/telefon-assistent)
-
-## Kunde löschen
-
-Tipp oben auf **„Kundenliste“**. Dort stehen alle Kunden deines Ladens. Tipp beim Kunden auf **„Löschen“** und bestätige mit **„Ja, löschen“**. Kommende Termine des Kunden werden abgesagt, frühere bleiben ohne Namen stehen. Hat der Kunde sein Konto verbunden, verschwindet nur der Eintrag aus deiner Liste, die Termine bleiben in seinem Konto.
-
-Von selbst löscht Dranzeit Kunden ohne verbundenes Konto, wenn 12 Monate kein Termin mit ihnen war. Mehr: [Datenschutz](/hilfe/datenschutz)
+Alle Kunden deines Ladens stehen unter **„Kunden“** oben im Menü, mit allen Terminen, Umsatz und Notizen wie der Farbrezeptur. Dort löschst du einen Kunden auch. Mehr: [Kunden: deine Kundenkartei](/hilfe/kunden)
 
 ## Verschieben
 

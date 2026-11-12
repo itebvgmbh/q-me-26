@@ -10,6 +10,13 @@ Team und Leistungen eines Ladens, mit Anmeldung (requirements/eigene-datenbank.m
     POST /team/leistungen/{id}              {"aenderung": {…}}: ändern, ausblenden, wiederherstellen (Inhaber)
     GET  /team/leistungen/{id}/kommende     {"anzahl": n}: kommende Termine mit der Leistung (Inhaber und Team)
 
+Kundenkartei (Inhaber und Team, nicht das Tablet; Kennzahlen und Notizen ab Tarif Solo, app/libs/kartei.py):
+
+    GET  /team/laeden/{shopId}/kartei                          Kunden mit Besuchen, Umsatz, zuletzt da
+    GET  /team/laeden/{shopId}/kartei/{kundeId}                Kundenseite: Termine mit Preis, Kennzahlen, Notizen
+    POST /team/laeden/{shopId}/kartei/{kundeId}                {"aenderung": {name?, phone?, email?, notiz?}}
+    POST /team/laeden/{shopId}/kartei/{kundeId}/besuch/{id}    {"notiz": "…"}: Notiz zu einem Besuch, leer löscht
+
 Öffentlich ohne Anmeldung, ohne Konto-ID und Einladung: GET /live/laden/{id}/personen, /live/laden/{id}/leistungen,
 /live/leistung/{id} (app/apis/live). Logik und Rechte: app/libs/team_laden.py.
 """
@@ -284,3 +291,77 @@ def kunde_anlegen(body: KundeAnlegen, user: AuthorizedUser) -> dict:
         return live.json_wert({"kunde": ld.kunde_anlegen(store.db(), daten)})
     except ld.LadenFehler as e:
         raise _laden_fehler(e)
+
+
+# --- Kundenkartei (Seite „Kunden“): Kennzahlen, Verlauf mit Preis, Notizen. Logik: app/libs/kartei.py ---------------
+# Nicht für das Tablet am Tresen (app/libs/geraete.py): Es liest nur die Kundenliste ohne Notizen und ordnet Termine zu.
+
+from app.libs import kartei  # noqa: E402
+from app.libs.plans import has_feature  # noqa: E402
+
+
+class Besuchsnotiz(BaseModel):
+    notiz: str = ""
+
+
+def _kartei_fehler(e: kartei.KarteiFehler) -> HTTPException:
+    return HTTPException(status_code=e.status, detail=e.text)
+
+
+def _kartei_laden(db, shop_id: str, user) -> bool:
+    """Prüft Laden und Rechte (Inhaber und Team); True, wenn der Tarif die Kartei hat"""
+    _id(shop_id, merke("Diesen Laden gibt es nicht."))
+    require_shop_member(user, shop_id)
+    return has_feature(ld.laden_roh(db, shop_id), "kartei")
+
+
+@router.get("/team/laeden/{shop_id}/kartei")
+def kartei_liste(shop_id: str, user: AuthorizedUser, response: Response) -> dict:
+    """Alle Kunden des Ladens, mit Kartei im Tarif samt Besuchen, Umsatz, zuletzt da"""
+    _keine_ablage(response)
+    db = store.db()
+    mit = _kartei_laden(db, shop_id, user)
+    return live.json_wert({"kunden": kartei.liste(db, shop_id, mit), "kartei": mit})
+
+
+@router.get("/team/laeden/{shop_id}/kartei/{kunde_id}")
+def kartei_karte(shop_id: str, kunde_id: str, user: AuthorizedUser, response: Response) -> dict:
+    """Kundenseite: Eintrag, Termine mit Preis; mit Kartei Kennzahlen und Notizen"""
+    _keine_ablage(response)
+    db = store.db()
+    mit = _kartei_laden(db, shop_id, user)
+    _id(kunde_id, merke("Diesen Kunden gibt es nicht mehr."))
+    try:
+        return live.json_wert(kartei.karte(db, shop_id, kunde_id, mit))
+    except kartei.KarteiFehler as e:
+        raise _kartei_fehler(e)
+
+
+@router.post("/team/laeden/{shop_id}/kartei/{kunde_id}")
+def kartei_aendern(shop_id: str, kunde_id: str, body: Aenderung, user: AuthorizedUser) -> dict:
+    """{"aenderung": {name?, phone?, email?, notiz?}} – die Notiz nur mit Kartei im Tarif"""
+    db = store.db()
+    mit = _kartei_laden(db, shop_id, user)
+    _id(kunde_id, merke("Diesen Kunden gibt es nicht mehr."))
+    try:
+        kunde = kartei.aendern(db, shop_id, kunde_id, body.aenderung, mit)
+    except kartei.KarteiFehler as e:
+        raise _kartei_fehler(e)
+    eintrag = ld.kunde_fuers_team(kunde_id, kunde)
+    if mit:
+        eintrag.update(notiz=str(kunde.get("notiz") or ""), notizGeaendert=kunde.get("notizGeaendert"))
+    return live.json_wert({"kunde": eintrag})
+
+
+@router.post("/team/laeden/{shop_id}/kartei/{kunde_id}/besuch/{termin_id}")
+def kartei_besuchsnotiz(shop_id: str, kunde_id: str, termin_id: str, body: Besuchsnotiz, user: AuthorizedUser) -> dict:
+    """Notiz zu einem Besuch (z. B. Farbrezeptur); leer löscht sie. Nur mit Kartei im Tarif."""
+    db = store.db()
+    if not _kartei_laden(db, shop_id, user):
+        raise HTTPException(status_code=403, detail=merke("Notizen gehören zum Tarif Solo."))
+    _id(kunde_id, merke("Diesen Kunden gibt es nicht mehr."))
+    _id(termin_id, merke("Diesen Termin gibt es bei diesem Kunden nicht."))
+    try:
+        return live.json_wert({"notiz": kartei.besuchsnotiz(db, shop_id, kunde_id, termin_id, body.notiz)})
+    except kartei.KarteiFehler as e:
+        raise _kartei_fehler(e)

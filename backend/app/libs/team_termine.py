@@ -116,6 +116,14 @@ def _pruefen(db, shop_id: str, daten: dict) -> None:
             raise TerminFehler(400, merke("Ungültige Zeitangabe für den Termin."))
     if "staffId" in daten and not person_im_laden(db, shop_id, daten["staffId"]):
         raise TerminFehler(400, merke("Diese Person gehört nicht zu diesem Laden."))
+    if "kundeId" in daten and daten["kundeId"] is not store.DELETE_FIELD:
+        # „Kunde zuordnen“ am Tresen: nur Einträge der Kundenliste dieses Ladens (app/libs/kartei.py)
+        from app.libs.kartei import KarteiFehler, zuordnung_pruefen
+
+        try:
+            zuordnung_pruefen(db, shop_id, daten["kundeId"])
+        except KarteiFehler as e:
+            raise TerminFehler(e.status, e.text)
 
 
 def nach_dem_schreiben(termin_id: str, vorher: dict | None, nachher: dict, frei: bool, benachrichtigen: bool) -> None:

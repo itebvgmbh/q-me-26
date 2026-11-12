@@ -18,6 +18,8 @@ const App = lazyPage(() => import("./pages/App.tsx"));
 const Activate = lazyPage(() => import("./pages/Activate.tsx"));
 const Agb = lazyPage(() => import("./pages/Agb.tsx"));
 const Auswertung = lazyPage(() => import("./pages/Auswertung.tsx"));
+const Kunden = lazyPage(() => import("./pages/Kunden.tsx"));
+const Kunde = lazyPage(() => import("./pages/Kunde.tsx"));
 const Betreiber = lazyPage(() => import("./pages/Betreiber.tsx"));
 const Preise = lazyPage(() => import("./pages/Preise.tsx"));
 const Rechner = lazyPage(() => import("./pages/Rechner.tsx"));
@@ -86,6 +88,9 @@ export const userRoutes: RouteObject[] = [
 	{ path: "/schnittstelle", element: <UserGuard><Schnittstelle /></UserGuard>},
 	{ path: "/uebernehmen", element: <Uebernehmen />},
 	{ path: "/auswertung", element: <UserGuard><Auswertung /></UserGuard>},
+	// Kundenkartei für Inhaber und Team (nicht für das Tablet am Tresen: das Backend lässt es nicht an /kartei)
+	{ path: "/kunden", element: <UserGuard><Kunden /></UserGuard>},
+	{ path: "/kunden/:kundeId", element: <UserGuard><Kunde /></UserGuard>},
 	// Nur für den Betreiber der App; das Backend prüft jeden Aufruf (backend/app/apis/betreiber)
 	{ path: "/betreiber", element: <UserGuard><Betreiber /></UserGuard>},
 	{ path: "/plakat", element: <UserGuard><Plakat /></UserGuard>},

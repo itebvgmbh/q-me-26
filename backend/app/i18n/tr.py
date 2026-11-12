@@ -337,6 +337,7 @@ TEXTE: dict = {
     "Heute": "Bugün",
     "Hilfe": "Yardım",
     "Kalender": "Takvim",
+    "Kunden": "Müşteriler",
     "Laden": "Salon",
     "Läden finden": "Salon bul",
     "Mein Tag": "Günüm",
@@ -400,4 +401,14 @@ TEXTE: dict = {
     "Bitte einen Ort oder eine Postleitzahl eingeben.": "Lütfen bir yer veya posta kodu gir.",
     "Diesen Ort haben wir nicht gefunden.": "Bu yeri bulamadık.",
     "Die Ortssuche ist gerade nicht erreichbar.": "Yer arama şu anda kullanılamıyor.",
+    # Kundenkartei (app/libs/kartei.py)
+    "Diesen Termin gibt es bei diesem Kunden nicht.": "Bu müşteride böyle bir randevu yok.",
+    "Notizen gehören zum Tarif Solo.": "Notlar Solo tarifesine dahildir.",
+    "Die Notiz ist zu lang (höchstens 2000 Zeichen).": "Not çok uzun (en fazla 2000 karakter).",
+    "Das lässt sich hier nicht ändern.": "Bu burada değiştirilemez.",
+    "Diese Telefonnummer ist zu lang.": "Bu telefon numarası çok uzun.",
+    "Diese Telefonnummer können wir nicht lesen.": "Bu telefon numarasını okuyamıyoruz.",
+    "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "E-posta adresi bağlı hesaba ait ve burada değiştirilemez.",
+    "Bitte gib eine gültige E-Mail-Adresse ein.": "Lütfen geçerli bir e-posta adresi gir.",
+    "Diese E-Mail-Adresse ist zu lang.": "Bu e-posta adresi çok uzun.",
 }

@@ -369,6 +369,7 @@ TEXTE: dict = {
     "Heute": "اليوم",
     "Hilfe": "المساعدة",
     "Kalender": "التقويم",
+    "Kunden": "العملاء",
     "Laden": "المحل",
     "Läden finden": "ابحث عن محل",
     "Mein Tag": "يومي",
@@ -432,4 +433,14 @@ TEXTE: dict = {
     "Bitte einen Ort oder eine Postleitzahl eingeben.": "يرجى إدخال مكان أو رمز بريدي.",
     "Diesen Ort haben wir nicht gefunden.": "لم نعثر على هذا المكان.",
     "Die Ortssuche ist gerade nicht erreichbar.": "البحث عن الأماكن غير متاح حاليًا.",
+    # Kundenkartei (app/libs/kartei.py)
+    "Diesen Termin gibt es bei diesem Kunden nicht.": "هذا الموعد غير موجود لدى هذا العميل.",
+    "Notizen gehören zum Tarif Solo.": "الملاحظات جزء من باقة Solo.",
+    "Die Notiz ist zu lang (höchstens 2000 Zeichen).": "الملاحظة طويلة جدًا (2000 حرف كحد أقصى).",
+    "Das lässt sich hier nicht ändern.": "لا يمكن تغيير هذا هنا.",
+    "Diese Telefonnummer ist zu lang.": "رقم الهاتف هذا طويل جدًا.",
+    "Diese Telefonnummer können wir nicht lesen.": "لا يمكننا قراءة رقم الهاتف هذا.",
+    "Die E-Mail-Adresse gehört zum verbundenen Konto und lässt sich hier nicht ändern.": "عنوان البريد الإلكتروني يخص الحساب المرتبط ولا يمكن تغييره هنا.",
+    "Bitte gib eine gültige E-Mail-Adresse ein.": "يرجى إدخال عنوان بريد إلكتروني صالح.",
+    "Diese E-Mail-Adresse ist zu lang.": "عنوان البريد الإلكتروني هذا طويل جدًا.",
 }

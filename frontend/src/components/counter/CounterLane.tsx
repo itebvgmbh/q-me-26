@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { safelyConvertToDate } from '../../utils/datetime';
 import { Appointment, Service, updateAppointment } from '../../utils/firestore';
 import { delayMinutes, expectedStart, isDue, projectLane, SHOW_DELAY_MINUTES, waitingInOrder } from '../../utils/queue-lane';
+import { KundeZuordnen } from './KundeZuordnen';
 import { merke, t, tn, tTeile } from '@/i18n';
 
 // Platzhalter, die so in Firestore stehen – verglichen wird deutsch, angezeigt übersetzt
@@ -124,6 +125,7 @@ export const CounterLane = ({ title, appointments, services, now, live }: Props)
               )}
             </p>
             {current.customerPhone && <PhoneLink phone={current.customerPhone} />}
+            <KundeZuordnen termin={current} />
             {live && ask?.kind !== 'noShow' && (
               <button
                 type="button"

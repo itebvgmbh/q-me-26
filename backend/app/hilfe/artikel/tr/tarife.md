@@ -2,7 +2,7 @@
 titel: Hangi paket bana uygun?
 kurz: Ücretsiz, Solo, Salon veya Ekip: Her pakette neler var, ne kadar tutuyor ve kimin için düşünüldü.
 stichworte: fiyat, fiyatlar, maliyet, ücret, paket, paketler, tarife, karşılaştırma, ücretsiz, solo, salon, ekip, net, brüt, kdv, küçük işletme, komisyon, yıllık
-quelle: 6010259f7626
+quelle: 11742db527eb
 ---
 Yalnız çalışıyorsan Ücretsiz veya Solo yeterli. İki ila dört kişiyseniz Salon, on kişiye kadar Ekip paketini seç. Sende müşterilere hizmet veren herkes, sen de dahil, bir kişi sayılır. Komisyon yok: Dranzeit üzerinden kaç müşteri gelirse gelsin sabit bir fiyat ödersin.
 
@@ -18,6 +18,7 @@ Bir kişi için, sınırsız müşteri. Buna ek olarak:
 - Erken sıra
 - Bildirim veya e-postayla “Sıra neredeyse sizde” mesajı
 - Randevu hatırlatmaları
+- Ziyaret, ciro ve notlarla müşteri kartı: [Müşteriler](/hilfe/kunden)
 
 ## Salon – ayda 39 €
 

@@ -128,23 +128,13 @@ export interface Customer {
   updatedAt: Timestamp;
 }
 
-/** Ein Termin in der Kundenliste, mit Namen von Leistung und Person (backend/app/libs/telefon_kunden.py, historie) */
-export interface CustomerVisit {
-  id: string;
-  startTime?: Timestamp;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-  type?: 'queue' | 'booked';
-  source?: string;
-  referenceCode?: string;
-  customerName?: string;
-  leistung: string;
-  person: string;
-}
-
 export interface Appointment {
   id: string;
   shopId: string;
   customerId?: string;
+  /** Eintrag der Kundenliste bei Nummern und Terminen ohne Konto: per Handynummer oder am Tresen zugeordnet
+   *  (backend/app/libs/kartei.py). customerId bleibt dann leer, damit die Nummer mit ihrem Schlüssel absagbar bleibt. */
+  kundeId?: string;
   customerName?: string;
   /** Telefonnummer bei Buchung ohne Konto */
   customerPhone?: string;

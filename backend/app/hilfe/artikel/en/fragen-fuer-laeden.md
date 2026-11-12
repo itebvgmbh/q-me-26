@@ -2,7 +2,7 @@
 titel: Frequently asked questions from shops
 kurz: Costs, trial, cancellation, devices, customers without a smartphone, internet and data protection: short answers to the most important questions.
 stichworte: faq, questions, frequently asked questions, costs, price, commission, fees, app, account, smartphone, mobile, phone, devices, tablet, trial, test, cancel, cancellation, internet, offline, wifi, wi-fi, data protection, privacy, contact
-quelle: 0032ce6322da
+quelle: e47dddb29a1b
 ---
 Short answers to what shops ask most often before getting started. If your question isn't here, write to us at [hilfe@dranzeit.de](mailto:hilfe@dranzeit.de).
 
@@ -46,7 +46,7 @@ Free and Solo are for one person, Shop for up to 4 and Team for up to 10 people,
 
 ### What about data protection?
 
-Your customers only give their first name; mobile number and email address are optional. For numbers and appointments without an account, we remove names and contact details 90 days after the appointment. We delete customers you add yourself once there hasn't been an appointment with them for 12 months, or you delete them beforehand under “Shop” → “My day” → **“Customer list”**. The data processing agreement is in section 7 of the [terms](/agb). More: [Privacy: what data Dranzeit stores](/hilfe/datenschutz)
+Your customers only give their first name; mobile number and email address are optional. For numbers and appointments without an account, we remove names and contact details 90 days after the appointment. We delete customers in your customer list who have no linked account once there hasn't been an appointment with them for 12 months, or you delete them beforehand under **“Customers”**. The data processing agreement is in section 7 of the [terms](/agb). More: [Privacy: what data Dranzeit stores](/hilfe/datenschutz)
 
 ### How do new customers find me?
 

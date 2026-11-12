@@ -19,6 +19,7 @@
     "shopOwner": [
       { "to": "/shop-dashboard", "label": "Heute" },
       { "to": "/kalender", "label": "Kalender" },
+      { "to": "/kunden", "label": "Kunden" },
       {
         "to": "/shop-profile",
         "label": "Laden",
@@ -27,6 +28,7 @@
     ],
     "employee": [
       { "to": "/employee-dashboard", "label": "Mein Tag" },
+      { "to": "/kunden", "label": "Kunden" },
       { "to": "/my-bookings", "label": "Meine Termine" }
     ],
     "tresen": [

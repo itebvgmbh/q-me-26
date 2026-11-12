@@ -2,7 +2,7 @@
 titel: Set up the phone assistant
 kurz: An AI answers calls when nobody in the shop picks up, offers free appointments and books them. How to try it, book it and set it up.
 stichworte: phone, call, calls, ai, assistant, phone assistant, call forwarding, forwarding, diversion, divert, voicemail, mailbox, answering machine, fritzbox, telekom, test call, trial minutes, book add-on, add-on, cost cap, cap, minutes, cancel, regulars, regular customers, customer list, recognise, call list, summary, call back, callback, missed, busy, hung up
-quelle: 4e04e831d9ec
+quelle: 670860ce4e45
 ---
 If nobody in the shop picks up, the phone assistant answers the call. Your customers keep dialling your usual number. All you do is set up call forwarding with your phone provider.
 
@@ -20,13 +20,13 @@ If someone books by phone, the assistant adds them to your customer list, with t
 
 If they call again, the assistant greets them by name, doesn't ask for it again and offers them the same service as last time. It also knows their upcoming appointments and can tell them about them.
 
-You can see all of a person's appointments under **“Shop” → “My day” → “Customer list”**: tap the name. You can also delete an entry there. Without a linked account, Dranzeit deletes it automatically if there hasn't been an appointment for 12 months. If someone calls with a withheld number, the assistant doesn't create an entry.
+You can see all of a person's appointments under **“Customers”** in the menu at the top: tap the name. You can also delete an entry there. More: [Customers: your customer file](/hilfe/kunden) Without a linked account, Dranzeit deletes it automatically if there hasn't been an appointment for 12 months. If someone calls with a withheld number, the assistant doesn't create an entry.
 
 ## Call list and calling back
 
 Under **“Shop” → “Phone assistant”**, you can see under **“Calls”** who called and what came of it: the booked appointment, the number taken, “Question answered”, “Request still open”, “Hung up” or “No appointment booked”. Below that, the AI sums up the call in one or two sentences, for example what the caller wanted if the assistant couldn't help. The summary is always in German and may contain mistakes. If it says “Announcement only”, the caller only heard the short announcement, for example because the trial minutes were used up.
 
-Where no appointment came of it, you can call the person directly with **“Call back”**. For “Request still open”, the button is highlighted. The list shows calls from the last 90 days; Dranzeit deletes older ones together with their summary. If you delete a customer from the customer list, their calls disappear too.
+Where no appointment came of it, you can call the person directly with **“Call back”**. For “Request still open”, the button is highlighted. The list shows calls from the last 90 days; Dranzeit deletes older ones together with their summary. If you delete a customer under “Customers”, their calls disappear too.
 
 If a very large number of shops are on the phone with the assistant at the same time, the caller briefly hears “One moment, please” and is then connected. If that doesn't work either, they hear an announcement that all lines are busy, and the call appears in your list.
 
