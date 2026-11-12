@@ -223,10 +223,18 @@ def test_absagen_mit_konto_nur_den_eigenen():
 def test_absagen_ohne_konto_mit_schluessel():
     client, _, store = setup()
     appt_id = ziehen(client, **ohne_konto()).json()["appointment_id"]
+    # Mit Name und Handynummer landet die Nummer in der Kundenkartei (kundeId, app/libs/kartei.py), customerId bleibt
+    # leer – sonst ginge Absagen mit dem Schlüssel nicht mehr
+    appt = store["appointments"][appt_id]
+    kunde = store["customers"][appt["kundeId"]]
+    assert "customerId" not in appt and kunde["source"] == "online" and kunde["name"] == "Sam" and kunde["phone"] == "+491702222222"
     assert client.post("/nummer/absagen", json={"appointment_id": appt_id}).status_code == 403
     assert client.post("/nummer/absagen", json={"appointment_id": appt_id, "key": "x" * 32}).status_code == 403
     assert client.post("/nummer/absagen", json={"appointment_id": appt_id, "key": KEY}).status_code == 200
     assert store["appointments"][appt_id]["status"] == "cancelled"
+    # Zweite Nummer mit derselben Handynummer: derselbe Eintrag, kein neuer
+    zweite = ziehen(client, **ohne_konto(phone="+49 170 2222222")).json()["appointment_id"]
+    assert store["appointments"][zweite]["kundeId"] == appt["kundeId"] and len(store["customers"]) == 1
 
 
 def test_uebernommene_nummer_nur_noch_mit_konto():
