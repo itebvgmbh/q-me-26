@@ -112,11 +112,16 @@ def _rate_id(tax: dict) -> str | None:
 
 
 def _category(tax: dict, percent: Decimal | None) -> tuple[str, Decimal]:
-    """Steuerkategorie nach EN 16931 (UNTDID 5305) aus Stripes Begründung."""
+    """Steuerkategorie nach EN 16931 (UNTDID 5305) aus Stripes Begründung.
+
+    Stripe Tax begründet jeden Satz (standard_rated, reverse_charge …). Beim festen Steuersatz von 19 %
+    (app/libs/stripe_billing.py, seit 12.11.2026) gibt Stripe keine Begründung: Dann zählt der Satz selbst."""
     reason = tax.get("taxability_reason")
     if reason == "reverse_charge":
         return "AE", Decimal("0.00")
     if reason in ("standard_rated", "reduced_rated") and percent is not None and percent > 0:
+        return "S", percent
+    if reason in (None, "not_available") and tax.get("type") == "tax_rate_details" and percent is not None and percent > 0:
         return "S", percent
     raise NotSupported(f"Steuerfall „{reason}“ wird als E-Rechnung nicht unterstützt.")
 

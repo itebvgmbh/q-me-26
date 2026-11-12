@@ -46,6 +46,7 @@ from app.apis.firebase_utils import get_firestore_db  # noqa: E402
 from app.libs.shop_privat import TEST, privat_ref, save_stripe_ids, stripe_link  # noqa: E402
 from app.libs.shop_privat import TEST_DOC  # noqa: E402
 from app.libs.stripe_billing import client, lookup_key, price_id, stripe_configured  # noqa: E402
+from app.libs.stripe_billing import steuer as feste_steuer  # noqa: E402  (main hat eine Variable steuer)
 
 ergebnis: list[tuple[str, bool, str]] = []
 
@@ -103,7 +104,7 @@ def main() -> int:
         preis = lookup_key("laden", "monat", bool(shop.get("founder")))
         abo = c.v1.subscriptions.create(params={
             "customer": kunde.id, "items": [{"price": price_id(c, preis, TEST)}],
-            "metadata": {"shopId": SHOP}, "automatic_tax": {"enabled": True},
+            "metadata": {"shopId": SHOP}, **feste_steuer(c, TEST),  # feste 19 % wie im Checkout (app/libs/stripe_billing.py)
         })
         pruefe("Abo abgeschlossen", abo.status == "active", f"{preis}, {abo.status}")
         rechnung = c.v1.invoices.retrieve(abo.latest_invoice)

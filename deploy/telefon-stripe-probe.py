@@ -15,7 +15,7 @@ sys.path.insert(0, "/opt/q-me/backend")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
 
 from app.libs import telefon as tel  # noqa: E402
-from app.libs.stripe_billing import TEST, client, price_id, stripe_configured  # noqa: E402
+from app.libs.stripe_billing import TEST, client, price_id, steuer, stripe_configured  # noqa: E402
 from app.libs.telefon_abrechnung import GRUNDPREIS_KEY, METER_EVENT, MINUTEN_KEY  # noqa: E402
 
 ENV_FILE = os.environ.get("QME_ENV_FILE", "/etc/q-me.env")
@@ -48,7 +48,7 @@ def main() -> int:
             "customer": kunde.id,
             "items": [{"price": grund, "quantity": 1}, {"price": minuten}],
             "metadata": {"zusatz": "telefon", "probe": "telefon"},
-            "automatic_tax": {"enabled": True},
+            **steuer(c, TEST),  # feste 19 % wie im Checkout
         })
         print(f"Abo {abo.id}: {abo.status}")
         if abo.status != "active":

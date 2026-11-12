@@ -27,7 +27,7 @@ from app.libs import telefon_anrufliste as tal
 from app.libs import telefon_laeden as tl
 from app.libs.links import public_origin
 from app.libs.shop_privat import stripe_link
-from app.libs.stripe_billing import client, price_id
+from app.libs.stripe_billing import client, price_id, steuer
 
 router = APIRouter()
 
@@ -140,9 +140,12 @@ def buchen(shop_id: str, user: AuthorizedUser, request: Request) -> dict:
                 {"price": price_id(c, ta.GRUNDPREIS_KEY, mode), "quantity": 1},
                 {"price": price_id(c, ta.MINUTEN_KEY, mode)},  # nach Nutzung: ohne Menge
             ],
-            "subscription_data": {"metadata": {"shopId": shop_id, "zusatz": ta.ZUSATZ}, "description": "Dranzeit Telefon-Assistent"},
+            "subscription_data": {
+                "metadata": {"shopId": shop_id, "zusatz": ta.ZUSATZ},
+                "description": "Dranzeit Telefon-Assistent",
+                **steuer(c, mode),  # feste 19 % (app/libs/stripe_billing.py)
+            },
             "metadata": {"shopId": shop_id, "zusatz": ta.ZUSATZ},
-            "automatic_tax": {"enabled": True},
             "tax_id_collection": {"enabled": True},
             "billing_address_collection": "required",
             "customer_update": {"address": "auto", "name": "auto"},

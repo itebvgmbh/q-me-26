@@ -461,14 +461,14 @@ Läden schließen ihr Abo unter „Mein Tarif“ (`/tarif`) ab; bezahlt wird üb
 gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. Erst im **Testmodus** einrichten.
 
 1. **Schlüssel:** Stripe-Dashboard (Testmodus) → Entwickler → API-Schlüssel → „Eingeschränkten Schlüssel
-   erstellen“ mit Schreibrechten für Produkte, Preise, Kunden, Checkout-Sessions, Kundenportal und
-   Webhook-Endpunkte sowie Leserecht für Abonnements. (Ein `sk_test_…` geht auch, ist aber mächtiger.)
+   erstellen“ mit Schreibrechten für Produkte, Preise, Steuersätze (Tax Rates), Kunden, Checkout-Sessions,
+   Kundenportal und Webhook-Endpunkte sowie Leserecht für Abonnements. (Ein `sk_test_…` geht auch, ist aber mächtiger.)
    Eintragen mit dem Block „Schlüssel eintragen“, Option 5.
-2. **Einrichten:** Block unten. Er legt Produkte und Preise an (netto, Gründerpreise inklusive), den Webhook
+2. **Einrichten:** Block unten. Er legt Produkte und Preise an (netto, Gründerpreise inklusive), den festen
+   Steuersatz 19 % (Abschnitt „Umsatzsteuer“ unten), den Webhook
    auf `<adresse>/routes/stripe/webhook` und das Kundenportal. Das Webhook-Geheimnis schreibt das Skript direkt
    nach `/etc/q-me.env`, es erscheint nirgends. Mehrfach ausführbar.
-3. **Im Dashboard:** Einstellungen → Steuern → Registrierung Deutschland anlegen (sonst rechnet Stripe keine
-   Mehrwertsteuer). Einstellungen → Zahlungsmethoden → SEPA-Lastschrift einschalten. Einstellungen →
+3. **Im Dashboard:** Einstellungen → Zahlungsmethoden → SEPA-Lastschrift einschalten. Einstellungen →
    Kunden-E-Mails → Rechnungen und Belege per E-Mail einschalten. Rechnungsvorlage, Fußzeile, USt-IdNr. und
    Nummernkreis: Abschnitt „Rechnungen“ unten.
 4. **Testen:** Als Inhaber unter `/tarif` „Weiter zur Bezahlung“, Testkarte `4242 4242 4242 4242`.
@@ -498,6 +498,32 @@ gekündigt im Stripe-Kundenportal. Den Stand schreibt ein Webhook an den Laden. 
 Wechsel auf echte Zahlungen: dasselbe mit dem Live-Schlüssel wiederholen. Vorher `STRIPE_WEBHOOK_SECRET` und
 `STRIPE_PORTAL_CONFIG` aus `/etc/q-me.env` löschen, damit das Skript Webhook und Portal im Live-Modus neu anlegt.
 Die Rechnungseinstellungen aus dem Abschnitt „Rechnungen“ im Livemodus noch einmal kontrollieren.
+
+### Umsatzsteuer: fester Satz 19 % statt Stripe Tax
+
+Stefan hat am 11.11.2026 entschieden: zum Start kein Stripe Tax, sondern feste 19 %. Bis 12.11.2026 lief der
+Checkout mit `automatic_tax`; ohne Registrierung in Stripe Tax hätte Stripe damit 0 % berechnet. Seitdem hängt an
+jedem Abo (Tarif und Telefon-Assistent) der Steuersatz „USt. 19 %“ (netto, Deutschland), als `default_tax_rates`
+am Abo, damit er auch nach einem Tarifwechsel im Kundenportal bleibt (`app/libs/stripe_billing.py`, `steuer()`).
+
+- **Anlegen:** `stripe-setup.py <adresse> --nur-steuer` (Sandbox zusätzlich `--test`). Das Skript nimmt einen
+  vorhandenen Satz mit `metadata.dranzeit_steuer=ust19` oder legt ihn an und schreibt die ID nach
+  `STRIPE_STEUERSATZ` bzw. `STRIPE_TEST_STEUERSATZ` in `/etc/q-me.env` (kein Geheimnis). Danach `systemctl restart q-me`.
+  Der eingeschränkte Schlüssel braucht dafür „Tax Rates: Write“.
+- **Prüfen:** `stripe-steuer.py pruefen` legt eine Checkout-Sitzung an, prüft die 19 % und beendet sie sofort
+  (keine Zahlung). Mit `--test` zusätzlich ein Sandbox-Abo mit Testkarte, dessen Rechnung 19 % haben und als
+  E-Rechnung durchgehen muss.
+- **Laufende Abos:** `stripe-steuer.py abos` zeigt Abos ohne den festen Satz, `--ausfuehren` stellt sie um
+  (gilt ab der nächsten Rechnung, ohne anteilige Verrechnung).
+
+```bash
+cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de --nur-steuer && systemctl restart q-me
+cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-steuer.py pruefen
+cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-steuer.py abos
+```
+
+Folge: Auch Läden im EU-Ausland mit USt-IdNr. bekommen 19 % statt Reverse Charge. Bevor ein solcher Laden bucht,
+Stripe Tax mit Registrierung einrichten oder einen eigenen Weg bauen (Abschnitt „Rechnungen“).
 
 ### Testmodus je Laden (Stripe-Sandbox)
 
@@ -630,7 +656,7 @@ vor der ersten echten Rechnung):
 | Menge und Art der Leistung | § 14 Abs. 4 Nr. 5 UStG | automatisch („1 × Dranzeit Laden“, Produktnamen aus `stripe-setup.py`) |
 | Leistungszeitraum | § 14 Abs. 4 Nr. 6 UStG | automatisch (Abozeitraum je Position) |
 | Entgelt netto nach Steuersatz, Rabatte | § 14 Abs. 4 Nr. 7 UStG | Einstellungen → Billing → Rechnungen → Standard-Artikelpreise: „Steuern nicht im Preis enthalten“ (Positionen netto wie die Preise und die E-Rechnung) |
-| Steuersatz und Steuerbetrag | § 14 Abs. 4 Nr. 8 UStG | Stripe Tax mit Registrierung Deutschland (Abschnitt „Abo-Abrechnung“, Schritt 3) |
+| Steuersatz und Steuerbetrag | § 14 Abs. 4 Nr. 8 UStG | fester Steuersatz „USt. 19 %“ am Abo (Abschnitt „Umsatzsteuer: fester Satz 19 %“) |
 | Rechtsform, Sitz, Registergericht, HRB, Geschäftsführer | § 35a GmbHG | Einstellungen → Billing → Rechnungen → Standardfußzeile: `ITEBV GmbH · Sitz Berlin · Amtsgericht Berlin-Charlottenburg HRB 236012 B · Geschäftsführer: Stefan Tittmann · USt-IdNr. DE348787952` |
 
 Sprache Deutsch setzt die App beim Anlegen des Kunden, Logo und Farbe stehen unter Einstellungen → Branding.
@@ -639,7 +665,8 @@ Kontrolle: Dashboard → Rechnungen → eine Testrechnung öffnen → PDF ansehe
 **Kleinbetragsrechnungen** (bis 250 € brutto, § 33 UStDV) brauchen weniger Angaben. Das sind alle
 Monatsrechnungen (höchstens 70,21 €) und die Jahresrechnungen von Solo und Gründer-Laden (je 226,10 €).
 
-**Kunden in anderen EU-Ländern** mit USt-IdNr. (z. B. Österreich): Stripe Tax berechnet 0 % (Reverse Charge).
+**Kunden in anderen EU-Ländern** mit USt-IdNr. (z. B. Österreich): Mit dem festen Satz (seit 12.11.2026) bekommen
+sie ebenfalls 19 %, das ist für sie falsch. Erst mit Stripe Tax und Registrierung berechnet Stripe 0 % (Reverse Charge).
 Auf die Rechnung gehören dann beide USt-IdNr. und der Hinweis „Steuerschuldnerschaft des
 Leistungsempfängers“, ausgestellt bis zum 15. des Folgemonats (§ 14a Abs. 1 und 5 UStG). Mit einer
 Testrechnung an einen österreichischen Testkunden prüfen, dass der Hinweis auf dem PDF steht; die E-Rechnung

@@ -1,4 +1,4 @@
-"""Stripe für Dranzeit einrichten: Produkte, Preise, Webhook und Kundenportal. Mehrfach ausführbar.
+"""Stripe für Dranzeit einrichten: Produkte, Preise, Steuersatz, Webhook und Kundenportal. Mehrfach ausführbar.
 
 Auf dem Server als root (Block "Abo-Abrechnung" in deploy/README.md):
     cd /opt/q-me/backend && .venv/bin/python /opt/q-me/deploy/stripe-setup.py https://dranzeit.de
@@ -12,6 +12,9 @@ Telefon-Assistent (eigenes Abo, app/libs/telefon_abrechnung.py): Meter, zwei Pro
 immer, im Live-Konto nur mit --telefon (erst nach Stefans Freigabe der Preise).
 
 - Preise netto (tax_behavior exclusive), gefunden über lookup_key (app/libs/stripe_billing.py).
+- Umsatzsteuer als fester Steuersatz 19 % (kein Stripe Tax, Stefan 11.11.2026); seine ID kommt nach
+  STRIPE_STEUERSATZ bzw. STRIPE_TEST_STEUERSATZ in /etc/q-me.env. Nur diesen Schritt: --nur-steuer
+  (braucht beim eingeschränkten Schlüssel das Recht „Tax Rates: Write“).
 - Webhook-Geheimnis und Portal-Einstellung schreibt das Skript selbst nach /etc/q-me.env.
   Das Geheimnis erscheint nirgends auf dem Bildschirm.
 """
@@ -23,7 +26,8 @@ sys.path.insert(0, "/opt/q-me/backend")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
 
 from app.libs.stripe_billing import (  # noqa: E402
-    CATALOG, FOUNDER_PRICES, INTERVALS, KEY_ENV, LIVE, PORTAL_ENV, TEST, WEBHOOK_ENV, client, lookup_key, stripe_configured,
+    CATALOG, FOUNDER_PRICES, INTERVALS, KEY_ENV, LIVE, PORTAL_ENV, STEUER_ENV, STEUERSATZ, TEST, WEBHOOK_ENV, client,
+    ist_steuersatz, lookup_key, stripe_configured,
 )
 from app.libs import telefon as tel  # noqa: E402
 from app.libs.telefon_abrechnung import GRUNDPREIS_KEY, METER_EVENT, MINUTEN_KEY  # noqa: E402
@@ -100,6 +104,21 @@ def ensure_price(c, product_id: str, key: str, amount: int, interval: str, nickn
     return price.id
 
 
+def ensure_steuersatz(c, mode: str) -> str:
+    """Fester Steuersatz 19 % (netto, Deutschland): vorhandenen nehmen, sonst anlegen; ID in /etc/q-me.env."""
+    rate_id = next((r.id for r in c.v1.tax_rates.list(params={"active": True, "limit": 100}).auto_paging_iter() if ist_steuersatz(r)), "")
+    if rate_id:
+        print(f"Steuersatz vorhanden: {rate_id} (19 %)")
+    else:
+        rate_id = c.v1.tax_rates.create(params=STEUERSATZ).id
+        print(f"Steuersatz angelegt: {rate_id} (19 %, netto, Deutschland)")
+    if os.environ.get(STEUER_ENV[mode], "").strip() != rate_id:
+        set_env(STEUER_ENV[mode], rate_id)
+        os.environ[STEUER_ENV[mode]] = rate_id
+        print(f"{STEUER_ENV[mode]} in {ENV_FILE} eingetragen")
+    return rate_id
+
+
 TELEFON_PRODUKTE = {
     # Name steht so auf der Rechnung: zwei Posten, Grundpreis und Minuten
     "telefon_grundpreis": "Telefon-Assistent, Grundpreis mit 100 Minuten",
@@ -154,11 +173,11 @@ def ensure_telefon(c) -> None:
 
 
 def main() -> None:
-    flags = {"--test", "--telefon"}
+    flags = {"--test", "--telefon", "--nur-steuer"}
     args = [a for a in sys.argv[1:] if a not in flags]
     mode = TEST if "--test" in sys.argv[1:] else LIVE
     if len(args) != 1 or not args[0].startswith("https://"):
-        sys.exit("Aufruf: stripe-setup.py https://<adresse der app> [--test] [--telefon]")
+        sys.exit("Aufruf: stripe-setup.py https://<adresse der app> [--test] [--telefon] [--nur-steuer]")
     base = args[0].rstrip("/")
     load_env()
     if not stripe_configured(mode):
@@ -167,6 +186,10 @@ def main() -> None:
     print("Stripe-Sandbox (Testmodus je Laden)" if mode == TEST else "Stripe")
     c = client(mode)
 
+    ensure_steuersatz(c, mode)
+    if "--nur-steuer" in sys.argv[1:]:
+        print("Fertig. Jetzt das Backend neu starten: systemctl restart q-me")
+        return
     products = ensure_products(c)
     standard_prices: dict[str, list[str]] = {}
     for plan, info in CATALOG.items():
