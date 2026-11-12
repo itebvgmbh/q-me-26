@@ -115,7 +115,11 @@ def unsupported() -> dict:
                      number="DZ-0008")
     rc_without_id = copy.deepcopy(samples()["reverse-charge"])
     rc_without_id["customer_tax_ids"] = []
-    return {"testphase": trial, "storniert": void, "ohne-steuer": no_tax, "reverse-charge-ohne-ustid": rc_without_id}
+    null_ohne_grund = invoice([line(3900, "1 × Dranzeit Laden (zu 39,00 € / Monat)", OKT_20, NOV_20, [tax(0, 3900, "txr_0", None)])],
+                              [{**tax(0, 3900, "txr_0", None), "tax_rate_details": {"tax_rate": {"id": "txr_0", "percentage": 0.0}}}],
+                              number="DZ-0010")
+    return {"testphase": trial, "storniert": void, "ohne-steuer": no_tax, "reverse-charge-ohne-ustid": rc_without_id,
+            "null-prozent-ohne-grund": null_ohne_grund}
 
 
 def parse(xml: bytes) -> ET.Element:
@@ -161,6 +165,19 @@ def test_xrechnung_monat():
     sums = root.find(".//ram:SpecifiedTradeSettlementHeaderMonetarySummation", NS)
     assert text(sums, "ram:GrandTotalAmount") == "46.41"
     assert (text(sums, "ram:TotalPrepaidAmount"), text(sums, "ram:DuePayableAmount")) == ("0.00", "46.41")
+
+
+def test_xrechnung_fester_steuersatz_ohne_begruendung():
+    """Seit 12.11.2026 fester Steuersatz statt Stripe Tax: Stripe liefert dann keine taxability_reason."""
+    for grund in (None, "not_available"):
+        fest = copy.deepcopy(samples()["monat-bezahlt"])
+        for steuer in (*fest["lines"]["data"][0]["taxes"], *fest["total_taxes"]):
+            steuer["taxability_reason"] = grund
+        einvoice_check(fest)
+        assert summary(fest)["einvoice"]
+        vat = parse(build_xrechnung(fest, "laden1")).find(".//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax", NS)
+        assert (text(vat, "ram:CategoryCode"), text(vat, "ram:RateApplicablePercent")) == ("S", "19.00")
+        assert build_xrechnung(fest, "laden1") == build_xrechnung(samples()["monat-bezahlt"], "laden1")
 
 
 def test_xrechnung_unabhaengig_vom_zahlungsstand():

@@ -19,7 +19,7 @@ from app.i18n import merke
 from app.libs.links import public_origin
 from app.libs.plans import FOUNDER_LIMIT, FOUNDER_TRIAL_DAYS, PAID_PLANS, trial_end
 from app.libs.shop_privat import LIVE, clear_stripe_ids, save_stripe_ids, stripe_ids, stripe_link, stripe_mode
-from app.libs.stripe_billing import INTERVALS, client, lookup_key, portal_config, price_id, stripe_configured, test_key
+from app.libs.stripe_billing import INTERVALS, client, lookup_key, portal_config, price_id, steuer, stripe_configured, test_key
 
 router = APIRouter()
 
@@ -134,7 +134,7 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
         save_stripe_ids(db, body.shop_id, customer_id=customer_id, mode=mode)
 
     founder = bool(shop.get("founder"))
-    subscription_data: dict = {"metadata": {"shopId": body.shop_id}}
+    subscription_data: dict = {"metadata": {"shopId": body.shop_id}, **steuer(c, mode)}  # feste 19 % (app/libs/stripe_billing.py)
     # Restliche Testphase übernehmen: bezahlt wird erst danach (Stripe verlangt mind. 48 h Vorlauf)
     trial_until = trial_end(shop)
     if trial_until > datetime.now(timezone.utc) + timedelta(hours=49):
@@ -148,7 +148,6 @@ def checkout(body: CheckoutRequest, user: AuthorizedUser, request: Request) -> d
             "line_items": [{"price": price_id(c, lookup_key(body.plan, body.interval, founder), mode), "quantity": 1}],
             "subscription_data": subscription_data,
             "metadata": {"shopId": body.shop_id},
-            "automatic_tax": {"enabled": True},
             "tax_id_collection": {"enabled": True},
             "billing_address_collection": "required",
             "customer_update": {"address": "auto", "name": "auto"},

@@ -149,6 +149,8 @@ class Welt:
         self.stripe = FakeStripe()
         self.mails = []
         os.environ["STRIPE_SECRET_KEY"] = "sk_live_attrappe"
+        os.environ["STRIPE_STEUERSATZ"] = "txr_ust19"
+        stripe_billing._steuer_cache.clear()
         stripe_billing.client = lambda mode="live": self.stripe
         einrichtung.client = lambda mode="live": self.stripe
         einrichtung.get_firestore_db = lambda: self.db
@@ -496,6 +498,7 @@ def test_zubuchen_ueber_stripe_checkout():
     assert params["mode"] == "subscription" and params["customer"] == "cus_1"
     assert params["line_items"] == [{"price": f"price_{ta.GRUNDPREIS_KEY}", "quantity": 1}, {"price": f"price_{ta.MINUTEN_KEY}"}]
     assert params["subscription_data"]["metadata"] == {"shopId": "salon", "zusatz": "telefon"}
+    assert params["subscription_data"]["default_tax_rates"] == ["txr_ust19"] and "automatic_tax" not in params  # feste 19 %
     assert params["success_url"].endswith("/telefon-assistent?gebucht=1")
     assert "trial_end" not in params["subscription_data"]
 

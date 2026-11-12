@@ -10,7 +10,11 @@ Testmodus je Laden (Betreiber-Bereich, app/libs/shop_privat.py): Solche Läden b
     STRIPE_TEST_WEBHOOK_SECRET, STRIPE_TEST_PORTAL_CONFIG   schreibt deploy/stripe-setup.py --test
 
 Produkte und Preise legt deploy/stripe-setup.py an; gefunden werden sie über ihren lookup_key.
-Preise sind netto (tax_behavior "exclusive"), die Mehrwertsteuer rechnet Stripe Tax dazu.
+Preise sind netto (tax_behavior "exclusive"). Die Umsatzsteuer kommt als fester Steuersatz von 19 % dazu (steuer()):
+Stefan hat am 11.11.2026 entschieden, zum Start kein Stripe Tax zu nutzen. Ohne Registrierung in Stripe Tax hätte
+automatic_tax 0 % berechnet. Den Steuersatz legt ebenfalls deploy/stripe-setup.py an und trägt seine ID ein:
+    STRIPE_STEUERSATZ=txr_...               (kein Geheimnis; für die Sandbox STRIPE_TEST_STEUERSATZ)
+Folge: Auch Läden im EU-Ausland mit USt-IdNr. bekommen 19 % statt Reverse Charge.
 """
 
 import os
@@ -49,6 +53,18 @@ LIVE, TEST = "live", "test"  # gleich wie app/libs/shop_privat.py
 KEY_ENV = {LIVE: "STRIPE_SECRET_KEY", TEST: "STRIPE_TEST_SECRET_KEY"}
 WEBHOOK_ENV = {LIVE: "STRIPE_WEBHOOK_SECRET", TEST: "STRIPE_TEST_WEBHOOK_SECRET"}
 PORTAL_ENV = {LIVE: "STRIPE_PORTAL_CONFIG", TEST: "STRIPE_TEST_PORTAL_CONFIG"}
+STEUER_ENV = {LIVE: "STRIPE_STEUERSATZ", TEST: "STRIPE_TEST_STEUERSATZ"}
+# So legt deploy/stripe-setup.py den Steuersatz an; wiedererkannt wird er an metadata dranzeit_steuer
+STEUERSATZ = {
+    "display_name": "USt.",
+    "description": "Umsatzsteuer Deutschland 19 % (Dranzeit)",
+    "percentage": 19,
+    "inclusive": False,
+    "country": "DE",
+    "jurisdiction": "DE",
+    "tax_type": "vat",
+    "metadata": {"dranzeit_steuer": "ust19"},
+}
 
 
 def _key(mode: str) -> str:
@@ -86,6 +102,41 @@ def price_id(c: stripe.StripeClient, key: str, mode: str = LIVE) -> str:
             raise RuntimeError(f"Preis {key} fehlt in Stripe ({mode}) – deploy/stripe-setup.py ausführen")
         _price_cache[(mode, key)] = prices.data[0].id
     return _price_cache[(mode, key)]
+
+
+def ist_steuersatz(rate) -> bool:
+    """Unser fester Steuersatz (19 %, netto, aktiv)?"""
+    meta = rate.metadata.to_dict() if getattr(rate, "metadata", None) else {}
+    return (
+        meta.get("dranzeit_steuer") == STEUERSATZ["metadata"]["dranzeit_steuer"]
+        and float(rate.percentage) == STEUERSATZ["percentage"]
+        and not rate.inclusive
+        and bool(rate.active)
+    )
+
+
+_steuer_cache: dict[str, str] = {}
+
+
+def steuersatz_id(c: stripe.StripeClient, mode: str = LIVE) -> str:
+    """ID des festen Steuersatzes: aus STRIPE_STEUERSATZ, sonst in Stripe gesucht (braucht Leserecht auf Steuersätze)."""
+    if mode not in _steuer_cache:
+        rate_id = os.environ.get(STEUER_ENV[mode], "").strip()
+        if not rate_id:
+            for rate in c.v1.tax_rates.list(params={"active": True, "limit": 100}).auto_paging_iter():
+                if ist_steuersatz(rate):
+                    rate_id = rate.id
+                    break
+        if not rate_id:
+            raise RuntimeError(f"Steuersatz 19 % fehlt in Stripe ({mode}) – deploy/stripe-setup.py ausführen")
+        _steuer_cache[mode] = rate_id
+    return _steuer_cache[mode]
+
+
+def steuer(c: stripe.StripeClient, mode: str = LIVE) -> dict:
+    """Für subscription_data im Checkout: 19 % auf jeden Posten des Abos. Der Satz hängt am Abo, nicht am Preis,
+    und bleibt deshalb beim Tarifwechsel im Kundenportal erhalten."""
+    return {"default_tax_rates": [steuersatz_id(c, mode)]}
 
 
 _accounts: dict[str, str] = {}
