@@ -1,8 +1,8 @@
 ---
 titel: Telefon asistanını kur
 kurz: Salonda kimse açmazsa bir yapay zekâ aramayı yanıtlar, boş randevuları söyler ve randevu alır. Nasıl deneyeceğini, satın alacağını ve kuracağını öğren.
-stichworte: telefon, arama, aramalar, yapay zekâ, yapay zeka, asistan, telefon asistanı, çağrı yönlendirme, yönlendirme, arama yönlendirme, sesli mesaj, telesekreter, fritzbox, telekom, deneme araması, deneme dakikaları, satın al, maliyet üst sınırı, üst sınır, dakikalar, iptal, düzenli müşteriler, müşteri listesi, tanıma, arama listesi, geri ara, geri arama, cevapsız, meşgul
-quelle: 980dc1e47d84
+stichworte: telefon, arama, aramalar, yapay zekâ, yapay zeka, asistan, telefon asistanı, çağrı yönlendirme, yönlendirme, arama yönlendirme, sesli mesaj, telesekreter, fritzbox, telekom, deneme araması, deneme dakikaları, satın al, maliyet üst sınırı, üst sınır, dakikalar, iptal, düzenli müşteriler, müşteri listesi, tanıma, arama listesi, özet, geri ara, geri arama, cevapsız, meşgul, kapattı
+quelle: 4e04e831d9ec
 ---
 Salonda kimse açmazsa telefon asistanı aramayı yanıtlar. Müşterilerin her zamanki numaranı aramaya devam eder. Sen yalnızca telefon operatöründe bir yönlendirme ayarlarsın.
 
@@ -24,9 +24,9 @@ Bir kişinin tüm randevularını **“Salon” → “Günüm” → “Müşte
 
 ## Arama listesi ve geri arama
 
-**“Salon” → “Telefon asistanı”** altında **“Aramalar”** bölümünde kimin aradığını ve sonucunu görürsün: alınan randevu, alınan sıra numarası veya “Randevu alınmadı”. Orada “Yalnızca anons” yazıyorsa arayan yalnızca kısa anonsu duymuştur, örneğin deneme dakikaları bittiği için.
+**“Salon” → “Telefon asistanı”** altında **“Aramalar”** bölümünde kimin aradığını ve sonucunu görürsün: alınan randevu, alınan sıra numarası, “Soru yanıtlandı”, “Talep açık kaldı”, “Arayan kapattı” veya “Randevu alınmadı”. Altında yapay zekâ görüşmeyi bir iki cümleyle özetler, örneğin asistan yardımcı olamadıysa arayanın ne istediğini. Özet her zaman Almancadır ve hata içerebilir. Orada “Yalnızca anons” yazıyorsa arayan yalnızca kısa anonsu duymuştur, örneğin deneme dakikaları bittiği için.
 
-Randevuyla sonuçlanmayan aramalarda **“Geri ara”** ile doğrudan arayabilirsin. Liste son 90 günün aramalarını gösterir, daha eskilerini Dranzeit siler. Bir müşteriyi müşteri listesinden silersen aramaları da kaybolur.
+Randevuyla sonuçlanmayan aramalarda **“Geri ara”** ile doğrudan arayabilirsin. “Talep açık kaldı” durumunda düğme vurgulanır. Liste son 90 günün aramalarını gösterir, daha eskilerini Dranzeit özetleriyle birlikte siler. Bir müşteriyi müşteri listesinden silersen aramaları da kaybolur.
 
 O anda çok sayıda salon aynı anda asistanla görüşüyorsa arayan kısa bir süre “Einen Moment bitte” (bir dakika lütfen) duyar ve sonra bağlanır. Bu da işe yaramazsa tüm hatların meşgul olduğunu bildiren bir anons duyar ve arama listende görünür.
 

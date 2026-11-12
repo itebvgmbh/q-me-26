@@ -82,6 +82,10 @@ export interface TelefonAnruf {
   /** assistent: die KI hat abgenommen; ansage: nur die kurze Ansage (grund); belegt: alle Leitungen belegt; stoerung */
   ergebnis: 'assistent' | 'ansage' | 'belegt' | 'stoerung';
   grund: TelefonGrund;
+  /** Ein, zwei Sätze der KI nach dem Gespräch, immer auf Deutsch (Bericht von Vapi) */
+  zusammenfassung?: string | null;
+  /** Wie die KI das Gespräch einordnet; ob gebucht wurde, sagen verlässlich die termine */
+  ausgang?: 'termin' | 'nummer' | 'frage' | 'offen' | 'aufgelegt' | null;
   termine: {
     id: string;
     startTime?: Zeitpunkt;

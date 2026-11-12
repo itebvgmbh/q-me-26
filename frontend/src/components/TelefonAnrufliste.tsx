@@ -34,7 +34,12 @@ function Ergebnis({ anruf }: { anruf: TelefonAnruf }) {
   if (anruf.ergebnis === 'belegt') return <p className="text-sm">{t('Alle Leitungen waren belegt, nur Ansage')}</p>;
   if (anruf.ergebnis === 'stoerung') return <p className="text-sm">{t('Störung, nur Ansage')}</p>;
   if (anruf.laeuft) return <p className="text-sm font-semibold">{t('Gespräch läuft gerade')}</p>;
-  if (!anruf.termine.length) return <p className="text-sm">{t('Kein Termin gebucht')}</p>;
+  if (!anruf.termine.length) {
+    if (anruf.ausgang === 'offen') return <p className="text-sm font-semibold">{t('Anliegen offen')}</p>;
+    if (anruf.ausgang === 'frage') return <p className="text-sm">{t('Frage beantwortet')}</p>;
+    if (anruf.ausgang === 'aufgelegt') return <p className="text-sm">{t('Aufgelegt')}</p>;
+    return <p className="text-sm">{t('Kein Termin gebucht')}</p>;
+  }
   return (
     <ul className="flex flex-col gap-0.5">
       {anruf.termine.map((termin) => {
@@ -57,8 +62,9 @@ function Ergebnis({ anruf }: { anruf: TelefonAnruf }) {
 }
 
 /**
- * Wer den Telefon-Assistenten angerufen hat und was daraus wurde, die neuesten zuerst. Zurückrufen lohnt sich vor allem,
- * wo kein Termin herauskam oder der Anrufer nur die Ansage gehört hat. Backend: backend/app/libs/telefon_anrufliste.py
+ * Wer den Telefon-Assistenten angerufen hat und was daraus wurde, die neuesten zuerst, mit der Zusammenfassung der KI.
+ * Zurückrufen lohnt sich vor allem, wo ein Anliegen offen blieb, kein Termin herauskam oder der Anrufer nur die Ansage
+ * gehört hat. Backend: backend/app/libs/telefon_anrufliste.py
  */
 export default function TelefonAnrufliste({ shopId, auchLeer }: { shopId: string; /** Auch ohne Anrufe zeigen (eingeschaltet) */ auchLeer: boolean }) {
   const [anrufe, setAnrufe] = useState<TelefonAnruf[] | null>(null);
@@ -121,9 +127,14 @@ export default function TelefonAnrufliste({ shopId, auchLeer }: { shopId: string
                     )}
                   </p>
                   <Ergebnis anruf={anruf} />
+                  {anruf.zusammenfassung && (
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                      <span className="font-medium">{t('KI-Zusammenfassung:')}</span> <span lang="de">{anruf.zusammenfassung}</span>
+                    </p>
+                  )}
                 </div>
                 {zurueck && (
-                  <Button size="sm" variant="outline" asChild>
+                  <Button size="sm" variant={anruf.ausgang === 'offen' ? 'default' : 'outline'} asChild>
                     <a href={`tel:${anruf.anrufer}`}>
                       <Phone className="h-4 w-4" aria-hidden />
                       {t('Zurückrufen')}

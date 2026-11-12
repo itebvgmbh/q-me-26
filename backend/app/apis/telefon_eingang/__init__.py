@@ -6,6 +6,10 @@ Eingang des Telefon-Assistenten: Twilio fragt hier bei jedem Anruf, was passiere
                                    die Ansage „alle Leitungen belegt“
     POST /telefon-eingang/status   Twilio meldet das Ende eines Anrufs, die Gesprächszeit zählt beim Laden; ist der
                                    Zusatz gebucht, gehen die Minuten an Stripe (app/libs/telefon_abrechnung.py)
+    POST /telefon-eingang/bericht?anruf={CallSid}
+                                   Vapi meldet nach dem Gespräch Zusammenfassung und Ausgang für die Anrufliste. Adresse,
+                                   Schlüssel (nur für diesen Anruf) und Auswertung gibt der Eingang Vapi je Anruf mit
+                                   (app/libs/telefon_anrufliste.py, bericht_auftrag), bei Vapi ist dafür nichts einzustellen
 
 Welcher Laden: Bei einer Umleitung ist "From" der Anrufer, die Nummer des Ladens steht in "ForwardedFrom". Hat ein
 Laden eine eigene Nummer (telefon_leitungen), gilt die gewählte Nummer "To". Die Regeln stehen in app/libs/telefon.py,
@@ -22,6 +26,7 @@ Dazu QME_VAPI_API_KEY, QME_VAPI_ASSISTANT_ID und QME_VAPI_PHONE_NUMBER_ID. Einri
 import json
 import logging
 import os
+import re
 from typing import Optional
 
 import requests
@@ -43,6 +48,7 @@ router = APIRouter()
 
 VAPI_CALL = "https://api.vapi.ai/call"
 VAPI_TIMEOUT = (3, 8)  # Twilio wartet höchstens 15 Sekunden auf die Antwort
+ANRUF_RE = re.compile(r"[A-Za-z0-9]{2,64}")  # CallSid von Twilio: CA + 32 Zeichen
 
 
 class Belegt(Exception):
@@ -64,19 +70,28 @@ async def _von_twilio(request: Request, pfad: str, signatur: Optional[str]) -> d
     return felder
 
 
-def _assistent(shop_id: str, name: str, begruessung: str, daten: str, anrufer: Optional[str]) -> str:
-    """TwiML von Vapi, das den Anruf zum Assistenten dieses Ladens verbindet"""
+def _assistent(shop_id: str, name: str, begruessung: str, daten: str, anrufer: Optional[str], bericht: Optional[dict] = None) -> str:
+    """TwiML von Vapi, das den Anruf zum Assistenten dieses Ladens verbindet. bericht: Bericht nach dem Gespräch für die
+    Anrufliste (app/libs/telefon_anrufliste.py, bericht_auftrag). Lehnt Vapi diese Angaben ab (400), geht der Anruf
+    ohne sie durch: Der Anrufer merkt nichts, in der Anrufliste fehlt nur die Zusammenfassung."""
+    ueberschreiben = {"firstMessage": begruessung, "variableValues": {"laden_id": shop_id, "laden_name": name, "laden_daten": daten}}
     body: dict = {
         "phoneNumberId": os.environ["QME_VAPI_PHONE_NUMBER_ID"],
         "assistantId": os.environ["QME_VAPI_ASSISTANT_ID"],
         "phoneCallProviderBypassEnabled": True,
-        "assistantOverrides": {"firstMessage": begruessung, "variableValues": {"laden_id": shop_id, "laden_name": name, "laden_daten": daten}},
+        "assistantOverrides": {**ueberschreiben, **(bericht or {})},
     }
     if anrufer:
         body["customer"] = {"number": anrufer}
-    antwort = requests.post(VAPI_CALL, json=body, headers={"Authorization": f"Bearer {os.environ['QME_VAPI_API_KEY']}"}, timeout=VAPI_TIMEOUT)
+    kopf = {"Authorization": f"Bearer {os.environ['QME_VAPI_API_KEY']}"}
+    antwort = requests.post(VAPI_CALL, json=body, headers=kopf, timeout=VAPI_TIMEOUT)
     if antwort.status_code >= 400 and "concurrency" in antwort.text.lower():  # 400 „Over Concurrency Limit.“
         raise Belegt(antwort.text[:200])
+    if antwort.status_code == 400 and bericht:
+        log.error("Telefon-Eingang: Vapi lehnt den Bericht für die Anrufliste ab, Anruf geht ohne: %s", antwort.text[:300])
+        antwort = requests.post(VAPI_CALL, json={**body, "assistantOverrides": ueberschreiben}, headers=kopf, timeout=VAPI_TIMEOUT)
+        if antwort.status_code >= 400 and "concurrency" in antwort.text.lower():
+            raise Belegt(antwort.text[:200])
     antwort.raise_for_status()
     inhalt = antwort.json()
     grenzen = inhalt.get("subscriptionLimits") or {}
@@ -111,10 +126,11 @@ def _bekannt(db, shop_id: str, anrufer: Optional[str]) -> Optional[dict]:
         return None
 
 
-def _merken(db, felder: dict, shop_id: str, anrufer: Optional[str], ergebnis: str, grund: Optional[str] = None) -> None:
+def _merken(db, felder: dict, shop_id: str, anrufer: Optional[str], ergebnis: str, grund: Optional[str] = None,
+            bericht_hash: Optional[str] = None) -> None:
     """Anrufliste des Ladens. Klemmt das, läuft der Anruf trotzdem weiter."""
     try:
-        tal.merken(db, felder.get("CallSid"), shop_id, anrufer, ergebnis, grund)
+        tal.merken(db, felder.get("CallSid"), shop_id, anrufer, ergebnis, grund, bericht_hash=bericht_hash)
     except Exception:
         log.exception("Telefon-Eingang: Anruf %s nicht in die Anrufliste eingetragen", felder.get("CallSid"))
 
@@ -147,8 +163,12 @@ def _antwort(felder: dict, laden: Optional[str] = None, versuch: int = 1) -> str
     daten_laden = laden_daten(db, shop_id, shop)
     if kunde:
         daten_laden["anrufer"] = kunde
+    bericht, bericht_hash = None, None
+    if felder.get("CallSid") and ANRUF_RE.fullmatch(felder["CallSid"]):
+        schluessel, bericht_hash = tal.bericht_schluessel()
+        bericht = tal.bericht_auftrag(f"{_basis()}/routes/telefon-eingang/bericht?anruf={felder['CallSid']}", schluessel)
     try:
-        twiml = _assistent(shop_id, name, begruessung, json.dumps(daten_laden, ensure_ascii=False), anrufer)
+        twiml = _assistent(shop_id, name, begruessung, json.dumps(daten_laden, ensure_ascii=False), anrufer, bericht)
     except Belegt as e:
         print(f"Telefon: alle Vapi-Leitungen belegt (Laden {shop_id}, Versuch {versuch}): {e}")
         _merken(db, felder, shop_id, anrufer, tal.BELEGT)
@@ -158,7 +178,7 @@ def _antwort(felder: dict, laden: Optional[str] = None, versuch: int = 1) -> str
     except Exception:
         _merken(db, felder, shop_id, anrufer, tal.STOERUNG)
         raise
-    _merken(db, felder, shop_id, anrufer, tal.ASSISTENT)
+    _merken(db, felder, shop_id, anrufer, tal.ASSISTENT, bericht_hash=bericht_hash)
     if felder.get("CallSid"):
         tl.anruf_merken(db, felder["CallSid"], shop_id)
     return twiml
@@ -209,4 +229,31 @@ async def status(request: Request, x_twilio_signature: Optional[str] = Header(de
     felder = await _von_twilio(request, "/telefon-eingang/status", x_twilio_signature)
     if felder.get("CallStatus") in t.ANRUF_ZU_ENDE and felder.get("CallSid"):
         await run_in_threadpool(_ende, felder)
+    return Response(status_code=204)
+
+
+BERICHT_STATUS = {"ok": 204, "ignoriert": 204, "unbekannt": 404, "kein_zugang": 403}
+
+
+@router.post("/telefon-eingang/bericht", include_in_schema=False)
+async def bericht(request: Request, anruf: str = "") -> Response:
+    """Vapi meldet das Ende des Gesprächs mit Zusammenfassung (end-of-call-report). Zugang: der Schlüssel, den der
+    Eingang nur für diesen Anruf erzeugt hat, in der Kopfzeile X-Dranzeit-Bericht; er gilt einmal."""
+    if not ANRUF_RE.fullmatch(anruf):
+        raise HTTPException(status_code=404, detail="Unbekannter Anruf.")
+    try:
+        inhalt = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Kein JSON.")
+    nachricht = inhalt.get("message") if isinstance(inhalt, dict) else None
+    if not isinstance(nachricht, dict):
+        raise HTTPException(status_code=400, detail="Keine Nachricht.")
+    schluessel = request.headers.get(tal.BERICHT_KOPF)
+    ergebnis = await run_in_threadpool(tal.bericht, get_firestore_db(), anruf, schluessel, nachricht)
+    if ergebnis == "ok":
+        print(f"Telefon: Bericht zu Anruf {anruf} in der Anrufliste")
+    elif ergebnis != "ignoriert":
+        log.warning("Telefon-Eingang: Bericht zu Anruf %s abgelehnt (%s)", anruf, ergebnis)
+    if BERICHT_STATUS[ergebnis] >= 400:
+        raise HTTPException(status_code=BERICHT_STATUS[ergebnis], detail="Kein Zugang." if ergebnis == "kein_zugang" else "Unbekannter Anruf.")
     return Response(status_code=204)

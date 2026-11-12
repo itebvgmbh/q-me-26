@@ -11,8 +11,8 @@ Hilfe (backend/app/hilfe/artikel/datenschutz.md). Wer hier etwas ändert, änder
   Eintrag gelöscht, wenn 12 Monate kein Termin mehr war (bei Kunden ohne Termin 12 Monate nach dem Anlegen).
   Der Laden kann ihn auch selbst löschen (forget_customer, app/apis/datenschutz).
 - Kunden-Konto löschen (delete_account_data, app/apis/datenschutz): sofort, kommende Termine werden abgesagt.
-- Anrufliste des Telefon-Assistenten (app/libs/telefon_anrufliste.py): nach 90 Tagen gelöscht, die Anrufe einer Nummer
-  auch, wenn der Laden den Kunden mit dieser Nummer löscht.
+- Anrufliste des Telefon-Assistenten (app/libs/telefon_anrufliste.py), mit Zusammenfassung: nach 90 Tagen gelöscht,
+  die Anrufe einer Nummer auch, wenn der Laden den Kunden mit dieser Nummer löscht, alle mit dem Laden.
 
 "Mit Konto" heißt: Die customerId des Termins ist ein bestehendes Firebase-Konto. Kunden-Einträge des Ladens haben eigene
 IDs aus customers, Laufkunden "walk-in", Nummern ohne Konto isAnonymous.

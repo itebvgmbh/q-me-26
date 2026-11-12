@@ -52,7 +52,8 @@ export default function Datenschutz() {
             steht er beim Laden wie jede andere Buchung, und du stehst mit Namen und Telefonnummer in seiner Kundenliste.
             Rufst du später von derselben Nummer an, erkennt dich der Assistent daran, spricht dich mit Namen an und kennt
             deine Termine bei diesem Laden. Jeden Anruf sieht der Laden in seiner Anrufliste mit Zeitpunkt, Dauer, Nummer
-            und Ergebnis, damit er zurückrufen kann. Verantwortlich ist der Laden, wir verarbeiten die Daten in seinem
+            und Ergebnis, damit er zurückrufen kann, dazu eine kurze Zusammenfassung des Gesprächs, die die KI nach dem
+            Anruf aus der Mitschrift schreibt. Verantwortlich ist der Laden, wir verarbeiten die Daten in seinem
             Auftrag. Rechtsgrundlage ist für die Buchung Art. 6 Abs. 1 lit. b DSGVO, für das Wiedererkennen und die
             Anrufliste Art. 6 Abs. 1 lit. f DSGVO: Der Laden möchte seine Kunden am Telefon erkennen und verpasste Anrufe
             zurückrufen können. Möchtest du das nicht, sag es dem Laden. Löscht er dich aus seiner Kundenliste,
@@ -180,8 +181,8 @@ export default function Datenschutz() {
             verbunden ist. Der Laden kann sie jederzeit selbst löschen.
           </li>
           <li>
-            Anrufe beim Telefon-Assistenten eines Ladens löschen wir 90 Tage nach dem Anruf aus seiner Anrufliste, die
-            Anrufe einer Nummer auch dann, wenn der Laden den Kunden mit dieser Nummer aus seiner Kundenliste löscht. Die
+            Anrufe beim Telefon-Assistenten eines Ladens löschen wir samt Zusammenfassung 90 Tage nach dem Anruf aus
+            seiner Anrufliste, die Anrufe einer Nummer auch dann, wenn der Laden den Kunden mit dieser Nummer aus seiner Kundenliste löscht. Die
             Mitschrift des Gesprächs und die technischen Protokolle bei Vapi werden nach 14 Tagen gelöscht.
           </li>
           <li>Die Adresse für Benachrichtigungen im Browser löschen wir nach 3 Tagen.</li>

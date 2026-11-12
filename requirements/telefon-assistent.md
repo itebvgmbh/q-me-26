@@ -2,7 +2,7 @@
 
 - **ID:** telefon-assistent
 - **Stand:** 05.11.2026, mit Stefan abgestimmt
-- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026, Abrechnung am 05.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und Testminuten im Betreiber-Bereich, Testen und Zubuchen durch den Inhaber, Abrechnung über Stripe, Kostendeckel, Warnungen, Schalter „für alle öffnen“. Anrufliste fehlt noch. Anleitung in `deploy/telefon-assistent.md`
+- **Status:** Entwurf – Anbieter noch offen (siehe „Offen“), Preis entschieden am 02.11.2026, Abrechnung am 05.11.2026. Gebaut: Schnittstelle im Backend (Laden, freie Zeiten, buchen, Wartezeit, Nummer), Prüfstelle vor der KI, Einrichtung durch den Inhaber, Hinweise für Kunden, Zulassung und Testminuten im Betreiber-Bereich, Testen und Zubuchen durch den Inhaber, Abrechnung über Stripe, Kostendeckel, Warnungen, Schalter „für alle öffnen“, Anrufliste (09.11.2026) mit Zusammenfassung und Ergebnis aus dem Bericht von Vapi (12.11.2026). Offen: Rückrufbitte mit Push, Durchstellen, SMS. Anleitung in `deploy/telefon-assistent.md`
 
 ## Worum es geht
 
@@ -165,4 +165,7 @@ Die Kunden wählen weiter die Nummer des Ladens. „Per Telefon buchen“ ist ne
   - Rückrufbitte
 - **Buchen im Backend:** Gebucht wird heute im Browser. Fürs Telefon muss das Backend selbst buchen können. Das Belegen eines Platzes gibt es dort schon (wie bei „früher dran“). Die Tagesnummer vergibt bisher nur das Frontend. Beide Stellen müssen danach gleich bleiben.
 - **Nach dem Gespräch:** Die Plattform meldet Dauer und Zusammenfassung. Daraus werden der Eintrag in der Anrufliste und die Nutzungsmeldung an Stripe (Billing Meter, nach Nutzung abgerechneter Preis im bestehenden Abo).
+  - Gebaut am 12.11.2026: Die Dauer kommt von Twilio. Zusammenfassung und Ergebnis schickt Vapi nach dem Gespräch (`end-of-call-report`) an `/routes/telefon-eingang/bericht`. Adresse, Schlüssel und Auswertung gibt der Eingang je Anruf mit, bei Vapi ist dafür nichts einzustellen.
+  - Ergebnisse der KI: Termin, Nummer, Frage beantwortet, Anliegen offen (statt Rückrufbitte, solange es die nicht gibt) und aufgelegt. Ob gebucht wurde, entscheiden die Termine aus der Datenbank, nicht die KI.
+  - Die Zusammenfassung ist immer deutsch. Kosten aus dem Bericht werden nicht gespeichert.
 - **Anbieterneutral:** Die Schnittstelle so halten, dass ein Wechsel der Plattform keine Änderung an Buchung und Abrechnung braucht.
