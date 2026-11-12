@@ -2,7 +2,7 @@
 titel: Müşteriler: müşteri kartların
 kurz: “Müşteriler” bölümünde her müşteriyi ziyaretleri, cirosu ve geçmişiyle görür, not tutarsın; örneğin geçen seferki boya formülünü.
 stichworte: müşteriler, müşteri kartı, müşteri kartları, kart, müşteri listesi, daimi müşteriler, daimi müşteri, geçmiş, ciro, ziyaretler, not, notlar, boya formülü, formül, uzun süredir gelmeyen, müşteri eşleştir, müşteri sil, müşteri düzenle
-quelle: e343aa0d15cd
+quelle: d09c97267988
 ---
 Üstteki menüde **“Müşteriler”** altında salonunun tüm müşterileri yer alır. Bir ada dokunduğunda kişinin kaç kez geldiğini, en son ne zaman geldiğini, genellikle ne yaptırdığını ve her ziyareti fiyatıyla görürsün. Notların da oradadır. Çalışanlar da “Müşteriler” bölümünü menüde bulur. Resepsiyondaki tablet müşteri kartlarını göstermez.
 
@@ -54,7 +54,7 @@ Müşteri zaten eşleştirilmişse orada adı yazar. Ada dokununca müşteri say
 
 Müşteri sayfasının en altında **“Müşteriyi sil”** düğmesine dokun ve **“Evet, sil”** ile onayla. Notları o zaman silinir, yaklaşan randevular iptal edilir, geçmiş randevulardan ad kaldırılır. Müşteri hesabını bağladıysa yalnızca kayıt senin listenden kaybolur, randevuları onun hesabında kalır.
 
-Dranzeit, hesabı bağlı olmayan müşterileri 12 ay boyunca onlarla hiç randevu olmadıysa kendiliğinden siler. Daha fazlası: [Veri koruma](/hilfe/datenschutz)
+Dranzeit, hesabı bağlı olmayan müşterileri 24 ay boyunca onlarla hiç randevu olmadıysa kendiliğinden siler. Daha fazlası: [Veri koruma](/hilfe/datenschutz)
 
 ## Ücretsiz pakette
 

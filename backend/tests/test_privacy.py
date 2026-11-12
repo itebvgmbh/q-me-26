@@ -225,10 +225,12 @@ def test_lauf_merkt_sich_den_stand():
 
 
 def test_frist_fuer_kunden_eintraege():
-    assert customer_expired({"createdAt": days_ago(400)}, None, NOW)
-    assert not customer_expired({"createdAt": days_ago(400)}, days_ago(60), NOW)
-    assert not customer_expired({"createdAt": days_ago(400)}, NOW + timedelta(days=3), NOW)  # kommender Termin
-    assert not customer_expired({"createdAt": days_ago(400), "updatedAt": days_ago(20)}, None, NOW)  # neuer Link
+    assert customer_expired({"createdAt": days_ago(800)}, None, NOW)
+    assert not customer_expired({"createdAt": days_ago(400)}, None, NOW)  # 13 Monate: bleibt (Frist 24 Monate)
+    assert not customer_expired({"createdAt": days_ago(800)}, days_ago(400), NOW)  # einmal im Jahr da
+    assert customer_expired({"createdAt": days_ago(800)}, days_ago(740), NOW)
+    assert not customer_expired({"createdAt": days_ago(800)}, NOW + timedelta(days=3), NOW)  # kommender Termin
+    assert not customer_expired({"createdAt": days_ago(800), "updatedAt": days_ago(20)}, None, NOW)  # neuer Link
     assert not customer_expired({"createdAt": days_ago(30)}, None, NOW)
     assert customer_expired({}, None, NOW)
     assert not customer_expired({"createdAt": datetime(2026, 10, 1)}, None, NOW)  # ohne Zeitzone = UTC
@@ -237,14 +239,14 @@ def test_frist_fuer_kunden_eintraege():
 def kunden():
     return {
         "customers": {
-            "alt": {"shopId": "laden1", "name": "Alt", "email": "alt@example.com", "phone": "0170", "createdAt": days_ago(500)},
-            "stamm": {"shopId": "laden1", "name": "Stamm", "email": "stamm@example.com", "createdAt": days_ago(500)},
-            "verbunden": {"shopId": "laden1", "name": "Eva", "email": "eva@example.com", "userId": "kontoEva", "createdAt": days_ago(500)},
-            "konto_weg": {"shopId": "laden1", "name": "Weg", "email": "weg@example.com", "userId": "geloescht", "createdAt": days_ago(500)},
+            "alt": {"shopId": "laden1", "name": "Alt", "email": "alt@example.com", "phone": "0170", "createdAt": days_ago(800)},
+            "stamm": {"shopId": "laden1", "name": "Stamm", "email": "stamm@example.com", "createdAt": days_ago(800)},
+            "verbunden": {"shopId": "laden1", "name": "Eva", "email": "eva@example.com", "userId": "kontoEva", "createdAt": days_ago(800)},
+            "konto_weg": {"shopId": "laden1", "name": "Weg", "email": "weg@example.com", "userId": "geloescht", "createdAt": days_ago(800)},
             "frisch": {"shopId": "laden1", "name": "Neu", "email": "neu@example.com", "createdAt": days_ago(5)},
         },
         "appointments": {
-            "a1": {"customerId": "alt", "customerName": "Alt", "startTime": days_ago(450)},
+            "a1": {"customerId": "alt", "customerName": "Alt", "startTime": days_ago(760)},
             "s1": {"customerId": "stamm", "customerName": "Stamm", "startTime": days_ago(40)},
         },
     }
@@ -383,6 +385,23 @@ def test_kontakt_wie_in_der_datenschutzerklaerung():
     assert re.search(r"email: '([^']+)'", legal).group(1) == privacy.DATENSCHUTZ_KONTAKT
     hilfe = (ROOT / "backend/app/hilfe/artikel/datenschutz.md").read_text(encoding="utf-8")
     assert privacy.DATENSCHUTZ_KONTAKT in hilfe
+
+
+def test_frist_wie_in_den_texten():
+    """Datenschutzerklärung, AGB, Seite Kunden und Hilfe nennen dieselbe Frist wie CUSTOMER_RETENTION_DAYS."""
+    monate = round(privacy.CUSTOMER_RETENTION_DAYS / 365 * 12)
+    assert monate == 24
+    texte = {
+        "frontend/src/pages/Datenschutz.tsx": f"samt Notizen {monate} Monate nach dem letzten Termin",
+        "frontend/src/pages/Agb.tsx": f"samt Notizen {monate} Monate nach ihrem letzten Termin",
+        "frontend/src/pages/Kunden.tsx": f"wenn {monate} Monate kein Termin war",
+        "backend/app/hilfe/artikel/datenschutz.md": f"wenn {monate} Monate kein Termin",
+        "backend/app/hilfe/artikel/kunden.md": f"wenn {monate} Monate kein Termin",
+        "backend/app/hilfe/artikel/fragen-fuer-laeden.md": f"wenn {monate} Monate kein Termin",
+        "backend/app/hilfe/artikel/telefon-assistent.md": f"wenn {monate} Monate kein Termin",
+    }
+    for datei, satz in texte.items():
+        assert satz in (ROOT / datei).read_text(encoding="utf-8"), datei
 
 
 if __name__ == "__main__":

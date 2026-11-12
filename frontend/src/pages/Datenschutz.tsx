@@ -239,7 +239,7 @@ export default function Datenschutz() {
           </li>
           <li>
             Einträge in der Kundenliste eines Ladens, auch die nach einer Buchung am Telefon oder ohne Konto angelegten,
-            löschen wir samt Notizen 12 Monate nach dem letzten Termin, ohne Termin 12 Monate nach dem Anlegen, solange
+            löschen wir samt Notizen 24 Monate nach dem letzten Termin, ohne Termin 24 Monate nach dem Anlegen, solange
             kein Konto verbunden ist. Der Laden kann sie jederzeit selbst löschen.
           </li>
           <li>

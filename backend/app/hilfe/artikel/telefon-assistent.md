@@ -21,7 +21,7 @@ Bucht jemand am Telefon, legt der Assistent ihn in deiner Kundenliste an, mit de
 
 Ruft er wieder an, begrüßt ihn der Assistent mit Namen, fragt nicht noch einmal danach und bietet ihm die Leistung vom letzten Mal an. Er kennt auch seine kommenden Termine und kann sie nennen.
 
-Alle Termine einer Person siehst du unter **„Kunden“** oben im Menü: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Mehr: [Kunden: deine Kundenkartei](/hilfe/kunden) Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 12 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
+Alle Termine einer Person siehst du unter **„Kunden“** oben im Menü: Tipp auf den Namen. Dort kannst du einen Eintrag auch löschen. Mehr: [Kunden: deine Kundenkartei](/hilfe/kunden) Ohne verbundenes Konto löscht Dranzeit ihn von selbst, wenn 24 Monate kein Termin war. Ruft jemand mit unterdrückter Nummer an, legt der Assistent keinen Eintrag an.
 
 ## Anrufliste und zurückrufen
 

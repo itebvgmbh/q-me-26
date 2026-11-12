@@ -2,7 +2,7 @@
 titel: Set up the phone assistant
 kurz: An AI answers calls when nobody in the shop picks up, offers free appointments and books them. How to try it, book it and set it up.
 stichworte: phone, call, calls, ai, assistant, phone assistant, call forwarding, forwarding, diversion, divert, voicemail, mailbox, answering machine, fritzbox, telekom, test call, trial minutes, book add-on, add-on, cost cap, cap, minutes, cancel, regulars, regular customers, customer list, recognise, call list, summary, call back, callback, missed, busy, hung up
-quelle: 670860ce4e45
+quelle: 72fad686d68e
 ---
 If nobody in the shop picks up, the phone assistant answers the call. Your customers keep dialling your usual number. All you do is set up call forwarding with your phone provider.
 
@@ -20,7 +20,7 @@ If someone books by phone, the assistant adds them to your customer list, with t
 
 If they call again, the assistant greets them by name, doesn't ask for it again and offers them the same service as last time. It also knows their upcoming appointments and can tell them about them.
 
-You can see all of a person's appointments under **“Customers”** in the menu at the top: tap the name. You can also delete an entry there. More: [Customers: your customer file](/hilfe/kunden) Without a linked account, Dranzeit deletes it automatically if there hasn't been an appointment for 12 months. If someone calls with a withheld number, the assistant doesn't create an entry.
+You can see all of a person's appointments under **“Customers”** in the menu at the top: tap the name. You can also delete an entry there. More: [Customers: your customer file](/hilfe/kunden) Without a linked account, Dranzeit deletes it automatically if there hasn't been an appointment for 24 months. If someone calls with a withheld number, the assistant doesn't create an entry.
 
 ## Call list and calling back
 

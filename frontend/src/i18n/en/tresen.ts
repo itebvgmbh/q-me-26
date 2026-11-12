@@ -208,7 +208,6 @@ const texte: Texte = {
   "Wird angelegt …": "Creating …",
 
   // components/CustomerListDialog.tsx
-  "Kunden, die in deinem Laden angelegt wurden, auch vom Telefon-Assistenten nach einer Buchung. Tipp auf einen Namen, dann siehst du die Termine. Ohne verbundenes Konto löscht Dranzeit einen Eintrag von selbst, wenn 12 Monate kein Termin war.": "Customers added in your shop, including by the phone assistant after a booking. Tap a name to see their appointments. Without a connected account, Dranzeit deletes an entry automatically after 12 months without an appointment.",
   "Vom Telefon-Assistenten angelegt": "Added by the phone assistant",
   "Die Termine konnten nicht geladen werden. Versuch es gleich noch einmal.": "Couldn't load the appointments. Please try again in a moment.",
   "Noch keine Termine.": "No appointments yet.",
@@ -406,7 +405,7 @@ const texte: Texte = {
   "Notiz zum Besuch": "Note for visit",
   "Nächster Termin: {zeit}": "Next appointment: {zeit}",
   "Ohne Konto gebucht und zugeordnet": "Booked without an account and assigned",
-  "Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 12 Monate kein Termin war.": "Without a linked account, Dranzeit deletes a customer automatically after 12 months without an appointment.",
+  "Ohne verbundenes Konto löscht Dranzeit einen Kunden von selbst, wenn 24 Monate kein Termin war.": "Without a linked account, Dranzeit deletes a customer automatically after 24 months without an appointment.",
   "Passt vielleicht": "Possible match",
   "Sieht nur dein Team, nie der Kunde. Bitte keine Angaben zur Gesundheit wie Allergien: Dafür bräuchtest du seine ausdrückliche Einwilligung.": "Only your team sees this, never the customer. Please don’t add health information such as allergies: you’d need their explicit consent for that.",
   "Stammkunden": "Regulars",

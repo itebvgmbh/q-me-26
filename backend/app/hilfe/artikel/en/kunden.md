@@ -2,7 +2,7 @@
 titel: Customers: your customer file
 kurz: Under “Customers”, you see each customer with visits, revenue and history, and keep notes, such as last time's colour formula.
 stichworte: customers, customer file, customer records, customer list, regulars, regular customers, regular, history, revenue, sales, visits, note, notes, colour formula, color formula, formula, not seen in a while, assign customer, delete customer, edit customer
-quelle: e343aa0d15cd
+quelle: d09c97267988
 ---
 **“Customers”** in the menu at the top lists all of your shop's customers. Tap a name to see how often they've been in, when they were last in, what they usually have done, and every visit with its price. Your notes are there too. Employees also find “Customers” in the menu. The tablet at the front desk doesn't show the customer file.
 
@@ -54,7 +54,7 @@ If the customer is already assigned, their name appears there. Tapping it opens 
 
 At the very bottom of the customer page, tap **“Delete customer”** and confirm with **“Yes, delete”**. Their notes are then gone, upcoming appointments are cancelled and past ones lose the name. If the customer has linked their account, only the entry disappears from your list; their appointments stay in their account.
 
-Dranzeit automatically deletes customers without a linked account if there hasn't been an appointment with them for 12 months. More: [Privacy](/hilfe/datenschutz)
+Dranzeit automatically deletes customers without a linked account if there hasn't been an appointment with them for 24 months. More: [Privacy](/hilfe/datenschutz)
 
 ## On the Free plan
 

@@ -55,7 +55,7 @@ Ist der Kunde schon zugeordnet, steht dort sein Name. Ein Tipp darauf öffnet se
 
 Tipp auf der Kundenseite ganz unten auf **„Kunden löschen“** und bestätige mit **„Ja, löschen“**. Seine Notizen sind dann weg, kommende Termine werden abgesagt, frühere verlieren den Namen. Hat der Kunde sein Konto verbunden, verschwindet nur der Eintrag aus deiner Liste, seine Termine bleiben in seinem Konto.
 
-Von selbst löscht Dranzeit Kunden ohne verbundenes Konto, wenn 12 Monate kein Termin mit ihnen war. Mehr: [Datenschutz](/hilfe/datenschutz)
+Von selbst löscht Dranzeit Kunden ohne verbundenes Konto, wenn 24 Monate kein Termin mit ihnen war. Mehr: [Datenschutz](/hilfe/datenschutz)
 
 ## Im Gratis-Tarif
 

@@ -281,7 +281,7 @@ def test_loeschen_nimmt_zugeordnete_termine_mit():
 def test_zugeordneter_termin_haelt_den_eintrag():
     from app.libs import privacy
 
-    alt = JETZT - timedelta(days=500)
+    alt = JETZT - timedelta(days=800)
     d = daten(a3=termin(-30, isAnonymous=True, kundeId="robin"))
     d["customers"]["robin"].update(createdAt=alt, updatedAt=alt)
     db = tt.Db(d)
